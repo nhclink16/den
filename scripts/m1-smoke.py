@@ -66,7 +66,9 @@ def main():
                     messages = queue.Queue()
                     def read():
                         for line in proc.stdout:
-                            messages.put(json.loads(line))
+                            event = json.loads(line)
+                            if event["type"] in ("resync", "message_created"):
+                                messages.put(event)
                     threading.Thread(target=read, daemon=True).start()
                     assert messages.get(timeout=10)["type"] == "resync"
                     return messages

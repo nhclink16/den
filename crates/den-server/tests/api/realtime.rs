@@ -1,8 +1,8 @@
 use super::*;
 
-type Socket =
+pub(super) type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-async fn socket(t: &Test, token: &str) -> Socket {
+pub(super) async fn socket(t: &Test, token: &str) -> Socket {
     let mut request = format!("{}/ws", t.url.replace("http:", "ws:"))
         .into_client_request()
         .unwrap();
@@ -14,7 +14,18 @@ async fn socket(t: &Test, token: &str) -> Socket {
 async fn event(socket: &mut Socket) -> Event {
     loop {
         match socket.next().await.unwrap().unwrap() {
-            Frame::Text(v) => return serde_json::from_str(&v).unwrap(),
+            Frame::Text(v) => {
+                let e: Event = serde_json::from_str(&v).unwrap();
+                if matches!(
+                    e,
+                    Event::MessageCreated(_)
+                        | Event::MessageEdited(_)
+                        | Event::MessageDeleted { .. }
+                        | Event::Resync { .. }
+                ) {
+                    return e;
+                }
+            }
             Frame::Ping(v) => socket.send(Frame::Pong(v)).await.unwrap(),
             _ => {}
         }
@@ -120,7 +131,14 @@ async fn websocket_filters_dms_marks_reconnect_and_closes_revoked_bot_tokens() {
                     let _ = peer.send(Frame::Pong(v)).await;
                 }
                 Some(Err(_)) => break,
-                Some(Ok(Frame::Text(_))) => panic!("revoked token received event"),
+                Some(Ok(Frame::Text(v))) => {
+                    if matches!(
+                        serde_json::from_str::<Event>(&v).unwrap(),
+                        Event::MessageCreated(_)
+                    ) {
+                        panic!("revoked token received event");
+                    }
+                }
                 _ => {}
             }
         }

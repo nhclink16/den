@@ -1,5 +1,5 @@
 use den_core::*;
-use den_server::{router, AppState};
+use den_server::AppState;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::{json, Value};
@@ -37,7 +37,7 @@ impl Test {
         )
         .await
         .unwrap();
-        let app = router(state.clone());
+        let app = den_server::router_with_web(state.clone(), dir.join("spa"));
         let task = tokio::spawn(async move {
             axum::serve(
                 listener,
@@ -122,3 +122,11 @@ mod chat;
 mod realtime;
 #[path = "api/uploads.rs"]
 mod uploads;
+
+#[path = "api/m2_live.rs"]
+mod m2_live;
+#[path = "api/m2_messages.rs"]
+mod m2_messages;
+
+#[path = "api/m2_files.rs"]
+mod m2_files;
