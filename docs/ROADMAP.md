@@ -15,7 +15,7 @@ Workspace builds, `den-server` serves `/health`, `den health` talks to it, Svelt
 - `skills/den/SKILL.md` written against the real CLI.
 Done when: two terminals can chat through the CLI, a 41-second clip uploads and streams back with range requests, and an agent can post with a bot token.
 
-## M2 — web client
+## M2 — web client (client done 2026-09-09, deploy pending)
 - Login, channel list with categories, message view, composer with markdown, replies, reactions, mentions, typing, presence.
 - Two collapsible columns, member drawer, Ctrl+K palette, settings page.
 - Unread inbox and quiet-by-default notification prefs.
@@ -25,7 +25,7 @@ Done when: two terminals can chat through the CLI, a 41-second clip uploads and 
 - Search (SQLite FTS5).
 Done when: the group can use it in a browser at a real URL instead of Discord for text.
 
-## M2.5 — iOS feasibility spike
+## M2.5 — iOS feasibility spike (next)
 Tauri 2 build of the text client plus a bare LiveKit audio call on a physical iPhone from the iMac. Test camera and mic permissions, Bluetooth audio routing, interruptions, locked-screen audio, reconnection, and a large upload. This decides Tauri vs SwiftUI for M5 before any call UI is built. (Astra)
 
 ## M3 — voice and video
