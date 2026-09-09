@@ -54,6 +54,10 @@ pub struct Message {
     pub created_at: String,
     pub edited_at: Option<String>,
     pub attachments: Vec<Upload>,
+    #[serde(default)]
+    pub reactions: Vec<Reaction>,
+    #[serde(default)]
+    pub mention_ids: Vec<Id>,
 }
 
 /// Every event pushed over the WebSocket stream. The CLI's `tail` prints these.
@@ -73,6 +77,24 @@ pub enum Event {
     Presence {
         user_id: Id,
         online: bool,
+    },
+    ReactionsUpdated {
+        message_id: Id,
+        channel_id: Id,
+        reactions: Vec<Reaction>,
+    },
+    ReadStateUpdated {
+        user_id: Id,
+        state: ChannelReadState,
+    },
+    NotificationPreferencesUpdated {
+        user_id: Id,
+        preferences: NotificationPreferences,
+    },
+    Notification {
+        user_id: Id,
+        message: Message,
+        reason: NotificationReason,
     },
     /// Reconnect or lag requires refetching channel state. No replay is promised.
     Resync {
@@ -229,4 +251,67 @@ pub struct Upload {
     pub size: i64,
     pub offset: i64,
     pub complete: bool,
+    /// Authenticated PNG preview, at most 512 by 512. None when unavailable.
+    pub thumbnail_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct Reaction {
+    pub emoji: String,
+    pub user_ids: Vec<Id>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct SetReaction {
+    pub emoji: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MarkRead {
+    pub message_id: Id,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ChannelReadState {
+    pub channel_id: Id,
+    pub last_read_id: Option<Id>,
+    pub unread_count: i64,
+    pub mention_count: i64,
+    /// Unread messages eligible under current preferences, excluding own messages.
+    pub notification_count: i64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct NotificationPreferences {
+    pub mentions: bool,
+    pub dms: bool,
+    pub subscribed_channel_ids: Vec<Id>,
+}
+impl Default for NotificationPreferences {
+    fn default() -> Self {
+        Self {
+            mentions: true,
+            dms: true,
+            subscribed_channel_ids: Vec::new(),
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NotificationReason {
+    Mention,
+    Dm,
+    SubscribedChannel,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+pub struct SearchMessages {
+    pub q: String,
+    pub channel_id: Option<Id>,
+    pub before: Option<Id>,
+    pub limit: Option<u32>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ClientEvent {
+    Typing { channel_id: Id },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PresenceState {
+    pub online_user_ids: Vec<Id>,
 }
