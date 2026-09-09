@@ -8,3 +8,4 @@ description = "Shared types for the Den API, used by the server and the CLI"
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+utoipa.workspace = true
