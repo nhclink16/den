@@ -63,9 +63,11 @@ enum Cmd {
     Invite(InviteCmd),
     /// Create or reopen a DM with the exact member set, including yourself.
     Dm {
+        /// User ULIDs or @usernames. Your own user is included automatically.
         members: Vec<String>,
     },
     Send {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
         channel: String,
         text: String,
         #[arg(long)]
@@ -74,6 +76,7 @@ enum Cmd {
         uploads: Vec<String>,
     },
     Read {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
         channel: String,
         #[arg(long)]
         before: Option<String>,
@@ -91,10 +94,12 @@ enum Cmd {
     },
     /// Print events as JSON lines; reconnects report gaps requiring a fresh read.
     Tail {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
         channel: Option<String>,
     },
     /// Upload a file; use the printed ID with --resume after interruption.
     Upload {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
         channel: String,
         file: PathBuf,
         #[arg(long)]
@@ -117,6 +122,8 @@ enum ChannelCmd {
         position: i64,
     },
     Update {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
+        #[arg(value_name = "CHANNEL")]
         id: String,
         name: String,
         #[arg(long)]
@@ -125,6 +132,8 @@ enum ChannelCmd {
         position: i64,
     },
     Delete {
+        /// Channel ULID, text channel name (general or #general), or @username for a DM.
+        #[arg(value_name = "CHANNEL")]
         id: String,
     },
 }
@@ -277,16 +286,17 @@ fn main() -> anyhow::Result<()> {
                 position,
             } => print(&c.send::<Channel>(
                 Method::PUT,
-                &format!("/channels/{}", id(&cid)?),
+                &format!("/channels/{}", c.resolve_channel(&cid)?),
                 &SaveChannel {
                     name,
                     category_id: category,
                     position,
                 },
             )?)?,
-            ChannelCmd::Delete { id: cid } => {
-                c.empty(Method::DELETE, &format!("/channels/{}", id(&cid)?))?
-            }
+            ChannelCmd::Delete { id: cid } => c.empty(
+                Method::DELETE,
+                &format!("/channels/{}", c.resolve_channel(&cid)?),
+            )?,
         },
         Cmd::Category(v) => match v {
             CategoryCmd::List => print(&c.get::<Vec<Category>>("/categories")?)?,
@@ -321,13 +331,7 @@ fn main() -> anyhow::Result<()> {
                 c.empty(Method::DELETE, &format!("/invites/{}", id(&cid)?))?
             }
         },
-        Cmd::Dm { members } => print(&c.send::<Channel>(
-            Method::POST,
-            "/dms",
-            &CreateDm {
-                member_ids: members,
-            },
-        )?)?,
+        Cmd::Dm { members } => print(&c.dm(&members)?)?,
         Cmd::Send {
             channel,
             text,
@@ -335,7 +339,7 @@ fn main() -> anyhow::Result<()> {
             uploads,
         } => print(&c.send::<Message>(
             Method::POST,
-            &format!("/channels/{}/messages", id(&channel)?),
+            &format!("/channels/{}/messages", c.resolve_channel(&channel)?),
             &CreateMessage {
                 content: text,
                 reply_to,
@@ -348,7 +352,10 @@ fn main() -> anyhow::Result<()> {
             after,
             limit,
         } => {
-            let mut path = format!("/channels/{}/messages?limit={limit}", id(&channel)?);
+            let mut path = format!(
+                "/channels/{}/messages?limit={limit}",
+                c.resolve_channel(&channel)?
+            );
             if let Some(v) = before {
                 path.push_str(&format!("&before={}", id(&v)?));
             }
@@ -365,13 +372,25 @@ fn main() -> anyhow::Result<()> {
         Cmd::Delete { message } => {
             c.empty(Method::DELETE, &format!("/messages/{}", id(&message)?))?
         }
-        Cmd::Tail { channel } => stream::tail(&c, channel)?,
+        Cmd::Tail { channel } => {
+            let channel = channel
+                .as_deref()
+                .map(|v| c.resolve_channel(v))
+                .transpose()?;
+            stream::tail(&c, channel)?;
+        }
         Cmd::Upload {
             channel,
             file,
             resume,
             content_type,
-        } => stream::upload(&c, &channel, &file, resume, content_type)?,
+        } => stream::upload(
+            &c,
+            &c.resolve_channel(&channel)?,
+            &file,
+            resume,
+            content_type,
+        )?,
         Cmd::Token(v) => match v {
             TokenCmd::Create { name, user } => print(&c.send::<TokenSecret>(
                 Method::POST,

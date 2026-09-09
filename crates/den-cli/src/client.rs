@@ -1,5 +1,5 @@
 use anyhow::{bail, Context};
-use den_core::Session;
+use den_core::{Channel, ChannelKind, CreateDm, Session, User};
 use reqwest::{blocking::Client as Http, Method, Url};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -113,6 +113,57 @@ impl Client {
     }
     pub fn get<T: DeserializeOwned>(&self, path: &str) -> anyhow::Result<T> {
         Self::decode(self.request(Method::GET, path).send()?)
+    }
+    pub fn resolve_channel(&self, value: &str) -> anyhow::Result<String> {
+        if value.starts_with('@') {
+            return Ok(self.dm(&[value.to_string()])?.id);
+        }
+        if value.len() == 26
+            && matches!(value.as_bytes()[0], b'0'..=b'7')
+            && value
+                .bytes()
+                .all(|b| b"0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(&b.to_ascii_uppercase()))
+        {
+            return Ok(value.to_string());
+        }
+        let name = value.strip_prefix('#').unwrap_or(value);
+        let channels: Vec<Channel> = self.get("/channels")?;
+        let mut matches = channels
+            .iter()
+            .filter(|c| c.kind == ChannelKind::Text && c.name == name);
+        let channel = matches
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("No text channel named {name:?}"))?;
+        anyhow::ensure!(
+            matches.next().is_none(),
+            "Ambiguous text channel name {name:?}; use a channel ULID from den channels"
+        );
+        Ok(channel.id.clone())
+    }
+    pub fn dm(&self, members: &[String]) -> anyhow::Result<Channel> {
+        let users: Vec<User> = if members.iter().any(|m| m.starts_with('@')) {
+            self.get("/users")?
+        } else {
+            Vec::new()
+        };
+        let member_ids = members
+            .iter()
+            .map(|member| {
+                let Some(username) = member.strip_prefix('@') else {
+                    return Ok(crate::id(member)?.to_string());
+                };
+                let mut matches = users.iter().filter(|u| u.username == username);
+                let user = matches
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("No user named @{username}"))?;
+                anyhow::ensure!(
+                    matches.next().is_none(),
+                    "Ambiguous username @{username}; use a user ULID from den users"
+                );
+                Ok(user.id.clone())
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        self.send(Method::POST, "/dms", &CreateDm { member_ids })
     }
     pub fn send<T: DeserializeOwned>(
         &self,
