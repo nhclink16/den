@@ -42,4 +42,5 @@ Done when: a gaming session runs on it with cams.
 
 ## M6 — deploy and integrations
 - Link previews with an SSRF-safe fetcher.
-- OpenClaw channel plugin so Clanker joins.
+- Hermes platform plugin under `integrations/hermes`: a `plugin.yaml` plus `adapter.py` implementing `BasePlatformAdapter`, installed by symlink into `~/.hermes/plugins`. Hermes is the primary agent host.
+- OpenClaw channel plugin under `integrations/openclaw`, optional, only if Clanker stays on OpenClaw.

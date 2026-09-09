@@ -17,7 +17,7 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 ## Agents
 - Bots are users with `bot = true`, a human owner, and member permissions by default. API tokens belong to a user, human or bot; a human's token posts as that human. Tokens are random, stored hashed, shown once, revocable.
 - `den` CLI wraps the REST API and the event stream (`den send`, `den tail`, ...). Skills for Claude Code and Codex wrap the CLI. No MCP server.
-- Clanker joins via an OpenClaw channel plugin (`integrations/openclaw`), after the API settles.
+- Agent hosts join through platform plugins, after the API settles. Hermes first (`integrations/hermes`, out-of-tree plugin via `BasePlatformAdapter`, zero core changes). OpenClaw second and optional (`integrations/openclaw`).
 
 ## Stack
 - Server: Rust, axum, SQLite via sqlx (WAL, foreign keys, busy timeout, small pool, query macros with committed `.sqlx` metadata). utoipa for OpenAPI; schema derives live in `den-core`, HTTP annotations in the server. TypeScript client types are generated from the spec. Single binary that also serves the SPA.

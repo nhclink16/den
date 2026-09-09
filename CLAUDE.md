@@ -9,7 +9,8 @@ Den is a self-hosted chat app for a small friend group: text channels, DMs, one 
 - `crates/den-cli` the `den` binary. Thin wrapper over the REST API. This is what scripts and agents use.
 - `apps/web` Svelte 5 + Vite SPA. Wrapped by Tauri 2 for Windows, Linux, iOS.
 - `skills/den` Claude Code skill and Codex plugin that teach an agent to use the CLI.
-- `integrations/openclaw` OpenClaw channel plugin so Clanker can join. Built after the API settles.
+- `integrations/hermes` Hermes platform plugin so a Hermes agent can join. Built after the API settles.
+- `integrations/openclaw` OpenClaw channel plugin, optional, same timing.
 - `deploy` compose file, Caddy, LiveKit config for the VPS.
 
 ## Run
