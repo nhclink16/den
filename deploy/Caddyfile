@@ -1,0 +1,9 @@
+{$DEN_DOMAIN} {
+    handle /livekit/* {
+        uri strip_prefix /livekit
+        reverse_proxy localhost:7880
+    }
+    handle {
+        reverse_proxy den:7000
+    }
+}

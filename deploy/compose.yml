@@ -1,0 +1,32 @@
+# Production layout for one VPS. Not needed for local dev.
+services:
+  den:
+    build: ..
+    restart: unless-stopped
+    environment:
+      DEN_BIND: 0.0.0.0:7000
+      DEN_DB: /data/den.db
+      DEN_UPLOADS: /data/uploads
+      LIVEKIT_URL: wss://${DEN_DOMAIN}/livekit
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+    volumes:
+      - ./data/den:/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    network_mode: host
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DEN_DOMAIN: ${DEN_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
