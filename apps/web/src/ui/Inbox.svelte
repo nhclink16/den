@@ -8,16 +8,19 @@
 
   let { onmenu, narrow }: { onmenu: () => void; narrow: boolean } = $props()
 
+  // Rooms with unread, newest first, mentions on top. Message previews come from whatever is loaded.
   const groups = $derived.by(() =>
     store.channels
       .map((c) => {
-        const last = store.lastRead[c.id] || ''
-        const msgs = (store.messages.get(c.id) || []).filter((m) => m.id > last && m.author_id !== store.me?.id)
-        return { c, msgs, mention: store.unread(c.id).mention }
+        const u = store.unread(c.id)
+        const msgs = (store.messages.get(c.id) || []).filter((m) => m.id > u.lastRead && m.author_id !== store.me?.id)
+        return { c, msgs, count: u.count, mention: u.mention }
       })
-      .filter((g) => g.msgs.length)
-      .sort((a, b) => Number(b.mention) - Number(a.mention) || b.msgs.at(-1)!.id.localeCompare(a.msgs.at(-1)!.id)),
+      .filter((g) => g.count > 0)
+      .sort((a, b) => Number(b.mention) - Number(a.mention) || (b.msgs.at(-1)?.id || '').localeCompare(a.msgs.at(-1)?.id || '')),
   )
+  // Load previews for unread rooms we haven't opened yet.
+  $effect(() => { for (const g of groups) if (!store.messages.has(g.c.id)) store.loadLatest(g.c.id) })
 
   function open(id: string) { router.go(`/c/${id}`) }
   function clearAll() { for (const g of groups) store.markRead(g.c.id) }
@@ -44,7 +47,7 @@
         <button class="title" onclick={() => open(g.c.id)}>
           {#if g.c.kind === 'dm'}<Icon name="lock" size={14} />{:else}<Icon name="hash" size={14} />{/if}
           <span class="display name">{store.title(g.c)}</span>
-          <span class="faint mono">{g.msgs.length} new</span>
+          <span class="faint mono">{g.count} new</span>
           {#if g.mention}<span class="at">mentions you</span>{/if}
         </button>
         {#each g.msgs.slice(-4) as m (m.id)}
@@ -55,7 +58,7 @@
             <span class="when faint mono">{dayLabel(m.created_at) === 'Today' ? shortTime(m.created_at) : dayLabel(m.created_at)}</span>
           </button>
         {/each}
-        {#if g.msgs.length > 4}<button class="more faint" onclick={() => open(g.c.id)}>and {g.msgs.length - 4} earlier</button>{/if}
+        {#if g.count > Math.min(g.msgs.length, 4)}<button class="more faint" onclick={() => open(g.c.id)}>and {g.count - Math.min(g.msgs.length, 4)} earlier</button>{/if}
       </div>
     {/each}
   </div>

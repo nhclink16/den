@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/channels/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["mark_read"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dms": {
         parameters: {
             query?: never;
@@ -235,13 +251,61 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["message"];
         put?: never;
         post?: never;
         delete: operations["remove"];
         options?: never;
         head?: never;
         patch: operations["edit"];
+        trace?: never;
+    };
+    "/messages/{id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["react"];
+        post?: never;
+        delete: operations["unreact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["presence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/tokens": {
@@ -340,6 +404,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/uploads/{id}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["serve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head: operations["thumbnail_head"];
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -364,6 +444,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_preferences"];
+        put: operations["put_preferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/read-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_states"];
         put?: never;
         post?: never;
         delete?: never;
@@ -430,6 +542,24 @@ export interface components {
         };
         /** @enum {string} */
         ChannelKind: "text" | "voice" | "dm";
+        ChannelReadState: {
+            channel_id: components["schemas"]["String"];
+            last_read_id?: null | components["schemas"]["String"];
+            /** Format: int64 */
+            mention_count: number;
+            /**
+             * Format: int64
+             * @description Unread messages eligible under current preferences, excluding own messages.
+             */
+            notification_count: number;
+            /** Format: int64 */
+            unread_count: number;
+        };
+        ClientEvent: {
+            channel_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "typing";
+        };
         CreateBot: {
             display_name: string;
             username: string;
@@ -478,6 +608,28 @@ export interface components {
             type: "presence";
             user_id: components["schemas"]["String"];
         } | {
+            channel_id: components["schemas"]["String"];
+            message_id: components["schemas"]["String"];
+            reactions: components["schemas"]["Reaction"][];
+            /** @enum {string} */
+            type: "reactions_updated";
+        } | {
+            state: components["schemas"]["ChannelReadState"];
+            /** @enum {string} */
+            type: "read_state_updated";
+            user_id: components["schemas"]["String"];
+        } | {
+            preferences: components["schemas"]["NotificationPreferences"];
+            /** @enum {string} */
+            type: "notification_preferences_updated";
+            user_id: components["schemas"]["String"];
+        } | {
+            message: components["schemas"]["Message"];
+            reason: components["schemas"]["NotificationReason"];
+            /** @enum {string} */
+            type: "notification";
+            user_id: components["schemas"]["String"];
+        } | {
             reason: string;
             /** @enum {string} */
             type: "resync";
@@ -498,6 +650,9 @@ export interface components {
             password: string;
             username: string;
         };
+        MarkRead: {
+            message_id: components["schemas"]["String"];
+        };
         Message: {
             attachments: components["schemas"]["Upload"][];
             author_id: components["schemas"]["String"];
@@ -506,6 +661,8 @@ export interface components {
             created_at: string;
             edited_at?: string | null;
             id: components["schemas"]["String"];
+            mention_ids?: components["schemas"]["String"][];
+            reactions?: components["schemas"]["Reaction"][];
             reply_to?: null | components["schemas"]["String"];
         };
         MessageQuery: {
@@ -513,6 +670,20 @@ export interface components {
             before?: null | components["schemas"]["String"];
             /** Format: int32 */
             limit?: number | null;
+        };
+        NotificationPreferences: {
+            dms: boolean;
+            mentions: boolean;
+            subscribed_channel_ids: components["schemas"]["String"][];
+        };
+        /** @enum {string} */
+        NotificationReason: "mention" | "dm" | "subscribed_channel";
+        PresenceState: {
+            online_user_ids: components["schemas"]["String"][];
+        };
+        Reaction: {
+            emoji: string;
+            user_ids: components["schemas"]["String"][];
         };
         Register: {
             invite: string;
@@ -532,12 +703,22 @@ export interface components {
             /** Format: int64 */
             position: number;
         };
+        SearchMessages: {
+            before?: null | components["schemas"]["String"];
+            channel_id?: null | components["schemas"]["String"];
+            /** Format: int32 */
+            limit?: number | null;
+            q: string;
+        };
         Session: {
             csrf_token: string;
             /** Format: int64 */
             expires_at: number;
             token: string;
             user: components["schemas"]["User"];
+        };
+        SetReaction: {
+            emoji: string;
         };
         String: string;
         Token: {
@@ -559,6 +740,8 @@ export interface components {
             offset: number;
             /** Format: int64 */
             size: number;
+            /** @description Authenticated PNG preview, at most 512 by 512. None when unavailable. */
+            thumbnail_url?: string | null;
         };
         User: {
             avatar_url?: string | null;
@@ -1097,6 +1280,40 @@ export interface operations {
             };
         };
     };
+    mark_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkRead"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelReadState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     dm: {
         parameters: {
             query?: never;
@@ -1217,6 +1434,36 @@ export interface operations {
             };
         };
     };
+    message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     remove: {
         parameters: {
             query?: never;
@@ -1266,6 +1513,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    react: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetReaction"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reaction"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    unreact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetReaction"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reaction"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    presence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                q: string;
+                channel_id: null | components["schemas"]["String"];
+                before: null | components["schemas"]["String"];
+                limit: number | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"][];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -1602,6 +1978,80 @@ export interface operations {
             };
         };
     };
+    serve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG thumbnail, at most 512 by 512 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    thumbnail_head: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG thumbnail, at most 512 by 512 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     users: {
         parameters: {
             query?: never;
@@ -1645,6 +2095,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferences"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    read_states: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelReadState"][];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */

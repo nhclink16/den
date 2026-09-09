@@ -14,8 +14,11 @@
   const canDelete = $derived(mine || store.me?.role === 'admin')
   const author = $derived(store.user(m.author_id))
   const html = $derived(render(m.content, store.users))
-  const parent = $derived(m.reply_to ? (store.messages.get(m.channel_id) || []).find((x) => x.id === m.reply_to) : undefined)
-  const mentionsMe = $derived(!!store.me && html.includes(`data-user="${store.me.id}"`))
+  let parent = $state<Message | undefined>()
+  $effect(() => { if (m.reply_to) store.fetchMessage(m.reply_to, m.channel_id).then((p) => (parent = p)); else parent = undefined })
+  const mentionsMe = $derived(!!store.me && (m.mention_ids || []).includes(store.me.id))
+  const QUICK = ['👍', '😂', '❤️', '🔥', '👀', '💀']
+  let picker = $state(false)
 
   function startEdit() { draft = m.content; editing = true }
   async function saveEdit(e: KeyboardEvent) {
@@ -60,8 +63,25 @@
       {#if m.attachments?.length}
         <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} />{/each}</div>
       {/if}
+      {#if m.reactions?.length}
+        <div class="reactions">
+          {#each m.reactions as r (r.emoji)}
+            <button class="rx" class:mine={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
+              <span>{r.emoji}</span><span class="n">{r.user_ids.length}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
     <div class="tools">
+      <div class="pick-wrap">
+        <button title="React" onclick={() => (picker = !picker)}>😶</button>
+        {#if picker}
+          <div class="picker" role="menu">
+            {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); picker = false }}>{e}</button>{/each}
+          </div>
+        {/if}
+      </div>
       <button title="Reply" onclick={() => onreply(m)}><Icon name="reply" /></button>
       {#if mine}<button title="Edit" onclick={startEdit}><Icon name="edit" /></button>{/if}
       {#if canDelete}<button title="Delete" class="danger" onclick={del}><Icon name="trash" /></button>{/if}
@@ -99,8 +119,16 @@
     position: absolute; right: 16px; top: -12px; display: none; gap: 2px;
     background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 2px;
   }
-  .msg:hover .tools, .msg:focus-within .tools { display: flex; }
+  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { display: flex; }
   .tools button { padding: 5px; border-radius: 4px; color: var(--ink-2); display: grid; }
   .tools button:hover { background: var(--bg-3); color: var(--ink); }
   .tools button.danger:hover { color: var(--ember); }
+  .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .rx { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); font-size: 13px; }
+  .rx:hover { border-color: var(--ink-3); }
+  .rx.mine { border-color: var(--lamp-dim); background: var(--lamp-glow); }
+  .rx .n { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .pick-wrap { position: relative; }
+  .picker { position: absolute; right: 0; top: 100%; margin-top: 4px; display: flex; gap: 2px; padding: 4px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); z-index: 3; }
+  .picker button { font-size: 17px; padding: 4px 6px; }
 </style>

@@ -18,9 +18,10 @@
     for (const u of store.users.values()) if (u.id !== store.me?.id) out.push({ id: `u-${u.id}`, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await store.openDm([u.id]); router.go(`/c/${c.id}`) } })
     out.push(
       { id: 'a-inbox', label: 'Inbox', hint: 'action', kind: 'action', run: () => router.go('/inbox') },
+      ...(q.trim().length > 1 ? [{ id: 'a-search', label: `Search messages for "${q.trim()}"`, hint: 'search', kind: 'action' as const, run: () => router.go(`/find?q=${encodeURIComponent(q.trim())}`) }] : []),
       { id: 'a-settings', label: 'Settings', hint: 'action', kind: 'action', run: () => router.go('/settings') },
-      { id: 'a-sidebar', label: store.prefs.sidebar ? 'Hide channel list' : 'Show channel list', hint: 'Ctrl+\\', kind: 'action', run: () => store.savePrefs({ sidebar: !store.prefs.sidebar }) },
-      { id: 'a-members', label: store.prefs.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.savePrefs({ members: !store.prefs.members }) },
+      { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide channel list' : 'Show channel list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
+      { id: 'a-members', label: store.layout.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.saveLayout({ members: !store.layout.members }) },
       { id: 'a-logout', label: 'Log out', hint: 'action', kind: 'action', run: () => { store.logout(); router.go('/login') } },
     )
     return out

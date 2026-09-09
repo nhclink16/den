@@ -11,7 +11,7 @@
   const list = $derived(store.messages.get(channel.id) || [])
   // Where "new" starts: the read marker as it was when this view opened. Not reactive on purpose.
   // svelte-ignore state_referenced_locally
-  const openedAt = store.lastRead[channel.id] || ''
+  const openedAt = store.unread(channel.id).lastRead
   const firstUnread = $derived(list.find((m) => m.id > openedAt && m.author_id !== store.me?.id)?.id)
 
   // Keep the newest message in view unless the reader scrolled up.

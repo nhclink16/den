@@ -4,6 +4,9 @@
   import Icon from './Icon.svelte'
   import MessageList from './MessageList.svelte'
   import Composer from './Composer.svelte'
+  import { router } from '../lib/router.svelte'
+  let q = $state('')
+  function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}&in=${channel.id}`) }
 
   let { channel, onmenu, narrow }: { channel: Channel; onmenu: () => void; narrow: boolean } = $props()
   let replyTo = $state<Message | null>(null)
@@ -11,10 +14,15 @@
   let dropped = $state<File[]>([])
 
   $effect(() => { if (!store.messages.has(channel.id)) store.loadLatest(channel.id) })
+  // Mark read while we're looking at it and the tab is visible, and again when it becomes visible.
   $effect(() => {
-    // Mark read while we're looking at it and the tab is visible.
     void store.messages.get(channel.id)
     if (document.visibilityState === 'visible') store.markRead(channel.id)
+  })
+  $effect(() => {
+    const fn = () => { if (document.visibilityState === 'visible') store.markRead(channel.id) }
+    document.addEventListener('visibilitychange', fn)
+    return () => document.removeEventListener('visibilitychange', fn)
   })
   const typing = $derived(store.typingNames(channel.id))
   const isDm = $derived(channel.kind === 'dm')
@@ -32,8 +40,9 @@
     <span class="kind">{#if isDm}<Icon name="lock" />{:else}<Icon name="hash" size={18} />{/if}</span>
     <h1 class="display">{store.title(channel)}</h1>
     <span class="spacer"></span>
+    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder={narrow ? 'Search' : `Search #${store.title(channel)}`} aria-label="Search this room" /></form>
     {#if !narrow}
-      <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.savePrefs({ members: !store.prefs.members })}><Icon name="people" /></button>
+      <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
   </header>
 
@@ -66,6 +75,11 @@
   h1 { font-size: 19px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
   .iconbtn { padding: 6px; }
+  .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; color: var(--ink-3); background: var(--bg-2); }
+  .search:focus-within { border-color: var(--line); color: var(--ink-2); }
+  .search input { background: none; border: 0; outline: 0; width: 120px; font-size: 13px; color: var(--ink); transition: width 0.15s; }
+  .search input:focus { width: 200px; }
+  .search input::placeholder { color: var(--ink-3); }
   .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
   .drop {
     position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg);

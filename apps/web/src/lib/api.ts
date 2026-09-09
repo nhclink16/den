@@ -37,5 +37,5 @@ export const api = {
   put: <T>(path: string, body?: unknown) => call<T>('PUT', path, body),
   patch: <T>(path: string, body?: unknown) => call<T>('PATCH', path, body),
   patchRaw: <T>(path: string, raw: BodyInit, headers: Record<string, string>) => call<T>('PATCH', path, undefined, raw, { 'content-type': 'application/octet-stream', ...headers }),
-  del: <T>(path: string) => call<T>('DELETE', path),
+  del: <T>(path: string, body?: unknown) => call<T>('DELETE', path, body),
 }

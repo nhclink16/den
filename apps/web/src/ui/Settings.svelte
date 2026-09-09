@@ -20,8 +20,8 @@
   let perm = $state(typeof Notification !== 'undefined' ? Notification.permission : 'denied')
   async function enable() { await notify.ask(); perm = Notification.permission }
   function toggleSub(id: string) {
-    const s = new Set(store.prefs.subscribed); s.has(id) ? s.delete(id) : s.add(id)
-    store.savePrefs({ subscribed: [...s] })
+    const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
+    store.saveNotif({ subscribed_channel_ids: [...s] })
   }
 
   // --- agents ---
@@ -117,16 +117,19 @@
             {#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}
           </div>
         {/if}
-        <label class="switch"><input type="checkbox" checked={store.prefs.sounds} onchange={(e) => store.savePrefs({ sounds: e.currentTarget.checked })} /> Play a sound</label>
+        <label class="switch"><input type="checkbox" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} /> When someone mentions me</label>
+        <label class="switch"><input type="checkbox" checked={store.notif.dms} onchange={(e) => store.saveNotif({ dms: e.currentTarget.checked })} /> Direct messages</label>
+        <label class="switch"><input type="checkbox" checked={store.layout.sounds} onchange={(e) => store.saveLayout({ sounds: e.currentTarget.checked })} /> Play a sound</label>
         <h3 class="eyebrow">Rooms you follow</h3>
+        <p class="faint small">Every message in a followed room notifies you. Follow sparingly.</p>
         {#each store.textChannels as c (c.id)}
-          <label class="switch"><input type="checkbox" checked={store.prefs.subscribed.includes(c.id)} onchange={() => toggleSub(c.id)} /> #{c.name}</label>
+          <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> #{c.name}</label>
         {/each}
 
       {:else if section === 'layout'}
         <h2 class="display">Layout</h2>
-        <label class="switch"><input type="checkbox" checked={store.prefs.sidebar} onchange={(e) => store.savePrefs({ sidebar: e.currentTarget.checked })} /> Show the room list <kbd>Ctrl+\</kbd></label>
-        <label class="switch"><input type="checkbox" checked={store.prefs.members} onchange={(e) => store.savePrefs({ members: e.currentTarget.checked })} /> Show people <kbd>Ctrl+Shift+M</kbd></label>
+        <label class="switch"><input type="checkbox" checked={store.layout.sidebar} onchange={(e) => store.saveLayout({ sidebar: e.currentTarget.checked })} /> Show the room list <kbd>Ctrl+\</kbd></label>
+        <label class="switch"><input type="checkbox" checked={store.layout.members} onchange={(e) => store.saveLayout({ members: e.currentTarget.checked })} /> Show people <kbd>Ctrl+Shift+M</kbd></label>
         <p class="muted small">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty composer.</p>
 
       {:else if section === 'agents'}

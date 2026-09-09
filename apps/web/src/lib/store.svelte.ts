@@ -1,22 +1,18 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
 import { api, setCsrf } from './api'
-import type { Category, Channel, Event, Message, Session, User } from './types'
-import { mentions } from './markdown'
+import type { Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
 
-const LAST_READ_KEY = 'den.lastRead'
-const PREFS_KEY = 'den.prefs'
+const PREFS_KEY = 'den.layout'
 
-export type Prefs = {
-  sidebar: boolean
-  members: boolean
-  subscribed: string[] // channel ids that notify on every message
-  sounds: boolean
+export type Layout = { sidebar: boolean; members: boolean; sounds: boolean }
+
+function loadLayout(): Layout {
+  const fallback: Layout = { sidebar: true, members: true, sounds: false }
+  try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
 }
 
-function loadJson<T>(key: string, fallback: T): T {
-  try { return { ...fallback, ...JSON.parse(localStorage.getItem(key) || '{}') } } catch { return fallback }
-}
+const PAGE = 50
 
 class Store {
   me = $state<User | null>(null)
@@ -24,16 +20,20 @@ class Store {
   channels = $state<Channel[]>([])
   categories = $state<Category[]>([])
   messages = $state<Map<string, Message[]>>(new Map())
+  readState = $state<Map<string, ChannelReadState>>(new Map())
+  notif = $state<NotificationPreferences>({ mentions: true, dms: true, subscribed_channel_ids: [] })
   online = $state<Set<string>>(new Set())
   typing = $state<Map<string, Map<string, number>>>(new Map()) // channel -> user -> expiry
-  lastRead = $state<Record<string, string>>(loadJson(LAST_READ_KEY, {}))
-  prefs = $state<Prefs>(loadJson(PREFS_KEY, { sidebar: true, members: true, subscribed: [], sounds: false }))
+  layout = $state<Layout>(loadLayout())
   connected = $state(false)
   ready = $state(false)
   loadingOlder = $state<Set<string>>(new Set())
   exhausted = $state<Set<string>>(new Set())
+  /** Live alerts from the server, consumed by notify. */
+  alerts = $state<Extract<Event, { type: 'notification' }>[]>([])
   private ws: WebSocket | null = null
   private backoff = 800
+  private lastTyping = new Map<string, number>()
 
   channel(id: string) { return this.channels.find((c) => c.id === id) }
   user(id: string) { return this.users.get(id) }
@@ -46,108 +46,94 @@ class Store {
     const others = (c.member_ids || []).filter((id) => id !== this.me?.id)
     return others.length ? others.map((id) => this.name(id)).join(', ') : 'Just you'
   }
-
   title(c: Channel) { return c.kind === 'dm' ? this.dmTitle(c) : c.name }
 
-  // Unread: last message id vs the last id we marked read. IDs are ULIDs, so string compare works.
-  unread(channelId: string): { count: number; mention: boolean } {
-    const msgs = this.messages.get(channelId) || []
-    const last = this.lastRead[channelId] || ''
-    let count = 0, mention = false
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i]!
-      if (m.id <= last) break
-      if (m.author_id === this.me?.id) continue
-      count++
-      if (this.me && mentions(m.content, this.users).includes(this.me.id)) mention = true
-    }
-    return { count, mention }
+  unread(channelId: string) {
+    const s = this.readState.get(channelId)
+    return { count: s?.unread_count ?? 0, mention: (s?.mention_count ?? 0) > 0, lastRead: s?.last_read_id ?? '' }
   }
+  get totalUnread() { let n = 0; for (const s of this.readState.values()) n += s.unread_count; return n }
 
-  markRead(channelId: string) {
-    const msgs = this.messages.get(channelId)
-    const last = msgs?.at(-1)?.id
-    if (!last || this.lastRead[channelId] === last) return
-    this.lastRead = { ...this.lastRead, [channelId]: last }
-    localStorage.setItem(LAST_READ_KEY, JSON.stringify(this.lastRead))
+  async markRead(channelId: string) {
+    const last = this.messages.get(channelId)?.at(-1)?.id
+    const cur = this.readState.get(channelId)
+    if (!last || (cur && cur.last_read_id && cur.last_read_id >= last && cur.unread_count === 0)) return
+    // Optimistic: the server confirms with read_state_updated.
+    this.setRead({ channel_id: channelId, last_read_id: last, unread_count: 0, mention_count: 0, notification_count: 0 })
+    try { this.setRead(await api.put<ChannelReadState>(`/channels/${channelId}/read`, { message_id: last })) } catch { /* resync will fix it */ }
   }
+  private setRead(s: ChannelReadState) { this.readState = new Map(this.readState).set(s.channel_id, s) }
 
-  savePrefs(patch: Partial<Prefs>) {
-    this.prefs = { ...this.prefs, ...patch }
-    localStorage.setItem(PREFS_KEY, JSON.stringify(this.prefs))
+  saveLayout(patch: Partial<Layout>) {
+    this.layout = { ...this.layout, ...patch }
+    localStorage.setItem(PREFS_KEY, JSON.stringify(this.layout))
+  }
+  async saveNotif(patch: Partial<NotificationPreferences>) {
+    this.notif = await api.put<NotificationPreferences>('/users/me/notification-preferences', { ...this.notif, ...patch })
   }
 
   // --- session ---
   async login(username: string, password: string) {
     const s = await api.post<Session>('/auth/login', { username, password })
-    setCsrf(s.csrf_token)
-    this.me = s.user
+    setCsrf(s.csrf_token); this.me = s.user
     await this.boot()
   }
-
   async register(username: string, password: string, invite: string) {
     const s = await api.post<Session>('/auth/register', { username, password, invite })
-    setCsrf(s.csrf_token)
-    this.me = s.user
+    setCsrf(s.csrf_token); this.me = s.user
     await this.boot()
   }
-
   async logout() {
     try { await api.post('/auth/logout') } catch { /* already gone */ }
-    setCsrf(null)
-    this.ws?.close()
-    this.me = null
-    this.ready = false
+    setCsrf(null); this.ws?.close(); this.me = null; this.ready = false
   }
-
   async resume(): Promise<boolean> {
-    try {
-      this.me = await api.get<User>('/users/me')
-      await this.boot()
-      return true
-    } catch {
-      return false
-    }
+    try { this.me = await api.get<User>('/users/me'); await this.boot(); return true } catch { return false }
   }
-
-  private async boot() {
-    await this.resync()
-    this.ready = true
-    this.connect()
-  }
+  private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories] = await Promise.all([
+    const [users, channels, categories, read, notif, presence] = await Promise.all([
       api.get<User[]>('/users'),
       api.get<Channel[]>('/channels'),
       api.get<Category[]>('/categories'),
+      api.get<ChannelReadState[]>('/users/me/read-state'),
+      api.get<NotificationPreferences>('/users/me/notification-preferences'),
+      api.get<PresenceState>('/presence'),
     ])
     this.users = new Map(users.map((u) => [u.id, u]))
     this.channels = channels
     this.categories = categories.sort((a, b) => a.position - b.position)
-    // Refresh the tail of every channel we already had, so unread counts survive a reconnect.
-    await Promise.all(channels.map((c) => this.loadLatest(c.id)))
+    this.readState = new Map(read.map((s) => [s.channel_id, s]))
+    this.notif = notif
+    this.online = new Set(presence.online_user_ids)
+    // Refresh the tail of channels we already had open so the view is current after a gap.
+    await Promise.all([...this.messages.keys()].filter((id) => channels.some((c) => c.id === id)).map((id) => this.loadLatest(id)))
   }
 
   // --- messages ---
   async loadLatest(channelId: string) {
-    const page = await api.get<Message[]>(`/channels/${channelId}/messages?limit=50`)
+    const page = await api.get<Message[]>(`/channels/${channelId}/messages?limit=${PAGE}`)
     this.messages = new Map(this.messages).set(channelId, page)
-    if (page.length < 50) this.exhausted = new Set(this.exhausted).add(channelId)
+    if (page.length < PAGE) this.exhausted = new Set(this.exhausted).add(channelId)
   }
-
   async loadOlder(channelId: string) {
-    const cur = this.messages.get(channelId) || []
-    const first = cur[0]
+    const first = this.messages.get(channelId)?.[0]
     if (!first || this.loadingOlder.has(channelId) || this.exhausted.has(channelId)) return
     this.loadingOlder = new Set(this.loadingOlder).add(channelId)
     try {
-      const page = await api.get<Message[]>(`/channels/${channelId}/messages?limit=50&before=${first.id}`)
-      this.messages = new Map(this.messages).set(channelId, [...page, ...cur])
-      if (page.length < 50) this.exhausted = new Set(this.exhausted).add(channelId)
+      const page = await api.get<Message[]>(`/channels/${channelId}/messages?limit=${PAGE}&before=${first.id}`)
+      this.messages = new Map(this.messages).set(channelId, [...page, ...(this.messages.get(channelId) || [])])
+      if (page.length < PAGE) this.exhausted = new Set(this.exhausted).add(channelId)
     } finally {
       const s = new Set(this.loadingOlder); s.delete(channelId); this.loadingOlder = s
     }
+  }
+  /** A message by id, from cache or the server. Used for reply parents outside the loaded page. */
+  async fetchMessage(id: string, channelId: string): Promise<Message | undefined> {
+    const hit = this.messages.get(channelId)?.find((m) => m.id === id)
+    if (hit) return hit
+    try { return await api.get<Message>(`/messages/${id}`) } catch { return undefined }
   }
 
   async send(channelId: string, content: string, opts: { reply_to?: string; upload_ids?: string[] } = {}) {
@@ -155,14 +141,21 @@ class Store {
     this.upsert(m)
     this.markRead(channelId)
   }
+  async edit(id: string, content: string) { this.upsert(await api.patch<Message>(`/messages/${id}`, { content })) }
+  async remove(id: string, channelId: string) { await api.del(`/messages/${id}`); this.drop(id, channelId) }
 
-  async edit(id: string, content: string) {
-    this.upsert(await api.patch<Message>(`/messages/${id}`, { content }))
+  async react(m: Message, emoji: string) {
+    const mine = m.reactions?.find((r) => r.emoji === emoji)?.user_ids.includes(this.me!.id)
+    const reactions = mine
+      ? await api.del<Reaction[]>(`/messages/${m.id}/reactions`, { emoji })
+      : await api.put<Reaction[]>(`/messages/${m.id}/reactions`, { emoji })
+    this.setReactions(m.channel_id, m.id, reactions)
   }
-
-  async remove(id: string, channelId: string) {
-    await api.del(`/messages/${id}`)
-    this.drop(id, channelId)
+  private setReactions(channelId: string, id: string, reactions: Reaction[]) {
+    const list = this.messages.get(channelId)
+    const i = list?.findIndex((x) => x.id === id) ?? -1
+    if (!list || i < 0) return
+    this.messages = new Map(this.messages).set(channelId, list.with(i, { ...list[i]!, reactions }))
   }
 
   async openDm(userIds: string[]) {
@@ -172,17 +165,21 @@ class Store {
     return c
   }
 
-  private upsert(m: Message) {
-    const list = this.messages.get(m.channel_id) || []
-    const i = list.findIndex((x) => x.id === m.id)
-    const next = i >= 0 ? list.with(i, m) : [...list, m]
-    this.messages = new Map(this.messages).set(m.channel_id, next)
+  async search(q: string, channelId?: string): Promise<Message[]> {
+    const p = new URLSearchParams({ q, limit: '50' })
+    if (channelId) p.set('channel_id', channelId)
+    return api.get<Message[]>(`/search/messages?${p}`)
   }
 
+  private upsert(m: Message) {
+    const list = this.messages.get(m.channel_id)
+    if (!list) return // not loaded; read state carries the unread count
+    const i = list.findIndex((x) => x.id === m.id)
+    this.messages = new Map(this.messages).set(m.channel_id, i >= 0 ? list.with(i, m) : [...list, m])
+  }
   private drop(id: string, channelId: string) {
     const list = this.messages.get(channelId)
-    if (!list) return
-    this.messages = new Map(this.messages).set(channelId, list.filter((x) => x.id !== id))
+    if (list) this.messages = new Map(this.messages).set(channelId, list.filter((x) => x.id !== id))
   }
 
   // --- realtime ---
@@ -191,45 +188,53 @@ class Store {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(`${proto}://${location.host}/ws`)
     this.ws = ws
-    ws.onopen = () => {
-      this.connected = true; this.backoff = 800
-      // Until the server broadcasts presence, at least light up yourself.
-      if (this.me) this.online = new Set(this.online).add(this.me.id)
-    }
+    ws.onopen = () => { this.connected = true; this.backoff = 800 }
     ws.onmessage = (e) => this.handle(JSON.parse(e.data) as Event)
     ws.onclose = () => {
-      this.connected = false
-      this.ws = null
+      this.connected = false; this.ws = null
       if (!this.me) return
       setTimeout(() => this.connect(), this.backoff)
       this.backoff = Math.min(this.backoff * 2, 15_000)
     }
   }
 
+  /** Tell the room you're typing. The server rate-limits to one per two seconds per channel. */
+  sendTyping(channelId: string) {
+    const now = Date.now()
+    if (now - (this.lastTyping.get(channelId) || 0) < 2000 || this.ws?.readyState !== WebSocket.OPEN) return
+    this.lastTyping.set(channelId, now)
+    this.ws.send(JSON.stringify({ type: 'typing', channel_id: channelId }))
+  }
+
   private async handle(ev: Event) {
     switch (ev.type) {
-      case 'resync': {
-        if (this.ready) await this.resync()
-        break
-      }
+      case 'resync': if (this.ready) await this.resync(); break
       case 'message_created':
       case 'message_edited': {
         const { type: _t, ...m } = ev
         if (!this.channels.some((c) => c.id === m.channel_id)) await this.resync()
         else this.upsert(m as Message)
+        if (ev.type === 'message_created') { // they stopped typing
+          const chan = this.typing.get(m.channel_id)
+          if (chan?.has(m.author_id)) { const c = new Map(chan); c.delete(m.author_id); this.typing = new Map(this.typing).set(m.channel_id, c) }
+        }
         break
       }
       case 'message_deleted': this.drop(ev.id, ev.channel_id); break
+      case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
+      case 'read_state_updated': this.setRead(ev.state); break
+      case 'notification_preferences_updated': this.notif = ev.preferences; break
+      case 'notification': this.alerts = [...this.alerts.slice(-20), ev]; break
       case 'presence': {
-        const s = new Set(this.online)
-        ev.online ? s.add(ev.user_id) : s.delete(ev.user_id)
-        this.online = s
+        const s = new Set(this.online); ev.online ? s.add(ev.user_id) : s.delete(ev.user_id); this.online = s
         break
       }
       case 'typing': {
+        if (ev.user_id === this.me?.id) break
         const chan = new Map(this.typing.get(ev.channel_id) || [])
-        chan.set(ev.user_id, Date.now() + 6000)
+        chan.set(ev.user_id, Date.now() + 5000)
         this.typing = new Map(this.typing).set(ev.channel_id, chan)
+        setTimeout(() => { this.typing = new Map(this.typing) }, 5100) // re-evaluate expiries
         break
       }
     }
@@ -237,7 +242,7 @@ class Store {
 
   typingNames(channelId: string): string[] {
     const now = Date.now()
-    return [...(this.typing.get(channelId) || [])].filter(([id, t]) => t > now && id !== this.me?.id).map(([id]) => this.name(id))
+    return [...(this.typing.get(channelId) || [])].filter(([, t]) => t > now).map(([id]) => this.name(id))
   }
 }
 

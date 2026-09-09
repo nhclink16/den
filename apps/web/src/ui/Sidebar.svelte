@@ -4,7 +4,7 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
 
-  const inboxCount = $derived(store.channels.reduce((n, c) => n + store.unread(c.id).count, 0))
+  const inboxCount = $derived(store.totalUnread)
   const uncategorized = $derived(store.textChannels.filter((c) => !c.category_id))
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path) }

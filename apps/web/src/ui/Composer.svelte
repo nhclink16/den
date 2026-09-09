@@ -53,7 +53,7 @@
     }
   }
 
-  function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px' }
+  function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
 
   async function submit() {
     const content = text.trim()

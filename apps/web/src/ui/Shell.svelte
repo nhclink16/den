@@ -7,6 +7,7 @@
   import Inbox from './Inbox.svelte'
   import Settings from './Settings.svelte'
   import Palette from './Palette.svelte'
+  import Search from './Search.svelte'
   import { notify } from '../lib/notify.svelte'
 
   let palette = $state(false)
@@ -26,18 +27,18 @@
   function key(e: KeyboardEvent) {
     const mod = e.ctrlKey || e.metaKey
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
-    else if (mod && e.key === '\\') { e.preventDefault(); store.savePrefs({ sidebar: !store.prefs.sidebar }) }
-    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.savePrefs({ members: !store.prefs.members }) }
+    else if (mod && e.key === '\\') { e.preventDefault(); store.saveLayout({ sidebar: !store.layout.sidebar }) }
+    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.saveLayout({ members: !store.layout.members }) }
     else if (e.key === 'Escape' && palette) palette = false
   }
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
-  const showMembers = $derived(!narrow && store.prefs.members && !!currentChannel)
-  const showSidebar = $derived(narrow ? drawer : store.prefs.sidebar)
+  const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
+  const showSidebar = $derived(narrow ? drawer : store.layout.sidebar)
 
   // Title badge: total unread across channels.
   $effect(() => {
-    const total = store.channels.reduce((n, c) => n + store.unread(c.id).count, 0)
+    const total = store.totalUnread
     document.title = total ? `(${total}) Den` : 'Den'
   })
 
@@ -63,6 +64,8 @@
       {/if}
     {:else if router.route.name === 'inbox'}
       <Inbox onmenu={() => (drawer = !drawer)} {narrow} />
+    {:else if router.route.name === 'search'}
+      <Search q={router.route.q} channelId={router.route.channel} onmenu={() => (drawer = !drawer)} {narrow} />
     {:else if router.route.name === 'settings'}
       <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
     {/if}
