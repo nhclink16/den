@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id,channel_id,filename,content_type,size,offset,complete as \"complete: bool\" FROM uploads WHERE message_id=? ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "filename",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_type",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "size",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "offset",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "complete: bool",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ad97ac274927ee901ec509cf339d8fec54b52d2019e791cfd7a240099da1c7d7"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE uploads SET message_id=? WHERE id=? AND channel_id=? AND owner_id=? AND complete=1 AND message_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "bb13008cb5f8037ca25eced3e26310691bbf83d74bb60f3154f87de82e502b94"
+}

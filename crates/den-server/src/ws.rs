@@ -2,17 +2,38 @@ use crate::{auth::Auth, chat::visible, *};
 use axum::extract::ws::{Message as Frame, WebSocket, WebSocketUpgrade};
 
 #[utoipa::path(get,path="/ws",responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
-pub(crate) async fn connect(State(s):State<AppState>,a:Auth,ws:WebSocketUpgrade)->Response {
-    let rx=s.events.subscribe();
-    ws.max_message_size(4096).max_frame_size(4096).on_upgrade(move |socket|run(s,a,socket,rx))
+pub(crate) async fn connect(State(s): State<AppState>, a: Auth, ws: WebSocketUpgrade) -> Response {
+    let rx = s.events.subscribe();
+    ws.max_message_size(4096)
+        .max_frame_size(4096)
+        .on_upgrade(move |socket| run(s, a, socket, rx))
 }
-async fn event(socket:&mut WebSocket,event:&Event)->bool {
-    let Ok(json)=serde_json::to_string(event) else {return false;};
-    matches!(tokio::time::timeout(Duration::from_secs(5),socket.send(Frame::Text(json.into()))).await,Ok(Ok(())))
+async fn event(socket: &mut WebSocket, event: &Event) -> bool {
+    let Ok(json) = serde_json::to_string(event) else {
+        return false;
+    };
+    matches!(
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            socket.send(Frame::Text(json.into()))
+        )
+        .await,
+        Ok(Ok(()))
+    )
 }
-async fn run(s:AppState,a:Auth,mut socket:WebSocket,mut rx:broadcast::Receiver<Event>) {
-    if !event(&mut socket,&Event::Resync{reason:"connected; refetch channel state".into()}).await {return;}
-    let mut timer=tokio::time::interval(Duration::from_secs(5));let mut last_seen=Instant::now();
+async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Receiver<Event>) {
+    if !event(
+        &mut socket,
+        &Event::Resync {
+            reason: "connected; refetch channel state".into(),
+        },
+    )
+    .await
+    {
+        return;
+    }
+    let mut timer = tokio::time::interval(Duration::from_secs(5));
+    let mut last_seen = Instant::now();
     loop {
         tokio::select! {
             _=timer.tick()=>{
@@ -38,5 +59,5 @@ async fn run(s:AppState,a:Auth,mut socket:WebSocket,mut rx:broadcast::Receiver<E
             }
         }
     }
-    let _=tokio::time::timeout(Duration::from_secs(1),socket.send(Frame::Close(None))).await;
+    let _ = tokio::time::timeout(Duration::from_secs(1), socket.send(Frame::Close(None))).await;
 }
