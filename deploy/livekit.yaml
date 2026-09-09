@@ -4,6 +4,11 @@ rtc:
   port_range_start: 50000
   port_range_end: 50200
   use_external_ip: true
+turn:
+  enabled: true
+  domain: rtc.example.com
+  tls_port: 5349
+  udp_port: 3478
 keys:
-  # replace with `livekit-server generate-keys`
-  devkey: devsecret
+  # generated at deploy time from .env, see deploy/README once it exists
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}

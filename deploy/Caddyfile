@@ -1,9 +1,8 @@
 {$DEN_DOMAIN} {
-    handle /livekit/* {
-        uri strip_prefix /livekit
-        reverse_proxy localhost:7880
-    }
-    handle {
-        reverse_proxy den:7000
-    }
+    reverse_proxy den:7000
+}
+
+rtc.{$DEN_DOMAIN} {
+    # LiveKit runs with host networking; reach it through the docker host gateway.
+    reverse_proxy host.docker.internal:7880
 }
