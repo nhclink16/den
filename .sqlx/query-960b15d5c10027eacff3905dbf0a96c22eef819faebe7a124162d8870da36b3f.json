@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE uploads SET thumbnail_ready=1 WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "960b15d5c10027eacff3905dbf0a96c22eef819faebe7a124162d8870da36b3f"
+}

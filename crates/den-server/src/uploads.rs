@@ -8,8 +8,8 @@ use axum::{
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tower::ServiceExt;
 
-async fn load(s: &AppState, id: &str) -> Result<Upload> {
-    Ok(sqlx::query_as!(Upload,"SELECT id,channel_id,filename,content_type,size,offset,complete as \"complete: bool\" FROM uploads WHERE id=?",id).fetch_one(&s.db).await?)
+pub(crate) async fn load(s: &AppState, id: &str) -> Result<Upload> {
+    Ok(sqlx::query_as!(Upload,"SELECT id,channel_id,filename,content_type,size,offset,complete as \"complete: bool\", CASE WHEN thumbnail_ready=1 THEN '/uploads/'||id||'/thumbnail' END as \"thumbnail_url?: String\" FROM uploads WHERE id=?",id).fetch_one(&s.db).await?)
 }
 async fn owned(s: &AppState, a: &Auth, id: &str) -> Result<Upload> {
     let row = load(s, id).await?;
@@ -155,7 +155,9 @@ pub(crate) async fn complete(
     let _guard = s.writes.lock().await;
     let row = owned(&s, &a, &id).await?;
     if row.complete {
-        return Ok(Json(row));
+        drop(_guard);
+        thumbnails::generate(&s, &row).await?;
+        return Ok(Json(load(&s, &id).await?));
     }
     if row.offset != row.size {
         return Err(Error::conflict("Upload is incomplete"));
@@ -182,6 +184,9 @@ pub(crate) async fn complete(
     )
     .execute(&s.db)
     .await?;
+    drop(_guard);
+    let row = load(&s, &id).await?;
+    thumbnails::generate(&s, &row).await?;
     Ok(Json(load(&s, &id).await?))
 }
 #[utoipa::path(get,path="/uploads/{id}/file",params(("id"=String,Path),("Range"=Option<String>,Header)),responses((status=200,description="File bytes"),(status=206,description="Requested byte range"),(status=416,description="Unsatisfiable range")))]

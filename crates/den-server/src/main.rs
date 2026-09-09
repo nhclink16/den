@@ -1,4 +1,4 @@
-use den_server::{router, AppState};
+use den_server::{router_with_web, AppState};
 use std::{net::SocketAddr, path::PathBuf};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -38,7 +38,11 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(%addr, "den-server listening");
     axum::serve(
         listener,
-        router(state).into_make_service_with_connect_info::<SocketAddr>(),
+        router_with_web(
+            state,
+            PathBuf::from(std::env::var("DEN_WEB_DIR").unwrap_or_else(|_| "apps/web/dist".into())),
+        )
+        .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .with_graceful_shutdown(async {
         let _ = tokio::signal::ctrl_c().await;

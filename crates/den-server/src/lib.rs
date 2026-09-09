@@ -1,8 +1,13 @@
+mod activity;
 mod auth;
 mod chat;
 mod credentials;
+mod inbox;
+mod messages;
 mod openapi;
+mod thumbnails;
 mod uploads;
+mod web;
 mod ws;
 
 use axum::{
@@ -38,6 +43,8 @@ pub struct Inner {
     pub events: broadcast::Sender<Event>,
     pub writes: Mutex<()>,
     pub attempts: Mutex<HashMap<String, (Instant, u32)>>,
+    pub presence: std::sync::Mutex<HashMap<String, usize>>,
+    pub thumbnails: Arc<tokio::sync::Semaphore>,
     pub ids: std::sync::Mutex<ulid::Generator>,
 }
 impl std::ops::Deref for AppState {
@@ -107,7 +114,7 @@ impl AppState {
             }
         }
         let (events, _) = broadcast::channel(256);
-        Ok(Self(Arc::new(Inner {
+        let state = Self(Arc::new(Inner {
             db,
             uploads,
             bootstrap,
@@ -116,8 +123,14 @@ impl AppState {
             events,
             writes: Mutex::new(()),
             attempts: Mutex::new(HashMap::new()),
+            presence: std::sync::Mutex::new(HashMap::new()),
+            thumbnails: Arc::new(tokio::sync::Semaphore::new(1)),
             ids: std::sync::Mutex::new(ulid::Generator::new()),
-        })))
+        }));
+        activity::backfill(&state)
+            .await
+            .map_err(|e| anyhow::anyhow!("Mention indexing failed: {}", e.2))?;
+        Ok(state)
     }
     pub(crate) fn id(&self) -> String {
         self.ids
@@ -133,6 +146,9 @@ impl AppState {
 }
 
 pub fn router(state: AppState) -> Router {
+    router_with_web(state, PathBuf::from("apps/web/dist"))
+}
+pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/openapi.json", get(openapi::serve))
@@ -168,17 +184,36 @@ pub fn router(state: AppState) -> Router {
         .route("/dms", post(chat::dm))
         .route(
             "/channels/{id}/messages",
-            get(chat::messages).post(chat::send),
+            get(messages::messages).post(messages::send),
         )
         .route(
             "/messages/{id}",
-            axum::routing::patch(chat::edit).delete(chat::remove),
+            get(activity::message)
+                .patch(messages::edit)
+                .delete(messages::remove),
+        )
+        .route(
+            "/messages/{id}/reactions",
+            axum::routing::put(activity::react).delete(activity::unreact),
+        )
+        .route("/channels/{id}/read", axum::routing::put(inbox::mark_read))
+        .route("/users/me/read-state", get(inbox::read_states))
+        .route(
+            "/users/me/notification-preferences",
+            get(inbox::get_preferences).put(inbox::put_preferences),
+        )
+        .route("/search/messages", get(activity::search))
+        .route("/presence", get(ws::presence))
+        .route(
+            "/uploads/{id}/thumbnail",
+            get(thumbnails::serve).head(thumbnails::serve),
         )
         .route("/uploads", post(uploads::begin))
         .route("/uploads/{id}", get(uploads::status).patch(uploads::chunk))
         .route("/uploads/{id}/complete", post(uploads::complete))
         .route("/uploads/{id}/file", get(uploads::file).head(uploads::file))
         .route("/ws", get(ws::connect))
+        .fallback(move |req: Request| web::serve(web_dir.clone(), req))
         .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024))
         .layer(axum::middleware::map_response(
             |mut response: Response| async move {

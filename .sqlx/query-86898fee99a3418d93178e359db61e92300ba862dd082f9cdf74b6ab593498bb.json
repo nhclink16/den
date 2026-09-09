@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,channel_id,filename,content_type,size,offset,complete as \"complete: bool\" FROM uploads WHERE id=?",
+  "query": "SELECT id,channel_id,filename,content_type,size,offset,complete as \"complete: bool\", CASE WHEN thumbnail_ready=1 THEN '/uploads/'||id||'/thumbnail' END as \"thumbnail_url?: String\" FROM uploads WHERE id=?",
   "describe": {
     "columns": [
       {
@@ -37,6 +37,11 @@
         "name": "complete: bool",
         "ordinal": 6,
         "type_info": "Integer"
+      },
+      {
+        "name": "thumbnail_url?: String",
+        "ordinal": 7,
+        "type_info": "Null"
       }
     ],
     "parameters": {
@@ -49,8 +54,9 @@
       false,
       false,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "f59c74911197929b3dca751d12f4b40eae3d7a9615c6d3aa5be108e45a2e0b78"
+  "hash": "86898fee99a3418d93178e359db61e92300ba862dd082f9cdf74b6ab593498bb"
 }

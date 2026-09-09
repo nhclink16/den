@@ -5,7 +5,7 @@ use utoipa::OpenApi;
     info(
         title = "Den API",
         version = "0.1.0",
-        description = "M1 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs."
+        description = "M2 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs."
     ),
     paths(
         health,
@@ -31,15 +31,25 @@ use utoipa::OpenApi;
         chat::update_channel,
         chat::delete_channel,
         chat::dm,
-        chat::messages,
-        chat::send,
-        chat::edit,
-        chat::remove,
+        messages::messages,
+        messages::send,
+        messages::edit,
+        messages::remove,
         uploads::begin,
         uploads::status,
         uploads::chunk,
         uploads::complete,
         uploads::file,
+        activity::message,
+        activity::react,
+        activity::unreact,
+        activity::search,
+        inbox::get_preferences,
+        inbox::put_preferences,
+        inbox::read_states,
+        inbox::mark_read,
+        ws::presence,
+        thumbnails::serve,
         ws::connect
     ),
     components(schemas(
@@ -70,7 +80,16 @@ use utoipa::OpenApi;
         CreateMessage,
         EditMessage,
         MessageQuery,
-        BeginUpload
+        BeginUpload,
+        Reaction,
+        SetReaction,
+        MarkRead,
+        ChannelReadState,
+        NotificationPreferences,
+        NotificationReason,
+        SearchMessages,
+        ClientEvent,
+        PresenceState
     ))
 )]
 struct Api;
@@ -115,10 +134,17 @@ pub(crate) async fn serve() -> Json<utoipa::openapi::OpenApi> {
             }
             op.responses.responses.insert("default".into(), ResponseBuilder::new().description("API error; invalid input, authentication, permissions, conflict, throttling or storage failure").content("application/json",Content::new(Some(Ref::from_schema_name("ApiError")))).build().into());
         }
-        if path == "/uploads/{id}/file" {
+        if path == "/uploads/{id}/file" || path == "/uploads/{id}/thumbnail" {
             item.head = item.get.clone();
             if let Some(op) = &mut item.head {
-                op.operation_id = Some("file_head".into());
+                op.operation_id = Some(
+                    if path.ends_with("thumbnail") {
+                        "thumbnail_head"
+                    } else {
+                        "file_head"
+                    }
+                    .into(),
+                );
             }
         }
     }
