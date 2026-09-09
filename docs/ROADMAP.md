@@ -19,7 +19,7 @@ Done when: two terminals can chat through the CLI and an agent can post with a b
 - Login, channel list with categories, message view, composer with markdown, replies, reactions, mentions, typing, presence.
 - Two collapsible columns, member drawer, Ctrl+K palette, settings page.
 - Unread inbox and quiet-by-default notification prefs.
-- Uploads (local disk, size cap) and link previews.
+- Uploads: chunked, 1 GB default cap, range-served, inline video/audio players, image thumbnails. Link previews.
 - Search (SQLite FTS5).
 Done when: the group can use it in a browser instead of Discord for text.
 
