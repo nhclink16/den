@@ -26,7 +26,7 @@ Done when: two terminals can chat through the CLI, a 41-second clip uploads and 
 Done when: the group can use it in a browser at a real URL instead of Discord for text.
 
 ## M2.5 — iOS feasibility spike
-Tauri 2 build of the text client on a physical iPhone from the iMac. Test camera and mic permissions, Bluetooth audio routing, interruptions, locked-screen audio, reconnection, and a large upload. This decides Tauri vs SwiftUI for M5 before any call UI is built. (Astra)
+Tauri 2 build of the text client plus a bare LiveKit audio call on a physical iPhone from the iMac. Test camera and mic permissions, Bluetooth audio routing, interruptions, locked-screen audio, reconnection, and a large upload. This decides Tauri vs SwiftUI for M5 before any call UI is built. (Astra)
 
 ## M3 — voice and video
 - LiveKit in compose, server mints tokens, hangout room and DM calls.

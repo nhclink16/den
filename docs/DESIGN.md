@@ -23,8 +23,8 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - Server: Rust, axum, SQLite via sqlx (WAL, foreign keys, busy timeout, small pool, query macros with committed `.sqlx` metadata). utoipa for OpenAPI; schema derives live in `den-core`, HTTP annotations in the server. TypeScript client types are generated from the spec. Single binary that also serves the SPA.
 - IDs are ULIDs, so they sort by creation time. Pagination is by id.
 - Realtime: one WebSocket per client carrying `den_core::Event`, used by both the web client and `den tail`. Heartbeat, reconnect with backoff, and a resync-by-refetch after a gap; no durable event replay. Events are filtered by channel membership. `tail` emits JSON lines and reports gaps.
-- Media: LiveKit self-hosted, pinned version, host networking. Signaling goes through Caddy on `rtc.<domain>`, WebRTC media ports exposed directly, built-in TURN enabled for restrictive networks. Server mints room tokens; membership is checked before minting.
+- Media: LiveKit self-hosted, pinned version, host networking. Signaling goes through Caddy on `rtc.<domain>`, WebRTC media ports exposed directly, built-in TURN enabled for restrictive networks, with TURN/TLS on 443 of the `rtc` host and its own cert, wired up at deploy time in M2. Server mints room tokens; membership is checked before minting.
 - Client: Svelte 5 + Vite SPA, Tauri 2 shells for Windows, Linux, iOS. iOS work happens on the iMac.
 - Push: APNs once an Apple developer account exists.
-- Hosting: Hetzner Ashburn (~$8/mo), compose with Caddy for TLS, nightly backup of the SQLite file and uploads off-box, with a restore drill before friends move over. A reachable TLS deployment is part of M2, so the domain gets bought then.
+- Hosting: Hetzner Ashburn (~$8/mo), compose with Caddy for TLS, nightly backup using `VACUUM INTO` or the sqlite3 `.backup` command for a consistent snapshot under WAL, plus uploads, shipped off-box, with a restore drill before friends move over. A reachable TLS deployment is part of M2, so the domain gets bought then.
 - Link previews wait until the fetcher is SSRF-safe (deny private ranges, size and time limits).
