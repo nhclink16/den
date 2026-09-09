@@ -1,0 +1,98 @@
+<script lang="ts">
+  import { store } from '../lib/store.svelte'
+  import { router } from '../lib/router.svelte'
+  import Sidebar from './Sidebar.svelte'
+  import ChannelView from './ChannelView.svelte'
+  import Members from './Members.svelte'
+  import Inbox from './Inbox.svelte'
+  import Settings from './Settings.svelte'
+  import Palette from './Palette.svelte'
+  import { notify } from '../lib/notify.svelte'
+
+  let palette = $state(false)
+  let narrow = $state(matchMedia('(max-width: 900px)').matches)
+  let drawer = $state(false) // sidebar as overlay on narrow screens
+
+  $effect(() => {
+    const mq = matchMedia('(max-width: 900px)')
+    const fn = () => { narrow = mq.matches; drawer = false }
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  })
+
+  // Close the drawer when a route changes on narrow screens.
+  $effect(() => { void router.route; drawer = false })
+
+  function key(e: KeyboardEvent) {
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
+    else if (mod && e.key === '\\') { e.preventDefault(); store.savePrefs({ sidebar: !store.prefs.sidebar }) }
+    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.savePrefs({ members: !store.prefs.members }) }
+    else if (e.key === 'Escape' && palette) palette = false
+  }
+
+  const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
+  const showMembers = $derived(!narrow && store.prefs.members && !!currentChannel)
+  const showSidebar = $derived(narrow ? drawer : store.prefs.sidebar)
+
+  // Title badge: total unread across channels.
+  $effect(() => {
+    const total = store.channels.reduce((n, c) => n + store.unread(c.id).count, 0)
+    document.title = total ? `(${total}) Den` : 'Den'
+  })
+
+  notify.attach()
+</script>
+
+<svelte:window onkeydown={key} />
+
+<div class="shell" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
+  {#if showSidebar}
+    {#if narrow}<button class="scrim" aria-label="Close menu" onclick={() => (drawer = false)}></button>{/if}
+    <aside class="sidebar"><Sidebar /></aside>
+  {/if}
+
+  <main class="main">
+    {#if router.route.name === 'channel'}
+      {#if currentChannel}
+        {#key currentChannel.id}
+          <ChannelView channel={currentChannel} onmenu={() => (drawer = !drawer)} {narrow} />
+        {/key}
+      {:else}
+        <div class="empty"><p class="muted">That room isn't here.</p><a href="/" onclick={(e) => { e.preventDefault(); router.go('/') }}>Back to the den</a></div>
+      {/if}
+    {:else if router.route.name === 'inbox'}
+      <Inbox onmenu={() => (drawer = !drawer)} {narrow} />
+    {:else if router.route.name === 'settings'}
+      <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
+    {/if}
+  </main>
+
+  {#if showMembers && currentChannel}
+    <aside class="members"><Members channel={currentChannel} /></aside>
+  {/if}
+</div>
+
+{#if palette}<Palette onclose={() => (palette = false)} />{/if}
+
+<style>
+  .shell {
+    height: 100%; display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--members-w);
+    grid-template-areas: 'sidebar main members';
+  }
+  .shell.no-sidebar { grid-template-columns: minmax(0, 1fr) var(--members-w); grid-template-areas: 'main members'; }
+  .shell.no-members { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-areas: 'sidebar main'; }
+  .shell.no-sidebar.no-members { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
+  .sidebar { grid-area: sidebar; background: var(--bg-2); border-right: 1px solid var(--line); min-height: 0; }
+  .main { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .members { grid-area: members; background: var(--bg-2); border-left: 1px solid var(--line); min-height: 0; overflow-y: auto; }
+  .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
+
+  .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
+  .shell.narrow .sidebar {
+    position: fixed; inset: 0 auto 0 0; width: min(var(--sidebar-w), 85vw); z-index: 20;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.4);
+  }
+  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 19; }
+</style>
