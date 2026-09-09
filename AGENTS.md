@@ -33,4 +33,5 @@ cd apps/web && npm run dev
 - Applied migrations are immutable. Add a new one.
 - Never log secrets, tokens, or password hashes.
 - Commit messages: imperative, one line, body only when the why is not obvious.
+- Two engineers share this worktree. Stage explicit paths, never `git add -A` or `git add .`, so you do not commit the other's half-done files.
 - Small commits straight to `main` for work in your own area. Use a short branch for anything touching `den-core` types or migrations, and tell the other engineer before merging.
