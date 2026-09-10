@@ -3,6 +3,7 @@
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
+  import Mark from './Mark.svelte'
 
   const inboxCount = $derived(store.totalUnread)
   const uncategorized = $derived(store.textChannels.filter((c) => !c.category_id))
@@ -12,7 +13,7 @@
 
 <nav class="side">
   <div class="brand">
-    <a href="/" class="display wordmark" onclick={go('/')}>Den</a>
+    <a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /> Den</a>
     <span class="conn" class:off={!store.connected} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
   </div>
 
@@ -64,7 +65,7 @@
 <style>
   .side { height: 100%; display: flex; flex-direction: column; }
   .brand { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
-  .wordmark { font-size: 22px; color: var(--ink); }
+  .wordmark { font-size: 22px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }
   .wordmark:hover { text-decoration: none; color: var(--lamp); }
   .conn { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); margin-top: 2px; }
   .conn.off { background: var(--ember); animation: blink 1s infinite alternate; }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
+  import Mark from './Mark.svelte'
 
   let mode = $state<'login' | 'register'>('login')
   let username = $state('')
@@ -29,7 +30,7 @@
 
 <main class="wrap">
   <form class="card" onsubmit={submit}>
-    <h1 class="display">Den</h1>
+    <h1 class="display"><Mark size={40} /> Den</h1>
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
     <label>
@@ -63,7 +64,7 @@
     width: min(360px, 100%); display: flex; flex-direction: column; gap: 14px;
     padding: 28px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg);
   }
-  h1 { font-size: 40px; margin: 0; line-height: 1; }
+  h1 { font-size: 40px; margin: 0; line-height: 1; display: flex; align-items: center; gap: 10px; }
   h1 + p { margin: -6px 0 6px; }
   label { display: flex; flex-direction: column; gap: 6px; }
   .small { font-size: 13px; margin: -4px 0 0; }
