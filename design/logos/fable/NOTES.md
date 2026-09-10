@@ -1,8 +1,8 @@
-# Fable's logo concepts
+# Fable's logo concepts, round two
 
-1. **Lamp** — the app's one idea made literal: a dim room and a lamp that lights what matters. Shade, stem, glow.
-2. **Arch** — a den is an opening you go into. Concentric arches, the inner one lit. Works as a tiny tile.
-3. **D as a doorway** — the letter D with the bowl cut into an amber doorway. Letterform and pictorial at once.
-4. **Ember** — the fire people sit around. Single flame, faint hearth line. Reads at 16px as a warm dot.
-5. **Lit e** — the slab lowercase e from the wordmark with its counter glowing. For the wordmark and the tab.
-6. **Bubble arch** — a chat bubble whose body is an arch, three dots inside. Most "chat app" of the six.
+1. **Threshold** — a lit doorway on a dark squircle. Light spills onto the floor. The whole product in one shape: a room you walk into.
+2. **Halo** — one precise amber ring with real weight and a soft glow. Lamp light without the lamp. The most restrained.
+3. **Monogram** — a geometric D with a keyhole doorway lit at the base. Letterform first, den second.
+4. **Ember** — a single lit sphere with true lighting and a shadow. Warm, physical, reads at 16px as a glowing dot.
+5. **Nest** — concentric arcs settling around one lit point. A den, a signal, a group around a fire.
+6. **Under the door** — the thinnest idea: light under a closed door. Someone's home. Pure atmosphere, still a clear mark.
