@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Ember</title>
+  <rect width="64" height="64" rx="14" fill="#1b1916"/>
+  <path d="M32 10c2 10 12 13 12 26a12 12 0 0 1-24 0c0-6 3-9 5-13 1 5 4 7 4 7s3-9 3-20z" fill="#e8a44a"/>
+  <path d="M32 30c1 5 6 7 6 13a6 6 0 0 1-12 0c0-4 2-6 3-8 .5 2 2 3 2 3s1-4 1-8z" fill="#1b1916" opacity=".55"/>
+  <path d="M18 54h28" stroke="#e8a44a" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+</svg>
