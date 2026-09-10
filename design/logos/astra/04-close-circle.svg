@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Den: Close circle</title>
+  <style>
+    :root { color: #1b1916; }
+    @media (prefers-color-scheme: dark) { :root { color: #ece5d8; } }
+  </style>
+  <path fill="#e8a44a" d="M19.500 10.349A25 25 0 0 1 42.959 9.530L37.699 20.316A13 13 0 0 0 25.500 20.742Z"/>
+  <path fill="currentColor" d="M48.728 13.421A25 25 0 0 1 56.757 35.479L44.873 33.809A13 13 0 0 0 40.699 22.339Z"/>
+  <path fill="currentColor" d="M54.839 42.168A25 25 0 0 1 36.341 56.620L34.257 44.803A13 13 0 0 0 43.876 37.288Z"/>
+  <path fill="currentColor" d="M29.387 56.863A25 25 0 0 1 9.926 43.737L20.522 38.103A13 13 0 0 0 30.641 44.929Z"/>
+  <path fill="currentColor" d="M7.546 37.198A25 25 0 0 1 14.017 14.634L22.649 22.969A13 13 0 0 0 19.284 34.703Z"/>
+</svg>
