@@ -5,7 +5,7 @@ use utoipa::OpenApi;
     info(
         title = "Den API",
         version = "0.1.0",
-        description = "M2 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs."
+        description = "M3 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs."
     ),
     paths(
         health,
@@ -49,6 +49,9 @@ use utoipa::OpenApi;
         inbox::read_states,
         inbox::mark_read,
         ws::presence,
+        calls::token,
+        calls::list,
+        calls::webhook,
         thumbnails::serve,
         ws::connect
     ),
@@ -89,7 +92,9 @@ use utoipa::OpenApi;
         NotificationReason,
         SearchMessages,
         ClientEvent,
-        PresenceState
+        PresenceState,
+        CallToken,
+        CallState
     ))
 )]
 struct Api;
@@ -117,7 +122,7 @@ pub(crate) async fn serve() -> Json<utoipa::openapi::OpenApi> {
     for (path, item) in &mut api.paths.paths {
         let public = matches!(
             path.as_str(),
-            "/health" | "/auth/init" | "/auth/login" | "/auth/register"
+            "/livekit/webhook" | "/health" | "/auth/init" | "/auth/login" | "/auth/register"
         );
         for op in [
             &mut item.get,

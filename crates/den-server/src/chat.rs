@@ -16,6 +16,8 @@ impl From<DbChannel> for Channel {
             category_id: v.category_id,
             kind: if v.kind == "dm" {
                 ChannelKind::Dm
+            } else if v.kind == "voice" {
+                ChannelKind::Voice
             } else {
                 ChannelKind::Text
             },
@@ -25,7 +27,7 @@ impl From<DbChannel> for Channel {
     }
 }
 pub(crate) async fn visible(s: &AppState, user_id: &str, id: &str) -> Result<Channel> {
-    let channel = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE id=? AND (kind='text' OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?))",id,user_id).fetch_optional(&s.db).await?.ok_or_else(Error::missing)?.into();
+    let channel = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE id=? AND (kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?))",id,user_id).fetch_optional(&s.db).await?.ok_or_else(Error::missing)?.into();
     members(s, channel).await
 }
 #[utoipa::path(get,path="/categories",responses((status=200,body=Vec<Category>)))]
@@ -104,7 +106,7 @@ pub(crate) async fn delete_category(
 }
 #[utoipa::path(get,path="/channels",responses((status=200,body=Vec<Channel>)))]
 pub(crate) async fn channels(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<Channel>>> {
-    let rows = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE kind='text' OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?) ORDER BY position,id",a.user.id).fetch_all(&s.db).await?;
+    let rows = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?) ORDER BY position,id",a.user.id).fetch_all(&s.db).await?;
     let mut result = Vec::new();
     for row in rows {
         result.push(members(&s, row.into()).await?);
@@ -160,7 +162,7 @@ pub(crate) async fn update_channel(
     a.admin()?;
     name(&v.name)?;
     if sqlx::query!(
-        "UPDATE channels SET name=?,category_id=?,position=? WHERE id=? AND kind='text'",
+        "UPDATE channels SET name=?,category_id=?,position=? WHERE id=? AND kind IN ('text','voice')",
         v.name,
         v.category_id,
         v.position,
@@ -182,9 +184,12 @@ pub(crate) async fn delete_channel(
     Path(id): Path<String>,
 ) -> Result<StatusCode> {
     a.admin()?;
-    sqlx::query!("DELETE FROM channels WHERE id=? AND kind='text'", id)
-        .execute(&s.db)
-        .await?;
+    sqlx::query!(
+        "DELETE FROM channels WHERE id=? AND kind IN ('text','voice')",
+        id
+    )
+    .execute(&s.db)
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(post,path="/dms",request_body=CreateDm,responses((status=200,body=Channel)))]

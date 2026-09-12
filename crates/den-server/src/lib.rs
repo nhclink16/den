@@ -1,5 +1,6 @@
 mod activity;
 mod auth;
+mod calls;
 mod chat;
 mod credentials;
 mod inbox;
@@ -36,6 +37,8 @@ pub struct AppState(pub(crate) Arc<Inner>);
 #[doc(hidden)]
 pub struct Inner {
     pub db: SqlitePool,
+    pub livekit: Option<calls::LiveKit>,
+    pub calls: Mutex<HashMap<String, HashMap<String, String>>>,
     pub uploads: PathBuf,
     pub bootstrap: PathBuf,
     pub origin: String,
@@ -87,7 +90,21 @@ impl AppState {
             .max_connections(4)
             .connect_with(options)
             .await?;
-        sqlx::migrate!().run(&db).await?;
+        // SQLite cannot alter a CHECK constraint. Rebuild parent tables without
+        // cascading into their children, on one connection before serving requests.
+        let mut migration = db.acquire().await?;
+        sqlx::query("PRAGMA foreign_keys=OFF")
+            .execute(&mut *migration)
+            .await?;
+        sqlx::migrate!().run(&mut *migration).await?;
+        let violations = sqlx::query("PRAGMA foreign_key_check")
+            .fetch_all(&mut *migration)
+            .await?;
+        anyhow::ensure!(violations.is_empty(), "Migration left invalid foreign keys");
+        sqlx::query("PRAGMA foreign_keys=ON")
+            .execute(&mut *migration)
+            .await?;
+        drop(migration);
         if sqlx::query_scalar!("SELECT count(*) FROM users")
             .fetch_one(&db)
             .await?
@@ -116,6 +133,8 @@ impl AppState {
         let (events, _) = broadcast::channel(256);
         let state = Self(Arc::new(Inner {
             db,
+            livekit: None,
+            calls: Mutex::new(HashMap::new()),
             uploads,
             bootstrap,
             origin,
@@ -131,6 +150,14 @@ impl AppState {
             .await
             .map_err(|e| anyhow::anyhow!("Mention indexing failed: {}", e.2))?;
         Ok(state)
+    }
+    pub fn with_livekit(mut self, url: String, key: String, secret: String) -> Self {
+        if !url.is_empty() && !key.is_empty() && !secret.is_empty() {
+            Arc::get_mut(&mut self.0)
+                .expect("configure before sharing")
+                .livekit = Some(calls::LiveKit { url, key, secret });
+        }
+        self
     }
     pub(crate) fn id(&self) -> String {
         self.ids
@@ -204,6 +231,9 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         )
         .route("/search/messages", get(activity::search))
         .route("/presence", get(ws::presence))
+        .route("/calls", get(calls::list))
+        .route("/calls/{channel_id}/token", post(calls::token))
+        .route("/livekit/webhook", post(calls::webhook))
         .route(
             "/uploads/{id}/thumbnail",
             get(thumbnails::serve).head(thumbnails::serve),

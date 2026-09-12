@@ -90,7 +90,8 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         Event::MessageCreated(m) | Event::MessageEdited(m) => Some(&m.channel_id),
         Event::MessageDeleted { channel_id, .. }
         | Event::Typing { channel_id, .. }
-        | Event::ReactionsUpdated { channel_id, .. } => Some(channel_id),
+        | Event::ReactionsUpdated { channel_id, .. }
+        | Event::CallState { channel_id, .. } => Some(channel_id),
         Event::Presence { .. } | Event::Resync { .. } => None,
     };
     if let Some(channel) = channel {
@@ -106,7 +107,7 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
     if !event(
         &mut socket,
         &Event::Resync {
-            reason: "connected; refetch channel state and presence".into(),
+            reason: "connected; refetch channel state, presence, and /calls".into(),
         },
     )
     .await

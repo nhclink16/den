@@ -21,6 +21,8 @@ pub(crate) async fn serve(root: PathBuf, req: Request) -> Response {
             | "uploads"
             | "ws"
             | "presence"
+            | "calls"
+            | "livekit"
             | "search"
             | "health"
             | "openapi.json"

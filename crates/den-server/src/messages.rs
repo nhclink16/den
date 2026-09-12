@@ -70,7 +70,9 @@ pub(crate) async fn send(
     Path(channel): Path<String>,
     ApiJson(v): ApiJson<CreateMessage>,
 ) -> Result<Json<Message>> {
-    visible(&s, &a.user.id, &channel).await?;
+    if visible(&s, &a.user.id, &channel).await?.kind == ChannelKind::Voice {
+        return Err(Error::bad("Voice rooms do not accept messages"));
+    }
     if v.content.len() > 32000
         || (v.content.trim().is_empty() && v.upload_ids.is_empty())
         || v.upload_ids.len() > 10

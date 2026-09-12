@@ -32,7 +32,7 @@ pub struct Channel {
     pub category_id: Option<Id>,
     pub kind: ChannelKind,
     pub position: i64,
-    /// Explicit DM participants. Text channels are visible to all users.
+    /// Explicit DM participants. Text and voice channels are visible to all users.
     pub member_ids: Vec<Id>,
 }
 
@@ -74,6 +74,10 @@ pub enum Event {
         channel_id: Id,
         user_id: Id,
     },
+    CallState {
+        channel_id: Id,
+        participant_ids: Vec<Id>,
+    },
     Presence {
         user_id: Id,
         online: bool,
@@ -96,7 +100,7 @@ pub enum Event {
         message: Message,
         reason: NotificationReason,
     },
-    /// Reconnect or lag requires refetching channel state. No replay is promised.
+    /// Reconnect or lag requires refetching channel state, presence, and calls. No replay is promised.
     Resync {
         reason: String,
     },
@@ -314,4 +318,16 @@ pub enum ClientEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PresenceState {
     pub online_user_ids: Vec<Id>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct CallToken {
+    pub url: String,
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct CallState {
+    pub channel_id: Id,
+    pub participant_ids: Vec<Id>,
 }

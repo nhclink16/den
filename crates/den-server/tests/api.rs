@@ -25,6 +25,9 @@ impl Drop for Test {
 }
 impl Test {
     async fn new() -> Self {
+        Self::with_voice(false).await
+    }
+    async fn with_voice(configured: bool) -> Self {
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -37,6 +40,15 @@ impl Test {
         )
         .await
         .unwrap();
+        let state = if configured {
+            state.with_livekit(
+                "ws://127.0.0.1:1".into(),
+                "test-key".into(),
+                "test-secret-at-least-thirty-two-bytes".into(),
+            )
+        } else {
+            state
+        };
         let app = den_server::router_with_web(state.clone(), dir.join("spa"));
         let task = tokio::spawn(async move {
             axum::serve(
@@ -111,7 +123,11 @@ impl Test {
             .json()
             .await
             .unwrap();
-        v[0].id.clone()
+        v.iter()
+            .find(|c| c.kind == ChannelKind::Text)
+            .unwrap()
+            .id
+            .clone()
     }
 }
 #[path = "api/auth.rs"]
@@ -130,3 +146,6 @@ mod m2_messages;
 
 #[path = "api/m2_files.rs"]
 mod m2_files;
+
+#[path = "api/calls.rs"]
+mod calls;
