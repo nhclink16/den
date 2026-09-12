@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { call } from '../lib/call.svelte'
+  import CallDock from './CallDock.svelte'
+  import CallView from './CallView.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Sidebar from './Sidebar.svelte'
@@ -42,6 +45,13 @@
     document.title = total ? `(${total}) Den` : 'Den'
   })
 
+  $effect(() => {
+    const down = (e: KeyboardEvent) => call.keydown(e), up = (e: KeyboardEvent) => call.keyup(e)
+    const release = () => call.setHeld(false)
+    window.addEventListener('keydown', down); window.addEventListener('keyup', up)
+    window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
+  })
   notify.attach()
 </script>
 
@@ -54,6 +64,11 @@
   {/if}
 
   <main class="main">
+    {#if call.error}<div class="call-status" role="alert"><span>{call.error}</span><button class="btn quiet" onclick={() => (call.error = '')}>Dismiss</button></div>{/if}
+    {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
+    {#if call.audioBlocked}<div class="call-status"><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
+    {#if call.channel && router.route.name !== 'channel'}<CallView />{/if}
+    {#if !call.channel || !call.expanded || router.route.name === 'channel'}
     {#if router.route.name === 'channel'}
       {#if currentChannel}
         {#key currentChannel.id}
@@ -69,6 +84,8 @@
     {:else if router.route.name === 'settings'}
       <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
     {/if}
+    {/if}
+    {#if !showSidebar && call.channel}<CallDock />{/if}
   </main>
 
   {#if showMembers && currentChannel}
@@ -79,6 +96,7 @@
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
 
 <style>
+  .call-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; color: var(--lamp); background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .shell {
     height: 100%; display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--members-w);

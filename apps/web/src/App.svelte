@@ -16,7 +16,7 @@
 
   $effect(() => {
     if (store.ready && router.route.name === 'home') {
-      const first = store.textChannels[0] || store.dms[0]
+      const first = store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
       if (first) router.go(`/c/${first.id}`, true)
     }
   })

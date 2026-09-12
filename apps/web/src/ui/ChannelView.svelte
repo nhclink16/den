@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { call } from '../lib/call.svelte'
+  import CallView from './CallView.svelte'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
@@ -13,7 +15,7 @@
   let dragging = $state(0)
   let dropped = $state<File[]>([])
 
-  $effect(() => { if (!store.messages.has(channel.id)) store.loadLatest(channel.id) })
+  $effect(() => { if (channel.kind !== 'voice' && !store.messages.has(channel.id)) store.loadLatest(channel.id) })
   // Mark read while we're looking at it and the tab is visible, and again when it becomes visible.
   $effect(() => {
     void store.messages.get(channel.id)
@@ -37,15 +39,24 @@
 <section class="view" aria-label={store.title(channel)} ondragenter={(e) => { e.preventDefault(); dragging++ }} ondragleave={() => dragging--} ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <header class="head">
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
-    <span class="kind">{#if isDm}<Icon name="lock" />{:else}<Icon name="hash" size={18} />{/if}</span>
+    <span class="kind">{#if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
     <h1 class="display">{store.title(channel)}</h1>
     <span class="spacer"></span>
+    {#if isDm}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
     <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder={narrow ? 'Search' : `Search #${store.title(channel)}`} aria-label="Search this room" /></form>
     {#if !narrow}
       <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
   </header>
 
+  {#if call.channel}<CallView />{/if}
+  {#if !call.channel || !call.expanded}
+  {#if channel.kind === 'voice'}
+    <div class="voice-empty"><button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button></div>
+  {:else}
+  {#if isDm && call.channel?.id !== channel.id && call.ids(channel.id).length}
+    <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
+  {/if}
   <MessageList {channel} onreply={(m) => (replyTo = m)} />
 
   <div class="typing" aria-live="polite">
@@ -53,6 +64,8 @@
   </div>
 
   <Composer {channel} bind:replyTo bind:dropped />
+  {/if}
+  {/if}
 
   {#if dragging > 0}
     <div class="drop">
@@ -80,6 +93,9 @@
   .search input { background: none; border: 0; outline: 0; width: 120px; font-size: 13px; color: var(--ink); transition: width 0.15s; }
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
+  .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
+  .voice-empty { flex: 1; display: grid; place-items: center; }
+  @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
   .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
   .drop {
     position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg);

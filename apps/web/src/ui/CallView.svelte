@@ -1,0 +1,30 @@
+<script lang="ts">
+  import { call } from '../lib/call.svelte'
+  import CallTile from './CallTile.svelte'
+  import CallControls from './CallControls.svelte'
+  import Icon from './Icon.svelte'
+</script>
+
+<div class="call-view" class:expanded={call.expanded} data-testid={call.expanded ? 'call-grid' : 'call-strip'}>
+  <div class="tiles">
+    {#each call.participants.filter((p) => p.screen) as participant (participant.id)}<CallTile {participant} screen />{/each}
+    {#each call.participants as participant (participant.id)}<CallTile {participant} />{/each}
+  </div>
+  <button class="expand" aria-label={call.expanded ? 'Collapse call' : 'Expand call'} title={call.expanded ? 'Collapse call' : 'Expand call'} onclick={() => (call.expanded = !call.expanded)}><Icon name={call.expanded ? 'collapse' : 'expand'} /></button>
+  {#if call.expanded}<div class="toolbar"><CallControls large /></div>{/if}
+</div>
+
+<style>
+  .call-view { height: 160px; flex: none; position: relative; min-height: 0; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; overflow-x: auto; scrollbar-width: none; }
+  .call-view:not(.expanded) .tiles :global(.tile.screen) { height: 100%; aspect-ratio: auto; }
+  .tiles::-webkit-scrollbar { display: none; }
+  .expand { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2); background: var(--bg-2); }
+  .expand:hover { color: var(--ink); }
+  .expanded { flex: 1; height: auto; }
+  .expanded .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-content: start; align-items: start; gap: 12px; padding: 16px 16px 88px; overflow: auto; }
+  .expanded :global(.tile) { width: 100%; }
+  .expanded :global(.tile.screen) { grid-column: 1 / -1; }
+  .toolbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px rgba(0,0,0,.3); max-width: calc(100% - 16px); }
+  @media (max-width: 340px) { .expanded .tiles { grid-template-columns: minmax(0,1fr); } }
+</style>

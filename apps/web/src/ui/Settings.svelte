@@ -4,12 +4,13 @@
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
   import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
+  import VoiceSettings from './VoiceSettings.svelte'
   import Icon from './Icon.svelte'
 
   let { section = 'notifications', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['notifications', 'Notifications'], ['layout', 'Layout'], ['agents', 'Agents'],
+    ['notifications', 'Notifications'], ['voice', 'Voice'], ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let q = $state('')
@@ -126,6 +127,8 @@
           <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> #{c.name}</label>
         {/each}
 
+      {:else if section === 'voice'}
+        <VoiceSettings />
       {:else if section === 'layout'}
         <h2 class="display">Layout</h2>
         <label class="switch"><input type="checkbox" checked={store.layout.sidebar} onchange={(e) => store.saveLayout({ sidebar: e.currentTarget.checked })} /> Show the room list <kbd>Ctrl+\</kbd></label>

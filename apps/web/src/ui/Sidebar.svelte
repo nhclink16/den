@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { call } from '../lib/call.svelte'
+  import CallDock from './CallDock.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
@@ -25,16 +27,28 @@
   <div class="scroll">
     {#snippet channelRow(c: import('../lib/types').Channel)}
       {@const u = store.unread(c.id)}
+      {#if c.kind === 'voice'}
+        <button class="row voice" class:active={call.channel?.id === c.id} title={`Join ${c.name}`} aria-label={`Join ${c.name}`} onclick={() => call.join(c)}>
+          <Icon name="headset" />
+          <span class="voice-name"><span class="name">{c.name}</span>
+            {#if call.ids(c.id).length}
+              <span class="avatars">{#each call.ids(c.id).slice(0,5) as id (id)}<span><Avatar userId={id} size={20} /></span>{/each}{#if call.ids(c.id).length > 5}<small>+{call.ids(c.id).length - 5}</small>{/if}</span>
+            {/if}
+          </span>
+          {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
+        </button>
+      {:else}
       <a href="/c/{c.id}" class="row" class:active={active(c.id)} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
         {#if c.kind === 'dm'}
           {@const other = (c.member_ids || []).find((id) => id !== store.me?.id) || store.me?.id || ''}
           <Avatar userId={other} size={20} />
         {:else}
-          <Icon name={c.kind === 'voice' ? 'people' : 'hash'} />
+          <Icon name="hash" />
         {/if}
         <span class="name">{store.title(c)}</span>
         {#if u.mention}<span class="count at">@</span>{:else if u.count}<span class="count">{u.count}</span>{/if}
       </a>
+      {/if}
     {/snippet}
 
     {#each uncategorized as c (c.id)}{@render channelRow(c)}{/each}
@@ -53,6 +67,7 @@
     {/if}
   </div>
 
+  <CallDock />
   <div class="me">
     {#if store.me}
       <Avatar userId={store.me.id} size={28} />
@@ -82,6 +97,12 @@
   .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row :global(svg) { color: var(--ink-3); flex: none; }
   .row.lit :global(svg), .row.active :global(svg) { color: var(--ink-2); }
+  .voice { width: 100%; text-align: left; }
+  .voice-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .voice.active :global(svg) { color: var(--lamp); }
+  .avatars { display: flex; padding-left: 6px; padding-bottom: 2px; align-items: center; }
+  .avatars > span { margin-left: -6px; display: flex; border-radius: 35%; box-shadow: 0 0 0 2px var(--bg-2); }
+  .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
   .inbox { margin: 4px 8px 0; }
   .count {
     font-family: var(--mono); font-size: 11px; font-weight: 500; line-height: 1;
