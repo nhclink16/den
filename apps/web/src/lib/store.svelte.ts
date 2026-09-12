@@ -1,7 +1,8 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
+import { call } from './call.svelte'
 import { api, setCsrf } from './api'
-import type { Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
+import type { CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
 
 const PREFS_KEY = 'den.layout'
 
@@ -84,6 +85,7 @@ class Store {
     await this.boot()
   }
   async logout() {
+    await call.leave(); call.snapshot([])
     try { await api.post('/auth/logout') } catch { /* already gone */ }
     setCsrf(null); this.ws?.close(); this.me = null; this.ready = false
   }
@@ -93,13 +95,14 @@ class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls] = await Promise.all([
       api.get<User[]>('/users'),
       api.get<Channel[]>('/channels'),
       api.get<Category[]>('/categories'),
       api.get<ChannelReadState[]>('/users/me/read-state'),
       api.get<NotificationPreferences>('/users/me/notification-preferences'),
       api.get<PresenceState>('/presence'),
+      api.get<CallState[]>('/calls'),
     ])
     this.users = new Map(users.map((u) => [u.id, u]))
     this.channels = channels
@@ -107,6 +110,7 @@ class Store {
     this.readState = new Map(read.map((s) => [s.channel_id, s]))
     this.notif = notif
     this.online = new Set(presence.online_user_ids)
+    call.snapshot(calls)
     // Refresh the tail of channels we already had open so the view is current after a gap.
     await Promise.all([...this.messages.keys()].filter((id) => channels.some((c) => c.id === id)).map((id) => this.loadLatest(id)))
   }
@@ -225,6 +229,7 @@ class Store {
       case 'read_state_updated': this.setRead(ev.state); break
       case 'notification_preferences_updated': this.notif = ev.preferences; break
       case 'notification': this.alerts = [...this.alerts.slice(-20), ev]; break
+      case 'call_state': call.receive(ev); if (!this.channel(ev.channel_id)) await this.resync(); break
       case 'presence': {
         const s = new Set(this.online); ev.online ? s.add(ev.user_id) : s.delete(ev.user_id); this.online = s
         break

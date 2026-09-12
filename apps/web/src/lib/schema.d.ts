@@ -84,6 +84,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/{channel_id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/categories": {
         parameters: {
             query?: never;
@@ -239,6 +271,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revoke_invite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/livekit/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description LiveKit signed webhook. Authorization is the LiveKit JWT over the raw body, not a Den session. */
+        post: operations["webhook"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -524,6 +573,14 @@ export interface components {
             credential: components["schemas"]["TokenSecret"];
             user: components["schemas"]["User"];
         };
+        CallState: {
+            channel_id: components["schemas"]["String"];
+            participant_ids: components["schemas"]["String"][];
+        };
+        CallToken: {
+            token: string;
+            url: string;
+        };
         Category: {
             id: components["schemas"]["String"];
             name: string;
@@ -534,7 +591,7 @@ export interface components {
             category_id?: null | components["schemas"]["String"];
             id: components["schemas"]["String"];
             kind: components["schemas"]["ChannelKind"];
-            /** @description Explicit DM participants. Text channels are visible to all users. */
+            /** @description Explicit DM participants. Text and voice channels are visible to all users. */
             member_ids: components["schemas"]["String"][];
             name: string;
             /** Format: int64 */
@@ -602,6 +659,11 @@ export interface components {
             /** @enum {string} */
             type: "typing";
             user_id: components["schemas"]["String"];
+        } | {
+            channel_id: components["schemas"]["String"];
+            participant_ids: components["schemas"]["String"][];
+            /** @enum {string} */
+            type: "call_state";
         } | {
             online: boolean;
             /** @enum {string} */
@@ -926,6 +988,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BotCreated"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallState"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallToken"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -1422,6 +1558,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/webhook+json": string;
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {

@@ -16,3 +16,6 @@ export type Reaction = S['Reaction']
 export type ChannelReadState = S['ChannelReadState']
 export type NotificationPreferences = S['NotificationPreferences']
 export type PresenceState = S['PresenceState']
+
+export type CallState = S['CallState']
+export type CallToken = S['CallToken']
