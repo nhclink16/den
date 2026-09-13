@@ -1,6 +1,7 @@
 # M8 portable
 
-All three M8 items are implemented and deployed. Final release checks are in progress.
+All three M8 items are complete, committed, pushed and deployed. Stopped after item 3.
+Use [v0.1.2](https://github.com/nhclink16/den/releases/tag/v0.1.2) for the completed release.
 
 ## Public release preparation
 
@@ -170,3 +171,28 @@ Anonymous GET /settings reports the default name. The final full workspace test
 suite and Clippy passed. A repeated Gitleaks history scan covered 78 commits with
 no findings. The 0.1.1 patch release includes the completed M8 code and the Windows
 installer fix that followed the initial 0.1.0 release.
+
+The final artifact check caught a compatibility gap in the Ubuntu 24.04 builds:
+0.1.1 ran on the Debian 13 VPS but required glibc 2.39 and would not run on
+codexbox (Debian 12, glibc 2.36). The Linux release builder now uses Ubuntu 22.04.
+The resulting 0.1.2 server requires at most GLIBC_2.34; its server, CLI and host
+binaries execute on codexbox. This fixes the download itself, not just a local
+rebuild. Older release tags remain unchanged.
+
+[Release run 34790754263](https://github.com/nhclink16/den/actions/runs/34790754263)
+passed Linux, macOS and Windows packaging and published 0.1.2. All eleven downloaded
+files matched SHA256SUMS. `deploy/release.sh v0.1.2` deployed that checked bundle
+without compilation; public health reports 0.1.2. Its installed backup unit passed,
+and the **downloaded server binary** imported and booted that real backup on
+codexbox. Final restore evidence: 13 archived files, 7 authenticated channels,
+integrity and foreign-key checks, all 10 completed upload files, and 9 authenticated
+byte ranges. The published login, title, mark and generated name contract were
+also checked in a browser.
+
+[Final main CI run 34790753092](https://github.com/nhclink16/den/actions/runs/34790753092)
+and the tag CI passed, including workspace tests, Clippy, CLI/media smoke and SQLx
+metadata checks. GitHub has no issues or PRs; wiki and discussions are disabled.
+The public audit therefore has no additional discussion content to clear.
+Temporary test servers and the Debian container/image were removed. Unrelated
+untracked design work was left untouched. No work on the Tauri multi-server client
+or other post-M8 items was started.
