@@ -1,8 +1,20 @@
-{$DEN_DOMAIN} {
-    reverse_proxy den:7000
+den.nicholascaron.com {
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+	request_body {
+		max_size 1100MB
+	}
+	reverse_proxy 127.0.0.1:7000
 }
 
-rtc.{$DEN_DOMAIN} {
-    # LiveKit runs with host networking; reach it through the docker host gateway.
-    reverse_proxy host.docker.internal:7880
+rtc.den.nicholascaron.com {
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+	reverse_proxy 127.0.0.1:7880
 }
