@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/den-core", "crates/den-server", "crates/den-cli", "crates/den-host"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/nhclink16/den"
