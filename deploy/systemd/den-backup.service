@@ -7,7 +7,13 @@ Wants=network-online.target
 Type=oneshot
 User=den
 Group=den
-ExecStart=/opt/den/bin/backup.sh
+Environment=DEN_DB=/var/lib/den/den.db
+Environment=DEN_UPLOADS=/var/lib/den/uploads
+ExecStartPre=+/usr/bin/systemctl stop den-server.service
+ExecStart=/opt/den/bin/backup.sh snapshot
+ExecStart=+/usr/bin/systemctl start den-server.service
+ExecStart=/opt/den/bin/backup.sh transfer
+ExecStopPost=+/usr/bin/systemctl start den-server.service
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

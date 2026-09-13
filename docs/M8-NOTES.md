@@ -82,3 +82,39 @@ passed real CLI chat/reconnect, an 11,894,863-byte 41-second clip with authentic
 ranges and complete HTTP decode, and bot token revocation/replacement.
 [Public CI run 34788906199](https://github.com/nhclink16/den/actions/runs/34788906199)
 passed every step, including SQLx migration metadata verification.
+
+## 2. Offline export and import
+
+`den-server export backup.zip` reads `DEN_DB` and `DEN_UPLOADS`. Stop the server
+first: the CLI refuses an active system or user unit and takes an exclusive SQLite
+lock, including against WAL readers. It keeps the lock while copying a VACUUM
+snapshot and the flat upload directory. Partial files, offsets and recordings are
+included; deployment configuration, `.ssh` and host configuration files are not.
+Archives contain private chat and password/token hashes; keep them private.
+
+`den-server import backup.zip --into /path/to/empty-data-dir` validates every file
+and the migration history before applying normal migrations in a private sibling
+directory. Installation is one rename after integrity and foreign-key checks.
+Existing data is never overwritten. Limits are 100,000 entries, 1 TiB expanded,
+and a 32 MiB manifest, with a free-space check before extraction. Traversal,
+symlinks, duplicate entries, mismatched hashes, newer schemas and divergent
+migrations are rejected. Export writes uncompressed ZIP entries so already
+compressed media does not lengthen the offline window.
+
+Default import deletes sessions, API tokens, invites and enrollments, invalidates
+host credentials, revokes grants and finalizes active terminal recordings. Password
+login still works; hosts must enroll again. `--keep-credentials` preserves access
+for disaster recovery, but terminals still end and hosts start offline. Deploy
+LiveKit and other external configuration separately; none is copied from an
+archive. The import summary reports invalidation counts without credentials.
+
+Two integration tests run the actual subcommands and boot the imported server.
+They verify history, authenticated range requests, upload resume, recording access,
+credential invalidation/preservation, refusal cases, and migration from schema 4.
+Both pass. Import waits for SQLite's asynchronous pool shutdown; export still
+uses a zero-timeout exclusive lock to reject a running database immediately.
+
+The nightly unit stops Den for export, restarts it before the network transfer,
+and also restarts it on failure. `den.zip` goes to the existing dated codexbox
+backup destination, with the completion marker last and retention unchanged.
+The restore drill now imports that archive before booting the restored server.

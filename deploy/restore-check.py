@@ -14,30 +14,36 @@ import sys
 import tempfile
 import time
 import urllib.request
+import urllib.error
 
-source = Path(sys.argv[1]).resolve()
+source = Path(sys.argv[1]).absolute()
 root = Path('/mnt/storage/den/backups')
 assert source.parent == root
 assert subprocess.run(['sudo', 'test', '-L', str(source)]).returncode == 1
 datetime.date.fromisoformat(source.name)
 token = json.loads(Path(sys.argv[2]).read_text())['token']
 repo = Path(__file__).resolve().parent.parent
-with tempfile.TemporaryDirectory(prefix='den-restore-') as scratch:
+build = Path(os.environ.get('CARGO_TARGET_DIR', repo / 'target')) / 'release'
+with tempfile.TemporaryDirectory(prefix='den-restore-', dir=os.environ.get('TMPDIR')) as scratch:
     work = Path(scratch)
-    subprocess.run(['sudo', 'rsync', '-a', f'--chown={os.getuid()}:{os.getgid()}', str(source) + '/', scratch + '/'], check=True)
+    for name in ['den.zip', 'complete']:
+        assert subprocess.run(['sudo', 'test', '-L', str(source / name)]).returncode == 1
+    subprocess.run(['sudo', 'rsync', '-a', f'--chown={os.getuid()}:{os.getgid()}', str(source / 'den.zip'), str(source / 'complete'), scratch + '/'], check=True)
     datetime.datetime.fromisoformat((work / 'complete').read_text().strip().replace('Z', '+00:00'))
-    db = sqlite3.connect(work / 'den.db')
+    restored = work / 'restored'
+    subprocess.run([str(build / 'den-server'), 'import', str(work / 'den.zip'), '--into', str(restored), '--keep-credentials'], check=True)
+    db = sqlite3.connect(restored / 'den.db')
     assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
     assert not db.execute('PRAGMA foreign_key_check').fetchall()
     uploads = db.execute('SELECT id,size FROM uploads WHERE complete=1').fetchall()
     for upload, size in uploads:
-        path = work / 'uploads' / upload
+        path = restored / 'uploads' / upload
         assert path.is_file() and path.stat().st_size == size, f'Missing restored upload {upload}'
     db.close()
     env = {k: v for k, v in os.environ.items() if not k.startswith('DEN_')}
-    env.update(DEN_BIND='127.0.0.1:17200', DEN_ORIGIN='http://127.0.0.1:17200', DEN_DB=str(work / 'den.db'), DEN_UPLOADS=str(work / 'uploads'), DEN_BOOTSTRAP_FILE=str(work / 'bootstrap.key'), DEN_WEB_DIR=str(repo / 'apps/web/dist'))
+    env.update(DEN_BIND='127.0.0.1:17200', DEN_ORIGIN='http://127.0.0.1:17200', DEN_DB=str(restored / 'den.db'), DEN_UPLOADS=str(restored / 'uploads'), DEN_BOOTSTRAP_FILE=str(restored / 'bootstrap.key'), DEN_WEB_DIR=str(repo / 'apps/web/dist'))
     with (work / 'server.log').open('w') as log:
-        server = subprocess.Popen([str(repo / 'target/release/den-server')], env=env, stdout=log, stderr=log)
+        server = subprocess.Popen([str(build / 'den-server')], env=env, stdout=log, stderr=log)
         try:
             for attempt in range(50):
                 assert server.poll() is None, 'Restored server exited'
@@ -53,11 +59,21 @@ with tempfile.TemporaryDirectory(prefix='den-restore-') as scratch:
             with get('/channels') as response:
                 channels = json.load(response)
                 assert any(c['name'] == 'hangout' for c in channels)
+            checked = 0
             for upload, size in uploads:
-                with get(f'/uploads/{upload}/file', {'Range': 'bytes=0-1023'}) as response:
+                try:
+                    response = get(f'/uploads/{upload}/file', {'Range': 'bytes=0-1023'})
+                except urllib.error.HTTPError as error:
+                    if error.code == 404:
+                        continue  # Private uploads can be outside this credential's visibility.
+                    raise
+                with response as response:
                     assert response.status == 206
-                    assert response.read() == (work / 'uploads' / upload).read_bytes()[:1024]
-            print(f'Restore passed: health, {len(channels)} authenticated channels, integrity, foreign keys, {len(uploads)} upload files and authenticated byte ranges.')
+                    with (restored / 'uploads' / upload).open('rb') as local:
+                        assert response.read() == local.read(1024)
+                    checked += 1
+            assert checked > 0 or not uploads, 'No visible uploads were verified'
+            print(f'Restore passed: archive hashes, migrated schema, health, {len(channels)} authenticated channels, integrity, foreign keys, {len(uploads)} upload files, {checked} authenticated byte ranges.')
         finally:
             server.terminate()
             server.wait(timeout=10)
