@@ -202,6 +202,23 @@ impl Sessions {
         }
         Ok(())
     }
+    pub fn dimensions(&self, id: &str) -> Option<(u16, u16)> {
+        self.sessions
+            .get(id)
+            .and_then(|p| p.master.get_size().ok())
+            .map(|s| (s.cols, s.rows))
+    }
+    pub fn refresh(&self, id: &str) -> Result<()> {
+        if let Some(p) = self.sessions.get(id) {
+            let dimensions = p.master.get_size()?;
+            p.master.resize(size(
+                dimensions.cols.saturating_sub(1).max(2),
+                dimensions.rows,
+            ))?;
+            p.master.resize(dimensions)?;
+        }
+        Ok(())
+    }
     pub fn history(&self, id: &str) -> Vec<u8> {
         self.sessions
             .get(id)

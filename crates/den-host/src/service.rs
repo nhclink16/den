@@ -22,10 +22,17 @@ pub fn install() -> Result<()> {
         );
         ensure!(
             std::process::Command::new("systemctl")
-                .args(["--user", "enable", "--now", "den-host.service"])
+                .args(["--user", "enable", "den-host.service"])
                 .status()?
                 .success(),
             "systemd start failed"
+        );
+        ensure!(
+            std::process::Command::new("systemctl")
+                .args(["--user", "restart", "den-host.service"])
+                .status()?
+                .success(),
+            "systemd restart failed"
         );
     }
     #[cfg(target_os = "macos")]

@@ -173,9 +173,11 @@ async fn main() -> Result<()> {
                             frame = socket.receive() => match frame {
                                 Ok(Some(HostFrame::Replay{session_id,connection_id})) => {
                                     let bytes=sessions.lock().await.history(&session_id);
-                                    if socket.send(&HostFrame::Scrollback{session_id,connection_id,bytes}).await.is_err(){break;}
+                                    if socket.send(&HostFrame::Scrollback{session_id:session_id.clone(),connection_id,bytes}).await.is_err(){break;}
+                                    if let Some((cols,rows))=sessions.lock().await.dimensions(&session_id){let _=output.send(HostFrame::Resize{session_id:session_id.clone(),cols,rows});}
+                                    let _=sessions.lock().await.refresh(&session_id);
                                 }
-                                Ok(Some(frame)) => if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }, _ => break
+                                Ok(Some(frame)) => {if matches!(frame,HostFrame::Resize{..}) {let _=output.send(frame.clone());} if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }}, _ => break
                             },
                             Some(frame) = inputs.recv() => { let _=sessions.lock().await.handle(frame); },
                             _ = tick.tick() => {

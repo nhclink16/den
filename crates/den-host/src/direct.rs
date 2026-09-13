@@ -117,6 +117,18 @@ pub async fn listen(
                             })
                             .await?;
                     }
+                    if let Some((cols, rows)) = sessions.lock().await.dimensions(&check.session_id)
+                    {
+                        ws.send(Message::Binary(
+                            serde_json::to_vec(&HostFrame::Resize {
+                                session_id: check.session_id.clone(),
+                                cols,
+                                rows,
+                            })?
+                            .into(),
+                        ))
+                        .await?;
+                    }
                     let history = sessions.lock().await.history(&check.session_id);
                     ws.send(Message::Binary(
                         serde_json::to_vec(&HostFrame::Output {
@@ -144,7 +156,7 @@ pub async fn listen(
                             }
                             frame=rx.recv()=> {
                                 let frame=frame?;
-                                if matches!(&frame,HostFrame::Output{session_id,..}|HostFrame::Exited{session_id,..} if session_id==&check.session_id) {
+                                if matches!(&frame,HostFrame::Output{session_id,..}|HostFrame::Exited{session_id,..}|HostFrame::Resize{session_id,..} if session_id==&check.session_id) {
                                     tokio::time::timeout(Duration::from_millis(450),ws.send(Message::Binary(serde_json::to_vec(&frame)?.into()))).await??;
                                 }
                             }
