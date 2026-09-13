@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Copy deploy/ to the VPS, then sudo bash deploy/install-vps.sh.
 set -euo pipefail
+umask 077
 cd "$(dirname "$0")"
 [[ $(hostname) = vps-2fd9743a ]]
 export DEBIAN_FRONTEND=noninteractive
@@ -18,7 +19,7 @@ if [[ ! -f /etc/apt/sources.list.d/caddy-stable.list ]]; then
   chmod 644 /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
 fi
 apt-get update -qq
-apt-get install -y caddy
+apt-get install -y caddy haproxy
 id den >/dev/null 2>&1 || useradd --system --home-dir /var/lib/den --shell /usr/sbin/nologin den
 id livekit >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin livekit
 install -d -m 755 /opt/den/bin /opt/den/web /etc/den
@@ -57,8 +58,10 @@ if [[ ! -x /opt/den/bin/livekit-server ]]; then
   tar -xzf "$tmp/livekit_1.9.0_linux_amd64.tar.gz" -C "$tmp"
   install -m 755 "$tmp/livekit-server" /opt/den/bin/livekit-server
 fi
-install -m 755 sync-turn-cert.sh /opt/den/bin/
+install -m 755 sync-turn-cert.sh rotate-livekit-keys.py /opt/den/bin/
 install -m 644 systemd/den-server.service systemd/livekit.service systemd/den-turn-cert.service systemd/den-turn-cert.timer /etc/systemd/system/
+install -m 644 haproxy.cfg /etc/haproxy/haproxy.cfg
+haproxy -c -f /etc/haproxy/haproxy.cfg
 install -m 644 Caddyfile /etc/caddy/Caddyfile
 caddy fmt --overwrite /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile
@@ -69,5 +72,7 @@ systemctl enable nftables
 systemctl daemon-reload
 systemctl enable --now caddy den-turn-cert.timer
 systemctl reload caddy
+systemctl enable --now haproxy
+systemctl restart haproxy
 # Start Den only after the database migration; LiveKit after certificate sync.
 systemctl enable den-server livekit

@@ -16,6 +16,8 @@ turn:
   udp_port: 3478
   cert_file: /etc/livekit/certs/turn.crt
   key_file: /etc/livekit/certs/turn.key
+logging:
+  level: warn
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
 webhook:
