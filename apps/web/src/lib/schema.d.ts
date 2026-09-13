@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/access/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["log"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/init": {
         parameters: {
             query?: never;
@@ -244,6 +260,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["grants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -254,6 +302,134 @@ export interface paths {
         get: operations["health"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/direct/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["direct_check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["connect"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/{id}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hosts/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["open"];
         delete?: never;
         options?: never;
         head?: never;
@@ -405,6 +581,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/requests/{id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search/messages": {
         parameters: {
             query?: never;
@@ -415,6 +607,102 @@ export interface paths {
         get: operations["search"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["close"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/controller": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["controller"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/direct-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["direct_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/request-control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["request_control"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["share"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/write": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["write"];
         delete?: never;
         options?: never;
         head?: never;
@@ -633,6 +921,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccessDecision: {
+            allow: boolean;
+        };
+        AccessLog: {
+            action: string;
+            actor_id: components["schemas"]["String"];
+            /** Format: int64 */
+            created_at: number;
+            host_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            subject_id?: null | components["schemas"]["String"];
+        };
+        AccessRequest: {
+            capability: components["schemas"]["Capability"];
+            /** Format: int32 */
+            duration_minutes?: number | null;
+            /** Format: int64 */
+            expires_at: number;
+            grant_id?: null | components["schemas"]["String"];
+            host_id: components["schemas"]["String"];
+            host_name: string;
+            id: components["schemas"]["String"];
+            owner_id: components["schemas"]["String"];
+            requester_id: components["schemas"]["String"];
+            standing: boolean;
+            status: string;
+        };
         ApiError: {
             error: string;
             message: string;
@@ -661,6 +976,8 @@ export interface components {
             token: string;
             url: string;
         };
+        /** @enum {string} */
+        Capability: "terminal_view" | "terminal_control";
         Category: {
             id: components["schemas"]["String"];
             name: string;
@@ -743,11 +1060,42 @@ export interface components {
             name: string;
             user_id?: null | components["schemas"]["String"];
         };
+        DirectCheck: {
+            input: boolean;
+            session_id: components["schemas"]["String"];
+            token: string;
+        };
+        DirectPermission: {
+            name: string;
+            owner: boolean;
+            user_id: components["schemas"]["String"];
+        };
+        DirectToken: {
+            /** Format: int64 */
+            expires_at: number;
+            token: string;
+            url?: string | null;
+        };
         EditMessage: {
             content: string;
         };
         /** @description Every event pushed over the WebSocket stream. The CLI's `tail` prints these. */
         Event: {
+            bytes: number[];
+            connection_id?: null | components["schemas"]["String"];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "terminal_output";
+        } | {
+            session: components["schemas"]["TerminalState"];
+            /** @enum {string} */
+            type: "terminal_state";
+        } | {
+            request: components["schemas"]["AccessRequest"];
+            /** @enum {string} */
+            type: "access_decided";
+            user_id: components["schemas"]["String"];
+        } | {
             author_id: components["schemas"]["String"];
             channel_id: components["schemas"]["String"];
             id: components["schemas"]["String"];
@@ -830,9 +1178,114 @@ export interface components {
             /** @enum {string} */
             type: "resync";
         };
+        Grant: {
+            capability: components["schemas"]["Capability"];
+            /** Format: int64 */
+            created_at: number;
+            created_by: components["schemas"]["String"];
+            /** Format: int64 */
+            expires_at?: number | null;
+            grantee_id: components["schemas"]["String"];
+            host_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            /** Format: int64 */
+            revoked_at?: number | null;
+        };
         Health: {
             ok: boolean;
             version: string;
+        };
+        Host: {
+            direct_url?: string | null;
+            id: components["schemas"]["String"];
+            /** Format: int64 */
+            last_seen?: number | null;
+            name: string;
+            online: boolean;
+            owner_id: components["schemas"]["String"];
+        };
+        HostCredential: {
+            host_id: components["schemas"]["String"];
+            name: string;
+            server_url: string;
+            token: string;
+        };
+        HostEnrollment: {
+            code: string;
+            /** Format: int64 */
+            expires_at: number;
+        };
+        /**
+         * @description UTF-8 JSON inside binary WebSocket messages. Byte fields contain octets.
+         *     Open is idempotent: an existing PTY sends its recent scrollback and resizes.
+         */
+        HostFrame: {
+            /** Format: int32 */
+            cols: number;
+            /** Format: int32 */
+            rows: number;
+            session_id: components["schemas"]["String"];
+            shell?: string | null;
+            /** @enum {string} */
+            type: "open";
+        } | {
+            bytes: number[];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "input";
+        } | {
+            /** Format: int32 */
+            cols: number;
+            /** Format: int32 */
+            rows: number;
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "resize";
+        } | {
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "close";
+        } | {
+            bytes: number[];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "output";
+        } | {
+            /** Format: int32 */
+            code: number;
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "exited";
+        } | {
+            bytes: number;
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "ack";
+        } | {
+            name: string;
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "viewer";
+            user_id: components["schemas"]["String"];
+        } | {
+            direct_url?: string | null;
+            /** @enum {string} */
+            type: "hello";
+        } | {
+            connection_id: components["schemas"]["String"];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "replay";
+        } | {
+            bytes: number[];
+            connection_id: components["schemas"]["String"];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "scrollback";
+        };
+        HostLogin: {
+            code: string;
+            name: string;
         };
         Invite: {
             code: string;
@@ -910,6 +1363,13 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        OpenTerminal: {
+            channel_id?: null | components["schemas"]["String"];
+            /** Format: int32 */
+            cols?: number | null;
+            /** Format: int32 */
+            rows?: number | null;
+        };
         PresenceState: {
             objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
@@ -922,6 +1382,12 @@ export interface components {
             invite: string;
             password: string;
             username: string;
+        };
+        RequestAccess: {
+            capability: components["schemas"]["Capability"];
+            /** Format: int32 */
+            duration_minutes?: number | null;
+            standing?: boolean;
         };
         /** @enum {string} */
         Role: "admin" | "member";
@@ -950,13 +1416,63 @@ export interface components {
             token: string;
             user: components["schemas"]["User"];
         };
+        SetController: {
+            user_id?: null | components["schemas"]["String"];
+        };
         SetReaction: {
             emoji: string;
         };
         Settings: {
             canvas_enabled: boolean;
         };
+        ShareTerminal: {
+            channel_id: components["schemas"]["String"];
+        };
         String: string;
+        TerminalFrame: {
+            bytes: number[];
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "terminal_input";
+        } | {
+            /** Format: int32 */
+            cols: number;
+            /** Format: int32 */
+            rows: number;
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "terminal_resize";
+        } | {
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "terminal_open";
+        } | {
+            session_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "terminal_close";
+        };
+        TerminalState: {
+            active_controller_id?: null | components["schemas"]["String"];
+            /** Format: int32 */
+            cols: number;
+            control_request_ids: components["schemas"]["String"][];
+            /** Format: int64 */
+            ended_at?: number | null;
+            host_id: components["schemas"]["String"];
+            host_name: string;
+            id: components["schemas"]["String"];
+            owner_id: components["schemas"]["String"];
+            recording_capped: boolean;
+            recording_upload_id?: null | components["schemas"]["String"];
+            /** Format: int32 */
+            rows: number;
+            /** Format: int64 */
+            started_at: number;
+            viewer_ids: components["schemas"]["String"][];
+        };
+        TerminalWrite: {
+            text: string;
+        };
         Token: {
             id: components["schemas"]["String"];
             name: string;
@@ -1001,6 +1517,34 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    log: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessLog"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     bootstrap: {
         parameters: {
             query?: never;
@@ -1694,6 +2238,62 @@ export interface operations {
             };
         };
     };
+    grants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -1709,6 +2309,248 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Host"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    direct_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectCheck"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectPermission"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    enroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostEnrollment"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostLogin"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostCredential"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestAccess"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenTerminal"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -2144,6 +2986,40 @@ export interface operations {
             };
         };
     };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessDecision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     search: {
         parameters: {
             query?: never;
@@ -2165,6 +3041,194 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Message"][];
                 };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    controller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetController"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerminalState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    direct_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectToken"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    request_control: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerminalState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareTerminal"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    write: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminalWrite"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {

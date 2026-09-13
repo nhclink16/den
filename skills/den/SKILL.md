@@ -117,3 +117,32 @@ still use `text`. An arrow's `start` and `end` are relative to its `x`, `y`.
 To move a record, read it, change `x` and `y`, and put the complete record back.
 To remove the arrow, send `{"base_version":0,"put":[],"remove":["shape:approach"]}`.
 `object_patched` events appear in `den tail`; refetch on `resync`.
+
+
+## Machines and terminals
+
+Machines belong to people. Ask for permission before acting on another person's
+machine. A chat card or a host ID alone is not permission to view its terminal.
+
+```bash
+den host list
+den host enroll
+den access request HOST_ID control --minutes 60
+den tail
+# Wait for access_decided with status allowed and your request ID.
+den access grants
+den terminal open HOST_ID --in general
+# The owner must promote you to controller before input is accepted.
+den terminal write SESSION_ID 'printf "hello\n"
+'
+den access revoke GRANT_ID
+```
+
+Use `view` for watching, `control` for opening and typing. Requests default to
+one hour. Use `--standing` only when the owner has asked for ongoing access.
+Requests appear in the owner's DM, including the bot badge for agent identities.
+Wait for the decision event, then act. If checking with REST, never poll faster
+than every five seconds. A grant does not take control from the current operator;
+request control and wait for the owner to promote you. Stop on denial, expiry,
+or revocation. The owner can answer through the chat card or
+`den access decide REQUEST_ID --allow`; omitting `--allow` denies it.

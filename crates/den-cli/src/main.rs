@@ -1,5 +1,6 @@
 mod canvas;
 mod client;
+mod hosts;
 mod stream;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -32,6 +33,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Cmd {
     Health,
+    #[command(subcommand)]
+    Host(hosts::HostCmd),
+    #[command(subcommand)]
+    Access(hosts::AccessCmd),
+    #[command(subcommand)]
+    Terminal(hosts::TerminalCmd),
     #[command(subcommand)]
     Canvas(canvas::Cmd),
     /// Claim a new local instance using its one-time key file.
@@ -211,6 +218,9 @@ fn main() -> anyhow::Result<()> {
     let mut c = Client::new(args.url, args.token, args.config)?;
     match args.cmd {
         Cmd::Canvas(cmd) => canvas::run(&c, cmd)?,
+        Cmd::Host(cmd) => hosts::host(&c, cmd)?,
+        Cmd::Access(cmd) => hosts::access(&c, cmd)?,
+        Cmd::Terminal(cmd) => hosts::terminal(&c, cmd)?,
         Cmd::Health => print(&c.get::<Health>("/health")?)?,
         Cmd::Init {
             username,

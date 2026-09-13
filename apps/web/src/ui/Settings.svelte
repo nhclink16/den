@@ -4,13 +4,14 @@
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
   import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
+  import MachineSettings from './MachineSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import Icon from './Icon.svelte'
 
   let { section = 'notifications', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['notifications', 'Notifications'], ['voice', 'Voice'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
+    ['notifications', 'Notifications'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let q = $state('')
@@ -109,7 +110,9 @@
     </nav>
 
     <div class="pane">
-      {#if section === 'notifications'}
+      {#if section === 'machines' || section === 'access'}
+      <MachineSettings {section} />
+    {:else if section === 'notifications'}
         <h2 class="display">Notifications</h2>
         <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
         {#if perm !== 'granted'}
