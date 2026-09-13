@@ -1,6 +1,6 @@
 # M8 portable
 
-Item 1 is complete. Export/import and instance name are next.
+Items 1 and 2 are complete. Instance name is next.
 
 ## Public release preparation
 
@@ -118,3 +118,13 @@ The nightly unit stops Den for export, restarts it before the network transfer,
 and also restarts it on failure. `den.zip` goes to the existing dated codexbox
 backup destination, with the completion marker last and retention unchanged.
 The restore drill now imports that archive before booting the restored server.
+
+The installed VPS unit passed on 2026-09-13 at 23:34 UTC: it exported 13 files
+(17,160,349 bytes), schema 5, and completed the transfer in five seconds. The
+server stopped and resumed within the same logged second, before transfer.
+The real codexbox restore drill passed archive hashes, migrations, health,
+7 authenticated channels, integrity, foreign keys, all 10 completed upload files,
+and 9 authenticated byte ranges. One private upload was outside the drill token's
+visibility and was checked on disk; recording authorization is covered by the
+integration round trip. Public health passed afterward. All workspace tests
+(21 server behaviors), formatting and Clippy with warnings denied passed.
