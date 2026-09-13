@@ -17,7 +17,7 @@
 <style>
   .terminal-card { display: block; width: 320px; max-width: 100%; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; text-align: left; margin: 6px 0; }
   .terminal-card:hover { border-color: var(--ink-3); } .preview { display: grid; place-items: center; height: 150px; overflow: hidden; background: var(--bg); }
-  pre { font: 9px/1.3 'Den Terminal Mono', monospace; color: var(--ink-2); opacity: .55; white-space: pre; width: 100%; padding: 10px; overflow: hidden; }
+  pre { height: 100%; margin: 0; align-self: start; font: 9px/1.3 'Den Terminal Mono', monospace; color: var(--ink-2); opacity: .55; white-space: pre; width: 100%; padding: 10px; overflow: hidden; }
   .glyph { font: 30px var(--mono); color: var(--ink-3); }
   .caption { display: flex; align-items: center; padding: 10px 12px; gap: 10px; } .title { flex: 1; min-width: 0; display: grid; } .name { font: 15px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .people { display: flex; align-items: center; gap: 3px; } .controller { position: relative; } .controller i { position: absolute; width: 7px; height: 7px; right: -2px; bottom: -2px; border-radius: 50%; background: var(--lamp); }
