@@ -179,6 +179,7 @@ pub fn router(state: AppState) -> Router {
     router_with_web(state, PathBuf::from("apps/web/dist"))
 }
 pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
+    let settings_web = web_dir.clone();
     Router::new()
         .route(
             "/settings",
@@ -268,6 +269,29 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
                 response
             },
         ))
+        // /settings is both an API resource and an existing SPA route.
+        .layer(axum::middleware::from_fn(
+            move |req: Request, next: axum::middleware::Next| {
+                let root = settings_web.clone();
+                async move {
+                    if req.uri().path() == "/settings"
+                        && matches!(
+                            *req.method(),
+                            axum::http::Method::GET | axum::http::Method::HEAD
+                        )
+                        && req
+                            .headers()
+                            .get(axum::http::header::ACCEPT)
+                            .and_then(|v| v.to_str().ok())
+                            .is_some_and(|v| v.contains("text/html"))
+                    {
+                        web::serve(root, req).await
+                    } else {
+                        next.run(req).await
+                    }
+                }
+            },
+        ))
         .with_state(state)
 }
 #[utoipa::path(get, path="/health", responses((status=200, body=Health)))]
@@ -354,10 +378,22 @@ pub(crate) struct ApiJson<T>(pub T);
 impl<T: DeserializeOwned + Send> FromRequest<AppState> for ApiJson<T> {
     type Rejection = Error;
     async fn from_request(req: Request, state: &AppState) -> Result<Self> {
+        let patch =
+            req.uri().path().starts_with("/objects/") && req.uri().path().ends_with("/patch");
         Json::<T>::from_request(req, state)
             .await
             .map(|v| Self(v.0))
-            .map_err(|e| Error(e.status(), "invalid_request", "Invalid JSON request".into()))
+            .map_err(|e| {
+                if patch && e.status() == StatusCode::PAYLOAD_TOO_LARGE {
+                    Error(
+                        e.status(),
+                        "patch_too_large",
+                        "Object patch exceeds 1 MiB".into(),
+                    )
+                } else {
+                    Error(e.status(), "invalid_request", "Invalid JSON request".into())
+                }
+            })
     }
 }
 pub(crate) fn name(value: &str) -> Result<()> {

@@ -124,6 +124,15 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
         assert_eq!(response.status(), 200);
         assert_eq!(response.text().await.unwrap(), html);
     }
+    let settings_page = t
+        .http
+        .get(format!("{}/settings", t.url))
+        .header("Accept", "text/html")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(settings_page.status(), 200);
+    assert_eq!(settings_page.text().await.unwrap(), html);
     let asset = t
         .http
         .get(format!("{}/assets/app.js", t.url))
@@ -152,6 +161,7 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
         "/missing.png",
         "/users/misspelled",
         "/api/missing",
+        "/objects/missing/typo",
     ] {
         assert_eq!(
             t.http

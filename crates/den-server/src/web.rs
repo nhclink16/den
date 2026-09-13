@@ -18,6 +18,7 @@ pub(crate) async fn serve(root: PathBuf, req: Request) -> Response {
             | "channels"
             | "dms"
             | "messages"
+            | "objects"
             | "uploads"
             | "ws"
             | "presence"
