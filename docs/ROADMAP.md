@@ -61,5 +61,8 @@ A dial-out host binary, a grant model where requests and approvals are cards in 
 - Prebuilt release binaries and a host `install.sh`; friends never need Rust.
 - Offline `den-server export` / `import` with a manifest, run with the server stopped; restore drills against the real server.
 - Bounded instance name, shown where the client says "Den".
+
+These three items are complete; acceptance is recorded in [M8 notes](M8-NOTES.md).
+
 - Multi-instance client design settled; ships in the Tauri shells (M4), not the browser.
 - Later: admin "Export server backup" download after a privacy review; hosted multi-tenant with one LiveKit per tenant; game-server plugin.

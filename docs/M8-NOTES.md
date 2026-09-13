@@ -1,6 +1,6 @@
 # M8 portable
 
-All three M8 items are implemented. Final deployment checks are in progress.
+All three M8 items are implemented and deployed. Final release checks are in progress.
 
 ## Public release preparation
 
@@ -161,3 +161,12 @@ could arrive before Tokio finished writing the file. Commit `716d49e` flushes th
 write before acknowledging it. The archive test now explicitly requires nonempty
 recorded output after ACK. All 22 server behaviors passed after the fix; web checks
 reported zero errors and warnings, and the production SPA built successfully.
+
+Production was upgraded to 0.1.1/schema 6. An export attempt while its systemd
+unit was active was refused without creating a file. The installed nightly unit
+then completed a schema-6 export and the real codexbox restore drill passed again:
+7 channels, all 10 completed upload files and 9 authenticated byte ranges.
+Anonymous GET /settings reports the default name. The final full workspace test
+suite and Clippy passed. A repeated Gitleaks history scan covered 78 commits with
+no findings. The 0.1.1 patch release includes the completed M8 code and the Windows
+installer fix that followed the initial 0.1.0 release.
