@@ -21,11 +21,11 @@ const admin = await api('POST', '/auth/login', { username: 'nicholas', password:
 let hosts = await api('GET', '/hosts', undefined, admin.token)
 let host = hosts.find(h => h.name === 'codexbox' && h.online)
 if (!host && hosts.some(h => h.name === 'codexbox')) {
-  await until(async () => {host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === 'codexbox' && h.online); return host}, 'existing host reconnects', 20000)
+  await until(async () => {host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === 'codexbox' && h.online); return host}, 'existing host reconnects', 20000).catch(() => {})
 }
 if (!host) {
   const enrollment = await api('POST', '/hosts/enroll', {}, admin.token)
-  execFileSync(hostBin, ['login', enrollment.code], { stdio: ['ignore', 'ignore', 'pipe'] })
+  try {execFileSync(hostBin, ['login', enrollment.code], { stdio: ['ignore', 'ignore', 'pipe'] })} catch {throw Error('Host enrollment failed. Generate a fresh code in Settings, Machines.')}
   execFileSync(hostBin, ['install'], { stdio: ['ignore', 'ignore', 'pipe'] })
   await until(async () => {host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === 'codexbox' && h.online); return host}, 'codexbox host connected')
 }
@@ -121,6 +121,7 @@ try {
   await a.getByRole('button',{name:'End session',exact:true}).click()
   await a.getByTestId('terminal-replay').waitFor()
   const state=(await api('GET',`/objects/${id}`,undefined,admin.token)).state.terminal; assert(state.recording_upload_id)
+  await until(async () => +(await a.getByLabel('Replay position').getAttribute('max')) > 1, 'recording downloaded')
   await a.getByLabel('Replay position').fill(String(await a.getByLabel('Replay position').getAttribute('max')))
   await until(async () => (await screen(a)).includes('vps-2fd9743a'), 'full replay renders Herdr and VPS output')
   // The complete recording includes BOB_OK even if Herdr later entered the alternate screen.
