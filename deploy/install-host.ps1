@@ -12,7 +12,9 @@ New-Item -ItemType Directory -Path $temp | Out-Null
 try {
     $download = Join-Path $temp 'den-host.exe'
     Invoke-WebRequest -UseBasicParsing "$base/$asset" -OutFile $download
-    $sums = (Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS").Content
+    $checksumFile = Join-Path $temp 'SHA256SUMS'
+    Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS" -OutFile $checksumFile
+    $sums = Get-Content -Raw -Encoding UTF8 $checksumFile
     $entries = @($sums -split "`n" | Where-Object { $_ -match "^[a-fA-F0-9]{64}\s+$([regex]::Escape($asset))\s*$" })
     if ($entries.Count -ne 1) { throw 'Missing or duplicate checksum. Nothing was installed.' }
     $expected = ($entries[0] -split '\s+')[0]

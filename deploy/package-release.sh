@@ -25,8 +25,7 @@ if [[ $platform = linux-x86_64 ]]; then
   trap 'rm -rf "$stage"' EXIT
   cp "$bin/den-server" "$bin/den" "$bin/den-host" "$stage/"
   cp -R apps/web/dist "$stage/web"
-  cp -R deploy "$stage/deploy"
-  cp LICENSE "$stage/"
-  cp -R LICENSES "$stage/LICENSES"
+  # Never package ignored deployment credentials or local data directories.
+  git archive HEAD deploy LICENSE LICENSES | tar -x -C "$stage"
   tar -czf "$out/den-server-linux-x86_64.tar.gz" -C "$stage" .
 fi
