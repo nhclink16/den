@@ -5,6 +5,22 @@ use tower::ServiceExt;
 pub(crate) async fn serve(root: PathBuf, req: Request) -> Response {
     let path = req.uri().path().to_string();
     let method = req.method().clone();
+    if matches!(path.as_str(), "/install-host.sh" | "/install-host.ps1") {
+        if !matches!(method, Method::GET | Method::HEAD) {
+            return StatusCode::METHOD_NOT_ALLOWED.into_response();
+        }
+        let deploy = std::env::var_os("DEN_DEPLOY_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("deploy"));
+        return tower_http::services::ServeFile::new_with_mime(
+            deploy.join(&path[1..]),
+            &"text/plain; charset=utf-8".parse().expect("static MIME"),
+        )
+        .oneshot(req)
+        .await
+        .unwrap_or_else(|never| match never {})
+        .map(Body::new);
+    }
     // Misspelled API URLs and missing assets must never return index.html.
     let segment = path.split('/').nth(1).unwrap_or("");
     if matches!(

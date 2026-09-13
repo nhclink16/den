@@ -10,6 +10,12 @@
   let enrollment = $state<HostEnrollment | null>(null)
   let error = $state('')
   let busy = $state(false)
+  let windows = $state(false)
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
+  const psQuote = (value: string) => `'${value.replaceAll("'", "''")}'`
+  const command = $derived(enrollment ? windows
+    ? `& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing ${psQuote(location.origin + '/install-host.ps1')}).Content)) -Code ${psQuote(enrollment.code)}`
+    : `curl -fsSL ${quote(location.origin + '/install-host.sh')} | sh -s -- ${quote(enrollment.code)}` : '')
   const user = (id: string) => store.users.get(id)?.username || id
   const machine = (id: string) => machines.find(h => h.id === id)?.name || id
   async function refresh() {
@@ -36,7 +42,7 @@
   {:else}<p class="muted">Add a machine to open your first terminal.</p>{/each}
   <button class="btn lit" disabled={busy} onclick={add}>Add a machine</button>
   {#if enrollment}
-    <div class="enrollment"><p>Run this on the machine. This code is shown once and expires in 10 minutes.</p><pre>cargo install --git https://github.com/nhclink16/den --locked den-host &amp;&amp; den-host login '{enrollment.code}' &amp;&amp; den-host install</pre><button class="btn quiet" onclick={() => enrollment = null}>Hide code</button></div>
+    <div class="enrollment"><p>Run this on the machine as your own user. This code is shown once and expires in 10 minutes.</p><label><input type="checkbox" bind:checked={windows} /> Windows PowerShell</label><pre>{command}</pre><button class="btn quiet" onclick={() => enrollment = null}>Hide code</button></div>
   {/if}
 {:else}
   <h2 class="display">Access</h2>

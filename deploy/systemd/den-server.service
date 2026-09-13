@@ -8,6 +8,7 @@ User=den
 Group=den
 WorkingDirectory=/var/lib/den
 EnvironmentFile=/etc/den/den.env
+Environment=DEN_DEPLOY_DIR=/opt/den/deploy
 ExecStart=/opt/den/bin/den-server
 Restart=always
 RestartSec=3

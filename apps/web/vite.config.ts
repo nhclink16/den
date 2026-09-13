@@ -12,6 +12,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: Object.fromEntries([
+      ['/install-host.sh', { target: 'http://127.0.0.1:7000' }],
+      ['/install-host.ps1', { target: 'http://127.0.0.1:7000' }],
       ['/hosts/ws', { target: 'ws://127.0.0.1:7000', ws: true }],
       ...api.map((p) => [`/${p}`, { target: 'http://127.0.0.1:7000' }]),
       ['^/settings$', { target: 'http://127.0.0.1:7000', bypass: (req: { headers: { accept?: string }; url?: string }) => req.headers.accept?.includes('text/html') ? req.url : undefined }],
