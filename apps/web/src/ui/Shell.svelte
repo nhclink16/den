@@ -40,12 +40,6 @@
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
   const showSidebar = $derived(narrow ? drawer : store.layout.sidebar)
 
-  // Title badge: total unread across channels.
-  $effect(() => {
-    const total = store.totalUnread
-    document.title = total ? `(${total}) Den` : 'Den'
-  })
-
   $effect(() => {
     const down = (e: KeyboardEvent) => call.keydown(e), up = (e: KeyboardEvent) => call.keyup(e)
     const release = () => call.setHeld(false)

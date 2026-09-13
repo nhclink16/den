@@ -36,7 +36,7 @@
 </script>
 {#if section === 'machines'}
   <h2 class="display">Machines</h2>
-  <p class="muted">Open a terminal on a machine you connect to Den.</p>
+  <p class="muted">Open a terminal on a machine you connect to {store.settings.instance_name}.</p>
   {#each machines as h}
     <div class="row"><span><span class="dot" class:online={h.online}></span>{h.name} <small>{h.online ? 'online' : 'offline'}</small></span><button class="btn quiet" disabled={busy} onclick={() => remove(h)}>Remove</button></div>
   {:else}<p class="muted">Add a machine to open your first terminal.</p>{/each}

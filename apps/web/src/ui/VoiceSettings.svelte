@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { store } from '../lib/store.svelte'
   import { call } from '../lib/call.svelte'
   let devices = $state<MediaDeviceInfo[]>([])
   let permitted = $state(false)
@@ -71,7 +72,7 @@
 </fieldset>
 {#if call.prefs.mode === 'ptt'}
   <label class="device">Push-to-talk key<input class="field mono" readonly value={capturing ? 'Press a key' : call.prefs.pttLabel} onfocus={() => (capturing = true)} onblur={() => (capturing = false)} onkeydown={capture} /></label>
-  <p class="muted small">Hold the key while Den has focus, or hold the talk button.</p>
+  <p class="muted small">Hold the key while {store.settings.instance_name} has focus, or hold the talk button.</p>
 {/if}
 {#if !permitted}<button class="btn lit" disabled={requesting} onclick={allow}>Allow microphone and camera</button>{/if}
 <label class="device">Microphone<select class="field" value={call.prefs.microphone} onchange={(e) => input(e.currentTarget.value)}><option value="">Default microphone</option>{#each devices.filter((d) => d.kind === 'audioinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Microphone'}</option>{/each}</select></label>

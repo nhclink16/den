@@ -1,6 +1,6 @@
 # M8 portable
 
-Items 1 and 2 are complete. Instance name is next.
+All three M8 items are implemented. Final deployment checks are in progress.
 
 ## Public release preparation
 
@@ -128,3 +128,36 @@ and 9 authenticated byte ranges. One private upload was outside the drill token'
 visibility and was checked on disk; recording authorization is covered by the
 integration round trip. Public health passed afterward. All workspace tests
 (21 server behaviors), formatting and Clippy with warnings denied passed.
+
+## 3. Instance name
+
+Migration 0006 adds `settings.instance_name`, default `Den`. Shared `Settings` and
+`UpdateSettings` produce the OpenAPI and generated TypeScript contracts. The short
+`m8-instance-name` branch was announced before its fast-forward into main.
+GET /settings is public for login branding; it contains only the name and canvas
+capability flag. PUT remains authenticated, CSRF-protected for cookies, and
+admin-only. Omitted fields retain their values, including for pre-M8 clients.
+Names are trimmed, limited to 1–40 Unicode scalar values, and reject control
+characters. Settings, Rooms has the Server name field with keyboard submission,
+validation, an announced save result and the existing error region.
+
+The client uses the name in the sidebar beside the mark, anonymous login heading,
+document title (including unread count), notification title, and settings copy.
+Long sidebar names truncate with the full name available on hover; login names
+wrap without horizontal overflow. Public production keeps its default `Den`.
+
+`scripts/m8-instance-smoke.mjs` passed against the built SPA and local server:
+keyboard save, a live second tab, sidebar mark, anonymous login/title, a real
+server notification event captured at the browser Notification constructor,
+40-character mobile layout, and 41-character UI rejection. Screenshots were
+inspected: [Rooms](shots/m8-instance-settings.png),
+[login](shots/m8-instance-login.png), [mobile](shots/m8-instance-mobile.png).
+The API test covers anonymous read, anonymous/member write denial, blank/long/
+control-character rejection, 40 emoji, trimming and preservation on legacy writes.
+The archive round trip now verifies a custom name survives export/import.
+
+A full-suite run exposed an existing asynchronous recording-write race: an ACK
+could arrive before Tokio finished writing the file. Commit `716d49e` flushes the
+write before acknowledging it. The archive test now explicitly requires nonempty
+recorded output after ACK. All 22 server behaviors passed after the fix; web checks
+reported zero errors and warnings, and the production SPA built successfully.

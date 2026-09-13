@@ -15,7 +15,7 @@
 
 <nav class="side">
   <div class="brand">
-    <a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /> Den</a>
+    <a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /><span title={store.settings.instance_name}>{store.settings.instance_name}</span></a>
     <span class="conn" class:off={!store.connected} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
   </div>
 
@@ -97,6 +97,9 @@
   .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row :global(svg) { color: var(--ink-3); flex: none; }
   .row.lit :global(svg), .row.active :global(svg) { color: var(--ink-2); }
+  .wordmark { min-width: 0; }
+  .wordmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wordmark :global(svg) { flex-shrink: 0; }
   .voice { width: 100%; text-align: left; }
   .voice-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
   .voice.active :global(svg) { color: var(--lamp); }

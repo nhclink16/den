@@ -30,7 +30,7 @@
 
 <main class="wrap">
   <form class="card" onsubmit={submit}>
-    <h1 class="display"><Mark size={40} /> Den</h1>
+    <h1 class="display"><Mark size={40} /><span>{store.settings.instance_name}</span></h1>
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
     <label>
@@ -65,6 +65,8 @@
     padding: 28px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg);
   }
   h1 { font-size: 40px; margin: 0; line-height: 1; display: flex; align-items: center; gap: 10px; }
+  h1 span { min-width: 0; overflow-wrap: anywhere; }
+  h1 :global(svg) { flex-shrink: 0; }
   h1 + p { margin: -6px 0 6px; }
   label { display: flex; flex-direction: column; gap: 6px; }
   .small { font-size: 13px; margin: -4px 0 0; }

@@ -70,6 +70,18 @@
   const inviteLink = (code: string) => `${location.origin}/login?invite=${encodeURIComponent(code)}`
 
   // --- rooms ---
+  let serverName = $state('')
+  let nameBusy = $state(false)
+  let nameStatus = $state('')
+  $effect(() => { serverName = store.settings.instance_name })
+  async function saveName(e: SubmitEvent) {
+    e.preventDefault(); nameBusy = true; nameStatus = ''; roomErr = ''
+    try {
+      store.settings = await api.put('/settings', { instance_name: serverName.trim() })
+      nameStatus = 'Server name saved.'
+    } catch (err) { roomErr = (err as Error).message }
+    finally { nameBusy = false }
+  }
   let newCat = $state('')
   let newChan = $state('')
   let newChanCat = $state('')
@@ -199,6 +211,15 @@
 
       {:else if section === 'rooms' && admin}
         <h2 class="display">Rooms</h2>
+        <form onsubmit={saveName} class="server-name">
+          <label for="server-name" class="eyebrow">Server name</label>
+          <div class="inline">
+            <input id="server-name" class="field" bind:value={serverName} required aria-describedby="name-help" />
+            <button class="btn" type="submit" disabled={nameBusy || !serverName.trim() || Array.from(serverName.trim()).length > 40}>Save name</button>
+          </div>
+          <p id="name-help" class="faint small">1–40 characters. Shown to members and on the login screen.</p>
+          <p class="small" role="status">{nameStatus}</p>
+        </form>
         <form class="inline" onsubmit={addCategory}>
           <input class="field" bind:value={newCat} placeholder="New category" required />
           <button class="btn" type="submit"><Icon name="plus" /> Add category</button>
@@ -235,6 +256,8 @@
 </section>
 
 <style>
+  .server-name { margin-bottom: 24px; }
+  .server-name > label { display: block; margin-bottom: 6px; }
   .settings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }

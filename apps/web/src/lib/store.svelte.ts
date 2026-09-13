@@ -18,7 +18,7 @@ function loadLayout(): Layout {
 const PAGE = 50
 
 class Store {
-  settings = $state<Settings>({ canvas_enabled: true })
+  settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
   onEvent(fn: (event: Event) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }
   sendEvent(event: ClientEvent) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(event)) }
@@ -98,6 +98,7 @@ class Store {
     setCsrf(null); this.ws?.close(); this.me = null; this.ready = false
   }
   async resume(): Promise<boolean> {
+    try { this.settings = await api.get<Settings>('/settings') } catch { /* Default name while offline. */ }
     try { this.me = await api.get<User>('/users/me'); await this.boot(); return true } catch { return false }
   }
   private async boot() { await this.resync(); this.ready = true; this.connect() }

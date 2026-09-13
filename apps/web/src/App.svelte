@@ -22,14 +22,16 @@
   })
 </script>
 
+<svelte:head><title>{store.totalUnread && store.me ? `(${store.totalUnread}) ` : ''}{store.settings.instance_name}</title></svelte:head>
+
 {#if !checked}
-  <div class="boot"><span class="display">Den</span></div>
+  <div class="boot"><span class="display">{store.settings.instance_name}</span></div>
 {:else if router.route.name === 'login' || !store.me}
   <Login />
 {:else if store.ready}
   <Shell />
 {:else}
-  <div class="boot"><span class="display">Den</span><span class="faint">Opening the room</span></div>
+  <div class="boot"><span class="display">{store.settings.instance_name}</span><span class="faint">Opening the room</span></div>
 {/if}
 
 <style>

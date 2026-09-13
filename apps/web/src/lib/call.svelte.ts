@@ -47,7 +47,7 @@ class Call {
   ids(id: string) { return this.states.get(id) || [] }
   report(err: unknown) {
     if (err instanceof HttpError && err.status === 503) this.error = "Voice isn't set up on this server yet."
-    else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = "Den needs your microphone. Allow it in the browser's site settings."
+    else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = `Allow microphone access in your browser’s site settings.`
     else this.error = err instanceof Error ? err.message : 'The call could not connect. Try again.'
   }
   private refresh = () => {
