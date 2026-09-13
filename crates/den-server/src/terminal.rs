@@ -367,6 +367,8 @@ pub(crate) async fn output(s: &AppState, id: &str, bytes: Vec<u8>) -> Result<()>
                 .open(path)
                 .await?;
             file.write_all(line.as_bytes()).await?;
+            // Complete the blocking file write before acknowledging output or ending a session.
+            file.flush().await?;
         }
     }
     let _ = s.events.send(Event::TerminalOutput {
