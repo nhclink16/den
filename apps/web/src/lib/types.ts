@@ -19,3 +19,10 @@ export type PresenceState = S['PresenceState']
 
 export type CallState = S['CallState']
 export type CallToken = S['CallToken']
+
+export type ObjectSummary = S['ObjectSummary']
+export type LiveObject = S['Object']
+export type ObjectPatch = S['ObjectPatch']
+export type Settings = S['Settings']
+export type ClientEvent = S['ClientEvent']
+export type ObjectVersion = S['ObjectVersion']

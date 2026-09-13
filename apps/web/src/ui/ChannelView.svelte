@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ObjectDock from './ObjectDock.svelte'
+  import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
   import CallView from './CallView.svelte'
   import { store } from '../lib/store.svelte'
@@ -49,8 +51,9 @@
     {/if}
   </header>
 
-  {#if call.channel}<CallView />{/if}
-  {#if !call.channel || !call.expanded}
+  {#if call.channel && !objects.expanded}<CallView />{/if}
+  {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
+  {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}
     <div class="voice-empty"><button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button></div>
   {:else}
@@ -79,6 +82,8 @@
 </section>
 
 <style>
+  .object-slot { display: contents; }
+  .object-slot.hidden { display: none; }
   .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
   .head {
     display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px;

@@ -1,5 +1,7 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
+import { objects } from './objects.svelte'
+import type { ClientEvent, Settings } from './types'
 import { call } from './call.svelte'
 import { api, setCsrf } from './api'
 import type { CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
@@ -16,6 +18,10 @@ function loadLayout(): Layout {
 const PAGE = 50
 
 class Store {
+  settings = $state<Settings>({ canvas_enabled: true })
+  private listeners = new Set<(event: Event) => void>()
+  onEvent(fn: (event: Event) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }
+  sendEvent(event: ClientEvent) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(event)) }
   me = $state<User | null>(null)
   users = $state<Map<string, User>>(new Map())
   channels = $state<Channel[]>([])
@@ -85,7 +91,7 @@ class Store {
     await this.boot()
   }
   async logout() {
-    await call.leave(); call.snapshot([])
+    await call.leave(); call.snapshot([]); objects.active = null; objects.expanded = false; objects.presence = {}
     try { await api.post('/auth/logout') } catch { /* already gone */ }
     setCsrf(null); this.ws?.close(); this.me = null; this.ready = false
   }
@@ -95,7 +101,7 @@ class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence, calls] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings] = await Promise.all([
       api.get<User[]>('/users'),
       api.get<Channel[]>('/channels'),
       api.get<Category[]>('/categories'),
@@ -103,7 +109,10 @@ class Store {
       api.get<NotificationPreferences>('/users/me/notification-preferences'),
       api.get<PresenceState>('/presence'),
       api.get<CallState[]>('/calls'),
+      api.get<Settings>('/settings'),
     ])
+    this.settings = settings
+    objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
     this.channels = channels
     this.categories = categories.sort((a, b) => a.position - b.position)
@@ -211,7 +220,10 @@ class Store {
   }
 
   private async handle(ev: Event) {
+    for (const fn of this.listeners) fn(ev)
     switch (ev.type) {
+      case 'settings_updated': this.settings = ev.settings; break
+      case 'object_presence': objects.presence = { ...objects.presence, [ev.id]: ev.user_ids }; break
       case 'resync': if (this.ready) await this.resync(); break
       case 'message_created':
       case 'message_edited': {
@@ -224,7 +236,9 @@ class Store {
         }
         break
       }
-      case 'message_deleted': this.drop(ev.id, ev.channel_id); break
+      case 'message_deleted':
+        if (objects.active?.message_id === ev.id) { objects.active = null; objects.expanded = false }
+        this.drop(ev.id, ev.channel_id); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'notification_preferences_updated': this.notif = ev.preferences; break

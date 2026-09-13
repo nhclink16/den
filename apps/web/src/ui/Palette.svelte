@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { plugins } from '../plugins'
   import { call } from '../lib/call.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
@@ -13,7 +14,7 @@
   type Item = { id: string; label: string; hint?: string; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string }
 
   const items = $derived.by<Item[]>(() => {
-    const out: Item[] = []
+    const out: Item[] = plugins.flatMap((p) => p.paletteActions.map((a) => ({ ...a, kind: 'action' as const })))
     for (const c of store.textChannels) out.push({ id: c.id, label: c.name, hint: store.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', run: () => { if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
     for (const c of store.dms) out.push({ id: c.id, label: store.title(c), hint: 'direct', kind: 'dm', run: () => router.go(`/c/${c.id}`), userId: (c.member_ids || []).find((id) => id !== store.me?.id) })
     for (const u of store.users.values()) if (u.id !== store.me?.id) out.push({ id: `u-${u.id}`, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await store.openDm([u.id]); router.go(`/c/${c.id}`) } })

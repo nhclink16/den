@@ -10,7 +10,7 @@
   let { section = 'notifications', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['notifications', 'Notifications'], ['voice', 'Voice'], ['layout', 'Layout'], ['agents', 'Agents'],
+    ['notifications', 'Notifications'], ['voice', 'Voice'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let q = $state('')
@@ -129,6 +129,11 @@
 
       {:else if section === 'voice'}
         <VoiceSettings />
+      {:else if section === 'plugins' && admin}
+        <h2 class="display">Plugins</h2>
+        <label class="switch"><input type="checkbox" checked={store.settings.canvas_enabled} onchange={async (e) => { try { store.settings = await api.put('/settings', { canvas_enabled: e.currentTarget.checked }); agentErr = '' } catch (err) { agentErr = (err as Error).message } }} /> Canvas</label>
+        <p class="muted">A shared drawing board anyone in a room can open. Uses tldraw.</p>
+        {#if agentErr}<p role="alert" class="error">{agentErr}</p>{/if}
       {:else if section === 'layout'}
         <h2 class="display">Layout</h2>
         <label class="switch"><input type="checkbox" checked={store.layout.sidebar} onchange={(e) => store.saveLayout({ sidebar: e.currentTarget.checked })} /> Show the room list <kbd>Ctrl+\</kbd></label>

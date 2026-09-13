@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { objectKind } from '../plugins'
   import { store } from '../lib/store.svelte'
   import type { Message } from '../lib/types'
   import { render } from '../lib/markdown'
@@ -60,6 +61,10 @@
       {:else}
         <div class="text">{@html html}{#if m.edited_at}<span class="edited" title={m.edited_at}> (edited)</span>{/if}</div>
       {/if}
+      {#each m.objects || [] as object (object.id)}
+        {@const Card = objectKind(object.kind)?.card}
+        {#if Card}<Card {object} />{/if}
+      {/each}
       {#if m.attachments?.length}
         <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} />{/each}</div>
       {/if}
