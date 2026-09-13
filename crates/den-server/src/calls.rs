@@ -27,7 +27,7 @@ pub(crate) async fn token(
     visible(&s, &a.user.id, &channel_id).await?;
     let lk = s.livekit.as_ref().ok_or_else(unavailable)?;
     let token = AccessToken::with_api_key(&lk.key, &lk.secret)
-        .with_identity(&a.user.id)
+        .with_identity(&format!("{}:{}", a.user.id, s.id()))
         .with_name(&a.user.display_name)
         .with_ttl(Duration::from_secs(600))
         .with_grants(VideoGrants {
@@ -79,11 +79,7 @@ pub(crate) async fn list(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<
         channels
             .into_iter()
             .map(|c| {
-                let mut participant_ids = calls
-                    .get(&c.id)
-                    .map(|p| p.keys().cloned().collect::<Vec<_>>())
-                    .unwrap_or_default();
-                participant_ids.sort();
+                let participant_ids = user_ids(calls.get(&c.id));
                 CallState {
                     channel_id: c.id,
                     participant_ids,
@@ -121,7 +117,7 @@ pub(crate) async fn webhook(
         calls.remove(&room.name);
     } else if let Some(p) = event.participant {
         // Shared dev LiveKit may send rooms belonging to another Den database.
-        if visible(&s, &p.identity, &room.name).await.is_err() {
+        if visible(&s, user_id(&p.identity), &room.name).await.is_err() {
             return Ok(StatusCode::NO_CONTENT);
         }
         let users = calls.entry(room.name.clone()).or_default();
@@ -131,14 +127,26 @@ pub(crate) async fn webhook(
             users.remove(&p.identity);
         }
     }
-    let mut participant_ids = calls
-        .get(&room.name)
-        .map(|p| p.keys().cloned().collect::<Vec<_>>())
-        .unwrap_or_default();
-    participant_ids.sort();
+    let participant_ids = user_ids(calls.get(&room.name));
     let _ = s.events.send(Event::CallState {
         channel_id: room.name,
         participant_ids,
     });
     Ok(StatusCode::NO_CONTENT)
+}
+
+// Identity is account:connection. Keep legacy account-only identities working
+// while already-connected clients finish calls after a rolling deployment.
+fn user_id(identity: &str) -> &str {
+    identity.split_once(':').map_or(identity, |(user, _)| user)
+}
+
+fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
+    let mut ids = participants
+        .into_iter()
+        .flat_map(|p| p.keys().map(|id| user_id(id).to_owned()))
+        .collect::<Vec<_>>();
+    ids.sort();
+    ids.dedup();
+    ids
 }
