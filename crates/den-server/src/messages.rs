@@ -21,6 +21,7 @@ pub(crate) async fn with_uploads(s: &AppState, v: DbMessage) -> Result<Message> 
         created_at: v.created_at,
         edited_at: v.edited_at,
         attachments,
+        objects: objects::for_message(s, &v.id).await?,
         reactions: activity::reactions(s, &v.id).await?,
         mention_ids: sqlx::query_scalar!(
             "SELECT user_id FROM message_mentions WHERE message_id=? ORDER BY user_id",
@@ -132,7 +133,9 @@ pub(crate) async fn edit(
     if old.author_id != a.user.id {
         return Err(Error::forbidden());
     }
-    if v.content.len() > 32000 || (v.content.trim().is_empty() && old.attachments.is_empty()) {
+    if v.content.len() > 32000
+        || (v.content.trim().is_empty() && old.attachments.is_empty() && old.objects.is_empty())
+    {
         return Err(Error::bad("Invalid message length"));
     }
     let mut tx = s.db.begin().await?;

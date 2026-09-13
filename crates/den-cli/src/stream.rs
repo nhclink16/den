@@ -53,6 +53,8 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                                     Some(&m.channel_id)
                                 }
                                 Event::MessageDeleted { channel_id, .. }
+                                | Event::ObjectPatched { channel_id, .. }
+                                | Event::ObjectPresence { channel_id, .. }
                                 | Event::Typing { channel_id, .. } => Some(channel_id),
                                 _ => None,
                             };

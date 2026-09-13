@@ -1,4 +1,5 @@
 use crate::*;
+use den_core::Object as LiveObject;
 use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
@@ -9,6 +10,13 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
+        objects::settings,
+        objects::save_settings,
+        objects::create,
+        objects::get,
+        objects::summary,
+        objects::patch,
+        objects::update,
         auth::bootstrap,
         auth::register,
         auth::login,
@@ -57,6 +65,14 @@ use utoipa::OpenApi;
     ),
     components(schemas(
         Event,
+        LiveObject,
+        ObjectSummary,
+        CreateObject,
+        ObjectPatch,
+        UpdateObject,
+        ObjectVersion,
+        ObjectPresence,
+        Settings,
         ApiError,
         Health,
         User,

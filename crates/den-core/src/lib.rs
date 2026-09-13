@@ -55,15 +55,40 @@ pub struct Message {
     pub edited_at: Option<String>,
     pub attachments: Vec<Upload>,
     #[serde(default)]
+    pub objects: Vec<ObjectSummary>,
+    #[serde(default)]
     pub reactions: Vec<Reaction>,
     #[serde(default)]
     pub mention_ids: Vec<Id>,
 }
 
 /// Every event pushed over the WebSocket stream. The CLI's `tail` prints these.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    ObjectPatched {
+        id: Id,
+        channel_id: Id,
+        version: i64,
+        put: Vec<serde_json::Value>,
+        remove: Vec<Id>,
+        author_id: Id,
+    },
+    ObjectPresence {
+        id: Id,
+        channel_id: Id,
+        user_ids: Vec<Id>,
+    },
+    ObjectCursor {
+        id: Id,
+        user_id: Id,
+        x: f64,
+        y: f64,
+        page_id: String,
+    },
+    SettingsUpdated {
+        settings: Settings,
+    },
     MessageCreated(Message),
     MessageEdited(Message),
     MessageDeleted {
@@ -313,10 +338,25 @@ pub struct SearchMessages {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ClientEvent {
-    Typing { channel_id: Id },
+    ObjectOpen {
+        object_id: Id,
+    },
+    ObjectClose {
+        object_id: Id,
+    },
+    ObjectCursor {
+        object_id: Id,
+        x: f64,
+        y: f64,
+        page_id: String,
+    },
+    Typing {
+        channel_id: Id,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PresenceState {
+    pub objects: Vec<ObjectPresence>,
     pub online_user_ids: Vec<Id>,
 }
 
@@ -330,4 +370,60 @@ pub struct CallToken {
 pub struct CallState {
     pub channel_id: Id,
     pub participant_ids: Vec<Id>,
+}
+
+/// Document records keyed by record id. The server treats record contents as opaque.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ObjectSummary {
+    pub id: Id,
+    pub channel_id: Id,
+    pub message_id: Option<Id>,
+    pub kind: String,
+    pub name: String,
+    pub version: i64,
+    pub thumbnail_upload_id: Option<Id>,
+    pub thumbnail_url: Option<String>,
+    pub created_by: Id,
+    pub created_at: String,
+    pub updated_at: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Object {
+    #[serde(flatten)]
+    pub summary: ObjectSummary,
+    pub state: std::collections::BTreeMap<String, serde_json::Value>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct CreateObject {
+    pub kind: String,
+    pub name: String,
+    #[serde(default)]
+    pub state: std::collections::BTreeMap<String, serde_json::Value>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ObjectPatch {
+    pub base_version: i64,
+    #[serde(default)]
+    pub put: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub remove: Vec<Id>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ObjectVersion {
+    pub version: i64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateObject {
+    pub name: Option<String>,
+    pub thumbnail_upload_id: Option<Id>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct Settings {
+    pub canvas_enabled: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ObjectPresence {
+    pub id: Id,
+    pub channel_id: Id,
+    pub user_ids: Vec<Id>,
 }

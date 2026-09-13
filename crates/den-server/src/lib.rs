@@ -5,6 +5,7 @@ mod chat;
 mod credentials;
 mod inbox;
 mod messages;
+mod objects;
 mod openapi;
 mod thumbnails;
 mod uploads;
@@ -47,6 +48,7 @@ pub struct Inner {
     pub writes: Mutex<()>,
     pub attempts: Mutex<HashMap<String, (Instant, u32)>>,
     pub presence: std::sync::Mutex<HashMap<String, usize>>,
+    pub object_presence: std::sync::Mutex<HashMap<String, (String, HashMap<String, usize>)>>,
     pub thumbnails: Arc<tokio::sync::Semaphore>,
     pub ids: std::sync::Mutex<ulid::Generator>,
 }
@@ -143,6 +145,7 @@ impl AppState {
             writes: Mutex::new(()),
             attempts: Mutex::new(HashMap::new()),
             presence: std::sync::Mutex::new(HashMap::new()),
+            object_presence: std::sync::Mutex::new(HashMap::new()),
             thumbnails: Arc::new(tokio::sync::Semaphore::new(1)),
             ids: std::sync::Mutex::new(ulid::Generator::new()),
         }));
@@ -177,6 +180,17 @@ pub fn router(state: AppState) -> Router {
 }
 pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
     Router::new()
+        .route(
+            "/settings",
+            get(objects::settings).put(objects::save_settings),
+        )
+        .route("/channels/{id}/objects", post(objects::create))
+        .route("/objects/{id}", get(objects::get).patch(objects::update))
+        .route("/objects/{id}/summary", get(objects::summary))
+        .route(
+            "/objects/{id}/patch",
+            post(objects::patch).layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
+        )
         .route("/health", get(health))
         .route("/openapi.json", get(openapi::serve))
         .route("/auth/init", post(auth::bootstrap))

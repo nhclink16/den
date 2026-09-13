@@ -196,6 +196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/channels/{id}/objects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/channels/{id}/read": {
         parameters: {
             query?: never;
@@ -325,6 +341,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["update"];
+        trace?: never;
+    };
+    "/objects/{id}/patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["patch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objects/{id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/presence": {
         parameters: {
             query?: never;
@@ -350,6 +414,22 @@ export interface paths {
         };
         get: operations["search"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settings"];
+        put: operations["save_settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -613,6 +693,23 @@ export interface components {
             unread_count: number;
         };
         ClientEvent: {
+            object_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "object_open";
+        } | {
+            object_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "object_close";
+        } | {
+            object_id: components["schemas"]["String"];
+            page_id: string;
+            /** @enum {string} */
+            type: "object_cursor";
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+        } | {
             channel_id: components["schemas"]["String"];
             /** @enum {string} */
             type: "typing";
@@ -635,6 +732,13 @@ export interface components {
             reply_to?: null | components["schemas"]["String"];
             upload_ids?: components["schemas"]["String"][];
         };
+        CreateObject: {
+            kind: string;
+            name: string;
+            state?: {
+                [key: string]: unknown;
+            };
+        };
         CreateToken: {
             name: string;
             user_id?: null | components["schemas"]["String"];
@@ -643,7 +747,37 @@ export interface components {
             content: string;
         };
         /** @description Every event pushed over the WebSocket stream. The CLI's `tail` prints these. */
-        Event: (components["schemas"]["Message"] & {
+        Event: {
+            author_id: components["schemas"]["String"];
+            channel_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            put: unknown[];
+            remove: components["schemas"]["String"][];
+            /** @enum {string} */
+            type: "object_patched";
+            /** Format: int64 */
+            version: number;
+        } | {
+            channel_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "object_presence";
+            user_ids: components["schemas"]["String"][];
+        } | {
+            id: components["schemas"]["String"];
+            page_id: string;
+            /** @enum {string} */
+            type: "object_cursor";
+            user_id: components["schemas"]["String"];
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+        } | {
+            settings: components["schemas"]["Settings"];
+            /** @enum {string} */
+            type: "settings_updated";
+        } | (components["schemas"]["Message"] & {
             /** @enum {string} */
             type: "message_created";
         }) | (components["schemas"]["Message"] & {
@@ -724,6 +858,7 @@ export interface components {
             edited_at?: string | null;
             id: components["schemas"]["String"];
             mention_ids?: components["schemas"]["String"][];
+            objects?: components["schemas"]["ObjectSummary"][];
             reactions?: components["schemas"]["Reaction"][];
             reply_to?: null | components["schemas"]["String"];
         };
@@ -740,7 +875,43 @@ export interface components {
         };
         /** @enum {string} */
         NotificationReason: "mention" | "dm" | "subscribed_channel";
+        Object: components["schemas"]["ObjectSummary"] & {
+            state: {
+                [key: string]: unknown;
+            };
+        };
+        ObjectPatch: {
+            /** Format: int64 */
+            base_version: number;
+            put?: unknown[];
+            remove?: components["schemas"]["String"][];
+        };
+        ObjectPresence: {
+            channel_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            user_ids: components["schemas"]["String"][];
+        };
+        /** @description Document records keyed by record id. The server treats record contents as opaque. */
+        ObjectSummary: {
+            channel_id: components["schemas"]["String"];
+            created_at: string;
+            created_by: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            kind: string;
+            message_id?: null | components["schemas"]["String"];
+            name: string;
+            thumbnail_upload_id?: null | components["schemas"]["String"];
+            thumbnail_url?: string | null;
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ObjectVersion: {
+            /** Format: int64 */
+            version: number;
+        };
         PresenceState: {
+            objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
         };
         Reaction: {
@@ -782,6 +953,9 @@ export interface components {
         SetReaction: {
             emoji: string;
         };
+        Settings: {
+            canvas_enabled: boolean;
+        };
         String: string;
         Token: {
             id: components["schemas"]["String"];
@@ -791,6 +965,10 @@ export interface components {
         TokenSecret: {
             credential: components["schemas"]["Token"];
             token: string;
+        };
+        UpdateObject: {
+            name?: string | null;
+            thumbnail_upload_id?: null | components["schemas"]["String"];
         };
         Upload: {
             channel_id: components["schemas"]["String"];
@@ -1416,6 +1594,40 @@ export interface operations {
             };
         };
     };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObject"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Object"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     mark_read: {
         parameters: {
             query?: never;
@@ -1776,6 +1988,134 @@ export interface operations {
             };
         };
     };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Object"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObject"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectSummary"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectVersion"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectSummary"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     presence: {
         parameters: {
             query?: never;
@@ -1824,6 +2164,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Message"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    save_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
