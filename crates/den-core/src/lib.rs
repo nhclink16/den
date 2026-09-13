@@ -1,5 +1,7 @@
-//! Shared API types. The server serializes these, the CLI and the web client
-//! deserialize them. Keep this crate free of framework dependencies.
+mod host;
+pub use host::*;
+// Shared API types. The server serializes these, the CLI and the web client
+// deserialize them. Keep this crate free of framework dependencies.
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

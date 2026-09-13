@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/den-core", "crates/den-server", "crates/den-cli"]
+members = ["crates/den-core", "crates/den-server", "crates/den-cli", "crates/den-host"]
 
 [workspace.package]
 version = "0.1.0"
