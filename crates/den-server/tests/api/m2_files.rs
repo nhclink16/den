@@ -132,6 +132,8 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
         .await
         .unwrap();
     assert_eq!(settings_page.status(), 200);
+    assert_eq!(settings_page.headers()["cache-control"], "no-store");
+    assert_eq!(settings_page.headers()["vary"], "Accept");
     assert_eq!(settings_page.text().await.unwrap(), html);
     let asset = t
         .http

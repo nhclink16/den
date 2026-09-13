@@ -274,7 +274,8 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             move |req: Request, next: axum::middleware::Next| {
                 let root = settings_web.clone();
                 async move {
-                    if req.uri().path() == "/settings"
+                    let settings = req.uri().path() == "/settings";
+                    let mut response = if settings
                         && matches!(
                             *req.method(),
                             axum::http::Method::GET | axum::http::Method::HEAD
@@ -288,7 +289,17 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
                         web::serve(root, req).await
                     } else {
                         next.run(req).await
+                    };
+                    if settings {
+                        response
+                            .headers_mut()
+                            .insert(axum::http::header::VARY, "Accept".parse().unwrap());
+                        response.headers_mut().insert(
+                            axum::http::header::CACHE_CONTROL,
+                            "no-store".parse().unwrap(),
+                        );
                     }
+                    response
                 }
             },
         ))
