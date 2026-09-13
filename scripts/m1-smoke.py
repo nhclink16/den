@@ -12,8 +12,9 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-DEN = ROOT / "target/debug/den"
-SERVER = ROOT / "target/debug/den-server"
+BUILD = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")) / "debug"
+DEN = BUILD / "den"
+SERVER = BUILD / "den-server"
 
 
 def main():
@@ -56,7 +57,7 @@ def main():
                 invite = cli("alice", "invite", "create")
                 bob = cli("bob", "register", "bob", "--invite", invite["code"])
                 cli("bob", "login", "bob")
-                general = cli("alice", "channels")[0]["id"]
+                general = next(c["id"] for c in cli("alice", "channels") if c["kind"] == "text" and c["name"] == "general")
 
                 def tail(account):
                     proc = subprocess.Popen([str(DEN), "tail", general],
