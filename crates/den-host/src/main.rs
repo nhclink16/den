@@ -177,7 +177,10 @@ async fn main() -> Result<()> {
                                     if let Some((cols,rows))=sessions.lock().await.dimensions(&session_id){let _=output.send(HostFrame::Resize{session_id:session_id.clone(),cols,rows});}
                                     let _=sessions.lock().await.refresh(&session_id);
                                 }
-                                Ok(Some(frame)) => {if matches!(frame,HostFrame::Resize{..}) {let _=output.send(frame.clone());} if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }}, _ => break
+                                Ok(Some(frame)) => {
+                                    if matches!(frame,HostFrame::Resize{..}) {let _=output.send(frame.clone());}
+                                    if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }
+                                }, _ => break
                             },
                             Some(frame) = inputs.recv() => { let _=sessions.lock().await.handle(frame); },
                             _ = tick.tick() => {

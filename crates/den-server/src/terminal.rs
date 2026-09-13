@@ -33,6 +33,8 @@ pub(crate) async fn can_view(s: &AppState, user: &str, id: &str) -> bool {
     }
     false
 }
+// Keep the object/message insertion fields together at the transaction boundary.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn create_object(
     s: &AppState,
     id: &str,

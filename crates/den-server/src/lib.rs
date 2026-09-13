@@ -38,6 +38,7 @@ use tokio::sync::{broadcast, Mutex};
 
 #[derive(Clone)]
 pub struct AppState(pub(crate) Arc<Inner>);
+type ObjectPresenceConnections = HashMap<String, (String, HashMap<String, usize>)>;
 #[doc(hidden)]
 pub struct Inner {
     pub db: SqlitePool,
@@ -52,7 +53,7 @@ pub struct Inner {
     pub writes: Mutex<()>,
     pub attempts: Mutex<HashMap<String, (Instant, u32)>>,
     pub presence: std::sync::Mutex<HashMap<String, usize>>,
-    pub object_presence: std::sync::Mutex<HashMap<String, (String, HashMap<String, usize>)>>,
+    pub object_presence: std::sync::Mutex<ObjectPresenceConnections>,
     pub thumbnails: Arc<tokio::sync::Semaphore>,
     pub ids: std::sync::Mutex<ulid::Generator>,
 }

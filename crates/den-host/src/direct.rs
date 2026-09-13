@@ -85,6 +85,8 @@ pub async fn listen(
                         Box::new(stream)
                     };
                     let origin = cfg.server_url.clone();
+                    // Tungstenite's callback requires its unboxed ErrorResponse type.
+                    #[allow(clippy::result_large_err)]
                     let mut ws=tokio::time::timeout(Duration::from_secs(3), tokio_tungstenite::accept_hdr_async(stream, move |req: &tokio_tungstenite::tungstenite::handshake::server::Request, response| {
                         if req.headers().get("origin").and_then(|h|h.to_str().ok()) != Some(origin.as_str()) {return Err(tokio_tungstenite::tungstenite::http::Response::builder().status(403).body(None).unwrap());} Ok(response)
                     })).await??;
