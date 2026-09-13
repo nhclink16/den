@@ -25,3 +25,6 @@ Once the core works, Den gets a plugin system in the spirit of Herdr's: a small,
 
 ## Open source
 Den goes public once it works well. MIT is already set in the workspace. Keep secrets out of the repo, keep the docs honest, and keep the codebase readable by someone who did not write it.
+
+## Canvases are messages, not places
+A collaborative canvas is created where you are already talking (`/canvas name`, or Ctrl+K), shows up as a card with a live thumbnail and the avatars of who is on it, opens docked above the chat like the cam strip, and is a tile in calls. Agents create and draw on canvases through the same CLI they post with, because a canvas is JSON state on a message. tldraw for the renderer, watermark kept. This is the reference plugin.

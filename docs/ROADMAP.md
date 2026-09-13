@@ -45,7 +45,11 @@ Done when: a gaming session runs on it with cams.
 - Hermes platform plugin under `integrations/hermes`: a `plugin.yaml` plus `adapter.py` implementing `BasePlatformAdapter`, installed by symlink into `~/.hermes/plugins`. Hermes is the primary agent host.
 - OpenClaw channel plugin under `integrations/openclaw`, optional, only if Clanker stays on OpenClaw.
 
-## M7 — layouts and plugins (after the group lives on Den)
+## M7 — layouts and plugins
+
+### M7a — live objects + canvas plugin (started 2026-09-13, brief in `docs/M7A-CANVAS-BRIEF.md`)
+One core primitive (a live JSON object attached to a message, synced over the existing WebSocket) and a minimal plugin surface, proven by a tldraw canvas plugin shipped in the default build.
+
 - Multiple simultaneous screen shares visible at once, always. Drag, resize, pin, pop-out, per-room saved layouts. See `docs/IDEAS.md`.
 - Plugin system in the spirit of Herdr's: small documented surface, vibecodeable in one sitting. Client panels, tile types, slash commands, message renderers; server hooks over the existing API.
 - Open-source release: license headers, contributor notes, public repo.
