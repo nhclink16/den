@@ -32,5 +32,5 @@ services:
     environment:
       DEN_DOMAIN: ${DEN_DOMAIN}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.compose:/etc/caddy/Caddyfile:ro
       - ./data/caddy:/data
