@@ -24,7 +24,7 @@ People arrange streams and webcams however they like: drag tiles to reorder, res
 Once the core works, Den gets a plugin system in the spirit of Herdr's: a small, documented surface that an agent can write a plugin against in one sitting. Likely shape: client-side plugins that can add panels, tile types, slash commands, and message renderers; server-side hooks over the existing REST and WebSocket API using the same tokens agents already use. The current `AGENTS.md` rule "no plugin systems" holds until the core is solid; until then the job is to keep the client's store and API surface clean enough that a plugin layer can sit on top without a rewrite.
 
 ## Open source
-Den goes public once it works well. MIT is already set in the workspace. Keep secrets out of the repo, keep the docs honest, and keep the codebase readable by someone who did not write it.
+Den goes public with M8. The server and den-host use AGPL-3.0-only; shared types, CLI, web client, SDK and Den plugins use MIT. Third-party licenses remain in force. Keep secrets out of the repo, keep the docs honest, and keep the codebase readable by someone who did not write it.
 
 ## Canvases are messages, not places
 A collaborative canvas is created where you are already talking (`/canvas name`, or Ctrl+K), shows up as a card with a live thumbnail and the avatars of who is on it, opens docked above the chat like the cam strip, and is a tile in calls. Agents create and draw on canvases through the same CLI they post with, because a canvas is JSON state on a message. tldraw for the renderer, watermark kept. This is the reference plugin.

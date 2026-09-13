@@ -2,7 +2,7 @@
 name = "den-server"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license = "AGPL-3.0-only"
 description = "Den chat server: REST + WebSocket over SQLite, issues LiveKit tokens"
 
 [dependencies]

@@ -1,0 +1,15 @@
+Den licensing
+
+Copyright (c) 2026 Nicholas Caron and contributors
+
+crates/den-server and crates/den-host are licensed under AGPL-3.0-only.
+See LICENSES/AGPL-3.0-only.txt.
+
+All other original Den code, including den-core, the CLI, the web client,
+the plugin SDK and Den plugins, is licensed under MIT. See LICENSES/MIT.txt.
+
+Third-party software retains its own license. In particular, the bundled
+tldraw SDK is governed by apps/web/public/licenses/tldraw-3.15.6.md.
+Other bundled notices are in apps/web/public/licenses and the font directories.
+
+Previously distributed MIT versions retain their original permissions.
