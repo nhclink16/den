@@ -62,34 +62,48 @@ fn encode(state: &BTreeMap<String, serde_json::Value>) -> Result<String> {
     Ok(json)
 }
 #[utoipa::path(get,path="/settings",responses((status=200,body=Settings)))]
-pub(crate) async fn settings(State(s): State<AppState>, _a: Auth) -> Result<Json<Settings>> {
+pub(crate) async fn settings(State(s): State<AppState>) -> Result<Json<Settings>> {
     Ok(Json(read_settings(&s).await?))
 }
 async fn read_settings(s: &AppState) -> Result<Settings> {
-    Ok(Settings {
-        canvas_enabled: sqlx::query_scalar("SELECT canvas_enabled FROM settings WHERE id=1")
+    // Public branding and capability flags only; never put private configuration here.
+    let (canvas_enabled, instance_name) =
+        sqlx::query_as("SELECT canvas_enabled,instance_name FROM settings WHERE id=1")
             .fetch_one(&s.db)
-            .await?,
+            .await?;
+    Ok(Settings {
+        canvas_enabled,
+        instance_name,
     })
 }
-#[utoipa::path(put,path="/settings",request_body=Settings,responses((status=200,body=Settings)))]
+#[utoipa::path(put,path="/settings",request_body=UpdateSettings,responses((status=200,body=Settings)))]
 pub(crate) async fn save_settings(
     State(s): State<AppState>,
     a: Auth,
-    ApiJson(v): ApiJson<Settings>,
+    ApiJson(v): ApiJson<UpdateSettings>,
 ) -> Result<Json<Settings>> {
     if a.user.role != Role::Admin {
         return Err(Error::forbidden());
     }
+    let name = v.instance_name.as_deref().map(str::trim);
+    if let Some(name) = name {
+        if !(1..=40).contains(&name.chars().count()) || name.chars().any(char::is_control) {
+            return Err(Error::bad(
+                "Server name must be 1–40 characters without control characters",
+            ));
+        }
+    }
     let _guard = s.writes.lock().await;
-    sqlx::query("UPDATE settings SET canvas_enabled=? WHERE id=1")
+    sqlx::query("UPDATE settings SET canvas_enabled=COALESCE(?,canvas_enabled), instance_name=COALESCE(?,instance_name) WHERE id=1")
         .bind(v.canvas_enabled)
+        .bind(name)
         .execute(&s.db)
         .await?;
+    let settings = read_settings(&s).await?;
     let _ = s.events.send(Event::SettingsUpdated {
-        settings: v.clone(),
+        settings: settings.clone(),
     });
-    Ok(Json(v))
+    Ok(Json(settings))
 }
 #[utoipa::path(post,path="/channels/{id}/objects",params(("id"=String,Path)),request_body=CreateObject,responses((status=200,body=LiveObject)))]
 pub(crate) async fn create(

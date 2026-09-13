@@ -1424,6 +1424,7 @@ export interface components {
         };
         Settings: {
             canvas_enabled: boolean;
+            instance_name: string;
         };
         ShareTerminal: {
             channel_id: components["schemas"]["String"];
@@ -1485,6 +1486,10 @@ export interface components {
         UpdateObject: {
             name?: string | null;
             thumbnail_upload_id?: null | components["schemas"]["String"];
+        };
+        UpdateSettings: {
+            canvas_enabled?: boolean | null;
+            instance_name?: string | null;
         };
         Upload: {
             channel_id: components["schemas"]["String"];
@@ -3278,7 +3283,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Settings"];
+                "application/json": components["schemas"]["UpdateSettings"];
             };
         };
         responses: {

@@ -63,6 +63,10 @@ fn rewrite(input: &std::path::Path, output: &std::path::Path, change: &str) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials() {
     let t = Test::new().await;
+    sqlx::query("UPDATE settings SET instance_name='Portable friends' WHERE id=1")
+        .execute(&t.state.db)
+        .await
+        .unwrap();
     let channel = t.general().await;
     t.post(
         &format!("/channels/{channel}/messages"),
@@ -131,6 +135,10 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     .await
     .unwrap();
     let recording = fs::read(t.dir.join(format!("uploads/{id}.recording"))).unwrap();
+    assert!(
+        !recording.is_empty(),
+        "Acknowledged output must be recorded"
+    );
     t.post(
         "/invites",
         &t.admin.token,
@@ -169,6 +177,13 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", target.join("den.db").display()))
         .await
         .unwrap();
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT instance_name FROM settings WHERE id=1")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        "Portable friends"
+    );
     for table in ["sessions", "tokens", "invites", "host_enrollments"] {
         assert_eq!(
             sqlx::query_scalar::<_, i64>(&format!("SELECT count(*) FROM {table}"))

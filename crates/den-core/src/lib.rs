@@ -434,6 +434,12 @@ pub struct UpdateObject {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct Settings {
     pub canvas_enabled: bool,
+    pub instance_name: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateSettings {
+    pub canvas_enabled: Option<bool>,
+    pub instance_name: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ObjectPresence {

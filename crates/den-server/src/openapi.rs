@@ -111,6 +111,7 @@ use utoipa::OpenApi;
         ObjectVersion,
         ObjectPresence,
         Settings,
+        UpdateSettings,
         ApiError,
         Health,
         User,

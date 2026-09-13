@@ -227,3 +227,59 @@ async fn only_admin_changes_canvas_switch_and_existing_objects_stay_readable() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn instance_name_is_public_bounded_and_admin_only() {
+    let t = Test::new().await;
+    let bob = t.member("name_bob").await;
+    let get = || t.req(Method::GET, "/settings", "");
+    let initial: Settings = get().send().await.unwrap().json().await.unwrap();
+    assert_eq!(initial.instance_name, "Den");
+    for (token, status) in [("", 401), (bob.token.as_str(), 403)] {
+        assert_eq!(
+            t.req(Method::PUT, "/settings", token)
+                .json(&json!({"instance_name":"Changed"}))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            status
+        );
+    }
+    for name in ["".to_owned(), "   ".into(), "x".repeat(41), "a\nb".into()] {
+        assert_eq!(
+            t.req(Method::PUT, "/settings", &t.admin.token)
+                .json(&json!({"instance_name":name}))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            400
+        );
+    }
+    let name = "🌲".repeat(40);
+    let changed: Settings = t
+        .req(Method::PUT, "/settings", &t.admin.token)
+        .json(&json!({"instance_name":format!("  {name}  ")}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(changed.instance_name, name);
+    assert!(changed.canvas_enabled);
+    let legacy: Settings = t
+        .req(Method::PUT, "/settings", &t.admin.token)
+        .json(&json!({"canvas_enabled":false}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(legacy.instance_name, name);
+    assert!(!legacy.canvas_enabled);
+    let persisted: Settings = get().send().await.unwrap().json().await.unwrap();
+    assert_eq!(persisted, legacy);
+}
