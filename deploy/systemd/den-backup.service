@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up Den database and uploads to codexbox
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=den
+Group=den
+ExecStart=/opt/den/bin/backup.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/den
+PrivateTmp=true
+UMask=0077
