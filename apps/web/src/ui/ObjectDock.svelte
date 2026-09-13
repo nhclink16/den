@@ -14,15 +14,15 @@
   function key(e: KeyboardEvent) { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); close() } }
 </script>
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="object-dock" class:expanded={objects.expanded} style:height={objects.expanded ? undefined : height ? `${height}px` : '45%'} bind:this={dock} onkeydown={key} role="region" aria-label={`Canvas ${object.name}`} data-testid="canvas-dock">
+<div class="object-dock" class:expanded={objects.expanded} style:height={objects.expanded ? undefined : height ? `${height}px` : '45%'} bind:this={dock} onkeydown={key} role="region" aria-label={`${object.kind} ${object.name}`} data-testid={`${object.kind}-dock`}>
   {#key object.id}{#if View}<View {object} />{/if}{/key}
   <div class="controls">
-    <button aria-label={objects.expanded ? 'Collapse canvas' : 'Expand canvas'} title={objects.expanded ? 'Collapse canvas' : 'Expand canvas'} onclick={() => objects.expanded = !objects.expanded}><Icon name={objects.expanded ? 'collapse' : 'expand'} size={16} /></button>
-    <button aria-label="Close canvas" title="Close canvas" onclick={close}><Icon name="x" size={16} /></button>
+    <button aria-label={objects.expanded ? `Collapse ${object.kind}` : `Expand ${object.kind}`} title={objects.expanded ? `Collapse ${object.kind}` : `Expand ${object.kind}`} onclick={() => objects.expanded = !objects.expanded}><Icon name={objects.expanded ? 'collapse' : 'expand'} size={16} /></button>
+    <button aria-label={`Close ${object.kind}`} title={`Close ${object.kind}`} onclick={close}><Icon name="x" size={16} /></button>
   </div>
   {#if !objects.expanded}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
-  <div class="resize" role="separator" aria-label="Canvas height" aria-orientation="horizontal" aria-valuenow={height || 360} tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); change(dock.clientHeight + (e.key === 'ArrowUp' ? -20 : 20)) } }}></div>{/if}
+  <div class="resize" role="separator" aria-label={`${object.kind} height`} aria-orientation="horizontal" aria-valuenow={height || 360} tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); change(dock.clientHeight + (e.key === 'ArrowUp' ? -20 : 20)) } }}></div>{/if}
 </div>
 <style>
   .object-dock { position: relative; min-height: 260px; flex: none; border-bottom: 1px solid var(--line); isolation: isolate; }

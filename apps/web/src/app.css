@@ -1,3 +1,4 @@
+@font-face { font-family: 'Den Terminal Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
 /* Den tokens. One idea: the room is dim, and only what is live is lit. */
 :root {
   --bg: #1b1916;          /* the room */

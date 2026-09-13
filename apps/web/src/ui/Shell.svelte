@@ -28,6 +28,7 @@
   $effect(() => { void router.route; drawer = false })
 
   function key(e: KeyboardEvent) {
+    if ((e.target as HTMLElement).closest('[data-terminal-focus="true"]')) return
     const mod = e.ctrlKey || e.metaKey
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
     else if (mod && e.key === '\\') { e.preventDefault(); store.saveLayout({ sidebar: !store.layout.sidebar }) }
@@ -93,9 +94,13 @@
   {/if}
 </div>
 
+{#if store.toast}<div class="toast" role="status">{store.toast}<button aria-label="Dismiss notification" onclick={() => store.toast = ''}>×</button></div>{/if}
+
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
 
 <style>
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); font-size: 13px; display: flex; align-items: center; gap: 12px; }
+  .toast button { min-width: 24px; min-height: 24px; }
   .call-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; color: var(--lamp); background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .shell {
     height: 100%; display: grid;

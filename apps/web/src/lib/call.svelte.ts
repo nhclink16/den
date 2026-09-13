@@ -216,7 +216,7 @@ class Call {
   keydown(e: KeyboardEvent) {
     if (!this.room || this.joining || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
     const target = e.target as HTMLElement
-    if (target.closest('.tl-container,input,textarea,select,[contenteditable="true"],[role="dialog"]')) return
+    if (target.closest('[data-terminal-focus="true"],.tl-container,input,textarea,select,[contenteditable="true"],[role="dialog"]')) return
     if (this.prefs.mode === 'ptt' && e.code === this.prefs.pttKey) { e.preventDefault(); this.setHeld(true); return }
     const key = e.key.toLowerCase()
     if (key === 'm' && this.prefs.mode === 'activity') { e.preventDefault(); void this.toggleMic() }

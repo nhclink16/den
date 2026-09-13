@@ -1,7 +1,7 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
 import { objects } from './objects.svelte'
-import type { ClientEvent, Settings } from './types'
+import type { ClientEvent, TerminalFrame, Settings } from './types'
 import { call } from './call.svelte'
 import { api, setCsrf } from './api'
 import type { CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
@@ -22,6 +22,7 @@ class Store {
   private listeners = new Set<(event: Event) => void>()
   onEvent(fn: (event: Event) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }
   sendEvent(event: ClientEvent) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(event)) }
+  sendTerminal(event: TerminalFrame) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(new TextEncoder().encode(JSON.stringify(event))) }
   me = $state<User | null>(null)
   users = $state<Map<string, User>>(new Map())
   channels = $state<Channel[]>([])
@@ -32,6 +33,7 @@ class Store {
   online = $state<Set<string>>(new Set())
   typing = $state<Map<string, Map<string, number>>>(new Map()) // channel -> user -> expiry
   layout = $state<Layout>(loadLayout())
+  toast = $state('')
   connected = $state(false)
   ready = $state(false)
   loadingOlder = $state<Set<string>>(new Set())
@@ -202,7 +204,8 @@ class Store {
     const ws = new WebSocket(`${proto}://${location.host}/ws`)
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
-    ws.onmessage = (e) => this.handle(JSON.parse(e.data) as Event)
+    ws.binaryType = 'arraybuffer'
+    ws.onmessage = (e) => this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event)
     ws.onclose = () => {
       this.connected = false; this.ws = null
       if (!this.me) return

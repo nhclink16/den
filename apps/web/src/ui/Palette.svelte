@@ -11,7 +11,7 @@
   let cursor = $state(0)
   let input: HTMLInputElement
 
-  type Item = { id: string; label: string; hint?: string; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string }
+  type Item = { id: string; label: string; hint?: string; disabled?: boolean; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string }
 
   const items = $derived.by<Item[]>(() => {
     const out: Item[] = plugins.flatMap((p) => p.paletteActions.map((a) => ({ ...a, kind: 'action' as const })))
@@ -43,7 +43,7 @@
   $effect(() => { void results; cursor = 0 })
   $effect(() => { input?.focus() })
 
-  function pick(it: Item) { it.run(); onclose() }
+  function pick(it: Item) { if (it.disabled) return; it.run(); onclose() }
   function key(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); cursor = Math.min(cursor + 1, results.length - 1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); cursor = Math.max(cursor - 1, 0) }
@@ -58,7 +58,7 @@
   <ul>
     {#each results as it, i (it.id)}
       <li>
-        <button class:active={i === cursor} onmousemove={() => (cursor = i)} onclick={() => pick(it)}>
+        <button disabled={it.disabled} class:active={i === cursor} onmousemove={() => (cursor = i)} onclick={() => pick(it)}>
           {#if it.kind === 'channel'}<Icon name="hash" />{:else if it.userId}<Avatar userId={it.userId} size={18} />{:else}<Icon name="gear" />{/if}
           <span class="label">{it.label}</span>
           {#if it.hint}<span class="hint">{it.hint}</span>{/if}
