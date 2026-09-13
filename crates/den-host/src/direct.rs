@@ -30,18 +30,60 @@ pub async fn listen(
         "Expected a Tailscale address"
     );
     let listener = TcpListener::bind((ip, 0)).await?;
-    let url = format!("ws://{}", listener.local_addr()?);
+    let status = tokio::process::Command::new("tailscale")
+        .args(["status", "--json"])
+        .output()
+        .await?;
+    let status: serde_json::Value = serde_json::from_slice(&status.stdout)?;
+    let dns = status["Self"]["DNSName"]
+        .as_str()
+        .unwrap_or("")
+        .trim_end_matches('.')
+        .to_string();
+    let tls_dir = super::directory()?.join("host-tls");
+    tokio::fs::create_dir_all(&tls_dir).await?;
+    let secure = renew(&tls_dir, &dns).await.is_ok();
+    ensure!(
+        secure || cfg.server_url.starts_with("http://"),
+        "A Tailscale TLS certificate is required for browser access"
+    );
+    let url = if secure {
+        format!("wss://{dns}:{}", listener.local_addr()?.port())
+    } else {
+        format!("ws://{}", listener.local_addr()?)
+    };
+    if secure {
+        let dir = tls_dir.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(12 * 3600)).await;
+                let _ = renew(&dir, &dns).await;
+            }
+        });
+    }
     tokio::spawn(async move {
         let limit = Arc::new(tokio::sync::Semaphore::new(32));
         while let Ok((stream, _)) = listener.accept().await {
             let Ok(permit) = limit.clone().try_acquire_owned() else {
                 continue;
             };
+            let tls_dir = tls_dir.clone();
             let (cfg, sessions, commands) = (cfg.clone(), sessions.clone(), commands.clone());
             let mut rx = output.subscribe();
             tokio::spawn(async move {
                 let _permit = permit;
                 let run = async {
+                    let stream: Box<dyn Io> = if secure {
+                        Box::new(
+                            tokio::time::timeout(
+                                Duration::from_secs(3),
+                                acceptor(&tls_dir)?.accept(stream),
+                            )
+                            .await??,
+                        )
+                    } else {
+                        Box::new(stream)
+                    };
                     let origin = cfg.server_url.clone();
                     let mut ws=tokio::time::timeout(Duration::from_secs(3), tokio_tungstenite::accept_hdr_async(stream, move |req: &tokio_tungstenite::tungstenite::handshake::server::Request, response| {
                         if req.headers().get("origin").and_then(|h|h.to_str().ok()) != Some(origin.as_str()) {return Err(tokio_tungstenite::tungstenite::http::Response::builder().status(403).body(None).unwrap());} Ok(response)
@@ -115,4 +157,34 @@ pub async fn listen(
         }
     });
     Ok(url)
+}
+
+trait Io: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send {}
+impl<T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send> Io for T {}
+async fn renew(dir: &std::path::Path, dns: &str) -> Result<()> {
+    ensure!(dns.ends_with(".ts.net"), "Missing Tailscale DNS name");
+    let result = tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio::process::Command::new("tailscale")
+            .args(["cert", "--min-validity", "72h", "--cert-file"])
+            .arg(dir.join("host.crt"))
+            .arg("--key-file")
+            .arg(dir.join("host.key"))
+            .arg(dns)
+            .output(),
+    )
+    .await??;
+    ensure!(result.status.success(), "Tailscale certificate unavailable");
+    Ok(())
+}
+fn acceptor(dir: &std::path::Path) -> Result<tokio_rustls::TlsAcceptor> {
+    let cert = std::fs::read(dir.join("host.crt"))?;
+    let key = std::fs::read(dir.join("host.key"))?;
+    let cert = rustls_pemfile::certs(&mut cert.as_slice()).collect::<std::io::Result<Vec<_>>>()?;
+    let key = rustls_pemfile::private_key(&mut key.as_slice())?
+        .ok_or_else(|| anyhow::anyhow!("Missing key"))?;
+    let config = tokio_rustls::rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(cert, key)?;
+    Ok(tokio_rustls::TlsAcceptor::from(Arc::new(config)))
 }

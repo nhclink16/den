@@ -84,7 +84,10 @@ async fn main() -> Result<()> {
                         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 })
                 .unwrap_or_else(|| "my-machine".into());
-            let response = reqwest::Client::new()
+            let response = reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .timeout(Duration::from_secs(15))
+                .build()?
                 .post(format!("{url}/hosts/login"))
                 .json(&HostLogin {
                     code: code.into(),
