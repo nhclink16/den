@@ -48,7 +48,10 @@ Done when: a gaming session runs on it with cams.
 ## M7 — layouts and plugins
 
 ### M7a — live objects + canvas plugin (started 2026-09-13, brief in `docs/M7A-CANVAS-BRIEF.md`)
-One core primitive (a live JSON object attached to a message, synced over the existing WebSocket) and a minimal plugin surface, proven by a tldraw canvas plugin shipped in the default build.
+One core primitive (a live JSON object attached to a message, synced over the existing WebSocket) and a minimal plugin surface, proven by a tldraw canvas plugin shipped in the default build. Done 2026-09-13.
+
+### M7b — den-host, access grants, terminal plugin (started 2026-09-13, brief in `docs/M7B-HOST-BRIEF.md`)
+A dial-out host binary, a grant model where requests and approvals are cards in chat, and a Ghostty-rendered terminal as the second plugin. Seams left for a direct WebRTC path and libghostty-vt screen-state sync.
 
 - Multiple simultaneous screen shares visible at once, always. Drag, resize, pin, pop-out, per-room saved layouts. See `docs/IDEAS.md`.
 - Plugin system in the spirit of Herdr's: small documented surface, vibecodeable in one sitting. Client panels, tile types, slash commands, message renderers; server hooks over the existing API.
