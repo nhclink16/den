@@ -280,6 +280,32 @@ async fn terminal_grants_enforce_view_control_revoke_expiry_and_privacy() {
             json!({"capability":"terminal_control","standing":true}),
         )
         .await;
+    // A failure between writing the grant and recording its decision rolls back both.
+    sqlx::query("CREATE TRIGGER fail_grant_audit BEFORE INSERT ON access_log WHEN NEW.action='grant' BEGIN SELECT RAISE(ABORT,'test audit failure'); END").execute(&t.state.db).await.unwrap();
+    let failed = t
+        .req(
+            Method::POST,
+            &format!("/requests/{}/decide", request["id"].as_str().unwrap()),
+            &t.admin.token,
+        )
+        .json(&json!({"allow":true}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(failed.status(), 500);
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM grants WHERE capability='terminal_control'"
+        )
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap(),
+        0
+    );
+    sqlx::query("DROP TRIGGER fail_grant_audit")
+        .execute(&t.state.db)
+        .await
+        .unwrap();
     let grant = t
         .post(
             &format!("/requests/{}/decide", request["id"].as_str().unwrap()),

@@ -78,25 +78,34 @@ pub(crate) async fn decide(
     if r.status != "pending" || r.expires_at <= now() {
         return Err(Error::conflict("Request already decided or expired"));
     }
+    let mut tx = s.db.begin().await?;
     if v.allow {
         let grant = s.id();
         sqlx::query("INSERT INTO grants(id,host_id,grantee_id,capability,expires_at,created_by,created_at) VALUES(?,?,?,?,?,?,?)")
-            .bind(&grant).bind(&r.host_id).bind(&r.requester_id).bind(r.capability.as_str()).bind(r.duration_minutes.map(|m|now()+i64::from(m)*60)).bind(&a.user.id).bind(now()).execute(&s.db).await?;
-        hosts::audit(&s, &host, &a.user.id, "grant", Some(&grant)).await?;
+            .bind(&grant).bind(&r.host_id).bind(&r.requester_id).bind(r.capability.as_str()).bind(r.duration_minutes.map(|m|now()+i64::from(m)*60)).bind(&a.user.id).bind(now()).execute(&mut *tx).await?;
+        audit_in(&s, &mut tx, &host, &a.user.id, "grant", &grant).await?;
         r.grant_id = Some(grant);
         r.status = "allowed".into();
     } else {
         r.status = "denied".into();
     }
-    terminal::state(&s, &id, "request", serde_json::to_value(&r).unwrap()).await?;
-    hosts::audit(
+    sqlx::query("UPDATE objects SET state=?,version=version+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?")
+        .bind(serde_json::json!({"request":r}).to_string()).bind(&id).execute(&mut *tx).await?;
+    audit_in(
         &s,
+        &mut tx,
         &host,
         &a.user.id,
         if v.allow { "allow" } else { "deny" },
-        Some(&id),
+        &id,
     )
     .await?;
+    tx.commit().await?;
+    if let Some(message) = o.summary.message_id {
+        let _ = s.events.send(Event::MessageEdited(
+            messages::get_message(&s, &message).await?,
+        ));
+    }
     let _ = s.events.send(Event::AccessDecided {
         user_id: r.requester_id.clone(),
         request: r.clone(),
@@ -175,4 +184,17 @@ pub(crate) async fn log(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<A
             })
             .collect::<Result<Vec<_>>>()?,
     ))
+}
+
+async fn audit_in(
+    s: &AppState,
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    host: &Host,
+    actor: &str,
+    action: &str,
+    subject: &str,
+) -> Result<()> {
+    sqlx::query("INSERT INTO access_log(id,host_id,owner_id,actor_id,action,subject_id,created_at) VALUES(?,?,?,?,?,?,?)")
+        .bind(s.id()).bind(&host.id).bind(&host.owner_id).bind(actor).bind(action).bind(subject).bind(now()).execute(&mut **tx).await?;
+    Ok(())
 }
