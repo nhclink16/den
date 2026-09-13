@@ -347,7 +347,10 @@ pub(crate) async fn output(s: &AppState, id: &str, bytes: Vec<u8>) -> Result<()>
             .as_millis() as i64
             - t.started_at * 1000)
             .max(0);
-        let line = format!("{}\n", serde_json::json!([ms, STANDARD.encode(&bytes)]));
+        // CSI window resize keeps the original grid available to the replay renderer.
+        let mut recorded = format!("\x1b[8;{};{}t", t.rows, t.cols).into_bytes();
+        recorded.extend_from_slice(&bytes);
+        let line = format!("{}\n", serde_json::json!([ms, STANDARD.encode(&recorded)]));
         let size = tokio::fs::metadata(&path)
             .await
             .map(|m| m.len())
@@ -425,12 +428,13 @@ pub(crate) async fn close(
     Ok(StatusCode::NO_CONTENT)
 }
 pub(crate) async fn revoke_user(s: &AppState, host: &str, user: &str) -> Result<()> {
-    let ids = sqlx::query_scalar::<_, String>("SELECT id FROM terminal_sessions WHERE host_id=?")
+    let ids = sqlx::query_scalar::<_, String>("SELECT ts.id FROM terminal_sessions ts JOIN objects o ON o.id=ts.id WHERE ts.host_id=? AND json_extract(o.state,'$.terminal.ended_at') IS NULL")
         .bind(host)
         .fetch_all(&s.db)
         .await?;
     for id in ids {
         let mut t = load(s, &id).await?;
+        let before = t.clone();
         if !hosts::permitted(s, user, host, true).await
             && t.active_controller_id.as_deref() == Some(user)
         {
@@ -440,7 +444,9 @@ pub(crate) async fn revoke_user(s: &AppState, host: &str, user: &str) -> Result<
             t.viewer_ids.retain(|u| u != user);
         }
         t.control_request_ids.retain(|u| u != user);
-        save(s, &t).await?;
+        if t != before {
+            save(s, &t).await?;
+        }
     }
     Ok(())
 }
