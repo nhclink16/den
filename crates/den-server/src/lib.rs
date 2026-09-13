@@ -9,6 +9,7 @@ mod inbox;
 mod messages;
 mod objects;
 mod openapi;
+pub mod portable;
 mod terminal;
 mod thumbnails;
 mod uploads;

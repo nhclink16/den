@@ -2,6 +2,9 @@ use den_server::{router_with_web, AppState};
 use std::{net::SocketAddr, path::PathBuf};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    if den_server::portable::command(std::env::args().skip(1).collect()).await? {
+        return Ok(());
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
