@@ -3,7 +3,7 @@
 Settled 2026-09-08. Change these by editing this file, not by drifting.
 
 ## Product
-- One instance = one friend group. No multi-server, no federation, no E2EE.
+- One instance = one friend group. No federation, no E2EE. A client may connect to several independent instances (native shells only, see `docs/HOSTING-PLAN.md`); instances never share identity or data.
 - Roles: admin and member. Nothing finer.
 - Text channels grouped in categories, DMs and group DMs.
 - One persistent voice room ("hangout") plus ad hoc calls from DMs. Webcams and screen share. Docked cam strip so text stays visible in a call.

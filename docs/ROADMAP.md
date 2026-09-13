@@ -56,3 +56,10 @@ A dial-out host binary, a grant model where requests and approvals are cards in 
 - Multiple simultaneous screen shares visible at once, always. Drag, resize, pin, pop-out, per-room saved layouts. See `docs/IDEAS.md`.
 - Plugin system in the spirit of Herdr's: small documented surface, vibecodeable in one sitting. Client panels, tile types, slash commands, message renderers; server hooks over the existing API.
 - Open-source release: license headers, contributor notes, public repo.
+
+## M8 — portable (agreed 2026-09-14, see `docs/HOSTING-PLAN.md`)
+- Prebuilt release binaries and a host `install.sh`; friends never need Rust.
+- Offline `den-server export` / `import` with a manifest, run with the server stopped; restore drills against the real server.
+- Bounded instance name, shown where the client says "Den".
+- Multi-instance client design settled; ships in the Tauri shells (M4), not the browser.
+- Later: admin "Export server backup" download after a privacy review; hosted multi-tenant with one LiveKit per tenant; game-server plugin.
