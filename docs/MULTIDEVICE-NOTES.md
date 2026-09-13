@@ -1,6 +1,6 @@
 # Multiple devices in one call
 
-Requested 2026-09-13. One account can stay in a call on several devices at once.
+Deployed to https://den.nicholascaron.com on 2026-09-13. One account can stay in a call on several devices at once.
 Each connection can publish its own camera and screen share. Den does not impose
 a per-account device limit. Available bandwidth and server resources still apply.
 
@@ -47,7 +47,9 @@ There is no native iOS target or broadcast extension in this checkout yet.
 
 The browser tests below prove Den's handling of multiple media publishers, not
 Instagram capture on a physical iPhone. Cross-app capture, captured app audio,
-and iOS background behavior still need native integration and device acceptance.
+and iOS background behavior remain unverified on a physical device. The native
+ReplayKit extension is the documented implementation path if the browser does
+not provide the required cross-app capture.
 
 ## Verification
 
@@ -90,3 +92,14 @@ audio tone to each captured screen stream because headless Linux's fake desktop
 capture supplies no system audio. This exercises actual LiveKit screen-audio
 publication, transport, subscription, and playback. It is not a claim about
 capturing audio from a particular phone app.
+
+## Live deployment check
+
+After a fresh backup, `deploy/release.sh` installed the tested server and web
+client. Public health passed and the VPS server binary hash matched codexbox.
+A private DM between the existing `m6_bob` and `m6_ari` test accounts then passed
+three browser connections, including two on the same account, two decoded
+cameras and screen shares, a quiet secondary connection, deduplicated presence,
+and independent leave. WebRTC selected public peer `135.148.120.197`.
+The test never joined public hangout, and all its browsers were closed afterward.
+The live-check log is `/tmp/den-multidevice-public.log` on codexbox.
