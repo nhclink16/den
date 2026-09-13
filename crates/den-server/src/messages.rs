@@ -167,6 +167,17 @@ pub(crate) async fn remove(
     if old.author_id != a.user.id && a.user.role != Role::Admin {
         return Err(Error::forbidden());
     }
+    for object in &old.objects {
+        if object.kind == "terminal" {
+            if let Ok(t) = terminal::load(&s, &object.id).await {
+                if t.id == object.id && t.ended_at.is_none() {
+                    return Err(Error::conflict(
+                        "End the terminal session before deleting its original card",
+                    ));
+                }
+            }
+        }
+    }
     sqlx::query!("DELETE FROM messages WHERE id=?", id)
         .execute(&s.db)
         .await?;

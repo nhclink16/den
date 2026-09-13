@@ -1,12 +1,15 @@
+mod access;
 mod activity;
 mod auth;
 mod calls;
 mod chat;
 mod credentials;
+mod hosts;
 mod inbox;
 mod messages;
 mod objects;
 mod openapi;
+mod terminal;
 mod thumbnails;
 mod uploads;
 mod web;
@@ -38,6 +41,7 @@ pub struct AppState(pub(crate) Arc<Inner>);
 #[doc(hidden)]
 pub struct Inner {
     pub db: SqlitePool,
+    pub(crate) hosts: hosts::Hosts,
     pub livekit: Option<calls::LiveKit>,
     pub calls: Mutex<HashMap<String, HashMap<String, String>>>,
     pub uploads: PathBuf,
@@ -135,6 +139,7 @@ impl AppState {
         let (events, _) = broadcast::channel(256);
         let state = Self(Arc::new(Inner {
             db,
+            hosts: hosts::Hosts::default(),
             livekit: None,
             calls: Mutex::new(HashMap::new()),
             uploads,
@@ -181,6 +186,27 @@ pub fn router(state: AppState) -> Router {
 pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
     let settings_web = web_dir.clone();
     Router::new()
+        .route("/hosts", get(hosts::list))
+        .route("/hosts/enroll", post(hosts::enroll))
+        .route("/hosts/login", post(hosts::login))
+        .route("/hosts/ws", get(hosts::connect))
+        .route("/hosts/direct/check", post(hosts::direct_check))
+        .route("/hosts/{id}", delete(hosts::remove))
+        .route("/hosts/{id}/requests", post(access::request))
+        .route("/hosts/{id}/sessions", post(terminal::open))
+        .route("/requests/{id}/decide", post(access::decide))
+        .route("/grants", get(access::grants))
+        .route("/grants/{id}", delete(access::revoke))
+        .route("/access/log", get(access::log))
+        .route("/sessions/{id}/controller", post(terminal::controller))
+        .route(
+            "/sessions/{id}/request-control",
+            post(terminal::request_control),
+        )
+        .route("/sessions/{id}/share", post(terminal::share))
+        .route("/sessions/{id}/write", post(terminal::write))
+        .route("/sessions/{id}/direct-token", post(terminal::direct_token))
+        .route("/sessions/{id}", delete(terminal::close))
         .route(
             "/settings",
             get(objects::settings).put(objects::save_settings),

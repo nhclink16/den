@@ -28,8 +28,9 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 
 livekit-api = { version = "=0.7.1", default-features = false, features = ["access-token", "webhooks", "services", "rustls-tls-native-roots"] }
 
-[dev-dependencies]
 base64 = "0.22"
+
+[dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "cookies"] }
 tokio-tungstenite = "0.28"
 futures-util = "0.3"

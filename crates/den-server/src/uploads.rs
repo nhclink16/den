@@ -197,7 +197,19 @@ pub(crate) async fn file(
     req: Request,
 ) -> Result<Response> {
     let row = load(&s, &id).await?;
-    visible(&s, &a.user.id, &row.channel_id).await?;
+    let recording = sqlx::query_scalar::<_, String>(
+        "SELECT session_id FROM terminal_recordings WHERE upload_id=?",
+    )
+    .bind(&id)
+    .fetch_optional(&s.db)
+    .await?;
+    if let Some(session) = recording {
+        if !terminal::can_view(&s, &a.user.id, &session).await {
+            return Err(Error::missing());
+        }
+    } else {
+        visible(&s, &a.user.id, &row.channel_id).await?;
+    }
     if !row.complete {
         return Err(Error::missing());
     }

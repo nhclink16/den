@@ -62,8 +62,8 @@ impl Drop for Connected {
 #[utoipa::path(get,path="/ws",responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
 pub(crate) async fn connect(State(s): State<AppState>, a: Auth, ws: WebSocketUpgrade) -> Response {
     let rx = s.events.subscribe();
-    ws.max_message_size(4096)
-        .max_frame_size(4096)
+    ws.max_message_size(128 * 1024)
+        .max_frame_size(128 * 1024)
         .on_upgrade(move |socket| run(s, a, socket, rx))
 }
 async fn event(socket: &mut WebSocket, event: &Event) -> bool {
@@ -73,7 +73,11 @@ async fn event(socket: &mut WebSocket, event: &Event) -> bool {
     matches!(
         tokio::time::timeout(
             Duration::from_secs(5),
-            socket.send(Frame::Text(json.into()))
+            socket.send(if matches!(event, Event::TerminalOutput { .. }) {
+                Frame::Binary(json.into_bytes().into())
+            } else {
+                Frame::Text(json.into())
+            })
         )
         .await,
         Ok(Ok(()))
@@ -81,6 +85,11 @@ async fn event(socket: &mut WebSocket, event: &Event) -> bool {
 }
 async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
     let channel = match v {
+        Event::TerminalOutput { .. } => return false,
+        Event::TerminalState { session } => {
+            return terminal::can_view(s, &a.user.id, &session.id).await
+        }
+        Event::AccessDecided { user_id, .. } => return user_id == &a.user.id,
         Event::Notification {
             user_id, message, ..
         } => {
@@ -127,7 +136,9 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
         return;
     }
     let _connected = Connected::new(s.clone(), a.user.id.clone());
-    let mut timer = tokio::time::interval(Duration::from_secs(5));
+    let connection = s.id();
+    let mut terminals = std::collections::HashSet::<String>::new();
+    let mut timer = tokio::time::interval(Duration::from_millis(500));
     let mut last_seen = Instant::now();
     let mut opened = OpenObjects {
         state: s.clone(),
@@ -140,11 +151,31 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
         tokio::select! {
             _=timer.tick()=>{
                 if !a.valid(&s).await || last_seen.elapsed()>Duration::from_secs(45) {break;}
+                for id in terminals.clone() {
+                    if !terminal::can_view(&s,&a.user.id,&id).await {terminals.remove(&id);let _=terminal::viewer(&s,&id,&a.user.id,&connection,false).await;}
+                }
                 if !matches!(tokio::time::timeout(Duration::from_secs(5),socket.send(Frame::Ping(Vec::new().into()))).await,Ok(Ok(()))) {break;}
             },
             incoming=socket.recv()=>{
                 match incoming {
                     Some(Ok(Frame::Pong(_)|Frame::Ping(_)))=>last_seen=Instant::now(),
+                    Some(Ok(Frame::Binary(bytes)))=>{
+                        if !a.valid(&s).await {break;}
+                        last_seen=Instant::now();
+                        let Ok(frame)=serde_json::from_slice::<TerminalFrame>(&bytes) else{break;};
+                        match frame {
+                            TerminalFrame::TerminalOpen{session_id}=>{
+                                if terminals.len()>=16 || !terminal::can_view(&s,&a.user.id,&session_id).await {continue;}
+                                if let Ok(t)=terminal::load(&s,&session_id).await {
+                                    terminals.insert(session_id.clone());
+                                    let _=terminal::viewer(&s,&session_id,&a.user.id,&connection,true).await;
+                                    let _=hosts::send(&s,&t.host_id,HostFrame::Replay{session_id,connection_id:connection.clone()}).await;
+                                }
+                            }
+                            TerminalFrame::TerminalClose{session_id}=>{terminals.remove(&session_id);let _=terminal::viewer(&s,&session_id,&a.user.id,&connection,false).await;}
+                            frame=>{let _=terminal::input(&s,&a.user.id,frame).await;}
+                        }
+                    },
                     Some(Ok(Frame::Text(text)))=>{
                         if !a.valid(&s).await {break;}
                         last_seen=Instant::now();
@@ -177,14 +208,16 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
                             }
                         }
                     },Some(Ok(Frame::Close(_)))|None|Some(Err(_))=>break,
-                    Some(Ok(_))=>break,
+
                 }
             },
             incoming=rx.recv()=>{
                 if !a.valid(&s).await {break;}
                 match incoming {
                     Ok(v)=>{
-                        let permitted = if let Event::ObjectCursor { id, user_id, .. } = &v {
+                        let permitted = if let Event::TerminalOutput{session_id,connection_id,..} = &v {
+                            terminals.contains(session_id) && connection_id.as_ref().is_none_or(|id|id==&connection) && terminal::can_view(&s,&a.user.id,session_id).await
+                        } else if let Event::ObjectCursor { id, user_id, .. } = &v {
                             if let Some(channel) = opened.ids.get(id) {user_id != &a.user.id && visible(&s, &a.user.id, channel).await.is_ok()} else {false}
                         } else {allowed(&s,&a,&v).await};
                         if permitted && !event(&mut socket,&v).await {break;}
@@ -194,6 +227,9 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
                 }
             }
         }
+    }
+    for id in terminals {
+        let _ = terminal::viewer(&s, &id, &a.user.id, &connection, false).await;
     }
     let _ = tokio::time::timeout(Duration::from_secs(1), socket.send(Frame::Close(None))).await;
 }

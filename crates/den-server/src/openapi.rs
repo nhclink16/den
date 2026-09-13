@@ -10,6 +10,24 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
+        hosts::list,
+        hosts::enroll,
+        hosts::login,
+        hosts::remove,
+        hosts::connect,
+        hosts::direct_check,
+        access::request,
+        access::decide,
+        access::grants,
+        access::revoke,
+        access::log,
+        terminal::open,
+        terminal::controller,
+        terminal::request_control,
+        terminal::share,
+        terminal::write,
+        terminal::close,
+        terminal::direct_token,
         objects::settings,
         objects::save_settings,
         objects::create,
@@ -64,6 +82,26 @@ use utoipa::OpenApi;
         ws::connect
     ),
     components(schemas(
+        Host,
+        HostEnrollment,
+        HostCredential,
+        HostLogin,
+        HostFrame,
+        TerminalFrame,
+        Capability,
+        Grant,
+        RequestAccess,
+        AccessRequest,
+        AccessDecision,
+        AccessLog,
+        OpenTerminal,
+        TerminalState,
+        SetController,
+        ShareTerminal,
+        TerminalWrite,
+        DirectToken,
+        DirectCheck,
+        DirectPermission,
         Event,
         LiveObject,
         ObjectSummary,
@@ -138,7 +176,12 @@ pub(crate) async fn serve() -> Json<utoipa::openapi::OpenApi> {
     for (path, item) in &mut api.paths.paths {
         let public = matches!(
             path.as_str(),
-            "/livekit/webhook" | "/health" | "/auth/init" | "/auth/login" | "/auth/register"
+            "/hosts/login"
+                | "/livekit/webhook"
+                | "/health"
+                | "/auth/init"
+                | "/auth/login"
+                | "/auth/register"
         );
         for op in [
             &mut item.get,

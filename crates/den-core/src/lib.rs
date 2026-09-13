@@ -68,6 +68,18 @@ pub struct Message {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    TerminalOutput {
+        session_id: Id,
+        bytes: Vec<u8>,
+        connection_id: Option<Id>,
+    },
+    TerminalState {
+        session: TerminalState,
+    },
+    AccessDecided {
+        user_id: Id,
+        request: AccessRequest,
+    },
     ObjectPatched {
         id: Id,
         channel_id: Id,

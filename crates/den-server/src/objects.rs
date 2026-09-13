@@ -101,6 +101,11 @@ pub(crate) async fn create(
     if visible(&s, &a.user.id, &channel).await?.kind == ChannelKind::Voice {
         return Err(Error::bad("Voice rooms do not accept objects"));
     }
+    if v.kind != "canvas" {
+        return Err(Error::bad(
+            "Use the dedicated endpoint for this object kind",
+        ));
+    }
     name(&v.kind)?;
     let object_name = if v.name.trim().is_empty() {
         "Untitled canvas"
@@ -163,6 +168,9 @@ pub(crate) async fn patch(
 ) -> Result<Json<ObjectVersion>> {
     let _guard = s.writes.lock().await;
     let mut o = load(&s, &id).await?;
+    if o.summary.kind != "canvas" {
+        return Err(Error::forbidden());
+    }
     visible(&s, &a.user.id, &o.summary.channel_id).await?;
     for record in &v.put {
         o.state.insert(record_id(record)?.into(), record.clone());
@@ -194,6 +202,9 @@ pub(crate) async fn update(
     let _guard = s.writes.lock().await;
     let o = load(&s, &id).await?;
     visible(&s, &a.user.id, &o.summary.channel_id).await?;
+    if o.summary.kind != "canvas" {
+        return Err(Error::forbidden());
+    }
     let new_name = v.name.as_deref().map(str::trim).unwrap_or(&o.summary.name);
     let new_name = if new_name.is_empty() {
         "Untitled canvas"
