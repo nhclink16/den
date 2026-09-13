@@ -14,15 +14,15 @@
   })
 </script>
 
-<div class="tile" class:screen class:speaking={participant.speaking} data-testid={screen ? 'screen-tile' : 'call-tile'} data-user-id={participant.id}>
+<div class="tile" class:screen class:speaking={participant.speaking} data-testid={screen ? 'screen-tile' : 'call-tile'} data-user-id={participant.userId} data-connection-id={participant.id}>
   {#if track}
     <video bind:this={video} class:mirror={participant.local && !screen} autoplay playsinline muted aria-label={`${participant.name} ${screen ? 'screen' : 'camera'}`}></video>
   {:else}
-    <Avatar userId={participant.id} size={44} />
+    <Avatar userId={participant.userId} size={44} />
   {/if}
   <span class="label">
     {#if screen}<Icon name="screen" size={14} />{/if}
-    <span>{participant.name}</span>
+    <span>{participant.name}{#if participant.device}<small> · {participant.device}</small>{/if}</span>
     {#if participant.muted}<span class="mute" data-testid="muted-mic" aria-label="Microphone muted"><Icon name="mic-off" size={14} /></span>{/if}
   </span>
 </div>

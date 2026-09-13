@@ -7,6 +7,7 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - Roles: admin and member. Nothing finer.
 - Text channels grouped in categories, DMs and group DMs.
 - One persistent voice room ("hangout") plus ad hoc calls from DMs. Webcams and screen share. Docked cam strip so text stays visible in a call.
+- A user can join the same call from multiple devices. Each connection can publish its own camera and screen share, with no per-account device cap. Presence counts people once. Additional devices join with microphone and sound off, and clients suppress their own account's remote microphone audio while allowing its screen-share audio. Leaving one device leaves the others connected.
 - Push-to-talk (Tauri global shortcut) and voice activity, user picks.
 - Messages: markdown, replies, reactions, uploads, link previews, mentions, pins, search, typing, presence. Not: threads, forums, stickers, custom emoji.
 - Uploads are the reason this project exists. Default cap 1 GB per file, admin-adjustable, no per-user tier. Video and audio play inline, images get thumbnails. Files live on local disk on the VPS. Uploads are chunked and resumable, finalized atomically, abandoned temp files cleaned. Serving is authenticated and supports HEAD and 206 range responses. No transcoding to start; H.264/AAC MP4 with `playsinline` is the tested path, HLS deferred until a real clip fails. Disk usage shown on the admin settings page, no automatic deletion.

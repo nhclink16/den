@@ -7,12 +7,13 @@ type Preferences = {
   microphone: string; camera: string; speaker: string
   micOn: boolean; cameraOn: boolean; sounds: boolean
 }
+const accountId = (identity: string) => identity.split(':', 1)[0]
 const defaults: Preferences = { mode: 'activity', pttKey: 'Backquote', pttLabel: '`', microphone: '', camera: '', speaker: '', micOn: true, cameraOn: false, sounds: true }
 function load(): Preferences {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem('den.voice') || '{}') } } catch { return defaults }
 }
 export type CallParticipant = {
-  id: string; name: string; local: boolean; speaking: boolean; muted: boolean
+  id: string; userId: string; device: string; name: string; local: boolean; speaking: boolean; muted: boolean
   camera?: Track; screen?: Track
 }
 
@@ -27,6 +28,8 @@ class Call {
   error = $state('')
   reconnecting = $state(false)
   audioBlocked = $state(false)
+  outputMuted = $state(false)
+  otherDevices = $state(0)
   held = $state(false)
   micOn = $state(false)
   cameraOn = $state(false)
@@ -50,19 +53,27 @@ class Call {
   private refresh = () => {
     const room = this.room
     if (!room) return
-    const snapshot = (p: Participant): CallParticipant => ({
-      id: p.identity, name: p.name || p.identity, local: p === room.localParticipant,
-      speaking: p.isSpeaking, muted: !p.isMicrophoneEnabled,
-      camera: p.isCameraEnabled ? p.getTrackPublication(Track.Source.Camera)?.track : undefined,
-      screen: p.getTrackPublication(Track.Source.ScreenShare)?.track,
-    })
+    const members: Participant[] = [room.localParticipant, ...room.remoteParticipants.values()]
+    const ownId = accountId(room.localParticipant.identity)
+    this.otherDevices = members.filter((p) => p !== room.localParticipant && accountId(p.identity) === ownId).length
+    const snapshot = (p: Participant): CallParticipant => {
+      const devices = members.filter((m) => accountId(m.identity) === accountId(p.identity)).sort((a, b) => a.identity.localeCompare(b.identity))
+      return {
+        id: p.identity, userId: accountId(p.identity),
+        device: devices.length > 1 ? p === room.localParticipant ? 'This device' : `Device ${devices.indexOf(p) + 1}` : '',
+        name: p.name || p.identity, local: p === room.localParticipant,
+        speaking: p.isSpeaking, muted: !p.isMicrophoneEnabled,
+        camera: p.isCameraEnabled ? p.getTrackPublication(Track.Source.Camera)?.track : undefined,
+        screen: p.getTrackPublication(Track.Source.ScreenShare)?.track,
+      }
+    }
     this.participants = [snapshot(room.localParticipant), ...[...room.remoteParticipants.values()].map(snapshot)]
     this.micOn = room.localParticipant.isMicrophoneEnabled
     this.cameraOn = room.localParticipant.isCameraEnabled
     this.screenOn = room.localParticipant.isScreenShareEnabled
   }
   private sound(join: boolean) {
-    if (!this.prefs.sounds) return
+    if (!this.prefs.sounds || this.outputMuted) return
     try {
       const ctx = new AudioContext()
       void ctx.resume()
@@ -91,30 +102,40 @@ class Call {
     try {
       const { url, token } = await api.post<CallToken>(`/calls/${channel.id}/token`)
       if (generation !== this.generation) return
-      await room.connect(url, token)
+      await room.connect(url, token, { autoSubscribe: false })
       if (generation !== this.generation) { await room.disconnect(); return }
       this.room = room; this.channel = channel
       for (const event of [RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected, RoomEvent.TrackSubscribed,
         RoomEvent.TrackUnsubscribed, RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.LocalTrackPublished,
         RoomEvent.LocalTrackUnpublished, RoomEvent.ActiveSpeakersChanged, RoomEvent.TrackPublished, RoomEvent.TrackUnpublished,
         RoomEvent.ParticipantNameChanged]) room.on(event, this.refresh)
-      room.on(RoomEvent.TrackSubscribed, (track) => {
-        if (track.kind !== Track.Kind.Audio) return
-        const el = track.attach(); this.audio.set(track, el); document.body.append(el)
-        el.play().catch(() => { this.audioBlocked = true })
-      })
+      const attachAudio = (track: RemoteTrack, participant: Participant) => {
+        if (track.kind !== Track.Kind.Audio || this.outputMuted || this.audio.has(track)) return
+        // Hear a phone's shared media on the desktop, but never echo our own mic.
+        if (accountId(participant.identity) === accountId(room.localParticipant.identity) && track.source === Track.Source.Microphone) return
+        const el = track.attach()
+        this.audio.set(track, el); document.body.append(el)
+        el.play().catch(() => { if (!this.outputMuted) this.audioBlocked = true })
+      }
+      room.on(RoomEvent.TrackPublished, () => this.subscriptions())
+      room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => attachAudio(track, participant))
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
         track.detach().forEach((el) => el.remove()); this.audio.delete(track)
       })
-      room.on(RoomEvent.AudioPlaybackStatusChanged, () => { this.audioBlocked = !room.canPlaybackAudio })
+      room.on(RoomEvent.AudioPlaybackStatusChanged, () => { this.audioBlocked = !this.outputMuted && !room.canPlaybackAudio })
       room.on(RoomEvent.Reconnecting, () => { this.reconnecting = true; this.setHeld(false) })
       room.on(RoomEvent.Reconnected, () => { this.reconnecting = false; this.refresh() })
       room.on(RoomEvent.Disconnected, () => {
-        if (this.room === room) { this.clear(); this.sound(false) }
+        if (this.room === room) { const quiet = this.outputMuted; this.clear(); if (!quiet) this.sound(false) }
       })
       this.refresh()
-      await room.startAudio()
-      await room.localParticipant.setMicrophoneEnabled(prefs.mode === 'activity' && prefs.micOn)
+      if (this.otherDevices > 0) {
+        this.outputMuted = true
+        this.save({ micOn: false })
+      }
+      this.subscriptions()
+      if (!this.outputMuted) await room.startAudio()
+      await room.localParticipant.setMicrophoneEnabled(prefs.mode === 'activity' && this.prefs.micOn)
       if (generation !== this.generation) { await room.disconnect(); return }
       if (prefs.cameraOn) await room.localParticipant.setCameraEnabled(true)
       this.refresh(); this.sound(true)
@@ -130,15 +151,34 @@ class Call {
     this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false
+    this.outputMuted = false; this.otherDevices = 0
   }
   async leave() {
     ++this.generation; this.joining = null
-    const room = this.room
+    const room = this.room, quiet = this.outputMuted
     this.clear()
-    if (room) { await room.disconnect(); this.sound(false) }
+    if (room) { await room.disconnect(); if (!quiet) this.sound(false) }
   }
   async startAudio() {
     try { await this.room?.startAudio(); this.audioBlocked = false } catch (err) { this.report(err) }
+  }
+  private subscriptions() {
+    const room = this.room
+    if (!room) return
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.trackPublications.values()) {
+        const ownMic = accountId(participant.identity) === accountId(room.localParticipant.identity) && publication.source === Track.Source.Microphone
+        publication.setSubscribed(publication.kind !== Track.Kind.Audio || (!this.outputMuted && !ownMic))
+      }
+    }
+  }
+  async toggleOutput() {
+    this.outputMuted = !this.outputMuted
+    this.subscriptions()
+    if (this.outputMuted) {
+      for (const [track, el] of this.audio) { track.detach(); el.remove() }
+      this.audio.clear(); this.audioBlocked = false
+    } else await this.startAudio()
   }
   private applyMic() {
     const room = this.room
