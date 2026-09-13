@@ -11,7 +11,7 @@ jobs:
       matrix:
         include:
           - platform: linux-x86_64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
           - platform: macos-arm64
             runner: macos-15
           - platform: windows-x86_64
