@@ -38,3 +38,7 @@ Automate what can be: the web client's native-session mode against the dev serve
 - A 28px icon button with the existing `panel` icon at the far right of the sidebar's wordmark row, tooltip `Hide sidebar · Ctrl+\` (`⌘\` on macOS). It sets the same `layout.sidebar` preference the shortcut uses.
 - When the sidebar is hidden and the viewport is not narrow, the same icon appears as the first item in the main header of every view (room, inbox, search, settings), tooltip `Show sidebar`. On narrow viewports the existing menu button remains and nothing changes.
 - The call dock stays visible while collapsed, as today. Include the button in the switcher popover work since both touch the wordmark row. Screenshot the collapsed state with the header button visible.
+
+## Addendum 2026-09-14: Windows shutdown and completion notice
+- After the Windows acceptance is recorded, shut the PC down safely from codexbox: `ssh pc 'shutdown.exe /s /t 60 /c "Den desktop acceptance finished. Cancel with shutdown /a."'`, then confirm it leaves Tailscale within three minutes (`tailscale status`). Never `/f`, never the smart plug. If the PC was never reachable, skip this and note it.
+- Final step of the lane, after the notes are written: `herdr agent prompt fable "[astra-desktop] M4 done, notes at docs/M4-NOTES.md"`. One line, nothing else.
