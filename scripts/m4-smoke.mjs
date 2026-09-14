@@ -56,6 +56,8 @@ await context.addInitScript(origin => {
 }, bases[0])
 const page = await context.newPage()
 page.on('pageerror', e => errors.push(e.message))
+const sockets = new Set()
+page.on('websocket', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
 const until = async fn => { for (let n = 0; n < 100; n++) { if (await fn()) return; await page.waitForTimeout(100) } throw Error('Timed out') }
 try {
   await page.goto('http://localhost:17902')
@@ -96,19 +98,21 @@ try {
   await page.keyboard.press('Escape')
   await page.reload()
   await page.getByRole('button', { name: 'Switch server' }).waitFor()
-  await until(async () => await page.evaluate(async () => (await import('/src/lib/store.svelte.ts')).instances.all.filter(s => s.connected).length) === 2)
+  await until(() => bases.every(origin => [...sockets].some(s => s.url().startsWith(origin.replace('http', 'ws') + '/ws?ticket='))))
   const storage = await page.evaluate(() => JSON.stringify(localStorage))
   for (const token of keychain.values()) assert(!storage.includes(token), 'Bearer token leaked into localStorage')
   assert.equal(keychain.size, 2)
   await page.getByRole('button', { name: 'Hide sidebar', exact: true }).click()
   for (const path of ['/inbox', '/find?q=desktop', '/settings', `/c/${channels[1].id}`]) {
-    await page.evaluate(async path => (await import('/src/lib/router.svelte.ts')).router.go(path), path)
+    await page.goto('http://localhost:17902' + path)
     await page.getByRole('button', { name: 'Show sidebar', exact: true }).waitFor()
   }
   await page.screenshot({ path: 'docs/shots/m4-sidebar-collapsed.png' })
   await page.getByRole('button', { name: 'Show sidebar', exact: true }).click()
   await page.getByRole('button', { name: 'Hide sidebar', exact: true }).waitFor()
-  await page.evaluate(async () => { const { instances } = await import('/src/lib/store.svelte.ts'); await instances.remove(instances.active) })
+  await page.getByRole('button', { name: 'Switch server' }).click()
+  await page.locator('.server.active .remove').click()
+  await until(() => keychain.size === 1)
   assert.equal(keychain.size, 1)
   assert.equal(savedOrigins.length, 1)
   assert.deepEqual(errors, [])
