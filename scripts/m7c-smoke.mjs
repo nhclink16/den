@@ -104,6 +104,13 @@ try {
   await a.getByLabel('Share screen', { exact: true }).first().click()
   await until(async () => await screens(a).count() === 2, 'share restored after rejoin')
   assert.equal((await cell(grid(a).locator(`[data-tile-key="${shareKey}"]`))).w, custom.tiles[shareKey].w, 'returning share reuses its saved size')
+  await a.setViewportSize({ width: 390, height: 844 })
+  const mobileCustom = grid(a).locator(`[data-tile-key="${camKey}"]`)
+  await mobileCustom.getByLabel('Pin', { exact: true }).click()
+  assert.deepEqual((await stored(a)).tiles[camKey], { ...custom.tiles[camKey], pinned: true }, 'mobile pin preserves desktop Custom coordinates')
+  await mobileCustom.getByLabel('Pin', { exact: true }).click()
+  await a.setViewportSize({ width: 1440, height: 900 })
+  await until(async () => (await cams(a).last().boundingBox()).width > 200, 'desktop layout settles after mobile')
   const focusCam = cams(a).last(), camWidth = (await focusCam.boundingBox()).width
   await focusCam.getByLabel('Pin', { exact: true }).click()
   await screens(a).first().getByLabel('Pin', { exact: true }).click()

@@ -36,7 +36,13 @@
   const stepY = $derived(mobile ? Math.max(24, stepX) : Math.max(24, Math.min(stepX * .8, (height - 8) / rows)))
   function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(tiles, value, callLayouts.value.tiles, mobile)) }
   function reset() { cancelDrag?.(); callLayouts.reset() }
-  function pin(key: string) { callLayouts.save(callLayouts.value.preset, { ...cells, [key]: { ...cells[key]!, pinned: !cells[key]!.pinned } }) }
+  function pin(key: string) {
+    // Mobile presents Custom as Focus; pinning must not save its display geometry
+    // over the desktop arrangement. Only the pin changes in that case.
+    const saved = callLayouts.value
+    const original = mobile && saved.preset === 'Custom' ? saved.tiles[key] || cells[key]! : cells[key]!
+    callLayouts.save(saved.preset, { ...(mobile && saved.preset === 'Custom' ? {} : cells), [key]: { ...original, pinned: !original.pinned } })
+  }
   function move(key: string, dx: number, dy: number, resize: boolean) {
     const old = cells[key]!
     const next = bounds({ ...old, ...(resize ? { w: old.w + dx, h: old.h + dy } : { col: old.col + dx, row: old.row + dy }) })
