@@ -1,0 +1,122 @@
+// Real Whisper inference from Chromium's fake microphone, never a transcription stub.
+// Download the public-domain JFK fixture referenced by Hugging Face's ASR docs first:
+// curl -L https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/jfk.wav -o /private/speech.wav
+// DEN_SMOKE_SESSION=/private/session.json DEN_SMOKE_AUDIO=/private/speech.wav node scripts/dictation-smoke.mjs
+import { chromium } from 'playwright-core'
+import { readFile, mkdir } from 'node:fs/promises'
+import assert from 'node:assert/strict'
+import { SmokeCleanup } from './smoke-cleanup.mjs'
+const base = process.env.DEN_SMOKE_URL || 'http://127.0.0.1:17820'
+const session = JSON.parse(await readFile(process.env.DEN_SMOKE_SESSION, 'utf8'))
+const audio = process.env.DEN_SMOKE_AUDIO
+assert(audio, 'Set DEN_SMOKE_AUDIO to a spoken WAV file')
+const shots = process.env.DEN_SMOKE_SHOTS || 'docs/shots'
+await mkdir(shots, { recursive: true })
+const cleanup = await SmokeCleanup.start(base, session.token)
+const browser = await chromium.launch({ executablePath: process.env.DEN_CHROMIUM || '/usr/bin/chromium', args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${audio}`] })
+try {
+  const context = await browser.newContext({ permissions: ['microphone'], viewport: { width: 1440, height: 900 } })
+  cleanup.watch(context)
+  await context.addCookies([{ name: 'den_session', value: session.token, url: base, httpOnly: true, sameSite: 'Strict', secure: base.startsWith('https:') }])
+  await context.addInitScript(csrf => {
+    localStorage.setItem('den.csrf', csrf)
+    window.__dictationTracks = []
+    const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+    navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await get(...args); window.__dictationTracks.push(...stream.getTracks()); return stream }
+  }, session.csrf_token)
+  const page = await context.newPage(), errors = [], downloads = [], sent = []
+  page.on('pageerror', e => errors.push(e.message))
+  page.on('requestfailed', r => { if (r.url().includes('/assets/') || r.url().includes('huggingface.co/')) console.log('Asset failed:', r.url(), r.failure()?.errorText) })
+  await context.addInitScript(() => { const Original = Worker; window.Worker = class extends Original { constructor(...args) { super(...args); this.addEventListener('message', e => { if (e.data.type === 'error') console.log('Dictation worker error:', e.data.message) }) } } })
+  page.on('console', m => { if (m.text().startsWith('Dictation worker error:')) console.log(m.text()) })
+  context.on('request', r => {
+    if (r.url().includes('huggingface.co/') || r.url().includes('hf.co/')) downloads.push(r)
+    if (r.method() === 'POST' && !r.url().includes('/auth/')) sent.push(r.url())
+  })
+  const navigate = path => page.evaluate(path => { history.pushState({}, '', path); dispatchEvent(new PopStateEvent('popstate')) }, path)
+  const channel = (await cleanup.api('GET', '/channels')).find(c => c.name === 'general')
+  await page.goto(`${base}/c/${channel.id}`)
+  const field = page.getByRole('textbox', { name: 'Say something in #general', exact: true })
+  await page.getByRole('button', { name: 'Dictate', exact: true }).waitFor()
+  assert.equal(downloads.length, 0, 'no model download before consent')
+  await page.getByRole('button', { name: 'Dictate', exact: true }).click()
+  await page.getByRole('button', { name: 'Not now', exact: true }).click()
+  assert.equal(downloads.length, 0, 'Not now leaves the model unloaded')
+  await field.fill('Before after'); await field.evaluate(e => e.setSelectionRange(7, 7))
+  await page.getByRole('button', { name: 'Dictate', exact: true }).click()
+  await page.getByRole('button', { name: 'Download', exact: true }).click()
+  await page.getByRole('button', { name: 'Stop dictating', exact: true }).and(page.locator('[aria-pressed="true"]')).waitFor({ timeout: 120000 })
+  const started = Date.now()
+  await page.waitForFunction(() => /fellow/i.test(document.querySelector('textarea')?.value || ''), { }, { timeout: 10000 })
+  console.log(`Speech entered the composer in ${Date.now() - started} ms after listening began.`)
+  assert.match(await field.inputValue(), /^Before .*fellow.* after$/i)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  assert.equal(await page.locator('.dictate.listening').evaluate(e => getComputedStyle(e, '::after').animationName), 'none')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.screenshot({ path: `${shots}/dictation-web-desktop.png` })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: `${shots}/dictation-web-mobile.png` })
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => window.__dictationTracks.every(t => t.readyState === 'ended'))
+  await page.getByRole('button', { name: 'Dictate', exact: true }).waitFor({ timeout: 20000 })
+  assert.match(await field.inputValue(), /^Before .* after$/)
+  assert.equal(sent.length, 0, 'dictation must never post a message or upload audio')
+  assert(downloads.length > 0); assert(downloads.every(r => r.method() === 'GET' || r.method() === 'HEAD'), 'model requests only')
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await navigate('/settings/voice')
+  await page.getByText('Voice model: 40 MB, downloaded', { exact: true }).waitFor()
+  assert.equal(await page.getByLabel('Dictation language', { exact: true }).inputValue(), 'en')
+  await page.getByLabel('Punctuation', { exact: true }).uncheck()
+  await navigate(`/c/${channel.id}`)
+  // Den's code is already loaded; deny network while the worker reloads its saved model.
+  const downloaded = downloads.length
+  await field.waitFor()
+  await context.setOffline(true)
+  await field.fill('Offline')
+  await page.getByRole('button', { name: 'Dictate', exact: true }).click()
+  await page.waitForFunction(() => /fellow/i.test(document.querySelector('textarea')?.value || ''), {}, { timeout: 20000 })
+  assert.equal(downloads.length, downloaded, 'cached model works with no speech/model network requests')
+  await page.getByRole('button', { name: 'Stop dictating', exact: true }).click()
+  await page.getByRole('button', { name: 'Dictate', exact: true }).waitFor({ timeout: 20000 })
+  assert.match(await field.inputValue(), /^Offline /)
+  assert(!/[.,!?;:]/.test(await field.inputValue()), 'punctuation preference applied')
+  await context.setOffline(false)
+  await page.getByRole('button', { name: 'Dictate', exact: true }).click()
+  await page.locator('.dictate.listening').waitFor({ timeout: 20000 })
+  await page.locator('h1').click()
+  await field.fill('Manual edit stays')
+  await page.getByRole('button', { name: 'Dictate', exact: true }).waitFor({ timeout: 20000 })
+  assert.equal(await field.inputValue(), 'Manual edit stays')
+  await page.waitForFunction(() => window.__dictationTracks.every(t => t.readyState === 'ended'))
+  await navigate('/settings/voice')
+  await page.getByRole('button', { name: 'Remove', exact: true }).click()
+  await page.getByText('Voice model: 40 MB, not downloaded', { exact: true }).waitFor()
+  await navigate(`/c/${channel.id}`)
+  await page.getByRole('button', { name: 'Dictate', exact: true }).click()
+  await page.getByRole('dialog').waitFor()
+  await page.keyboard.press('Escape')
+  // A separate browser omits fake-ui: that flag deliberately overrides denied permissions.
+  const deniedBrowser = await chromium.launch({ executablePath: process.env.DEN_CHROMIUM || '/usr/bin/chromium', args: ['--no-sandbox', '--use-fake-device-for-media-stream'] })
+  try {
+    const deniedContext = await deniedBrowser.newContext()
+    await deniedContext.addCookies(await context.cookies())
+    await deniedContext.grantPermissions([], { origin: base })
+    const deniedPage = await deniedContext.newPage()
+    await deniedPage.goto(`${base}/c/${channel.id}`)
+    await deniedPage.getByRole('button', { name: 'Dictate', exact: true }).click()
+    await deniedPage.getByRole('button', { name: 'Download', exact: true }).click()
+    await deniedPage.getByRole('alert').filter({ hasText: 'Den needs the microphone for dictation. Allow it in Settings.' }).waitFor()
+    await deniedPage.getByRole('button', { name: 'Dictate', exact: true }).click()
+    assert.equal(await deniedPage.getByRole('dialog').count(), 0, 'denied microphone does not repeat model consent')
+  } finally { await deniedBrowser.close() }
+  const unsupported = await browser.newContext()
+  await unsupported.addCookies(await context.cookies())
+  await unsupported.addInitScript(() => { delete globalThis.AudioWorkletNode })
+  const other = await unsupported.newPage(); await other.goto(`${base}/c/${channel.id}`)
+  await other.getByRole('textbox', { name: 'Say something in #general', exact: true }).waitFor()
+  assert.equal(await other.getByRole('button', { name: 'Dictate', exact: true }).count(), 0)
+  await unsupported.close()
+  assert.deepEqual(errors, [])
+  console.log('PASS consent, real ASR, caret/partial text, no auto-send or audio upload, Escape/mic release, desktop/mobile layout, offline cached model, punctuation, Remove, denied permission and unsupported browser.')
+} finally { await cleanup.finish(browser) }

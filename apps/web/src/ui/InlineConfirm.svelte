@@ -2,7 +2,8 @@
   import { onMount, tick } from 'svelte'
   let { action, sentence, confirm, disabled = false }: { action: string; sentence: string; confirm: () => Promise<void>; disabled?: boolean } = $props()
   let armed = $state(false), pending = $state(false)
-  let group: HTMLDivElement, trigger: HTMLButtonElement, keep: HTMLButtonElement
+  let group: HTMLDivElement, trigger: HTMLButtonElement
+  let keep = $state<HTMLButtonElement>()
   let timer: ReturnType<typeof setTimeout> | undefined
   function cancel() { clearTimeout(timer); armed = false }
   async function arm() {

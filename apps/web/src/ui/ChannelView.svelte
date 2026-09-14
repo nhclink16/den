@@ -11,6 +11,7 @@
   import Composer from './Composer.svelte'
   import { router } from '../lib/router.svelte'
   let q = $state('')
+  let listening = $state(false)
   function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}&in=${channel.id}`) }
 
   let { channel, onmenu, narrow }: { channel: Channel; onmenu: () => void; narrow: boolean } = $props()
@@ -65,10 +66,10 @@
   <MessageList {channel} onreply={(m) => (replyTo = m)} />
 
   <div class="typing" aria-live="polite">
-    {#if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
+    {#if listening}<span class="mono">listening</span>{:else if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
   </div>
 
-  <Composer {channel} bind:replyTo bind:dropped />
+  <Composer {channel} bind:replyTo bind:dropped bind:listening />
   {/if}
   {/if}
 

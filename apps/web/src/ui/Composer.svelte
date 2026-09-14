@@ -1,12 +1,14 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { plugins } from '../plugins'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message, Upload } from '../lib/types'
   import { upload as send, type Progress } from '../lib/upload'
   import { bytes } from '../lib/time'
   import Icon from './Icon.svelte'
+  import DictationButton from './DictationButton.svelte'
 
-  let { channel, replyTo = $bindable(null), dropped = $bindable([]) }: { channel: Channel; replyTo: Message | null; dropped: File[] } = $props()
+  let { channel, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
 
   type Pending = { id: number; file: File; progress: Progress; done?: Upload; error?: string; abort: AbortController }
   let seq = 0
@@ -29,6 +31,13 @@
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
   $effect(() => { if (replyTo) ta?.focus() })
+
+  onMount(() => {
+    let width = ta.clientWidth
+    const observer = new ResizeObserver(() => { if (ta.clientWidth !== width) { width = ta.clientWidth; grow() } })
+    observer.observe(ta)
+    return () => observer.disconnect()
+  })
 
   // Pending entries are replaced, never mutated, so the keyed list re-renders.
   function patch(id: number, part: Partial<Pending>) { pending = pending.map((x) => (x.id === id ? { ...x, ...part } : x)) }
@@ -124,6 +133,7 @@
     <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
     <textarea bind:this={ta} bind:value={text} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : undefined}></textarea>
+    <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { text = value; requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={text.trim() || pending.some((p) => p.done)} onclick={submit} disabled={uploading || busy} title="Send (Enter)"><Icon name="send" size={16} /></button>
   </div>
 </div>
@@ -142,7 +152,7 @@
   }
   .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   textarea {
-    flex: 1; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
+    flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
   textarea::placeholder { color: var(--ink-3); }

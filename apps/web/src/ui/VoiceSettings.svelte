@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DictationSettings from './DictationSettings.svelte'
   import { native } from '../lib/native'
   import { onMount } from 'svelte'
   import { store } from '../lib/store.svelte'
@@ -82,6 +83,8 @@
 {#if speakerSupported}<label class="device">Speaker<select class="field" value={call.prefs.speaker} onchange={(e) => call.device('audiooutput', e.currentTarget.value)}><option value="">Default speaker</option>{#each devices.filter((d) => d.kind === 'audiooutput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Speaker'}</option>{/each}</select></label>{/if}
 <label class="switch"><input type="checkbox" checked={call.prefs.cameraOn} onchange={(e) => call.save({ cameraOn: e.currentTarget.checked })} /> Join with camera on</label>
 <label class="switch"><input type="checkbox" checked={call.prefs.sounds} onchange={(e) => call.save({ sounds: e.currentTarget.checked })} /> Play join and leave sounds</label>
+
+<DictationSettings />
 
 <style>
   h2 { font-size: 26px; margin: 0 0 6px; }
