@@ -41,16 +41,14 @@ Read these before changing code:
 ## Ownership and coordination
 
 You are the implementation lead for `apps/ios`, native tests, iOS build scripts,
-screenshots, M5a/M5b notes, and Xcode Cloud preparation. The original iOS lane
-also owns the server push/device endpoints. Carry those dependencies through;
-there is no separate server task currently running on your behalf.
-
-Prefer Debian for Rust/server test and deployment work when practical. The
-Debian coordinator is Herdr agent `astra-ios`; `fable` coordinates the other
-lanes. If transferring a server subtask, obtain an explicit ownership reply and
-record it in the notes. Continue independent client work while coordinating.
-Do not leave a required endpoint unimplemented on the assumption another lane
-will build it. Use the fleet skill to verify a remote alias and identity first.
+screenshots, M5a/M5b notes, and Xcode Cloud preparation. Nicholas's subsequent
+server addendum assigns device/APNs endpoints, DM invitations, and OpenAPI
+generation to Debian Herdr agent `astra-ios`, in branch `server-ios` at
+`/mnt/storage/den-server-ios`. Ownership was explicitly confirmed. See
+[server notes](M5-SERVER-NOTES.md) for the API contract, schema artifact, tests,
+and private native-test fixture. `fable` coordinates the other lanes.
+Continue native work while coordinating server dependencies. Use the fleet
+skill to verify a remote alias and identity before controlling another machine.
 
 Stage explicit owned paths only, never `git add .` or `git add -A`. Commit small
 slices and push. Before pulling or pushing, inspect the current state, preserve
@@ -239,8 +237,8 @@ on the simulator and physical phone. Continue through the acceptance list.
 > and real-device testing. Verify inherited Herdr context and the `den_xcode`
 > MCP tools first, then build the app. The signing gate is cleared, with an
 > Aqua-session helper documented in the handoff. The existing M5A notes record
-> a probe, not a finished app. Own the native work and carry the required
-> push/device and call-signaling dependencies through, coordinating shared
-> types/migrations before merge. Preserve other lanes' work, stage explicit
+> a probe, not a finished app. Own the native work and coordinate required
+> server dependencies with astra-ios on Debian, following the server addendum
+> and M5-SERVER-NOTES.md. Preserve other lanes' work, stage explicit
 > paths, commit and push, and record actual acceptance evidence. Continue
 > independent work when credentials or physical consent need Nicholas.
