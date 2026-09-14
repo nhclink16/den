@@ -1,7 +1,10 @@
 <script lang="ts">
   // A handful of 16px line icons. Stroke inherits color.
-  let { name, size = 16 }: { name: 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off'; size?: number } = $props()
+  let { name, size = 16 }: { name: 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off'; size?: number } = $props()
   const paths: Record<string, string> = {
+    pin: 'M6 2h6l-1 5 2 2-1 1-4-1-5 5M6 2l1 4-1 2-3-1z',
+    popout: 'M9 2h5v5M14 2L7 9M6 3H2v11h11v-4',
+    more: 'M3 8h.01M8 8h.01M13 8h.01',
     sound: 'M2 6h3l4-3v10l-4-3H2zM11 5a4 4 0 0 1 0 6M13 3a7 7 0 0 1 0 10',
     'sound-off': 'M2 6h3l4-3v10l-4-3H2zM11 6l4 4M15 6l-4 4',
     headset: 'M2 9V7a6 6 0 0 1 12 0v2M2 8h2v5H2zM12 8h2v5h-2zM12 13c0 2-2 2-4 2',

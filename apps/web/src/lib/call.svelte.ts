@@ -1,4 +1,6 @@
-import { Room, RoomEvent, Track, type Participant, type RemoteTrack } from 'livekit-client'
+import { Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality } from 'livekit-client'
+import { store } from './store.svelte'
+import { Shares, type Share } from './call-shares'
 import { api, HttpError } from './api'
 import type { CallState, CallToken, Channel } from './types'
 
@@ -14,7 +16,7 @@ function load(): Preferences {
 }
 export type CallParticipant = {
   id: string; userId: string; device: string; name: string; local: boolean; speaking: boolean; muted: boolean
-  camera?: Track; screen?: Track
+  camera?: Track; screen?: Track; screens: Share[]; quality: ConnectionQuality
 }
 
 class Call {
@@ -34,6 +36,8 @@ class Call {
   micOn = $state(false)
   cameraOn = $state(false)
   screenOn = $state(false)
+  shares = new Shares(() => this.room, this.refreshShares.bind(this))
+  private refreshShares() { this.refresh() }
   private generation = 0
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
@@ -61,10 +65,11 @@ class Call {
       return {
         id: p.identity, userId: accountId(p.identity),
         device: devices.length > 1 ? p === room.localParticipant ? 'This device' : `Device ${devices.indexOf(p) + 1}` : '',
-        name: p.name || p.identity, local: p === room.localParticipant,
+        name: store.name(accountId(p.identity)), local: p === room.localParticipant,
         speaking: p.isSpeaking, muted: !p.isMicrophoneEnabled,
         camera: p.isCameraEnabled ? p.getTrackPublication(Track.Source.Camera)?.track : undefined,
         screen: p.getTrackPublication(Track.Source.ScreenShare)?.track,
+        screens: this.shares.list(p), quality: p.connectionQuality,
       }
     }
     this.participants = [snapshot(room.localParticipant), ...[...room.remoteParticipants.values()].map(snapshot)]
@@ -108,7 +113,7 @@ class Call {
       for (const event of [RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected, RoomEvent.TrackSubscribed,
         RoomEvent.TrackUnsubscribed, RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.LocalTrackPublished,
         RoomEvent.LocalTrackUnpublished, RoomEvent.ActiveSpeakersChanged, RoomEvent.TrackPublished, RoomEvent.TrackUnpublished,
-        RoomEvent.ParticipantNameChanged]) room.on(event, this.refresh)
+        RoomEvent.ParticipantNameChanged, RoomEvent.ParticipantAttributesChanged, RoomEvent.ConnectionQualityChanged]) room.on(event, this.refresh)
       const attachAudio = (track: RemoteTrack, participant: Participant) => {
         if (track.kind !== Track.Kind.Audio || this.outputMuted || this.audio.has(track)) return
         // Hear a phone's shared media on the desktop, but never echo our own mic.
@@ -148,7 +153,7 @@ class Call {
   }
   private clear() {
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
-    this.audio.clear(); this.room = null; this.channel = null; this.participants = []
+    this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false
     this.outputMuted = false; this.otherDevices = 0
@@ -200,12 +205,17 @@ class Call {
     if (!room) return
     try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
   }
-  async toggleScreen() {
-    const room = this.room
-    if (!room) return
-    try { await room.localParticipant.setScreenShareEnabled(!room.localParticipant.isScreenShareEnabled, { audio: true }); this.refresh() } catch (err) {
+  async addScreen() {
+    try { await this.shares.add(); this.refresh() } catch (err) {
       if (!(err instanceof Error && ['NotAllowedError', 'AbortError'].includes(err.name))) this.report(err)
     }
+  }
+  async stopScreen(name?: string) {
+    try { await this.shares.stop(name); this.refresh() } catch (err) { this.report(err) }
+  }
+  toggleScreen() { return this.screenOn ? this.stopScreen() : this.addScreen() }
+  async screenQuality(name: string, mode: 'Smooth' | 'Sharp') {
+    try { await this.shares.quality(name, mode); this.refresh() } catch (err) { this.report(err) }
   }
   async device(kind: MediaDeviceKind, id: string) {
     try {
