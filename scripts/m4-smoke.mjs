@@ -29,7 +29,7 @@ for (const [i, name] of ['one', 'two'].entries()) {
     bob[i] = await api(i, 'POST', '/auth/register', { username: 'desktop_bob', password: credentials.password, invite: inv.code }, '')
   }
   channels[i] = (await api(i, 'GET', '/channels')).find(c => c.kind === 'text')
-  await api(i, 'PUT', '/users/me/appearance', { mode: 'dark', dark_theme: i ? 'tide' : 'den', light_theme: 'den-light', custom_themes: [] })
+  await api(i, 'PUT', '/users/me/appearance', { mode: 'dark', theme: i ? 'tide' : 'den', custom_themes: [] })
 }
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1300, height: 850 } })
@@ -82,7 +82,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#5fd3c6')
   await page.getByRole('link', { name: /^Inbox/ }).click()
   for (let i = 0; i < 2; i++) await api(i, 'POST', `/channels/${channels[i].id}/messages`, { content: `@desktop_admin Desktop smoke ${i} ${Date.now()}` }, bob[i].token)
-  await until(async () => (await page.locator('.inbox .group').count()) === 2)
+  await until(async () => /First Den/i.test(await page.locator('section.inbox').innerText()) && /Second Den/i.test(await page.locator('section.inbox').innerText()))
   assert.match(await page.locator('section.inbox').innerText(), /First Den/i)
   assert.match(await page.locator('section.inbox').innerText(), /Second Den/i)
   await mkdir('docs/shots', { recursive: true })
