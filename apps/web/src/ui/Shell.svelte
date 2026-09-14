@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import CallDock from './CallDock.svelte'
   import CallView from './CallView.svelte'
@@ -42,7 +43,7 @@
 
   $effect(() => {
     const down = (e: KeyboardEvent) => call.keydown(e), up = (e: KeyboardEvent) => call.keyup(e)
-    const release = () => call.setHeld(false)
+    const release = () => { if (!desktop.global) call.setHeld(false) }
     window.addEventListener('keydown', down); window.addEventListener('keyup', up)
     window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }

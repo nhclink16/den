@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { store } from './lib/store.svelte'
+  import { store, instances } from './lib/store.svelte'
   import { router } from './lib/router.svelte'
+  import Native from './ui/Native.svelte'
   import Login from './ui/Login.svelte'
   import Shell from './ui/Shell.svelte'
 
   let checked = $state(false)
 
   onMount(async () => {
-    const ok = await store.resume()
+    const ok = await instances.resume()
     checked = true
     if (!ok && router.route.name !== 'login') router.go('/login', true)
     if (ok && router.route.name === 'login') router.go('/', true)
@@ -21,6 +22,9 @@
     }
   })
 </script>
+
+<Native />
+<svelte:window onkeydown={e => instances.key(e)} />
 
 <svelte:head><title>{store.totalUnread && store.me ? `(${store.totalUnread}) ` : ''}{store.settings.instance_name}</title></svelte:head>
 

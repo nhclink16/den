@@ -1,5 +1,6 @@
 // The server decides what deserves an alert (mentions, DMs, followed rooms) and sends a
 // `notification` event. We only decide whether you're already looking at it.
+import { native } from './native'
 import { store } from './store.svelte'
 import { router } from './router.svelte'
 
@@ -7,6 +8,7 @@ let handled = 0
 
 export const notify = {
   attach() {
+    if (native) return
     $effect(() => {
       const fresh = store.alerts.slice(handled)
       handled = store.alerts.length
@@ -19,6 +21,7 @@ export const notify = {
     })
   },
   async ask() {
+    if (native) return true
     if (!('Notification' in window)) return false
     return (await Notification.requestPermission()) === 'granted'
   },

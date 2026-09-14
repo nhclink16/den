@@ -3,7 +3,7 @@ import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
 export const defaultAppearance: Appearance = { mode: 'system', light_theme: 'den-light', dark_theme: 'den', custom_themes: [] }
-export const appearanceKey = 'den.appearance'
+export function appearanceCacheKey(origin?: string) { return (window.__TAURI__ ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
 export function activeTheme(a: Appearance, systemLight = matchMedia('(prefers-color-scheme: light)').matches): Theme {
   const light = a.mode === 'light' || (a.mode === 'system' && systemLight)
   return [...builtinThemes, ...a.custom_themes].find(t => t.id === (light ? a.light_theme : a.dark_theme)) || builtinThemes[light ? 1 : 0]!
@@ -23,8 +23,8 @@ export function applyTheme(t: Theme) {
   s.colorScheme = t.appearance; root.dataset.theme = t.id
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.colors.bg)
 }
-export function cachedAppearance(): Appearance {
-  try { const a = JSON.parse(localStorage.getItem(appearanceKey) || 'null'); if (a && ['light','dark','system'].includes(a.mode) && Array.isArray(a.custom_themes)) return a } catch { /* unavailable storage */ }
+export function cachedAppearance(origin?: string): Appearance {
+  try { const a = JSON.parse(localStorage.getItem(appearanceCacheKey(origin)) || 'null'); if (a && ['light','dark','system'].includes(a.mode) && Array.isArray(a.custom_themes)) return a } catch { /* unavailable storage */ }
   return structuredClone(defaultAppearance)
 }
 export function firstPaint() {

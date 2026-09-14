@@ -1,21 +1,24 @@
 <script lang="ts">
   import { call } from '../lib/call.svelte'
   import CallDock from './CallDock.svelte'
-  import { store } from '../lib/store.svelte'
+  import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
+  import { native } from '../lib/native'
+  import { desktop } from '../lib/desktop.svelte'
+  import ServerSwitcher from './ServerSwitcher.svelte'
   import Mark from './Mark.svelte'
 
-  const inboxCount = $derived(store.totalUnread)
+  const inboxCount = $derived(instances.totalUnread)
   const uncategorized = $derived(store.textChannels.filter((c) => !c.category_id))
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path) }
 </script>
 
-<nav class="side">
+<nav class="side" class:mac={desktop.platform === 'macos'}>
   <div class="brand">
-    <a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /><span title={store.settings.instance_name}>{store.settings.instance_name}</span></a>
+    {#if native}<ServerSwitcher />{:else}<a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /><span title={store.settings.instance_name}>{store.settings.instance_name}</span></a>{/if}
     <span class="conn" class:off={!store.connected} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
   </div>
 
@@ -28,7 +31,7 @@
     {#snippet channelRow(c: import('../lib/types').Channel)}
       {@const u = store.unread(c.id)}
       {#if c.kind === 'voice'}
-        <button class="row voice" class:active={call.channel?.id === c.id} title={`Join ${c.name}`} aria-label={`Join ${c.name}`} onclick={() => call.join(c)}>
+        <button class="row voice" class:active={call.origin === store.origin && call.channel?.id === c.id} title={`Join ${c.name}`} aria-label={`Join ${c.name}`} onclick={() => call.join(c)}>
           <Icon name="headset" />
           <span class="voice-name"><span class="name">{c.name}</span>
             {#if call.ids(c.id).length}
@@ -67,6 +70,7 @@
     {/if}
   </div>
 
+  {#if desktop.updateReady}<button class="btn quiet mono" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
   <CallDock />
   <div class="me">
     {#if store.me}
@@ -78,6 +82,7 @@
 </nav>
 
 <style>
+  .mac .brand { padding-top: 38px; }
   .side { height: 100%; display: flex; flex-direction: column; }
   .brand { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
   .wordmark { font-size: 22px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }

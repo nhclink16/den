@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mediaUrl } from '../lib/native'
   import type { Upload } from '../lib/types'
   import { fileUrl } from '../lib/upload'
   import { bytes } from '../lib/time'
@@ -13,7 +14,7 @@
   <!-- svelte-ignore a11y_media_has_caption -->
   <video class="media" src={url} controls preload="metadata" playsinline></video>
 {:else if kind === 'image'}
-  <a href={url} target="_blank" rel="noopener"><img class="media" src={upload.thumbnail_url || url} alt={upload.filename} loading="lazy" /></a>
+  <a href={url} target="_blank" rel="noopener"><img class="media" src={upload.thumbnail_url ? mediaUrl(upload.thumbnail_url) : url} alt={upload.filename} loading="lazy" /></a>
 {:else if kind === 'audio'}
   <audio class="audio" src={url} controls preload="metadata"></audio>
 {:else}

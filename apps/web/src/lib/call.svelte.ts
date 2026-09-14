@@ -1,7 +1,7 @@
 import { Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality } from 'livekit-client'
-import { store } from './store.svelte'
+import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
-import { api, HttpError } from './api'
+import { HttpError } from './api'
 import type { CallState, CallToken, Channel } from './types'
 
 type Preferences = {
@@ -20,6 +20,10 @@ export type CallParticipant = {
 }
 
 class Call {
+  origin = $state('')
+  instanceName = $state('')
+  owner: Store | null = null
+  get title() { return this.channel ? this.owner?.title(this.channel) || this.channel.name : '' }
   room = $state.raw<Room | null>(null)
   channel = $state<Channel | null>(null)
   participants = $state.raw<CallParticipant[]>([])
@@ -65,7 +69,7 @@ class Call {
       return {
         id: p.identity, userId: accountId(p.identity),
         device: devices.length > 1 ? p === room.localParticipant ? 'This device' : `Device ${devices.indexOf(p) + 1}` : '',
-        name: store.name(accountId(p.identity)), local: p === room.localParticipant,
+        name: (this.owner || store).name(accountId(p.identity)), local: p === room.localParticipant,
         speaking: p.isSpeaking, muted: !p.isMicrophoneEnabled,
         camera: p.isCameraEnabled ? p.getTrackPublication(Track.Source.Camera)?.track : undefined,
         screen: p.getTrackPublication(Track.Source.ScreenShare)?.track,
@@ -93,8 +97,10 @@ class Call {
     } catch { /* sounds are optional */ }
   }
   async join(channel: Channel) {
-    if (this.channel?.id === channel.id || this.joining === channel.id) return
+    if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
+    const owner = instances.active
     await this.leave()
+    this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
     const generation = ++this.generation
     this.joining = channel.id; this.error = ''
     const prefs = this.prefs
@@ -105,7 +111,7 @@ class Call {
       audioOutput: { deviceId: prefs.speaker || 'default' },
     })
     try {
-      const { url, token } = await api.post<CallToken>(`/calls/${channel.id}/token`)
+      const { url, token } = await owner.api.post<CallToken>(`/calls/${channel.id}/token`)
       if (generation !== this.generation) return
       await room.connect(url, token, { autoSubscribe: false })
       if (generation !== this.generation) { await room.disconnect(); return }

@@ -1,6 +1,7 @@
-import { api } from './api'
+import { apiFor } from './api'
+import { activeOrigin } from './native'
 import type { Appearance, Theme, ThemeFonts } from './types'
-import { activeTheme, applyTheme, appearanceKey, builtinThemes, cachedAppearance, defaultAppearance } from './theme-runtime'
+import { activeTheme, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance } from './theme-runtime'
 export { builtinThemes }
 export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces', 'Commit Mono'])].sort()
 export const validName = (v: string) => [...v].length >= 1 && [...v].length <= 40 && !!v.trim() && /^[\p{L}\p{N} _-]+$/u.test(v)
@@ -31,7 +32,7 @@ class Themes {
   receive(a: Appearance, force = false) {
     if (this.pending && !force) return
     this.appearance = a
-    try { localStorage.setItem(appearanceKey, JSON.stringify(a)) } catch { /* cache is optional */ }
+    try { localStorage.setItem(appearanceCacheKey(), JSON.stringify(a)) } catch { /* cache is optional */ }
     this.apply()
   }
   apply() { applyTheme(this.active); void this.loadFonts(this.active.fonts) }
@@ -56,16 +57,17 @@ class Themes {
     } else if (this.error === "Couldn't load that font") this.error = ''
   }
   save(a: Appearance) {
+    const origin = activeOrigin(), api = apiFor(origin)
     const next = JSON.parse(JSON.stringify(a)) as Appearance
     this.error = ''; this.draft = null; this.pending++; this.receive(next, true); this.saving = true
     const result = this.queue.catch(() => {}).then(async () => {
       try {
         const saved = await api.put<Appearance>('/users/me/appearance', next)
-        if (this.pending === 1) this.receive(saved, true)
+        if (this.pending === 1 && activeOrigin() === origin) this.receive(saved, true)
         return true
       } catch (e) {
-        this.error = (e as Error).message
-        if (this.pending === 1) {
+        if (activeOrigin() === origin) this.error = (e as Error).message
+        if (this.pending === 1 && activeOrigin() === origin) {
           try { this.receive(await api.get<Appearance>('/users/me/appearance'), true) } catch { /* keep local preview while offline */ }
         }
         return false

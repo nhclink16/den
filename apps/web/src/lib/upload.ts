@@ -1,5 +1,7 @@
+import { mediaUrl } from './native'
 // Chunked, resumable upload against /uploads. 8 MiB chunks, server tells us the offset.
-import { api } from './api'
+import { apiFor } from './api'
+import { activeOrigin } from './native'
 import type { Upload } from './types'
 
 const CHUNK = 8 * 1024 * 1024
@@ -7,6 +9,7 @@ const CHUNK = 8 * 1024 * 1024
 export type Progress = { sent: number; total: number }
 
 export async function upload(channelId: string, file: File, onProgress: (p: Progress) => void, signal?: AbortSignal): Promise<Upload> {
+  const api = apiFor(activeOrigin())
   let u = await api.post<Upload>('/uploads', {
     channel_id: channelId,
     filename: file.name,
@@ -32,4 +35,4 @@ export async function upload(channelId: string, file: File, onProgress: (p: Prog
   return api.post<Upload>(`/uploads/${u.id}/complete`)
 }
 
-export const fileUrl = (id: string) => `/uploads/${id}/file`
+export const fileUrl = (id: string) => mediaUrl(`/uploads/${id}/file`)

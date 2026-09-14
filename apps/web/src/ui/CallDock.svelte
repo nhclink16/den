@@ -1,6 +1,6 @@
 <script lang="ts">
   import { call } from '../lib/call.svelte'
-  import { store } from '../lib/store.svelte'
+  import { native } from '../lib/native'
   import CallControls from './CallControls.svelte'
   const people = $derived(new Set(call.participants.map((p) => p.userId)).size)
 </script>
@@ -8,7 +8,7 @@
 {#if call.channel}
   <div class="dock" class:ptt={call.prefs.mode === 'ptt'} data-testid="call-dock" aria-label="Current call">
     <span class="dot" aria-hidden="true"></span>
-    <button class="room" title={store.title(call.channel)} onclick={() => (call.expanded = !call.expanded)}>{store.title(call.channel)}</button>
+    <button class="room" title={call.title} onclick={() => (call.expanded = !call.expanded)}>{call.title}{#if native}<small class="mono"> · {call.instanceName}</small>{/if}</button>
     <span class="count" title={`${people} people on ${call.participants.length} devices`} aria-label={`${people} people on ${call.participants.length} devices`}>{people}</span>
     <CallControls />
   </div>

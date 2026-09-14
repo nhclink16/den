@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import { callLayouts } from '../lib/call-layout.svelte'
   import Icon from './Icon.svelte'
@@ -12,7 +13,7 @@
       onpointerup={() => call.setHeld(false)} onpointercancel={() => call.setHeld(false)} onlostpointercapture={() => call.setHeld(false)}
       onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); call.setHeld(true) } }}
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
-    >hold {call.prefs.pttLabel} to talk</button>
+    >hold {call.prefs.pttLabel}{#if desktop.global}<small class="mono"> global</small>{/if} to talk</button>
   {:else}
     <button class:muted={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} /></button>
   {/if}
