@@ -132,3 +132,15 @@ Backup, deployment and public M1/M3 smokes are the remaining authorized release
 steps. APNs transport is verified against a local protocol stub; real Apple
 delivery remains blocked on the missing APNs key/IDs. No production credentials
 have been invented or added.
+
+For an attended persistent media peer, run from the server worktree or main:
+
+```sh
+DEN_IOS_FIXTURE_CREDENTIALS=/mnt/storage/den-ios-fixture-esglonk1/credentials.json \
+  node scripts/m5-call-peer.mjs --user ios_blair --screen
+```
+
+This publishes synthetic microphone/camera and Chromium screen capture in the
+fixture DM. Use `ios_alex` to test a sibling connection for that account; omit
+`--screen` for camera/audio only. Ctrl-C closes only this peer. A 30-minute bound
+also closes it automatically. Real start, publication and Ctrl-C teardown passed.
