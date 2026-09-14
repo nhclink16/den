@@ -101,3 +101,56 @@ in astra-m8's call commits through `552533d`. The CSS-only CallView conflict kep
 the new call layout. The overlapping call files, Palette, Composer, and pop-out
 integration are named in commit `3f18bca`. The other lane's work and design
 artifacts were not staged into M9 commits.
+
+## M9b
+
+Eight families now have sixteen authored palettes, following Nicholas's correction
+of the brief's nine/eighteen count. All supplied colors and each family's M9
+fonts, radius and density are preserved. One selected family follows Light, Dark
+or System mode. The gallery shows both halves diagonally, dims the inactive half
+to 70% in explicit modes, and loads each caption's display font.
+
+The color editor edits either half, keeps the draft when Mode changes, and can
+derive a missing half with Copy from dark/light. Generated halves carry a hint;
+editing a color clears that marker. Legacy one-palette exports import as paired
+families. Custom limits remain twelve families and 16 KiB.
+
+Shared types, generated TypeScript and `docs/THEMES.md` describe the paired schema.
+Migration 0008 selects the old dark family first, then light, then Den; `den-light`
+becomes `den`. SQL preserves authored custom colors and marks the missing half
+null. A transactional Rust startup companion generates those halves before HTTP
+starts and safely retries after interruption. The migration test covers old dark
+and light custom themes, selection fallbacks and an identical second completion.
+
+Derivation swaps OKLCH lightness for the background/ink pairs, places line 0.12
+lightness units from the new background, and adjusts semantic colors to 4.5:1.
+Rust and browser code use the same OKLab matrices and quantized contrast checks.
+Out-of-gamut RGB is clipped. Authored custom colors retain M9's validation policy.
+Legacy arrays that expand beyond 16 KiB stay readable, but subsequent writes must
+fit the limit. The public preflight found two appearance rows and no custom themes.
+
+Local verification passed:
+
+- `cargo test -p den-core -p den-server`, including all 25 server API tests, color
+  conversion, appearance authentication/CSRF/private events and migration recovery.
+- `cargo fmt --all -- --check` and core/server Clippy with warnings denied.
+- Web type checking with zero errors/warnings and production builds. The contrast
+  script checks all sixteen palettes: ink/bg ranges from 13.62 to 18.88, ink2/bg2
+  from 5.60 to 7.03. Vite retains its existing large-plugin-chunk advisory.
+- Updated M9 smoke: one Tide selection follows both halves; legacy first-paint
+  cache converts before hydration at 50 ms; explicit modes dim the opposite card
+  half; editor changes and generated hints work; imports, independent-session
+  persistence, private live sync, fonts, density and mobile layout pass.
+- Mounted Ghostty and tldraw follow Paper light and Terminal dark; terminal canvas
+  pixels match. Pop-out variables and color-scheme update live, and returning the
+  tile preserves its mounted content. Local screenshots were inspected.
+
+Cargo used `/mnt/storage/den-m9-target`. Work was committed in `m9b-theme-pairs`,
+then merged and pushed to main through `c85f4c3`. The desktop lane received advance
+notice of the shared-type/migration merge. Its per-origin cache and captured-origin
+save behavior remain intact; its native-session files and design artifacts were
+not included in M9b commits.
+
+Public deployment and smoke are pending the desktop lane's v0.2.1 signed update
+acceptance. v0.2.0 bundled the retired appearance schema, so the desktop lane asked
+that its update be published and checked before the server rollout.
