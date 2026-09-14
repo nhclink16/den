@@ -246,7 +246,11 @@ export class Store {
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
     ws.binaryType = 'arraybuffer'
-    ws.onmessage = (e) => this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event)
+    let events = Promise.resolve()
+    ws.onmessage = (e) => {
+      events = events.then(() => this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event))
+        .catch(() => { ws.close() })
+    }
     ws.onclose = () => {
       this.connected = false; this.ws = null
       if (!this.me) return
