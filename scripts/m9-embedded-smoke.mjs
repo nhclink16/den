@@ -34,6 +34,7 @@ try {
   await page.evaluate(id=>window.themeRuntime.applyTheme(window.themeRuntime.builtinThemes.find(t=>t.id===id)),id)
   await page.waitForFunction(({bg,dark})=>window.terminal.term.options.theme.background===bg&&document.querySelector('#canvas').denEditor.user.getIsDarkMode()===dark,{bg,dark})
   assert.equal(await page.evaluate(()=>window.terminal.term.options.theme.foreground),id==='paper'?'#1f1f1d':'#d0d0d0')
+  await page.waitForFunction(bg => { const c=document.querySelector('#terminal canvas');const p=c.getContext('2d').getImageData(10,80,1,1).data;return [...p].slice(0,3).map(v=>v.toString(16).padStart(2,'0')).join('')===bg.slice(1) }, bg)
   await page.screenshot({path:`/mnt/storage/den-m9-embedded-${id}.png`})
  }
  assert.deepEqual(errors,[])
