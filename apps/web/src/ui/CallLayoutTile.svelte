@@ -74,8 +74,8 @@
   .content-home :global(.call-content) { width: 100%; height: 100%; min-height: 0; position: relative; display: grid; place-items: center; }
   .content-home :global(.tile) { width: 100%; height: 100%; aspect-ratio: auto; }
   .content-home :global(.canvas-tile) { height: auto; aspect-ratio: 16/9; max-height: 100%; }
-  .object-label { position: absolute; top: 6px; left: 66px; max-width: calc(100% - 78px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; background: rgba(0,0,0,.45); border-radius: 4px; font-size: 12px; }
-  .tile-actions { position: absolute; top: 6px; left: 6px; display: flex; gap: 2px; opacity: 0; border-radius: 6px; background: rgba(0,0,0,.55); }
+  .object-label { position: absolute; top: 6px; left: 66px; max-width: calc(100% - 78px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; background: var(--overlay); border-radius: 4px; font-size: 12px; }
+  .tile-actions { position: absolute; top: 6px; left: 6px; display: flex; gap: 2px; opacity: 0; border-radius: 6px; background: var(--overlay); }
   .tile-actions button { width: 26px; height: 26px; display: grid; place-items: center; color: var(--ink-2); }
   .tile-actions button:hover, .tile-actions button[aria-pressed="true"] { color: var(--lamp); }
   .layout-tile:hover .tile-actions, .layout-tile:focus-within .tile-actions, .mobile .tile-actions { opacity: 1; }

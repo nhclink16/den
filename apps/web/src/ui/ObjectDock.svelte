@@ -27,7 +27,7 @@
 <style>
   .object-dock { position: relative; min-height: 260px; flex: none; border-bottom: 1px solid var(--line); isolation: isolate; }
   .object-dock.expanded { flex: 1; min-height: 0; }
-  .controls { position: absolute; z-index: 400; top: 8px; right: 8px; display: flex; gap: 4px; border-radius: 999px; padding: 4px; background: rgba(0,0,0,.45); }
+  .controls { position: absolute; z-index: 400; top: 8px; right: 8px; display: flex; gap: 4px; border-radius: 999px; padding: 4px; background: var(--overlay); }
   .controls button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; }
   .controls button:hover { background: var(--bg-3); }
   .resize { position: absolute; z-index: 400; bottom: 0; height: 6px; width: 100%; cursor: ns-resize; touch-action: none; background: var(--line); }

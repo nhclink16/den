@@ -25,7 +25,7 @@
 {/if}
 
 <style>
-  .media { max-width: min(560px, 100%); max-height: 420px; border-radius: var(--r); background: #000; display: block; }
+  .media { max-width: min(560px, 100%); max-height: 420px; border-radius: var(--r); background: var(--bg); display: block; }
   img.media { background: transparent; object-fit: contain; }
   .audio { width: min(420px, 100%); }
   .file {

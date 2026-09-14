@@ -104,7 +104,7 @@
   .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
   .drop {
     position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg);
-    background: rgba(27, 25, 22, 0.9); border: 2px dashed var(--lamp);
+    background: var(--overlay); border: 2px dashed var(--lamp);
     display: grid; place-items: center; pointer-events: none;
   }
   .drop-inner { display: grid; justify-items: center; gap: 6px; color: var(--lamp); }

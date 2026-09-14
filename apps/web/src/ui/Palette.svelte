@@ -72,11 +72,11 @@
 </div>
 
 <style>
-  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 30; }
+  .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 30; }
   .palette {
     position: fixed; z-index: 31; top: 12vh; left: 50%; transform: translateX(-50%);
     width: min(560px, calc(100vw - 32px)); background: var(--bg-2); border: 1px solid var(--line);
-    border-radius: var(--r-lg); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); overflow: hidden;
+    border-radius: var(--r-lg); box-shadow: 0 20px 60px var(--scrim); overflow: hidden;
   }
   .search { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
   .search input { flex: 1; background: none; border: 0; outline: 0; font-size: 16px; color: var(--ink); }

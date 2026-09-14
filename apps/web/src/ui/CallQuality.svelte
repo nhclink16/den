@@ -43,5 +43,5 @@
   .quality .lit { background: var(--ink-2); opacity: 1; }
   .quality.poor .lit { background: var(--ember); }
   .sent { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font: 10px var(--mono); color: var(--ink-2); }
-  .limited { width: 6px; height: 6px; border-radius: 50%; background: #d6a457; }
+  .limited { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 </style>

@@ -1,4 +1,4 @@
-.canvas-host .tl-theme__dark {
+.canvas-host .tl-theme__dark, .canvas-host .tl-theme__light {
   --color-background: var(--bg-2);
   --color-low: var(--bg-3);
   --color-panel: var(--bg-2);

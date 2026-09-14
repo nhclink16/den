@@ -104,8 +104,8 @@
   .presets button:hover { color: var(--ink); }
   .grid-scroll { position: absolute; inset: 48px 16px 82px; overflow: auto; scrollbar-width: thin; }
   .grid-canvas { position: relative; width: 100%; }
-  .dragging { background-image: linear-gradient(to right, rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.06) 1px, transparent 1px); background-size: var(--step-x) var(--step-y); }
+  .dragging { background-image: linear-gradient(to right, var(--grid-guide) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-guide) 1px, transparent 1px); background-size: var(--step-x) var(--step-y); }
   .dragging :global(.layout-tile) { opacity: .8; }
-  .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-lg); background: rgba(255,255,255,.06); }
+  .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-lg); background: var(--grid-guide); }
   @media (max-width: 899px) { .grid-scroll { left: 10px; right: 10px; } .presets { left: 10px; } }
 </style>

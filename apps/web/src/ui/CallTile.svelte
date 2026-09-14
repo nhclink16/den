@@ -44,7 +44,7 @@
   video { width: 100%; height: 100%; min-height: 0; object-fit: cover; position: absolute; inset: 0; }
   .screen video { object-fit: contain; }
   .mirror { transform: scaleX(-1); }
-  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,.45); font-size: 12px; color: var(--ink); }
+  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: var(--overlay); font-size: 12px; color: var(--ink); }
   .label > span:first-of-type { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .stop { flex: none; font: 10px var(--mono); color: var(--ink-2); }
   .stop:hover { color: var(--ember); }

@@ -1,5 +1,7 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
+import { themes } from './theme.svelte'
+import type { Appearance } from './types'
 import { objects } from './objects.svelte'
 import type { ClientEvent, TerminalFrame, Settings } from './types'
 import { call } from './call.svelte'
@@ -104,7 +106,7 @@ class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence, calls, settings] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings, appearance] = await Promise.all([
       api.get<User[]>('/users'),
       api.get<Channel[]>('/channels'),
       api.get<Category[]>('/categories'),
@@ -113,7 +115,9 @@ class Store {
       api.get<PresenceState>('/presence'),
       api.get<CallState[]>('/calls'),
       api.get<Settings>('/settings'),
+      api.get<Appearance>('/users/me/appearance'),
     ])
+    themes.receive(appearance)
     this.settings = settings
     objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
@@ -226,6 +230,7 @@ class Store {
   private async handle(ev: Event) {
     for (const fn of this.listeners) fn(ev)
     switch (ev.type) {
+      case 'appearance_updated': themes.receive(ev.appearance); break
       case 'settings_updated': this.settings = ev.settings; break
       case 'object_presence': objects.presence = { ...objects.presence, [ev.id]: ev.user_ids }; break
       case 'resync': if (this.ready) await this.resync(); break

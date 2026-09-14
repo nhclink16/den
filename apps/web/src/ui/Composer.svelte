@@ -136,13 +136,13 @@
   .commands .chosen { background: var(--bg-3); }
   .composer { position: relative; padding: 0 16px 14px; }
   .box {
-    display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 8px;
+    display: flex; align-items: flex-end; gap: 6px; padding: calc(6px * var(--density)) calc(6px * var(--density)) calc(6px * var(--density)) calc(8px * var(--density));
     background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--r-lg);
     transition: border-color 0.15s, box-shadow 0.15s;
   }
   .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   textarea {
-    flex: 1; resize: none; background: none; border: 0; outline: 0; padding: 8px 4px;
+    flex: 1; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
   textarea::placeholder { color: var(--ink-3); }
@@ -167,7 +167,7 @@
   .ring {
     width: 14px; height: 14px; border-radius: 50%; flex: none;
     background: conic-gradient(var(--lamp) calc(var(--p) * 1%), var(--line) 0);
-    mask: radial-gradient(circle, transparent 45%, #000 50%);
+    mask: radial-gradient(circle, transparent 45%, var(--bg) 50%);
   }
   .chip.done .ring { background: var(--lamp); mask: none; }
   .fname { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

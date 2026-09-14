@@ -95,9 +95,9 @@
 </article>
 
 <style>
-  .msg { position: relative; padding: 2px 20px; margin-top: 14px; }
+  .msg { position: relative; padding: calc(2px * var(--density)) 20px; margin-top: calc(14px * var(--density)); }
   .msg.compact { margin-top: 0; }
-  .msg:hover { background: rgba(255, 255, 255, 0.025); }
+  .msg:hover { background: var(--hover); }
   .msg.me { box-shadow: inset 3px 0 0 var(--lamp); background: var(--lamp-glow); }
   .row { display: flex; gap: 12px; }
   .gutter { width: 36px; flex: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; }

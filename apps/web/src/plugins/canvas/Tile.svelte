@@ -13,5 +13,5 @@
 <style>
   .canvas-tile { isolation: isolate; position: relative; flex: none; width: 260px; aspect-ratio: 16/9; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
   .focus { position: absolute; inset: 0 0 34px; z-index: 2; }
-  .label { position: absolute; bottom: 6px; left: 8px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 2px 6px; background: rgba(0,0,0,.45); border-radius: 4px; pointer-events: none; }
+  .label { position: absolute; bottom: 6px; left: 8px; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 2px 6px; background: var(--overlay); border-radius: 4px; pointer-events: none; }
 </style>

@@ -34,5 +34,5 @@
   .expand { z-index: 3; position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2); background: var(--bg-2); }
   .expand:hover { color: var(--ink); }
   .expanded { flex: 1; height: auto; }
-  .toolbar { z-index: 3; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px rgba(0,0,0,.3); max-width: calc(100% - 16px); }
+  .toolbar { z-index: 3; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); max-width: calc(100% - 16px); }
 </style>

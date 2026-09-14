@@ -88,7 +88,7 @@
   .scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
   .cat { padding: 14px 10px 4px; user-select: none; }
   .row {
-    display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 1px 0;
+    display: flex; align-items: center; gap: 8px; padding: calc(6px * var(--density)) 10px; margin: 1px 0;
     border-radius: var(--r); color: var(--ink-2); font-size: 14.5px;
   }
   .row:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
@@ -109,7 +109,7 @@
   .inbox { margin: 4px 8px 0; }
   .count {
     font-family: var(--mono); font-size: 11px; font-weight: 500; line-height: 1;
-    padding: 3px 6px; border-radius: 999px; background: var(--lamp); color: #1b1916;
+    padding: 3px 6px; border-radius: 999px; background: var(--lamp); color: var(--bg);
   }
   .count.at { font-weight: 700; }
   .me { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }

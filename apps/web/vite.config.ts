@@ -1,5 +1,6 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { defineConfig } from 'vite'
+import { defineConfig, transformWithOxc } from 'vite'
+import { readFileSync } from 'node:fs'
 
 // The API lives at root paths on den-server. In dev, proxy those so the browser
 // origin is the Vite origin and cookies + CSRF just work. Run the server with
@@ -7,7 +8,15 @@ import { defineConfig } from 'vite'
 const api = ['hosts', 'requests', 'grants', 'access', 'sessions', 'objects', 'auth', 'users', 'invites', 'tokens', 'bots', 'channels', 'dms', 'categories', 'messages', 'uploads', 'health', 'openapi.json', 'search', 'presence', 'calls', 'livekit']
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte(), {
+    name: 'den-first-paint',
+    async transformIndexHtml(html) {
+      const source = readFileSync(new URL('./src/lib/theme-runtime.ts', import.meta.url), 'utf8').replace(/^import .*$/gm, '').replace(/export /g, '')
+      const builtins = readFileSync(new URL('../../crates/den-core/src/themes.json', import.meta.url), 'utf8')
+      const { code } = await transformWithOxc(`const builtins = ${builtins};\n${source}\nfirstPaint()`, 'theme.ts', { lang: 'ts' })
+      return html.replace('<!-- appearance-first-paint -->', `<script>${code}</script>`)
+    },
+  }],
   server: {
     port: 5173,
     strictPort: true,

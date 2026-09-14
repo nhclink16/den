@@ -4,14 +4,15 @@
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
   import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
+  import Appearance from './Appearance.svelte'
   import MachineSettings from './MachineSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import Icon from './Icon.svelte'
 
-  let { section = 'notifications', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
+  let { section = 'appearance', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['notifications', 'Notifications'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
+    ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let q = $state('')
@@ -121,8 +122,10 @@
       {/each}
     </nav>
 
-    <div class="pane">
-      {#if section === 'machines' || section === 'access'}
+    <div class="pane" class:appearance-pane={section === 'appearance'}>
+      {#if section === 'appearance'}
+      <Appearance />
+      {:else if section === 'machines' || section === 'access'}
       <MachineSettings {section} />
     {:else if section === 'notifications'}
         <h2 class="display">Notifications</h2>
@@ -272,6 +275,8 @@
   .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 13px; }
   .pane { overflow-y: auto; padding: 20px 28px 40px; max-width: 680px; }
+  .pane.appearance-pane { max-width: none; width: 100%; }
+  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px; gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane.appearance-pane { padding: 20px 16px; } }
   h2 { font-size: 26px; margin: 0 0 6px; }
   h3.eyebrow { margin: 22px 0 8px; }
   .muted.small, .faint.small { font-size: 13px; }

@@ -14,8 +14,8 @@ import type { Event, LiveObject, ObjectSummary, ObjectVersion } from '../../lib/
 const opens = new Map<string, number>()
 const documentTypes = new Set(['document', 'page', 'shape', 'binding', 'asset'])
 const isDocument = (r: unknown): r is TLRecord => !!r && typeof r === 'object' && documentTypes.has((r as TLRecord).typeName)
-const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
-const color = (id: string) => `hsl(${hue(id)} 40% 65%)`
+const color = () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+const colorScheme = () => document.documentElement.style.colorScheme === 'light' ? 'light' as const : 'dark' as const
 let cursorAt = 0
 function open(id: string) {
   const n = opens.get(id) || 0; opens.set(id, n + 1)
@@ -55,7 +55,7 @@ class Sync {
       if (ev.type === 'object_cursor' && ev.id === object.id && ev.page_id.startsWith('page:')) {
         this.tl.mergeRemoteChanges(() => this.tl.put([InstancePresenceRecordType.create({
           id: InstancePresenceRecordType.createId(ev.user_id), userId: ev.user_id, userName: store.name(ev.user_id),
-          currentPageId: ev.page_id as TLPageId, color: color(ev.user_id), lastActivityTimestamp: Date.now(),
+          currentPageId: ev.page_id as TLPageId, color: color(), lastActivityTimestamp: Date.now(),
           cursor: { x: ev.x, y: ev.y, type: 'default', rotation: 0 },
         })]))
       }
@@ -192,7 +192,10 @@ export async function mountCanvas(host: HTMLDivElement, object: ObjectSummary, r
     })
   }); resize.observe(host)
   const me = store.me!
-  const user = createTLUser({ userPreferences: atom('den user', { id: me.id, name: store.name(me.id), color: color(me.id), colorScheme: 'dark' as const }) })
+  const preferences = atom('den user', { id: me.id, name: store.name(me.id), color: color(), colorScheme: colorScheme() })
+  const user = createTLUser({ userPreferences: preferences })
+  const themeObserver = new MutationObserver(() => preferences.update(p => ({ ...p, color: color(), colorScheme: colorScheme() })))
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
   root.render(createElement(Tldraw, {
     store: sync.tl, user, inferDarkMode: false, hideUi: readonly,
     onMount(editor: Editor) {
@@ -205,5 +208,5 @@ export async function mountCanvas(host: HTMLDivElement, object: ObjectSummary, r
       sync.thumbnail()
     },
   }))
-  return () => { resize.disconnect(); root.unmount(); void sync.dispose() }
+  return () => { themeObserver.disconnect(); resize.disconnect(); root.unmount(); void sync.dispose() }
 }

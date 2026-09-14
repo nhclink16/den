@@ -1,26 +1,18 @@
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Den Terminal Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2'); }
 /* Den tokens. One idea: the room is dim, and only what is live is lit. */
 :root {
-  --bg: #1b1916;          /* the room */
-  --bg-2: #232019;        /* panels */
-  --bg-3: #2c2821;        /* raised: composer, hover rows */
-  --line: #3a3429;        /* hairlines */
-  --ink: #ece5d8;         /* body text */
-  --ink-2: #a89f8f;       /* secondary text */
-  --ink-3: #6f6759;       /* tertiary, timestamps */
-  --lamp: #e8a44a;        /* the one accent: unread, online, focus, progress */
-  --lamp-dim: #8a5f26;
-  --lamp-glow: rgba(232, 164, 74, 0.18);
-  --moss: #8da874;        /* success */
-  --ember: #d2623e;       /* danger */
-  --display: 'Zilla Slab', Georgia, 'Times New Roman', serif;
-  --body: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  --r: 6px;
-  --r-lg: 12px;
+  --bg-2: var(--bg2); --bg-3: var(--bg3); --ink-2: var(--ink2); --ink-3: var(--ink3);
+  --lamp: var(--accent); --lamp-dim: var(--accent-dim); --lamp-glow: var(--accent-glow);
+  --moss: var(--success); --ember: var(--danger);
+  --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
+  --scrim: color-mix(in srgb, var(--ink) 45%, transparent);
+  --shadow: color-mix(in srgb, var(--ink) 30%, transparent);
+  --hover: color-mix(in srgb, var(--ink) 3%, transparent);
+  --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
   --sidebar-w: 248px;
   --members-w: 220px;
-  color-scheme: dark;
+
 }
 
 * { box-sizing: border-box; }
@@ -41,12 +33,12 @@ a:hover { text-decoration: underline; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
-::selection { background: var(--lamp-dim); color: var(--ink); }
+::selection { background: var(--selection); color: var(--ink); }
 code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
 code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
 pre { background: var(--bg-3); padding: 10px 12px; border-radius: var(--r); overflow-x: auto; margin: 6px 0; }
 pre code { background: none; padding: 0; }
-.mention { color: var(--lamp); background: var(--lamp-glow); padding: 0 4px; border-radius: 4px; font-weight: 700; }
+.mention { color: var(--lamp); background: var(--mention-bg); padding: 0 4px; border-radius: 4px; font-weight: 700; }
 
 .display { font-family: var(--display); font-weight: 600; letter-spacing: -0.01em; }
 .eyebrow {
@@ -64,7 +56,7 @@ pre code { background: none; padding: 0; }
 }
 .btn:hover { border-color: var(--ink-3); }
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn.lit { background: var(--lamp); color: #1b1916; border-color: var(--lamp); font-weight: 700; }
+.btn.lit { background: var(--lamp); color: var(--bg); border-color: var(--lamp); font-weight: 700; }
 .btn.lit:hover { filter: brightness(1.06); }
 .btn.danger { color: var(--ember); }
 .btn.quiet { background: none; border-color: transparent; color: var(--ink-2); }

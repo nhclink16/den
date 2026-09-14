@@ -112,7 +112,7 @@
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
   .shell.narrow .sidebar {
     position: fixed; inset: 0 auto 0 0; width: min(var(--sidebar-w), 85vw); z-index: 20;
-    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 8px 0 30px var(--scrim);
   }
-  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 19; }
+  .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 19; }
 </style>
