@@ -1,0 +1,2 @@
+# Preserve upstream license bytes, including CRLF and trailing spaces.
+Den/Resources/Fonts/*/OFL.txt -whitespace
