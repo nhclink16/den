@@ -1,12 +1,15 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 // A send may finish after expanding the call has removed its composer.
 import { chromium } from 'playwright-core'
 import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:7001'
 const creds = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS || `${process.env.HOME}/.local/share/den-dev/credentials.json`, 'utf8'))
+const cleanup = await SmokeCleanup.login(base, 'nicholas', creds.users?.nicholas || creds.password)
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
 try {
   const page = await browser.newPage(), errors = []
+  cleanup.watch(page.context())
   page.on('pageerror', e => errors.push(e.message))
   await page.goto(base)
   await page.getByLabel('Username', { exact: true }).fill('nicholas')
@@ -17,7 +20,7 @@ try {
   const response = new Promise(r => { responseReady = r }), gate = new Promise(r => { release = r })
   await page.route('**/channels/*/messages', async route => {
     if (route.request().method() !== 'POST') return route.continue()
-    const result = await route.fetch(); responseReady(); await gate; await route.fulfill({ response: result })
+    const result = await route.fetch(); cleanup.record(new URL(route.request().url()).pathname, await result.json()); responseReady(); await gate; await route.fulfill({ response: result })
   })
   await page.locator('textarea').fill('M7c regression: leave the composer while a send is pending.')
   await page.locator('textarea').press('Enter'); await response
@@ -46,4 +49,4 @@ try {
   releaseOlder(); await page.waitForTimeout(300)
   assert.deepEqual(errors, [], 'late send and history responses must not touch removed elements')
   console.log('M7c navigation regression passed: late send and history responses after view teardown.')
-} finally { await browser.close() }
+} finally { await cleanup.finish(browser) }

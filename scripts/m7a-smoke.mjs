@@ -1,3 +1,4 @@
+import { SmokeCleanup, keepSmoke } from './smoke-cleanup.mjs'
 import { chromium } from 'playwright-core'
 import { readFile, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -16,16 +17,18 @@ async function api(method, path, body, token) {
   return r.status === 204 ? null : r.json()
 }
 const admin = await api('POST', '/auth/login', { username: 'nicholas', password: password('nicholas') })
+const cleanup = await SmokeCleanup.start(base, admin.token)
+let credential, browser
+try {
 let users = await api('GET', '/users', undefined, admin.token)
 if (!users.some((u) => u.username === 'm6_bob')) {
   const invite = await api('POST', '/invites', { uses: 1, expires_in_hours: 1 }, admin.token)
   await api('POST', '/auth/register', { username: 'm6_bob', password: password('m6_bob'), invite: invite.code })
 }
 let bot = users.find((u) => u.username === 'clanker')
-let credential
 if (bot) credential = await api('POST', '/tokens', { name: 'm7a-smoke', user_id: bot.id }, admin.token)
 else { const b = await api('POST', '/bots', { username: 'clanker', display_name: 'Clanker' }, admin.token); bot = b.user; credential = b.credential }
-const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: [
+browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: [
   '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
   '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing', '--auto-select-desktop-capture-source=Entire screen',
 ] })
@@ -37,6 +40,7 @@ async function until(check, label, timeout = 15_000) {
 }
 async function login(username) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['microphone', 'camera'] })
+  cleanup.watch(context)
   await context.addInitScript(() => {
     window.__m7sockets = []
     const Original = WebSocket
@@ -63,7 +67,7 @@ try {
   const composer = a.getByRole('textbox', { name: 'Say something in #general' })
   await composer.fill('/')
   await a.getByRole('listbox', { name: 'Commands' }).waitFor()
-  await composer.press('ArrowDown'); await composer.press('Enter')
+  await composer.fill('/can'); await composer.press('Enter')
   assert.equal(await composer.inputValue(), '/canvas ')
   await composer.fill('/canvas smoke'); await composer.press('Enter')
   await until(async () => (await api('GET', `/channels/${room.id}/messages`, undefined, admin.token)).some((m) => m.objects?.some((o) => o.name === 'smoke' && !prior.has(o.id))), 'canvas card posted')
@@ -157,8 +161,11 @@ try {
   if (a) await shot(a, 'failure')
   console.error('Browser errors:', errors)
   throw err
+ }
 } finally {
-  await browser.close()
-  await api('DELETE', `/tokens/${credential.credential.id}`, undefined, admin.token)
-  await rm(scratch, { recursive: true, force: true })
+  try { await cleanup.finish(browser) }
+  finally {
+    if (credential) await api('DELETE', `/tokens/${credential.credential.id}`, undefined, admin.token)
+    if (!keepSmoke) await rm(scratch, { recursive: true, force: true })
+  }
 }

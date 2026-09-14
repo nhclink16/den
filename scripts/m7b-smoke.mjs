@@ -1,6 +1,8 @@
+import { SmokeCleanup, keepSmoke } from './smoke-cleanup.mjs'
 import { chromium } from 'playwright-core'
-import { readFile, mkdir } from 'node:fs/promises'
-import { execFileSync } from 'node:child_process'
+import { readFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { execFileSync, spawn } from 'node:child_process'
+import { once } from 'node:events'
 import assert from 'node:assert/strict'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:5173'
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS || `${process.env.HOME}/.local/share/den-dev/credentials.json`, 'utf8'))
@@ -18,32 +20,32 @@ async function until(check, label, timeout = 15000) {
   throw Error(`Timed out: ${label}`)
 }
 const admin = await api('POST', '/auth/login', { username: 'nicholas', password: password('nicholas') })
-let hosts = await api('GET', '/hosts', undefined, admin.token)
-let host = hosts.find(h => h.name === 'codexbox' && h.online)
-if (!host && hosts.some(h => h.name === 'codexbox')) {
-  await until(async () => {host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === 'codexbox' && h.online); return host}, 'existing host reconnects', 20000).catch(() => {})
-}
-if (!host) {
+const cleanup = await SmokeCleanup.start(base, admin.token)
+const hostName = `m7b-smoke-${Date.now()}`
+const scratch = await mkdtemp('/mnt/storage/den-m7b-smoke-')
+let hostProcess, host, browser
+try {
   const enrollment = await api('POST', '/hosts/enroll', {}, admin.token)
-  try {execFileSync(hostBin, ['login', enrollment.code], { stdio: ['ignore', 'ignore', 'pipe'] })} catch {throw Error('Host enrollment failed. Generate a fresh code in Settings, Machines.')}
-  execFileSync(hostBin, ['install'], { stdio: ['ignore', 'ignore', 'pipe'] })
-  await until(async () => {host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === 'codexbox' && h.online); return host}, 'codexbox host connected')
-}
+  const env = { ...process.env, DEN_HOST_CONFIG_DIR: scratch, DEN_HOST_NAME: hostName }
+  execFileSync(hostBin, ['login', enrollment.code], { env, stdio: ['ignore','ignore','pipe'] })
+  host = (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === hostName)
+  assert(host, 'temporary host enrolled')
+  hostProcess = spawn(hostBin, ['run'], { env, stdio: 'ignore' })
+  await until(async () => (await api('GET', '/hosts', undefined, admin.token)).some(h => h.id === host.id && h.online), 'temporary host connected')
 let users = await api('GET', '/users', undefined, admin.token)
 if (!users.some(u => u.username === 'm6_bob')) {
   const invite = await api('POST', '/invites', { uses: 1, expires_in_hours: 1 }, admin.token)
   await api('POST', '/auth/register', { username: 'm6_bob', password: password('m6_bob'), invite: invite.code })
 }
 const bob = await api('POST', '/auth/login', { username: 'm6_bob', password: password('m6_bob') })
-// This is the enrolled smoke machine. Reset only this test user's prior grants.
-for (const g of await api('GET', '/grants', undefined, admin.token)) if (g.host_id === host.id && g.grantee_id === bob.user.id) await api('DELETE', `/grants/${g.id}`, undefined, admin.token)
 const self = await api('POST', '/dms', { member_ids: [admin.user.id] }, admin.token)
 const dm = await api('POST', '/dms', { member_ids: [bob.user.id] }, admin.token)
 const general = (await api('GET', '/channels', undefined, admin.token)).find(c => c.name === 'general')
-const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
+browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
 const errors = []
 async function login(session) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['microphone', 'camera'] })
+  cleanup.watch(context)
   await context.addCookies([{ name: 'den_session', value: session.token, url: base, httpOnly: true, secure: base.startsWith('https:'), sameSite: 'Lax' }])
   await context.addInitScript(csrf => localStorage.setItem('den.csrf', csrf), session.csrf_token)
   if (process.env.DEN_SMOKE_RELAY === '1') await context.routeWebSocket(/\.ts\.net:/, ws => ws.close());
@@ -59,7 +61,7 @@ let a, b, id, sharedId
 try {
   a = await login(admin); b = await login(bob)
   await a.goto(`${base}/c/${self.id}`)
-  await a.getByRole('textbox', { name: 'Message Just you', exact: true }).fill('/terminal codexbox')
+  await a.getByRole('textbox', { name: 'Message Just you', exact: true }).fill(`/terminal ${hostName}`)
   await a.getByRole('textbox', { name: 'Message Just you', exact: true }).press('Enter')
   await editor(a).waitFor(); await ready(a)
   const messages = await api('GET', `/channels/${self.id}/messages`, undefined, admin.token)
@@ -93,6 +95,8 @@ try {
   await a.getByRole('button', {name:'Join hangout',exact:true}).click()
   await a.getByTestId('terminal-call-tile').getByRole('button', { name: 'Give', exact: true }).click()
   await until(async () => (await api('GET', `/objects/${id}`, undefined, admin.token)).state.terminal.active_controller_id === bob.user.id, 'owner promotes Bob')
+  await b.getByTestId('terminal-control-banner').getByText('m6_bob has control', { exact: true }).waitFor()
+  await b.getByText('View only', { exact: true }).waitFor({ state: 'hidden' })
   await type(b, 'echo BOB_OK')
   await until(async () => (await screen(a)).split('\n').some(l => l.trim() === 'BOB_OK') && (await screen(b)).split('\n').some(l => l.trim() === 'BOB_OK'), 'Bob input reaches both screens', 2000)
   await a.getByRole('button',{name:/Leave call/}).click()
@@ -136,4 +140,21 @@ try {
   if (a) {await shot(a,'failure-owner'); console.error('Owner screen:',await screen(a).catch(()=>''))}
   if (b) {await shot(b,'failure-viewer'); console.error('Viewer screen:',await screen(b).catch(()=>''))}
   throw e
-} finally {if(id) await api('DELETE', `/sessions/${id}`, undefined, admin.token).catch(()=>{}); await browser.close()}
+ }
+} finally {
+  try { await cleanup.finish(browser) }
+  finally {
+    if (hostProcess && hostProcess.exitCode === null && hostProcess.signalCode === null) {
+      const stopped = once(hostProcess, 'exit')
+      hostProcess.kill('SIGTERM')
+      await stopped
+    }
+    try {
+      if (!keepSmoke) {
+        host ||= (await api('GET', '/hosts', undefined, admin.token)).find(h => h.name === hostName)
+        if (host) await api('DELETE', `/hosts/${host.id}`, undefined, admin.token)
+        await rm(scratch, { recursive: true, force: true })
+      }
+    } finally { await api('POST', '/auth/logout', {}, admin.token) }
+  }
+}

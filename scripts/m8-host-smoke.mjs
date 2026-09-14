@@ -1,3 +1,4 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 // Run after the release installers have enrolled the named host.
 // DEN_SMOKE_HOST=<name> node scripts/m8-host-smoke.mjs
 import { chromium } from 'playwright-core'
@@ -22,12 +23,14 @@ async function until(check, label) {
   throw Error(`Timed out: ${label}`)
 }
 const session = await api('POST', '/auth/login', { username: 'nicholas', password: credentials.users?.nicholas || credentials.password })
+const cleanup = await SmokeCleanup.start(base, session.token)
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
 let terminalId
 try {
   await until(async () => (await api('GET', '/hosts', undefined, session.token)).some(h => h.name === hostName && h.online), 'host connected')
   const dm = await api('POST', '/dms', { member_ids: [session.user.id] }, session.token)
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  cleanup.watch(context)
   await context.addCookies([{ name: 'den_session', value: session.token, url: base, httpOnly: true, secure: base.startsWith('https:'), sameSite: 'Strict' }])
   await context.addInitScript(csrf => localStorage.setItem('den.csrf', csrf), session.csrf_token)
   const page = await context.newPage()
@@ -60,8 +63,7 @@ try {
   await page.screenshot({ path: `${shots}/terminal-${hostName}.png` })
   assert.deepEqual(errors, [])
   console.log(`PASS ${hostName}: browser keyboard -> remote PTY -> Ghostty; session ${terminalId}`)
-} finally {
-  if (terminalId) await api('DELETE', `/sessions/${terminalId}`, undefined, session.token)
-  await api('POST', '/auth/logout', {}, session.token).catch(() => {})
-  await browser.close()
+ } finally {
+  try { await cleanup.finish(browser) }
+  finally { await api('POST', '/auth/logout', {}, session.token) }
 }

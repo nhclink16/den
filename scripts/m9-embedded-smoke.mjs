@@ -1,17 +1,21 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 // Run with the disposable M9 server on 17900 and Vite on 17901.
 import { chromium } from 'playwright-core'
 import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 const apiOrigin=process.env.DEN_EMBEDDED_API || 'http://127.0.0.1:17900'
 const webOrigin=process.env.DEN_EMBEDDED_WEB || 'http://localhost:17901'
-const session=JSON.parse(await readFile('/mnt/storage/den-m9-local/session.json','utf8'))
+const session=JSON.parse(await readFile(process.env.DEN_SMOKE_SESSION || '/mnt/storage/den-m9-local/session.json','utf8'))
 const api=async(method,path,body)=>{
  const r=await fetch(apiOrigin+path,{method,headers:{authorization:`Bearer ${session.token}`,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})
  assert(r.ok,`${method} ${path}: ${r.status}`);return r.status===204?undefined:r.json()
 }
+const cleanup=await SmokeCleanup.start(apiOrigin,session.token)
+let browser
+try {
 const dm=await api('POST','/dms',{member_ids:[session.user.id]})
 const object=await api('POST',`/channels/${dm.id}/objects`,{kind:'canvas',name:'M9 embedded theme check',state:{}})
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']})
+browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']})
 try {
  const page=await browser.newPage({viewport:{width:1200,height:900}})
  await page.route(webOrigin+'/',route=>route.fulfill({contentType:'text/html',body:'<style>@font-face{font-family:"Den Terminal Mono";src:url(/fonts/ibm-plex-mono-latin-400-normal.woff2)}body{margin:0;background:var(--bg);color:var(--ink)}#terminal{width:100%;height:280px}#canvas{width:100%;height:560px;position:relative}</style><div id="terminal"></div><div id="canvas" class="canvas-host"></div>'}))
@@ -42,4 +46,5 @@ try {
  assert.deepEqual(errors,[])
  await page.evaluate(()=>{window.closeCanvas();window.terminal.destroy()})
  console.log('M9 embedded clients passed: mounted Ghostty terminal and tldraw canvas follow Paper and Terminal without remounting.')
-} finally {await browser.close();await api('DELETE',`/messages/${object.message_id}`)}
+} finally {await browser.close()}
+} finally {await cleanup.finish(browser)}

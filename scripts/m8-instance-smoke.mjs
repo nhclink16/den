@@ -1,3 +1,4 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 // A disposable local server with an admin session. Never run against production.
 // DEN_SMOKE_SESSION=/private/session.json node scripts/m8-instance-smoke.mjs
 import { chromium } from 'playwright-core'
@@ -5,7 +6,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import assert from 'node:assert/strict'
 
-const base = 'http://127.0.0.1:17800'
+const base = process.env.DEN_SMOKE_URL || 'http://127.0.0.1:17800'
 const session = JSON.parse(await readFile(process.env.DEN_SMOKE_SESSION, 'utf8'))
 const shots = process.env.DEN_SMOKE_SHOTS || '/mnt/storage/den-m8-audit'
 await mkdir(shots, { recursive: true })
@@ -22,6 +23,8 @@ async function until(check) {
   throw Error('Timed out waiting for UI state')
 }
 const original = await api('GET', '/settings')
+const cleanup = await SmokeCleanup.start(base, session.token)
+cleanup.restores.push(() => api('PUT', '/settings', original))
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
@@ -83,6 +86,5 @@ try {
   assert.deepEqual(errors, [])
   console.log('Instance name passed: keyboard save, live second tab, sidebar mark, anonymous login/title, notification, 40-character mobile layout, 41-character rejection.')
 } finally {
-  await api('PUT', '/settings', original)
-  await browser.close()
+  await cleanup.finish(browser)
 }

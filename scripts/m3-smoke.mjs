@@ -1,3 +1,4 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 import { chromium } from 'playwright-core'
 import { readFile, mkdir } from 'node:fs/promises'
 import assert from 'node:assert/strict'
@@ -8,6 +9,7 @@ const [userA, userB, userC] = JSON.parse(process.env.DEN_SMOKE_USERS || '["nicho
 const mediaIP = process.env.DEN_SMOKE_MEDIA_IP || '100.116.27.23'
 const shots = new URL(process.env.DEN_SMOKE_SHOTS || '../docs/shots/', import.meta.url)
 await mkdir(shots, { recursive: true })
+const cleanup = await SmokeCleanup.login(base, userA, process.env.DEN_SMOKE_PASSWORD || credentials.users?.[userA] || credentials.password)
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: [
   '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
   '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing',
@@ -22,6 +24,7 @@ async function until(check, label, timeout = 15000) {
 }
 async function login(username) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['microphone', 'camera'] })
+  cleanup.watch(context)
   await context.addInitScript(() => {
     window.__m3pcs = []
     const Original = window.RTCPeerConnection
@@ -159,4 +162,4 @@ try {
     if (alert.length) console.error('UI error:', alert.join('; '))
   }
   process.exitCode = 1
-} finally { await browser.close() }
+} finally { await cleanup.finish(browser) }

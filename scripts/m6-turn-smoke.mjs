@@ -1,9 +1,11 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 import { chromium } from 'playwright-core'
 import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 
 const base = process.env.DEN_SMOKE_URL || 'https://denchat.app'
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS, 'utf8'))
+const cleanup = await SmokeCleanup.login(base, 'm6_bob', credentials.users?.m6_bob || credentials.password)
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: [
   '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
   '--autoplay-policy=no-user-gesture-required',
@@ -12,12 +14,13 @@ const peers = []
 try {
   for (const [index, username] of ['m6_bob', 'm6_ari'].entries()) {
     const context = await browser.newContext({ permissions: ['microphone', 'camera'] })
+    cleanup.watch(context)
     const page = await context.newPage()
     await page.goto(base)
     await page.addScriptTag({ path: 'apps/web/node_modules/livekit-client/dist/livekit-client.umd.js' })
     await page.evaluate(async ({ username, password, relay, forceTLS }) => {
       const response = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
-      if (!response.ok) throw new Error('Login failed')
+      if (!response.ok) throw new Error(`Login failed: ${response.status}`)
       const session = await response.json()
       const headers = { Authorization: `Bearer ${session.token}` }
       const channels = await (await fetch('/channels', { headers })).json()
@@ -43,7 +46,7 @@ try {
       await room.connect(call.url, call.token, relay ? { rtcConfig: { iceTransportPolicy: 'relay' } } : {})
       await room.localParticipant.setMicrophoneEnabled(true)
       await room.localParticipant.setCameraEnabled(true)
-    }, { username, password: credentials.users[username], relay: index === 0, forceTLS: index === 0 && process.env.DEN_TURN_TLS === '1' })
+    }, { username, password: credentials.users?.[username] || credentials.password, relay: index === 0, forceTLS: index === 0 && process.env.DEN_TURN_TLS === '1' })
     peers.push(page)
   }
   for (const [index, page] of peers.entries()) {
@@ -62,7 +65,7 @@ try {
       }))
     })
     assert(selected.length > 0)
-    assert(selected.every((s) => s.remoteAddress === '135.148.120.197'))
+    assert(selected.every((s) => s.remoteAddress === (process.env.DEN_SMOKE_MEDIA_IP || '135.148.120.197')))
     if (index === 0) assert(selected.every((s) => s.localType === 'relay'), 'relay-only client selected TURN for every transport')
     if (index === 0 && process.env.DEN_TURN_TLS === '1') assert(selected.every((s) => s.url?.startsWith('turns:') && s.relayProtocol === 'tls'), 'TURN/TLS selected')
     console.log(index === 0 ? 'Relay-only peer:' : 'Direct peer:', JSON.stringify(selected))
@@ -70,5 +73,5 @@ try {
   console.log('TURN smoke passed: relay-only ICE via LiveKit rtcConfig, two-way received audio and decoded video over public IP.')
 } finally {
   for (const page of peers) await page.evaluate(() => window.room?.disconnect()).catch(() => {})
-  await browser.close()
+  await cleanup.finish(browser)
 }

@@ -1,3 +1,4 @@
+import { SmokeCleanup, keepSmoke } from './smoke-cleanup.mjs'
 // DEN_SMOKE_URL=https://denchat.app DEN_SMOKE_CREDENTIALS=/private/credentials.json node scripts/m9-smoke.mjs
 import { chromium } from 'playwright-core'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
@@ -15,10 +16,12 @@ async function api(method, path, body) {
 }
 const session = await api('POST','/auth/login',{ username,password }); token=session.token
 const original = await api('GET','/users/me/appearance')
+const cleanup = await SmokeCleanup.start(base, token)
+cleanup.restores.push(() => api('PUT','/users/me/appearance',original))
 const browser=await chromium.launch({ executablePath: '/usr/bin/chromium',args:['--no-sandbox'] })
 const errors=[]
 async function context() {
- const c=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'dark'})
+ const c=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'dark'}); cleanup.watch(c)
  // Each context gets its own server login, no shared storage cache.
  const s=await api('POST','/auth/login',{username,password})
  await c.addCookies([{name:'den_session',value:s.token,url:base,httpOnly:true,sameSite:'Strict'}])
@@ -135,7 +138,7 @@ try {
    await page.waitForTimeout(400);await page.screenshot({path:`${shots}/m9-chat-${id}.png`})
    await page.goto(base+'/settings/appearance');await page.getByRole('heading',{name:'Appearance',exact:true}).waitFor()
   }
- } finally { await api('DELETE',`/messages/${message.id}`) }
+ } finally { if (!keepSmoke) await api('DELETE',`/messages/${message.id}`) }
  // Invalid Google family gets a bounded, visible failure and real fallback.
  await page.getByLabel('Use any Google Font for body',{exact:true}).fill('Den No Such Font XYZ')
  await page.getByLabel('Use any Google Font for body',{exact:true}).press('Tab')
@@ -144,4 +147,4 @@ try {
  await page.getByRole('button',{name:'Reset',exact:true}).click()
  assert.deepEqual(errors,[])
  console.log('M9b passed: eight paired families, legacy import and generated contrast, Light editor and draft-preserving mode changes, instant Tide, cached first paint at 50 ms, system light/dark, live fonts/radius/density, custom theme in an independent reloaded session, JSON round trip, invalid import, private live sync, font failure, desktop/mobile screenshots.')
-} finally { await api('PUT','/users/me/appearance',original);await browser.close() }
+} finally { await cleanup.finish(browser) }

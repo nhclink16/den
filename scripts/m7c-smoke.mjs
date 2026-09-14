@@ -1,3 +1,4 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 import { chromium } from 'playwright-core'
 import { readFile, mkdir } from 'node:fs/promises'
 import assert from 'node:assert/strict'
@@ -7,6 +8,7 @@ const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS 
 const users = JSON.parse(process.env.DEN_SMOKE_USERS || '["nicholas","bob","ari"]')
 const shots = new URL(process.env.DEN_SMOKE_SHOTS || '../docs/shots/', import.meta.url)
 await mkdir(shots, { recursive: true })
+const cleanup = await SmokeCleanup.login(base, users[0], credentials.users?.[users[0]] || credentials.password)
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: !process.env.DEN_SMOKE_HEADED, args: [
   '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
   '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing', '--auto-select-desktop-capture-source=Entire screen',
@@ -19,6 +21,7 @@ async function until(check, label, timeout = 20000) {
 }
 async function login(user, mobile = false) {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, permissions: ['microphone', 'camera'] })
+  cleanup.watch(context)
   await context.addInitScript(() => {
     localStorage.setItem('den.voice', JSON.stringify({ sounds: false, cameraOn: true, micOn: true }))
     window.__m7cpcs = []
@@ -76,6 +79,10 @@ try {
   await b.getByLabel('Share screen', { exact: true }).first().click()
   await until(async () => await screens(a).count() === 2 && await screens(c).count() === 2, 'two shares')
   await until(async () => grid(c).locator('video').evaluateAll(vs => vs.length === 5 && vs.every(v => v.videoWidth > 0)), 'five decoded streams')
+  await until(async () => {
+    const boxes = await screens(a).evaluateAll(es => es.map(e => e.getBoundingClientRect()))
+    return boxes.length === 2 && Math.abs(boxes[0].width - boxes[1].width) < 2
+  }, 'equal share widths after layout settles')
   const shareBoxes = await Promise.all([screens(a).nth(0).boundingBox(), screens(a).nth(1).boundingBox()])
   assert(shareBoxes.every(s => s.width > 350 && s.height > 180), 'both shares large')
   assert(Math.abs(shareBoxes[0].width - shareBoxes[1].width) < 2, 'shares equal size')
@@ -189,4 +196,4 @@ try {
   if (errors.length) console.error(errors)
   for (const p of pages) { const alerts = await p.locator('[role="alert"]').allTextContents().catch(() => []); if (alerts.length) console.error('UI error:', alerts.join('; ')) }
   process.exitCode = 1
-} finally { await browser.close() }
+} finally { await cleanup.finish(browser) }

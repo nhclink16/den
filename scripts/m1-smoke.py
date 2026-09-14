@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise M1 through the built CLI and a disposable server. Requires ffmpeg."""
 import json
+from contextlib import nullcontext
 import os
 from pathlib import Path
 import queue
@@ -18,7 +19,9 @@ SERVER = BUILD / "den-server"
 
 
 def main():
-    with tempfile.TemporaryDirectory(prefix="den-m1-") as tmp:
+    keep = os.environ.get("DEN_SMOKE_KEEP") == "1"
+    scratch = nullcontext(tempfile.mkdtemp(prefix="den-m1-", dir="/mnt/storage")) if keep else tempfile.TemporaryDirectory(prefix="den-m1-", dir="/mnt/storage")
+    with scratch as tmp:
         tmp = Path(tmp)
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -140,6 +143,12 @@ def main():
                     except subprocess.TimeoutExpired:
                         proc.kill()
                         proc.wait()
+
+    if keep:
+        print(f"DEN_SMOKE_KEEP=1: retained disposable server data at {tmp}")
+    else:
+        assert not tmp.exists(), "Disposable smoke database and uploads must be removed"
+        print("Cleanup verified: disposable database, messages, objects, requests and uploads removed.")
 
 
 if __name__ == "__main__":

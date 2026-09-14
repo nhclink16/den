@@ -1,9 +1,13 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
 // Two disposable den-server processes on 17900/17901 and Vite on 17902.
 import { chromium } from 'playwright-core'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import assert from 'node:assert/strict'
-const bases = ['http://127.0.0.1:17900', 'http://127.0.0.1:17901']
+const bases = JSON.parse(process.env.DEN_SMOKE_BASES || '["http://127.0.0.1:17900","http://127.0.0.1:17901"]')
+const web = process.env.DEN_SMOKE_URL || 'http://localhost:17902'
+const cleanups = []
+let browser
 const password = randomBytes(24).toString('hex')
 const admin = [], bob = [], channels = [], keychain = new Map(), commands = [], errors = []
 let savedOrigins = []
@@ -13,15 +17,20 @@ async function api(i, method, path, body, token = admin[i]?.token) {
   return r.status === 204 ? null : r.json()
 }
 // Keep credentials outside git so a rerun can reuse its disposable databases.
-const privateFile = '/mnt/storage/den-m4-smoke/credentials.json'
+const data = process.env.DEN_SMOKE_DATA || '/mnt/storage/den-m4-smoke'
+const privateFile = data+'/credentials.json'
 let credentials
 try { credentials = JSON.parse(await readFile(privateFile, 'utf8')) } catch { credentials = { password } }
+try {
 for (const [i, name] of ['one', 'two'].entries()) {
   try {
-    const key = await readFile(`/mnt/storage/den-m4-smoke/${name}/bootstrap.key`, 'utf8')
+    const key = await readFile(`${data}/${name}/bootstrap.key`, 'utf8')
     admin[i] = await api(i, 'POST', '/auth/init', { username: 'desktop_admin', password: credentials.password, bootstrap_token: key }, '')
   } catch { admin[i] = await api(i, 'POST', '/auth/login', { username: 'desktop_admin', password: credentials.password }, '') }
   await writeFile(privateFile, JSON.stringify(credentials), { mode: 0o600 })
+  const cleanup = await SmokeCleanup.start(bases[i], admin[i].token); cleanups.push(cleanup)
+  const originalSettings = await api(i, 'GET', '/settings'), originalAppearance = await api(i, 'GET', '/users/me/appearance')
+  cleanup.restores.push(() => api(i, 'PUT', '/settings', originalSettings), () => api(i, 'PUT', '/users/me/appearance', originalAppearance))
   await api(i, 'PUT', '/settings', { instance_name: i ? 'Second Den' : 'First Den' })
   try { bob[i] = await api(i, 'POST', '/auth/login', { username: 'desktop_bob', password: credentials.password }, '') }
   catch {
@@ -31,7 +40,7 @@ for (const [i, name] of ['one', 'two'].entries()) {
   channels[i] = (await api(i, 'GET', '/channels')).find(c => c.kind === 'text')
   await api(i, 'PUT', '/users/me/appearance', { mode: 'dark', theme: i ? 'tide' : 'den', custom_themes: [] })
 }
-const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
+browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1300, height: 850 } })
 await context.exposeFunction('denInvoke', async (command, args = {}) => {
   commands.push({ command, origin: args.origin, path: args.path })
@@ -60,7 +69,7 @@ const sockets = new Set()
 page.on('websocket', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
 const until = async fn => { for (let n = 0; n < 100; n++) { if (await fn()) return; await page.waitForTimeout(100) } throw Error('Timed out') }
 try {
-  await page.goto('http://localhost:17902')
+  await page.goto(web)
   await page.getByLabel('Username', { exact: true }).fill('desktop_admin')
   await page.getByLabel('Password', { exact: true }).fill(credentials.password)
   await page.getByRole('button', { name: 'Come in', exact: true }).click()
@@ -87,10 +96,11 @@ try {
   await until(async () => /First Den/i.test(await page.locator('section.inbox').innerText()) && /Second Den/i.test(await page.locator('section.inbox').innerText()))
   assert.match(await page.locator('section.inbox').innerText(), /First Den/i)
   assert.match(await page.locator('section.inbox').innerText(), /Second Den/i)
-  await mkdir('docs/shots', { recursive: true })
-  await page.screenshot({ path: 'docs/shots/m4-native-stub-inbox.png' })
+  const shots = process.env.DEN_SMOKE_SHOTS || 'docs/shots'
+  await mkdir(shots, { recursive: true })
+  await page.screenshot({ path: shots+'/m4-native-stub-inbox.png' })
   await page.getByRole('button', { name: 'Switch server' }).click()
-  await page.screenshot({ path: 'docs/shots/m4-native-stub-switcher.png' })
+  await page.screenshot({ path: shots+'/m4-native-stub-switcher.png' })
   await page.getByRole('button', { name: 'Close server switcher' }).click()
   await page.keyboard.press('Control+k')
   await page.getByPlaceholder('Jump to a room, a person, or an action').fill('general')
@@ -104,10 +114,10 @@ try {
   assert.equal(keychain.size, 2)
   await page.getByRole('button', { name: 'Hide sidebar', exact: true }).click()
   for (const path of ['/inbox', '/find?q=desktop', '/settings', `/c/${channels[1].id}`]) {
-    await page.goto('http://localhost:17902' + path)
+    await page.goto(web + path)
     await page.getByRole('button', { name: 'Show sidebar', exact: true }).waitFor()
   }
-  await page.screenshot({ path: 'docs/shots/m4-sidebar-collapsed.png' })
+  await page.screenshot({ path: shots+'/m4-sidebar-collapsed.png' })
   await page.getByRole('button', { name: 'Show sidebar', exact: true }).click()
   await page.getByRole('button', { name: 'Hide sidebar', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Switch server' }).click()
@@ -117,4 +127,9 @@ try {
   assert.equal(savedOrigins.length, 1)
   assert.deepEqual(errors, [])
   console.log('PASS native login, bearer-only HTTP, two ticket WebSockets, switcher, shortcuts, per-origin appearance, merged inbox, cross-server palette, resume and keychain logout')
-} finally { await browser.close() }
+} finally { await browser?.close() }
+} finally {
+  const results = await Promise.allSettled(cleanups.map(c => c.finish(browser)))
+  const failed = results.filter(r => r.status === 'rejected')
+  if (failed.length) throw new AggregateError(failed.map(r => r.reason), 'Native smoke cleanup failed')
+}
