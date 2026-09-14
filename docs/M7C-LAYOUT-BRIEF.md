@@ -30,3 +30,10 @@ Extend the M3 smoke or add `scripts/m7c-smoke.mjs`: three fake-media contexts, t
 - Encoding: the first share keeps the current settings; the second and third publish at a lower max bitrate and 15 fps unless the sharer opens the tile's overflow and picks `Smooth` (30 fps). Say the defaults in the notes.
 - Layout: multiple shares from one person are still separate large tiles in `Auto` and `Even`. Nothing in the engine may group or collapse them.
 - Smoke: one context shares two fake sources (Chromium's fake display capture with two different constraint sets, or two `getDisplayMedia` calls), the other context sees two labeled share tiles, stops one from the sharer side and the other remains. Screenshot `m7c-two-shares-one-person-desktop.png`.
+
+## Addendum 2026-09-14: quality indicators
+- Rely on WebRTC congestion control and LiveKit simulcast, dynacast, and adaptive stream for adaptation; add no custom bitrate heuristics beyond the per-share caps above.
+- Sharer-side, on each of the sharer's own cam and share tiles, a mono 10px readout in the name pill of the actual sent layer, e.g. `1080p · 30`, from the track's sender stats, refreshed every two seconds. When `qualityLimitationReason` is `bandwidth`, prefix a 6px amber dot and set the tooltip `Limited by your upload`; when `cpu`, `Limited by your CPU`; when `none`, no dot. Only the sharer sees this.
+- Viewer-side, LiveKit's `ConnectionQuality` per participant as three 3px bars beside the name in the pill; excellent lights all three in `var(--ink-2)`, good two, poor one in `var(--ember)`. Tooltip on poor: `Their connection is struggling` when it is the remote participant's quality, `Your connection is struggling` when the local participant's quality is poor.
+- Each share tile's overflow menu gets `Smooth` (favor fps) and `Sharp` (favor resolution), applied via the publish options' degradation preference, default balanced.
+- Smoke: assert the readout renders for the local share and that a viewer tile shows quality bars. No network shaping required.
