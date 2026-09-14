@@ -82,6 +82,34 @@ distribution change was made beyond creating the required app record. The
 TestFlight record remains available for handoff.
 Redacted receipt: `/tmp/den-ios-cloud-account-proof.json`.
 
+Onboarding progressed at 19:14 UTC on September 14 to an **inactive local wizard
+draft**, `Den native checks`, using the offered Xcode **26.6 (17F113)** image and
+both fixture variables below. It is not a remote workflow. Onboarding reached
+**Grant Access to Your Source Code** for `nhclink16/den`, with Next disabled.
+The grant button is visible but missing from actionable accessibility children;
+the desktop bridge also reports a window/frame mismatch for pixel input. No
+source grant was made. Browser-only continuation still shows onboarding without
+an account usage meter. **Den usage remains zero Cloud hours; the account's
+used/remaining balance and billing period are unknown.**
+
+After that exact source-access step is completed, restrict the GitHub grant to
+`nhclink16/den`. The inactive draft still contains Apple's default **Branch
+Changes (main)** and **Archive**; remove them and configure manual Analyze/Test
+as below before activating or starting anything. Check the account meter first.
+No paid plan, schedule, TestFlight build, or App Store submission was created.
+The wizard was subsequently canceled and only this lane's Den project window
+closed to release local test resources. Its reviewed values are retained in the
+receipt, not an active or remotely saved workflow. Reopen Den's Cloud onboarding
+to resume the source-access step; do not assume the local draft survived Cancel.
+Receipt: `/tmp/den-ios-cloud-onboarding-live/checkpoint.json`.
+
+A read-only Chrome refresh at **19:57 UTC** confirmed the account usage page,
+Den usage page and Den build list all still show **Get started in Xcode**, with
+no numeric meter or build rows. Den has started zero Cloud runs. The standard
+included allowance remains **25 compute hours per month**; this is not evidence
+that 25 hours remain across the account. Receipt:
+`/tmp/den-ios-cloud-usage-final.json`.
+
 ### Before the first run
 
 1. In App Store Connect, check **Users and Access > Xcode Cloud** for team usage
