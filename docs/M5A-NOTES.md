@@ -1,4 +1,48 @@
-# M5a iOS signing gate, 2026-09-14
+# M5a iOS signing setup, 2026-09-14
+
+## Signing gate cleared at 10:18 Eastern
+
+Nicholas selected his developer team, connected the phone, enabled Developer
+Mode and approved signing access. A new run on the iMac then verified:
+
+- Team `UH434K44A3`, with a valid Apple Development signing identity.
+- An automatically created iOS development provisioning profile.
+- iPhone 17 Pro Max available and paired, Developer Mode enabled and developer
+  disk image services available. The phone reports iOS 27.0.
+- `xcodebuild` completed the signing probe with `BUILD SUCCEEDED`.
+- `xcrun devicectl device install app` installed `app.denchat.ios` on the phone.
+- `xcrun devicectl device process launch` launched it successfully, process 705.
+
+The installed app is still the disposable **DenSigningProbe**, displaying
+`Den signing check`. It is not the Den client. No chat or M5a feature acceptance
+is claimed. The implementation and APNs work listed below remain outstanding.
+
+### Remote signing execution context
+
+Direct SSH builds still saw the default keychain as locked even after Nicholas
+unlocked it in the desktop session. Repeating the build in the logged-in Aqua
+session succeeded. No password was copied, stored or passed in a command.
+
+The verified method used a temporary LaunchAgent named
+`app.denchat.m5a-signing-check`, bootstrapped into `gui/502` over SSH. Its plist
+set `LimitLoadToSessionType` to `Aqua`, `RunAtLoad` to true, and invoked
+`/bin/bash /tmp/den-m5a-signing/gui-build.sh`. The script ran the same
+`xcodebuild` command documented below, with
+`-allowProvisioningDeviceRegistration` added. It wrote a log and exit code.
+The LaunchAgent was unloaded after the successful build; no background build
+service remains installed. Future remote builds should use this GUI-session
+execution path while Nicholas is logged in and the keychain is unlocked.
+
+The diagnostic scripts and evidence remain on the iMac under
+`/tmp/den-m5a-signing`: `gui-build.plist`, `gui-build.sh`, `gui-build.log`,
+`gui-build.exit`, `install.json` and `launch.json`. Both device operations
+reported `outcome: success`. These temporary files are not committed.
+
+The checkout remains `/Users/nicholascaron/Projects/personal/den` on `main`.
+The earlier signing and device blockers below are historical, resolved by
+this attended setup. The APNs key is a separate prerequisite.
+
+## Original overnight result
 
 M5a is **not implemented or accepted**. This run stopped at signing setup.
 There is no Den iOS app to install yet, and the server device endpoints and
