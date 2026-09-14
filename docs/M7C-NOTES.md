@@ -1,7 +1,8 @@
 # M7c — call layouts, multiple shares, quality
 
-Implementation and local M7c smoke are complete. Public deployment and smoke
-are in progress; this note will be updated with their results.
+Completed and deployed to https://denchat.app on 2026-09-14 UTC. Both addenda
+are included. Public M3 and M7c smokes pass. The final source deployment is
+`eb7fc92`; the server reports healthy at version 0.1.2.
 
 ## Layouts
 
@@ -28,7 +29,8 @@ assigned in identity order.
 
 Below 900px, a fresh layout defaults to Focus; pins and presets remain available,
 and drag, resize and pop-out are disabled. A saved Custom desktop layout is
-shown as Focus on mobile without overwriting its coordinates. Tile movement uses
+shown as Focus on mobile without overwriting its coordinates, including when
+pinning or unpinning from mobile. Tile movement uses
 140ms ease and stops animating with reduced-motion preferences.
 
 ## Floating tiles
@@ -70,7 +72,7 @@ administration remain disabled. Display names come from Den's user directory,
 not the caller-editable LiveKit name. No database migration or shared API type
 change was needed.
 
-## Verification so far
+## Verification
 
 - `node --experimental-strip-types --test scripts/m7c-layout.test.ts`: three
   tests pass for equal share allocation, collision packing, multi-pin Focus,
@@ -95,3 +97,62 @@ Local verification uses a private SQLite snapshot under
 `/mnt/storage/den-m7c-dev`, separate from the other engineer's running dev server.
 Builds and private logs use `/mnt/storage/den-m8-target` and
 `/mnt/storage/den-m7c-*.log`. Existing design directories are untouched.
+
+## Navigation regression found during release checks
+
+The first public M3 run completed the call interactions but caught deferred chat
+callbacks accessing removed elements. A pending send scheduled textarea sizing
+after leaving the composer; a pending history request tried to restore scroll
+position after leaving the message list. Both now check that their element still
+exists. `scripts/m7c-navigation-smoke.mjs` holds each response, navigates away,
+and then releases it: it failed for both callbacks before the fix and passes
+afterward. Its history-page fixture exercises actual browser scroll handling.
+
+The initial local M3 run reached the DM banner check but could not receive that
+notification because shared dev LiveKit sends webhooks to ports 7000/7200, not
+the isolated server on 7001. Public M3 verification uses the deployed webhook
+path. The main M7c smoke does not depend on those local webhook notifications.
+
+## Public deployment and final evidence
+
+Took a fresh VPS backup with `den-backup.service`, then released with
+`CARGO_TARGET_DIR=/mnt/storage/den-m8-target bash deploy/release.sh`. Public health
+passed after deployment. The unrelated dev server on port 7000 was left running;
+the isolated M7c server on 7001 was stopped after verification.
+
+The public M3 regression passes after the deferred-callback fix: three cameras,
+screen and audio delivery, membership/mute/leave, push-to-talk and custom key,
+blur handling, live text and shortcuts, DM privacy/switching, reload/resync and
+public media peer `135.148.120.197`.
+
+The final public M7c run passes all checks listed above, plus pinning/unpinning
+from mobile while preserving the desktop Custom coordinates. Both the native
+Document PiP path and regular-window fallback passed, with continuing playback
+and the same video element on return. These runs use fake media in independent
+Chromium contexts on codexbox; they do not claim a human cross-network test or
+a game/full-screen operating-system test.
+
+Run when hangout is empty, using the existing private smoke credentials:
+
+```bash
+DEN_SMOKE_URL=https://denchat.app \
+DEN_SMOKE_CREDENTIALS="$HOME/.local/share/den-m6/smoke-credentials.json" \
+DEN_SMOKE_USERS='["nicholas","m6_bob","m6_ari"]' \
+node scripts/m7c-smoke.mjs
+```
+
+Public logs: `/mnt/storage/den-m7c-public.log`,
+`/mnt/storage/den-m7c-m3-public.log`, and `/mnt/storage/den-m7c-release.log`.
+The M3 run leaves its labeled test chat message as usual. M7c leaves no new
+messages or objects; its saved layout is local to the disposable browser context.
+
+All six final screenshots below were captured against denchat.app and opened
+for visual inspection. Desktop is 1440×900; mobile is 390×844. Capture waits for
+decoded video and settles layout transitions before taking each image.
+
+- [Auto with two shares](shots/m7c-auto-desktop.png)
+- [Custom drag and resize](shots/m7c-custom-desktop.png)
+- [Focus with a pinned share and camera](shots/m7c-focus-desktop.png)
+- [Popped-out placeholder](shots/m7c-popped-desktop.png)
+- [Two shares from one person](shots/m7c-two-shares-one-person-desktop.png)
+- [Mobile Focus](shots/m7c-focus-mobile.png)
