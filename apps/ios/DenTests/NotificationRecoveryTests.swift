@@ -8,6 +8,8 @@ import UserNotifications
 @Suite(.serialized) struct NotificationRecoveryTests {
     @Test @MainActor func foregroundRechecksPermissionRetriesFailedRegistrationAndDeduplicatesSuccess() async throws {
         NotificationRecoveryStub.devicePosts.withLock { $0 = 0 }
+        NotificationRecoveryStub.deviceRequests.withLock { $0.removeAll() }
+        let installationID = VoIPPushInstallation.clientID().uuidString
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [NotificationRecoveryStub.self]
         let store = AppStore()
@@ -51,6 +53,19 @@ import UserNotifications
         #expect(permissionChecks >= 2)
         #expect(systemRegistrations >= 1)
         #expect(NotificationRecoveryStub.devicePosts.withLock { $0 } == 2)
+        let requests = NotificationRecoveryStub.deviceRequests.withLock { $0 }
+        #expect(requests.count == 2)
+        for request in requests {
+            let payload = try #require(try JSONSerialization.jsonObject(with: request.body) as? [String: Any])
+            #expect(payload["purpose"] as? String == "alert")
+            #expect(payload["environment"] as? String == "sandbox")
+            #expect(payload["client_id"] as? String == installationID)
+            #expect(payload["token"] as? String == "01020304")
+            #expect(payload["platform"] as? String == "ios")
+            #expect(payload["app_version"] as? String == Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+            #expect(request.authorization == "Bearer test-only-token")
+        }
+        #expect(VoIPPushInstallation.clientID().uuidString == installationID)
         #expect(controller.status == nil)
         #expect(UserDefaults.standard.string(forKey: deviceKey) == "device-1")
         await controller.registerIfAuthorized()
@@ -84,15 +99,20 @@ import UserNotifications
 }
 
 private final class NotificationRecoveryStub: URLProtocol, @unchecked Sendable {
+    struct DeviceRequest: Sendable { let body: Data; let authorization: String? }
     static let devicePosts = Mutex(0)
+    static let deviceRequests = Mutex([DeviceRequest]())
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "notifications.test" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let isDevice = request.httpMethod == "POST" && request.url?.path == "/devices"
+        if isDevice {
+            Self.deviceRequests.withLock { $0.append(.init(body: Self.body(request), authorization: request.value(forHTTPHeaderField: "Authorization"))) }
+        }
         let attempt = isDevice ? Self.devicePosts.withLock { $0 += 1; return $0 } : 0
         let status = isDevice && attempt > 1 ? 200 : 503
         let body = status == 200
-            ? Data(#"{"id":"device-1","platform":"ios","app_version":"0"}"#.utf8)
+            ? Data(#"{"id":"device-1","platform":"ios","app_version":"0","purpose":"alert","environment":"sandbox"}"#.utf8)
             : Data(#"{"error":"unavailable","message":"Temporary fixture outage"}"#.utf8)
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -100,4 +120,19 @@ private final class NotificationRecoveryStub: URLProtocol, @unchecked Sendable {
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+    private static func body(_ request: URLRequest) -> Data {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return Data() }
+        stream.open()
+        defer { stream.close() }
+        var body = Data(), buffer = [UInt8](repeating: 0, count: 4096)
+        // A bound stream may temporarily have no available bytes before its writer runs.
+        // Only read() returning zero is EOF; availability is not an end condition.
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            body.append(buffer, count: count)
+        }
+        return body
+    }
 }

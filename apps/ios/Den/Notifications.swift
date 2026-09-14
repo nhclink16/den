@@ -4,7 +4,22 @@ import UserNotifications
 import DenAPI
 
 @MainActor final class DenAppDelegate: NSObject, UIApplicationDelegate {
+    let store = AppStore()
     var notifications: NotificationController?
+    override init() {
+        super.init()
+        let notifications = NotificationController(store: store)
+        self.notifications = notifications; store.notifications = notifications
+        let api = NativeCallAPI(store: store)
+        let calls = CallController(session: CallSession(), api: api)
+        store.calls = calls
+        store.voip = VoIPPushController(calls: calls, registration: api)
+    }
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // PushKit may launch us with no SwiftUI scene. Reporting cannot wait for chat restore.
+        store.voip?.start()
+        return true
+    }
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         Task { await notifications?.registered(token: token) }
@@ -96,7 +111,11 @@ import DenAPI
             defer { registrationTask = nil }
             do {
                 let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-                let device = try await service.client.postDevices(body: .json(.init(appVersion: version, platform: .ios, token: token))).ok.body.json
+                guard let environment = Bundle.main.object(forInfoDictionaryKey: "DenAPNSEnvironment") as? String,
+                      API.DeviceEnvironment(rawValue: environment) != nil else { throw DenFailure.invalidResponse }
+                let device = try await service.client.postDevices(body: .json(.init(
+                    appVersion: version, clientId: VoIPPushInstallation.clientID().uuidString,
+                    environment: environment, platform: .ios, purpose: .alert, token: token))).ok.body.json
                 try store.check(expected)
                 UserDefaults.standard.set(device.id, forKey: storageKey)
                 registeredIdentity = identity; retryAfter = .distantPast; status = nil
@@ -142,6 +161,10 @@ import DenAPI
         guard let store else { return }
         let count = store.readStates.reduce(Int64(0)) { $0 + $1.notificationCount }
         try? await UNUserNotificationCenter.current().setBadgeCount(Int(min(count, 9999)))
+    }
+    func resumeAfterInterruptedLogout() async {
+        acceptingRegistration = true
+        await registerIfAuthorized(retryImmediately: true)
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse) async {

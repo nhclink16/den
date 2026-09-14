@@ -26,6 +26,8 @@ import UIKit
     var hosts: [API.Host] = []
     var grants: [API.Grant] = []
     var pendingUploads: [PendingUpload] = []
+    var calls: CallController?
+    var voip: VoIPPushController?
     @ObservationIgnored var service: DenService?
     @ObservationIgnored var generation = UUID()
     @ObservationIgnored var socket: URLSessionWebSocketTask?
@@ -51,7 +53,8 @@ import UIKit
     func restore() async {
         do {
             guard let token = try SessionVault.read(origin) else { return }
-            service = DenService(origin: origin, token: token)
+            // A cold PushKit answer may have already restored this same credential.
+            if service == nil { service = DenService(origin: origin, token: token) }
             if let cached = OfflineCache.read(origin: origin) {
                 user = cached.user; channels = cached.channels; categories = cached.categories
                 users = cached.users; messages = cached.messages; readStates = cached.readStates
@@ -60,6 +63,7 @@ import UIKit
             try await refresh()
             connectSocket()
             await notifications?.registerIfAuthorized()
+            await voip?.sessionRestored()
         } catch {
             if DenFailure.unauthorized(error) { clearSession(); self.error = DenFailure.signedOut.localizedDescription }
             else {
@@ -78,6 +82,7 @@ import UIKit
         let temporary = DenService(origin: nextOrigin)
         defer { temporary.close() }
         let session = try await temporary.login(username: username, password: password)
+        await calls?.stopForSessionChange()
         try SessionVault.save(session.token, origin: nextOrigin)
         stopNetwork()
         if user?.id != session.user.id || origin != nextOrigin { OfflineCache.remove(origin: nextOrigin); messages = [:] }
@@ -87,6 +92,7 @@ import UIKit
         try await refresh()
         connectSocket()
         await notifications?.requestAfterLogin()
+        await voip?.resumeAfterLogin()
     }
     func activeService() throws -> DenService {
         guard let service else { throw DenFailure.signedOut }
@@ -111,6 +117,7 @@ import UIKit
         user = result.0; channels = result.1; categories = result.2; users = result.3
         readStates = result.4; theme.receive(result.5); preferences = result.6
         presence = Set(result.7.onlineUserIds); callStates = result.8; instanceName = result.9.instanceName
+        self.calls?.session.updateNames(Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0.displayName) }))
         let visible = Set(channels.map(\.id))
         messages = messages.filter { visible.contains($0.key) }
         if let selectedChannelId, !visible.contains(selectedChannelId) { self.selectedChannelId = nil }
@@ -247,13 +254,24 @@ import UIKit
     }
     func logout() async throws {
         // Do not silently abandon a still-registered push endpoint on failure.
-        try await cancelPendingUploads()
-        try await notifications?.unregister()
-        try await activeService().logout()
-        try SessionVault.delete(origin)
-        clearSession()
+        do {
+            try await cancelPendingUploads()
+            await calls?.stopForSessionChange()
+            try await voip?.unregisterForLogout()
+            try await notifications?.unregister()
+            try await activeService().logout()
+            try SessionVault.delete(origin)
+            clearSession()
+        } catch {
+            if !DenFailure.unauthorized(error) {
+                await notifications?.resumeAfterInterruptedLogout()
+                await voip?.resumeAfterLogin()
+            }
+            throw error
+        }
     }
     func stopNetwork() {
+        calls?.sessionInvalidated()
         generation = UUID(); socketLoop?.cancel(); socketLoop = nil
         socket?.cancel(with: .goingAway, reason: nil); socket = nil
         for task in uploadTasks.values { task.cancel() }; uploadTasks = [:]

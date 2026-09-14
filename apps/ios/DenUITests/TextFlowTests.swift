@@ -122,18 +122,14 @@ final class TextFlowTests: XCTestCase {
         screenshot("m5a-inbox")
         inboxRoom.tap()
         XCTAssertTrue(element("message-" + notification.id).waitForExistence(timeout: 10))
-        XCTAssertTrue(app.tabBars.buttons["Rooms"].isSelected)
+        XCTAssertTrue(tabButton("Rooms").isSelected)
 
-        selectTab("Search")
-        let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
-        search.typeText(marker + "\n")
+        searchFor(marker)
         let result = element("search-result-" + reply.id)
         XCTAssertTrue(result.waitForExistence(timeout: 10))
         result.tap()
         XCTAssertTrue(element("message-" + reply.id).waitForExistence(timeout: 10))
-        XCTAssertTrue(app.tabBars.buttons["Rooms"].isSelected)
+        XCTAssertTrue(tabButton("Rooms").isSelected)
 
         selectTab("Settings")
         app.buttons["Appearance"].tap()
@@ -157,11 +153,54 @@ final class TextFlowTests: XCTestCase {
         app.terminate()
         app.launch()
         XCTAssertTrue(element("login-submit").waitForExistence(timeout: 10))
-        XCTAssertFalse(app.tabBars.buttons["Rooms"].exists)
+        XCTAssertFalse(tabButton("Rooms").exists)
+    }
+
+    func testSearchResultRestoresUsableTabNavigation() async throws {
+        try configureFixture()
+        let marker = "iossearch" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let message = try await postMessage(channel: fixture.generalChannelId, content: marker, user: 0)
+        defer { app.terminate() }
+        do {
+            app.launch()
+            XCTAssertTrue(element("login-submit").waitForExistence(timeout: 10))
+            element("login-submit").tap()
+            try await waitForRooms()
+            searchFor(marker)
+            let result = element("search-result-" + message.id)
+            XCTAssertTrue(result.waitForExistence(timeout: 10))
+            screenshot("m5b-search-results")
+            result.tap()
+            XCTAssertTrue(element("message-" + message.id).waitForExistence(timeout: 10))
+            let rooms = tabButton("Rooms")
+            guard rooms.waitForExistence(timeout: 5) else {
+                XCTFail("Opening a search result must restore the app's tab controls.")
+                throw FixtureError.timedOut
+            }
+            XCTAssertTrue(rooms.isSelected)
+            XCTAssertTrue(rooms.isHittable)
+            screenshot("m5b-search-navigation")
+            selectTab("Settings")
+            XCTAssertTrue(element("account-logout").waitForExistence(timeout: 5))
+        } catch {
+            _ = try? await rawRequest("/messages/" + message.id, method: "DELETE")
+            throw error
+        }
+        let (_, deleted) = try await rawRequest("/messages/" + message.id, method: "DELETE")
+        XCTAssertEqual(deleted, 204)
+    }
+
+    private func searchFor(_ text: String) {
+        selectTab("Search")
+        let search = app.textFields["search-query"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertTrue(search.isHittable)
+        search.tap()
+        search.typeText(text + "\n")
     }
 
     private func waitForRooms() async throws {
-        let rooms = app.tabBars.buttons["Rooms"]
+        let rooms = tabButton("Rooms")
         XCTAssertTrue(rooms.waitForExistence(timeout: 20), "The authenticated Rooms tab must appear after login or restore.")
         // Tapping the app gives XCTest a chance to handle a system notification permission alert.
         if rooms.isHittable { rooms.tap() }
@@ -181,6 +220,12 @@ final class TextFlowTests: XCTestCase {
         XCTAssertTrue(element("new-dm").waitForExistence(timeout: 5))
     }
 
+    // iPad's floating tab strip exposes buttons without a TabBar ancestor.
+    // Keep exact labels and selected/hittable assertions on both device layouts.
+    private func tabButton(_ name: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label == %@", name)).firstMatch
+    }
+
     private func selectTab(_ name: String) {
         if app.keyboards.firstMatch.exists {
             let dismiss = element("composer-dismiss-keyboard")
@@ -189,7 +234,7 @@ final class TextFlowTests: XCTestCase {
             let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
             XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 5), .completed)
         }
-        let tab = app.tabBars.buttons[name]
+        let tab = tabButton(name)
         XCTAssertTrue(tab.waitForExistence(timeout: 5))
         XCTAssertTrue(tab.isHittable, "The \(name) tab must be visible before navigation.")
         tab.tap()

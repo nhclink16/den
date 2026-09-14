@@ -1,4 +1,5 @@
 import DenAPI
+import LiveKit
 import SwiftUI
 
 struct ConversationView: View {
@@ -15,6 +16,7 @@ struct ConversationView: View {
     @State private var nearBottom = true
     @State private var showPeople = false
     @State private var visible = false
+    @State private var startingCall = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
@@ -39,6 +41,14 @@ struct ConversationView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showPeople = true } label: { Image(systemName: "person.2") }
                     .accessibilityLabel("People in this room")
+            }
+            if channel.kind == .dm {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: joinCall) { Image(systemName: "phone") }
+                        .accessibilityLabel(hasParticipants ? "Join call" : "Call this conversation")
+                        .accessibilityIdentifier("conversation-call")
+                        .disabled(startingCall || store.offline || store.calls?.currentCallID != nil)
+                }
             }
         }
         .sheet(isPresented: $showPeople) { peopleSheet }
@@ -71,7 +81,7 @@ struct ConversationView: View {
                                 Text(loadingOlder ? "Loading earlier messages…" : "Load earlier messages")
                                 Spacer()
                             }.frame(minHeight: 44)
-                        }.disabled(loadingOlder).font(theme.bodyFont(.footnote))
+                        }.disabled(loadingOlder || store.offline).font(theme.bodyFont(.footnote))
                     }
                     if loading && messages.isEmpty { ProgressView().frame(maxWidth: .infinity).padding(40) }
                     if !loading && messages.isEmpty {
@@ -209,8 +219,36 @@ struct ConversationView: View {
                     HStack { PersonAvatar(userId: id, store: store); Text(store.userName(id)) }
                 }
             }
-            Text("Voice calls are coming to iPhone next.").font(theme.bodyFont(.footnote)).foregroundStyle(theme.ink3)
+            if store.calls?.session.channelID == channel.id {
+                Text("You're in this call. Use the call bar to open its controls or leave.")
+                    .font(theme.bodyFont(.footnote)).foregroundStyle(theme.ink2)
+            } else {
+                Button(action: joinCall) {
+                    Label(startingCall ? "Joining…" : "Join hangout", systemImage: "phone.fill").frame(minHeight: 44)
+                }.buttonStyle(.borderedProminent)
+                    .disabled(startingCall || store.offline || store.calls?.currentCallID != nil)
+                    .accessibilityIdentifier("join-hangout")
+            }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(24)
+    }
+
+    private var hasParticipants: Bool {
+        !(store.callStates.first { $0.channelId == channel.id }?.participantIds ?? []).isEmpty
+    }
+
+    private func joinCall() {
+        guard !startingCall, let calls = store.calls else { return }
+        startingCall = true
+        Task {
+            defer { startingCall = false }
+            // Foreground consent happens before CallKit's time-limited start action.
+            // Denied microphone access still permits listening and receiving video.
+            _ = await LiveKitSDK.ensureDeviceAccess(for: [.audio])
+            do {
+                try await calls.requestOutgoing(channelID: channel.id, title: store.channelTitle(channel),
+                    inviteDM: channel.kind == .dm && !hasParticipants)
+            } catch { store.report(error) }
+        }
     }
 
     private var peopleSheet: some View {

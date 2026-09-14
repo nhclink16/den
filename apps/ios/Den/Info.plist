@@ -20,6 +20,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>DenAPNSEnvironment</key>
+	<string>$(DEN_APNS_ENVIRONMENT)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -41,6 +43,8 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>audio</string>
+		<string>voip</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>

@@ -35,6 +35,7 @@ extension AppStore {
                     // Every new connection refetches. Den does not promise event replay.
                     try await self.refresh(); try self.check(expected); retry = 1
                     Task { await self.notifications?.registerIfAuthorized() }
+                    Task { await self.voip?.sessionRestored(); await self.calls?.reconcileInvitations() }
                     while !Task.isCancelled {
                         let incoming = try await socket.receive()
                         try self.check(expected)
@@ -60,6 +61,7 @@ extension AppStore {
         guard service != nil else { return }
         connectSocket()
         Task { await notifications?.registerIfAuthorized(retryImmediately: true) }
+        Task { await voip?.sessionRestored(); await calls?.reconcileInvitations() }
     }
     func sendTyping(channelId: String) {
         guard Date().timeIntervalSince(lastTyping) >= 3, let socket else { return }
@@ -110,6 +112,9 @@ extension AppStore {
                 callStates.removeAll { $0.channelId == channel }
                 callStates.append(.init(channelId: channel, participantIds: ids))
             }
+        case "call_invitation_state":
+            let call = try field("call", as: API.CallInvitationState.self)
+            await calls?.receiveAuthenticated(call)
         case "appearance_updated": theme.receive(try field("appearance", as: API.Appearance.self))
         case "notification_preferences_updated": preferences = try field("preferences", as: API.NotificationPreferences.self)
         case "read_state_updated":

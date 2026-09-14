@@ -113,12 +113,27 @@ struct SearchView: View {
     @State private var searching = false
     @State private var submitted = false
     @State private var searchTask: Task<Void, Never>?
+    @FocusState private var queryFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
 
     var body: some View {
         List {
             Section {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(theme.ink3).accessibilityHidden(true)
+                    TextField("Search messages", text: $query)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .submitLabel(.search).focused($queryFocused).onSubmit { search() }
+                        .accessibilityLabel("Search messages").accessibilityIdentifier("search-query")
+                    if !query.isEmpty {
+                        Button { query = ""; queryFocused = true } label: {
+                            Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain).foregroundStyle(theme.ink3).accessibilityLabel("Clear search")
+                    }
+                }
+                .frame(minHeight: 44).listRowBackground(theme.bg2)
                 Picker("Search in", selection: $scope) {
                     Text("All rooms and messages").tag("")
                     ForEach(store.channels.filter { $0.kind != .voice }, id: \.id) { channel in
@@ -133,7 +148,11 @@ struct SearchView: View {
                     .listRowBackground(Color.clear)
             }
             ForEach(results, id: \.id) { message in
-                Button { onNavigate(); store.selectChannel(message.channelId, messageId: message.id) } label: {
+                Button {
+                    queryFocused = false
+                    onNavigate()
+                    store.selectChannel(message.channelId, messageId: message.id)
+                } label: {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(store.channels.first(where: { $0.id == message.channelId }).map(store.channelTitle) ?? "Room")
@@ -158,15 +177,13 @@ struct SearchView: View {
         }
         .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
         .navigationTitle("Search")
-        .searchable(text: $query, prompt: "Search messages")
-        .onSubmit(of: .search) { search() }
         .onChange(of: scope) { _, _ in if submitted { search() } }
         .onChange(of: query) { _, value in
             if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 searchTask?.cancel(); searching = false; submitted = false; results = []
             }
         }
-        .onDisappear { searchTask?.cancel(); searching = false }
+        .onDisappear { queryFocused = false; searchTask?.cancel(); searching = false }
     }
 
     private func search() {

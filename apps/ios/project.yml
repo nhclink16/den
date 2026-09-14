@@ -15,6 +15,9 @@ settings:
 packages:
   DenAPI:
     path: Packages/DenAPI
+  LiveKit:
+    url: https://github.com/livekit/client-sdk-swift.git
+    exactVersion: 2.17.0
 targets:
   Den:
     type: application
@@ -27,6 +30,7 @@ targets:
         type: folder
     dependencies:
       - package: DenAPI
+      - package: LiveKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios
@@ -35,10 +39,16 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Den
         INFOPLIST_KEY_UILaunchScreen_Generation: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          DEN_APNS_ENVIRONMENT: sandbox
+        Release:
+          DEN_APNS_ENVIRONMENT: production
     info:
       path: Den/Info.plist
       properties:
         CFBundleDisplayName: Den
+        DenAPNSEnvironment: $(DEN_APNS_ENVIRONMENT)
         UILaunchScreen:
           UIColorName: LaunchBackground
           UIImageName: LaunchMark
@@ -61,6 +71,8 @@ targets:
           NSAllowsLocalNetworking: true
         UIBackgroundModes:
           - remote-notification
+          - audio
+          - voip
     entitlements:
       path: Den/Den.entitlements
       properties:

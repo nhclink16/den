@@ -29,6 +29,16 @@ struct RootView: View {
                 .onChange(of: store.targetMessageId) { _, value in if value != nil { tab = 0 } }
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let calls = store.calls, store.user != nil {
+                CallDock(session: calls.session, theme: theme,
+                    requestMute: { muted in Task { do { try await calls.requestMute(muted) } catch { store.report(error) } } },
+                    requestEnd: { Task { do { try await calls.requestEnd() } catch { store.report(error) } } })
+            }
+        }
+        .onChange(of: store.calls?.session.error) { _, error in
+            if let error, store.calls?.session.isActive == false { store.error = error }
+        }
         .font(theme.bodyFont()).foregroundStyle(theme.ink).tint(theme.accent)
         .background(theme.bg).preferredColorScheme(store.theme.preferredColorScheme)
         .alert("Couldn't finish", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
