@@ -1,3 +1,145 @@
+# M5a native iOS text
+
+## September 14 implementation update
+
+The native SwiftUI client now exists in `apps/ios`. It builds with Swift 6 strict
+concurrency for iOS 26, installs with automatic signing, and has launched on
+Nicholas's iPhone. This replaces the disposable signing probe. **M5a is not yet
+fully accepted:** closed-app APNs delivery still needs the server key, and the
+remaining device checks below are separate from simulator results.
+
+### Implemented
+
+- Generated public Swift client from the exact server OpenAPI; canonical per-origin
+  bearer sessions in Keychain, one-use WebSocket tickets, redirect rejection,
+  reconnect/refetch, and protected cached text. No API credential goes in a URL,
+  screenshot, fixture output, or repository file.
+- Native Rooms/Inbox/Search/Settings, categorized channels, DMs/group DMs,
+  author grouping and day/unread separators, Markdown/mentions/code, replies,
+  reaction toggle, own-message edit, own/admin delete, typing and presence.
+- Chunked Photos/Files uploads, progress/retry/removal, authenticated ranged
+  AVPlayer playback and seeking, image thumbnails and protected file sharing.
+  Upload completion is based on `complete`, not the existence of an upload ID.
+  Confirmed sends clear attachments before any fallible history refresh.
+- Eight shared paired theme families, all 15 licensed font families, light/dark/
+  system appearance, native tab/toolbars, iPad split navigation, and read-only
+  Machines/Access. Canvas and terminal messages remain explicit M5c placeholders.
+- APNs permission, device registration/removal before logout, retry after transient
+  registration failures, badge updates and message deep links after reauthentication.
+  Server device/push implementation and deployment are recorded separately in
+  [server notes](M5-SERVER-NOTES.md).
+
+Nicholas tested the physical app and confirmed **video scrubbing works**. His
+composer feedback is implemented: one uniform rounded surface, no glass treatment
+in the composer, a smaller send control with a 44-point hit target, Return to send,
+and Shift-Return for a newline. Multiline paste and input-method composition are
+preserved. The other tab/toolbars retain the brief's native iOS treatment.
+
+### Reproduction and versions
+
+Generate with XcodeGen **2.45.4** using `xcodegen generate --spec apps/ios/project.yml`.
+The shared scheme is `Den`, bundle `app.denchat.ios`, team `UH434K44A3`.
+OpenAPI Generator **1.13.1**, runtime **1.12.1**, URLSession transport **1.3.1**,
+and HTTPTypes **1.8.0** are exact package requirements with a committed package lock.
+The checked snapshot builds offline; `apps/ios/scripts/regenerate-api.sh` refreshes
+it explicitly. Public `https://denchat.app/openapi.json` was independently checked
+for parsed equality after server deployment. Snapshot SHA-256:
+`b2fd728d912bbcdae29020f28f501a2a628d6051ce47386614dcc1a1dfa5f480`.
+
+Resource source URLs, licenses, font commit and hashes are in the bundled font
+manifest. `python3 apps/ios/scripts/sync-resources.py --check` checks shared themes,
+fonts and assets. Fonts are bundled, not fetched by the running app.
+
+### Evidence so far
+
+- Real signed application build, install and launch on Nicholas's iPhone, not the
+  earlier probe. Aqua build receipts are under
+  `~/.local/share/den-ios-tools/runs/aqua-dzbmvbjz/` (exit 0).
+  The subsequent composer build is `runs/aqua-2o66c3cr/` (exit 0).
+- Thirteen Swift tests passed, including real AVPlayer seek against an authenticated
+  range stub, lost chunk-response offset recovery, origin/Markdown/grouping logic,
+  and the confirmed-send boundary. Every new test was deliberately broken, failed,
+  restored and passed. Notification retry and queued-tap recovery are included in that passing suite.
+- The real-server UI test has exercised login, Keychain restoration, message
+  send/edit/reply/reactions/delete, DM, Inbox, search and server-persisted Tide/dark
+  appearance. The final combined suite passed **14/14** (13 Swift tests plus the full real-server UI flow), zero warnings.
+  It found and fixed binary typing frames closing the socket, cancelled view
+  requests appearing as offline errors, and keyboard-obscured tab navigation.
+  Its sign-out confirmation selector was adapted to the actual sheet rather than
+  the equally labelled background row; logout assertions remain intact.
+- Test data is on the isolated Debian fixture, reached by a loopback SSH forward;
+  no friends' conversations/settings were used. Credentials stay in private files.
+  The native fixture hook exists only in debug simulator builds, requires an
+  explicit launch argument and loopback origin, and still uses the real login UI.
+
+Final combined result: `test_sim_2026-09-14T15-47-03-281Z_pid86141_44f9caaa.xcresult`.
+The UI test deliberately failed when Return stopped calling send, then passed after
+exact source restoration. Layout captures in [shots](shots/) show the real simulator
+composer, Inbox and appearance; they are not phone screenshots.
+
+Local xcresults are under
+`~/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/result-bundles/`.
+Mutation receipts: `/tmp/den-ios-unit-proof.md`,
+`/tmp/den-ios-media-mutation-proof/README.md`, and
+`/tmp/den-ios-send-boundary-proof/README.md`,
+`/tmp/den-ios-notification-proof/README.md`, and
+`/tmp/den-ios-ui-mutation-proof/README.md`. These temporary local artifacts are
+not durable Cloud run links. No Xcode Cloud run is claimed here.
+
+### Photos, Files and iPad follow-up
+
+The real simulator Photos picker selected a four-second synthetic video. Den
+uploaded and sent it; its authenticated download matched the original 1,557
+bytes and SHA-256 `c92042cbf78c77a55010fedd2e639eef16cb3cc8bc5c46df019081d050f952bc`.
+The native AVPlayer scrubber moved from one second elapsed to three seconds.
+Save to Files, reimport through the Files picker, and send produced the same bytes.
+These were temporary UI automation probes, not additional retained regression
+tests. Evidence: `/tmp/den-ios-photos-files-proof/README.md`; final result
+`test_sim_2026-09-14T16-10-25-279Z_pid99391_9a98d157.xcresult`.
+[Actual video controls](shots/m5a-iphone-video.png) show the simulator, not the phone.
+
+An iPad cold launch with the owned SSH fixture forward closed restored cached
+rooms and messages without a modal error. Reopening that forward automatically
+reconnected and displayed a message created during the outage, without tapping
+refresh. The Offline indicator disappeared. The server itself was never stopped.
+Evidence: `/tmp/den-ios-offline-proof.json`, simulator process 50535, semantic
+snapshots 11 and 12. [Cached chat](shots/m5a-ipad-offline.jpg).
+
+Largest accessibility text initially crowded the split sidebar. At those sizes,
+Rooms now uses full-width navigation; author and timestamp stack, and decorative
+icons/avatar initials stay inside their bounds. Normal iPad split navigation is
+preserved. The edited app built and ran successfully in
+`build_run_sim_2026-09-14T16-13-08-182Z_pid86141_c9112448.log`.
+Inspected captures: [large rooms](shots/m5a-ipad-accessibility-rooms.jpg),
+[large chat](shots/m5a-ipad-accessibility-chat.jpg),
+[normal light split view](shots/m5a-ipad-light.jpg). The simulator's text setting
+was restored to its original Large value. This is visual/semantic inspection,
+not a completed VoiceOver hardware audit.
+
+### Device acceptance still to finish
+
+| Check | Result |
+| --- | --- |
+| Signed real Den install and launch | Pass, native device tools |
+| Physical video scrubbing | Pass, Nicholas's report |
+| Revised composer appearance and Return behavior | Updated signed install/launch; simulator Return-to-send and layout pass |
+| Offline cold cache and reconnect | Pass, iPad cold launch with fixture forward closed, cached chat visible without modal; automatic reconnect received the message sent during outage |
+| iPad, Dynamic Type, light/dark captures | Pass, iPad Pro 11-inch M5 iOS 26.5, normal light/dark and largest accessibility text; full-width navigation at accessibility sizes |
+| Closed-app mention/DM push and tap | Blocked: APNs key/config missing |
+| Notification permission denial and Settings recovery | Native tests pass; hardware follow-up remains |
+| Calls, mic/camera/route/background/lock | M5b, not text acceptance |
+
+For push, supply the private `.p8`, Key ID and Team ID to the server configuration
+as described in server notes, using the signing-appropriate APNs environment.
+Then close Den, send a disposable-account mention/DM from a second client, verify
+the alert/badge, and tap into the exact message. Do not treat registration success
+or a simulated payload as this acceptance check.
+
+## Historical signing investigation
+
+The following notes describe the earlier probe and resolved signing blocker, not
+the current native implementation status.
+
 # M5a iOS signing setup, 2026-09-14
 
 ## Signing gate cleared at 10:18 Eastern

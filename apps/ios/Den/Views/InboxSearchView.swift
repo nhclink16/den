@@ -1,0 +1,191 @@
+import DenAPI
+import SwiftUI
+
+struct InboxView: View {
+    let store: AppStore
+    var onNavigate: () -> Void = {}
+    @State private var markingAll = false
+    @Environment(\.colorScheme) private var colorScheme
+    private var theme: DenTheme { store.theme.resolve(colorScheme) }
+    private var unread: [API.Channel] {
+        store.channels.filter { (store.readState($0.id)?.unreadCount ?? 0) > 0 }.sorted { left, right in
+            let lm = (store.readState(left.id)?.mentionCount ?? 0) > 0
+            let rm = (store.readState(right.id)?.mentionCount ?? 0) > 0
+            if lm != rm { return lm }
+            return (store.messages[left.id]?.last?.id ?? "") > (store.messages[right.id]?.last?.id ?? "")
+        }
+    }
+
+    var body: some View {
+        List {
+            if store.offline { QuietOfflineChip().listRowBackground(Color.clear) }
+            if unread.isEmpty {
+                ContentUnavailableView("You're caught up", systemImage: "tray", description: Text("Mentions, direct messages, and unread rooms appear here."))
+                    .listRowBackground(Color.clear)
+            }
+            ForEach(unread, id: \.id) { channel in
+                let previews = previewMessages(channel)
+                Section {
+                    Button { open(channel) } label: { RoomLabel(channel: channel, store: store) }
+                        .accessibilityIdentifier("inbox-room-\(channel.id)")
+                    ForEach(Array(previews.suffix(4)), id: \.id) { message in
+                        Button { open(channel) } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                PersonAvatar(userId: message.authorId, store: store, size: 28)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(store.userName(message.authorId)).fontWeight(.semibold)
+                                        Spacer(minLength: 4)
+                                        if let date = MessagePresentation.date(message.createdAt) {
+                                            Text(date, format: .dateTime.hour().minute()).font(theme.monoFont(.caption2)).foregroundStyle(theme.ink3)
+                                        }
+                                    }
+                                    Text(message.content.isEmpty ? "Sent an attachment" : message.content)
+                                        .font(theme.bodyFont(.subheadline)).foregroundStyle(theme.ink2).lineLimit(2)
+                                }
+                            }.padding(.vertical, 5).foregroundStyle(theme.ink)
+                        }
+                    }
+                    let earlier = Int(store.readState(channel.id)?.unreadCount ?? 0) - min(previews.count, 4)
+                    if earlier > 0 {
+                        Button("\(earlier) earlier \(earlier == 1 ? "message" : "messages")") { open(channel) }
+                            .font(theme.bodyFont(.caption))
+                    }
+                }.listRowBackground(theme.bg2)
+            }
+        }
+        .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
+        .navigationTitle("Inbox")
+        .toolbar {
+            if !unread.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(markingAll ? "Marking…" : "Mark all read") { markAll() }
+                        .disabled(markingAll || store.offline)
+                }
+            }
+        }
+        .refreshable { do { try await store.refresh(); await loadPreviews() } catch { store.report(error) } }
+        .task(id: unread.map(\.id)) { await loadPreviews() }
+    }
+
+    private func previewMessages(_ channel: API.Channel) -> [API.Message] {
+        let lastRead = store.readState(channel.id)?.lastReadId ?? ""
+        return (store.messages[channel.id] ?? []).filter { $0.id > lastRead && $0.authorId != store.user?.id }
+    }
+
+    private func open(_ channel: API.Channel) {
+        onNavigate()
+        // loadConversation fetches the unread window before the timeline picks its first unread row.
+        store.selectChannel(channel.id)
+    }
+
+    private func loadPreviews() async {
+        guard !store.offline else { return }
+        for channel in unread where store.messages[channel.id] == nil {
+            do { try await store.loadMessages(channelId: channel.id) }
+            catch { store.report(error); return }
+        }
+    }
+
+    private func markAll() {
+        let channels = unread
+        markingAll = true
+        Task {
+            defer { markingAll = false }
+            do {
+                for channel in channels {
+                    try await store.loadMessages(channelId: channel.id)
+                    if let message = store.messages[channel.id]?.last {
+                        try await store.markRead(channelId: channel.id, messageId: message.id)
+                    }
+                }
+            } catch { store.report(error) }
+        }
+    }
+}
+
+struct SearchView: View {
+    let store: AppStore
+    var onNavigate: () -> Void = {}
+    @State private var query = ""
+    @State private var scope = ""
+    @State private var results: [API.Message] = []
+    @State private var searching = false
+    @State private var submitted = false
+    @State private var searchTask: Task<Void, Never>?
+    @Environment(\.colorScheme) private var colorScheme
+    private var theme: DenTheme { store.theme.resolve(colorScheme) }
+
+    var body: some View {
+        List {
+            Section {
+                Picker("Search in", selection: $scope) {
+                    Text("All rooms and messages").tag("")
+                    ForEach(store.channels.filter { $0.kind != .voice }, id: \.id) { channel in
+                        Text(store.channelTitle(channel)).tag(channel.id)
+                    }
+                }.listRowBackground(theme.bg2)
+            }
+            if searching { ProgressView("Searching…").listRowBackground(Color.clear) }
+            else if results.isEmpty {
+                ContentUnavailableView(submitted ? "No messages found" : "Find a conversation", systemImage: "magnifyingglass",
+                    description: Text(submitted ? "Try a different word or search all rooms." : "Search messages across your Den."))
+                    .listRowBackground(Color.clear)
+            }
+            ForEach(results, id: \.id) { message in
+                Button { onNavigate(); store.selectChannel(message.channelId, messageId: message.id) } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(store.channels.first(where: { $0.id == message.channelId }).map(store.channelTitle) ?? "Room")
+                                .font(theme.bodyFont(.caption)).foregroundStyle(theme.accent)
+                            Spacer()
+                            if let date = MessagePresentation.date(message.createdAt) {
+                                Text(date, format: .dateTime.month(.abbreviated).day())
+                                    .font(theme.monoFont(.caption2)).foregroundStyle(theme.ink3)
+                            }
+                        }
+                        HStack(alignment: .top, spacing: 10) {
+                            PersonAvatar(userId: message.authorId, store: store, size: 28)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(store.userName(message.authorId)).fontWeight(.semibold)
+                                Text(message.content.isEmpty ? "Attachment" : message.content)
+                                    .font(theme.bodyFont(.subheadline)).lineLimit(4)
+                            }
+                        }.foregroundStyle(theme.ink)
+                    }.padding(.vertical, 6)
+                }.listRowBackground(theme.bg2).accessibilityIdentifier("search-result-\(message.id)")
+            }
+        }
+        .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
+        .navigationTitle("Search")
+        .searchable(text: $query, prompt: "Search messages")
+        .onSubmit(of: .search) { search() }
+        .onChange(of: scope) { _, _ in if submitted { search() } }
+        .onChange(of: query) { _, value in
+            if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                searchTask?.cancel(); searching = false; submitted = false; results = []
+            }
+        }
+        .onDisappear { searchTask?.cancel(); searching = false }
+    }
+
+    private func search() {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        searchTask?.cancel()
+        searching = true
+        submitted = true
+        let channelId = scope.isEmpty ? nil : scope
+        searchTask = Task {
+            do {
+                let found = try await store.search(query: query, channelId: channelId)
+                try Task.checkCancellation()
+                results = found
+                searching = false
+            } catch {
+                guard !Task.isCancelled else { return }
+                searching = false; store.report(error)
+            }
+        }
+    }
+}

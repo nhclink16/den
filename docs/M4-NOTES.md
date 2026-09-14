@@ -3,9 +3,9 @@
 Desktop releases are published, the installed Windows and Linux clients upgraded
 through the signed updater, and the paired-theme server is deployed. Full human
 acceptance remains open for audible push-to-talk in a game. The macOS follow-up
-passed several first-session checks. Later blank captures were taken while macOS
-was locked, so unlocked relaunch acceptance is still required. See the diagnostic
-correction below; those captures do not establish a Den rendering defect.
+now passes unlocked quit/relaunch, saved-session restoration and native notification
+click navigation on the unchanged v0.2.1. Earlier blank captures were taken while
+macOS was locked. No application fix or v0.2.2 release was needed.
 Associated HTTPS links also remain an implementation follow-up; `den://` links
 are implemented and verified. These are not recorded as passes.
 
@@ -87,11 +87,11 @@ the real-machine evidence below.
 
 | Check | Windows / WebView2 | Linux / WebKitGTK | macOS / WKWebView |
 | --- | --- | --- | --- |
-| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass first-session launch and real window capture; subsequent relaunch capture invalidated by locked macOS session |
-| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Pass public login; persistence after restart awaits unlocked acceptance |
-| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Pass add/switch public + private server; restart restoration awaits unlocked acceptance |
-| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Blocked by locked session; private test DM sent, no native toast verified |
-| Click notification to focus/switch/open room | Pass, returned to public server and requested room | Native notification action rendered; click navigation not separately accepted | Not verified; notification delivery blocked |
+| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass installed v0.2.1; Quit exited the process, a new process rendered the room list |
+| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Pass public login and saved session after full quit/relaunch; no new keychain prompt |
+| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Pass public Den + private First Den; both restored after quit/relaunch |
+| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Pass after allowing Den notifications; real native notification captured |
+| Click notification to focus/switch/open room | Pass, returned to public server and requested room | Native notification action rendered; click navigation not separately accepted | Pass native Open Den action switched from public Den to First Den and opened desktop_bob DM |
 | Tray/menu and app window | Captured and inspected | Captured and inspected | Pass, real app and menu-bar menu captured and inspected; Quit exited the process |
 | Call and microphone | Pass, joined public LiveKit room | Failed: LiveKit reports unsupported browser | Pass public call join and local mic control toggles; no remote audio confirmation |
 | Global PTT with another app focused | Press and release observed with Notepad foreground; audible/game check needs Nicholas | Global shortcut press/release event observed, but call unavailable | Not tested; audible/game check still needs Nicholas |
@@ -99,7 +99,7 @@ the real-machine evidence below.
 | Call remains attached across server switch | Pass, dock retained `hangout · Den` | Blocked by unsupported calls | Not exercised in this pass |
 | Native upload and authenticated thumbnail | Pass, file uploaded in UI; `den-media.localhost` thumbnail loaded with nonzero natural width | Basic native HTTP/media path exercised; upload not separately accepted on release | Not exercised in this pass |
 | `den://join` routing | Pass through registered OS scheme | Pass through repeat app launch/forwarding | Pass registered OS URL opened the private-server preview/login flow |
-| Signed 0.2.0 → 0.2.1 updater | Pass, signed download, restart, running version 0.2.1 and both sessions retained | Pass, restart, release hash, all three sessions retained | Installed 0.2.1 matches latest manifest; updater installation remains unverified |
+| Signed 0.2.0 → 0.2.1 updater | Pass, signed download, restart, running version 0.2.1 and both sessions retained | Pass, restart, release hash, all three sessions retained | Current 0.2.1 matches latest manifest for both Darwin targets; no Update ready chip. Upgrade installation not exercised |
 | Paired Appearance against deployed server | Pass, eight families; selected Tide in native UI and read `theme=tide` back; restored original preference | Paired private-server themes rendered after update | Per-account themes rendered across origins; editor/save not exercised |
 
 The Windows update crossed from a machine-wide MSI to the per-user NSIS install.
@@ -171,8 +171,9 @@ below invalidates the visual failure verdict. Repeat relaunch, restart persisten
 and updater acceptance with the console session unlocked.
 
 A private DM was sent successfully with HTTP 200 after relaunch, but no native
-notification was verified while the app was blank. There is therefore no macOS
-notification screenshot or notification-click pass. A substitute system-script
+notification was verified while the app was blank. That pass produced no macOS
+notification screenshot or notification-click pass; the unlocked follow-up below
+subsequently verified both. A substitute system-script
 notification was not used. The installed bundle reports 0.2.1; the GitHub manifest
 retrieved from the iMac also reports 0.2.1 with both Darwin architectures. No update
 chip appeared in the working first session, but this is not proof of an updater
@@ -226,9 +227,51 @@ It passed in **435 ms**, followed by the full native stub smoke and verified
 cleanup. This checks application startup; it does not substitute for an unlocked
 WKWebView capture or a real keychain/updater test.
 
-**Pending:** unlock the iMac, then repeat the unchanged release first. No v0.2.2
-root-cause fix or macOS updater pass is claimed from locked-session evidence.
-The requested release and installed-app acceptance remain open.
+The unlocked follow-up below resolves the relaunch and notification checks. The
+locked-session evidence alone did not justify a code change or release.
+
+### Unlocked v0.2.1 verification, 2026-09-14 late morning EDT
+
+The console session was already unlocked at the first check: the console user's
+`IOConsoleUsers` record reported no `CGSSessionScreenIsLocked` flag. No two-minute
+polling wait was needed. The installed `~/Applications/Den.app` was used throughout,
+with its original executable and linker-generated ad-hoc signature unchanged.
+No temporary debug build was launched, no signing identity was changed, and no
+keychain prompt appeared. This verifies repeated use of the same signed artifact;
+it does not claim that an ad-hoc identity stays stable across future rebuilds.
+
+The first process, PID 19586, rendered public Den's room list and Nicholas's saved
+account. The native menu-bar Quit action exited it; a subsequent launch created
+PID 20392. That new process rendered the room list and restored both public Den
+and private First Den without login input. A real window capture shows the two
+remembered servers. Accessibility queries sometimes returned no window while Den
+was in the background; the real window capture and subsequent targeted interaction
+confirmed that the app was rendering. The earlier blanket failure verdict is
+withdrawn. No v0.2.2 release is warranted by this verification.
+
+Three disposable private DMs from desktop_bob to desktop_admin exercised native
+notifications. macOS initially presented Den's notification authorization request;
+Allow was selected for Den. `usernoted` then recorded delivery for
+`app.denchat.desktop` from the installed app path. The actual Notification Center
+card was captured. Its native Open Den action switched the active instance from
+public Den to First Den and opened the desktop_bob conversation. A separate real
+window capture shows the resulting server, account, DM title and test messages.
+The screenshots cover only Den and its notification card, not Xcode or other
+applications' notifications.
+
+Updater state: the installed bundle reports 0.2.1. The latest GitHub manifest,
+retrieved from the iMac at 15:39 UTC, also reports 0.2.1 and contains
+`darwin-aarch64` and `darwin-x86_64`. No Update ready chip was visible. There was no
+newer release to install. The release UI does not expose a successful-check status,
+so the absence of a chip is not an independently observed success response from
+`update_check`. A macOS download/install/restart update remains unexercised; this
+pass verifies the current-version and visible pending-update state only.
+
+The three new test messages were deleted with HTTP 204 responses, and the temporary
+sender session was revoked. The active instance was restored to public Den. The temporary capture windows,
+diagnostic app copies, M4 test servers and reverse tunnels were cleaned up; First
+Den is offline until its disposable server is restarted.
+The den-ios build, Xcode windows/processes and keychain sign-in were left untouched.
 
 ### Evidence
 
@@ -248,7 +291,11 @@ The requested release and installed-app acceptance remain open.
   [call failure](shots/m4-linux-call-limit.png),
   [update chip](shots/m4-linux-update.png),
   [deep link](shots/m4-linux-deeplink.png).
-- macOS: [app](shots/m4-macos-app.png),
+- macOS unlocked follow-up: [installed app](shots/m4-macos-verified-app.png),
+  [restored servers after relaunch](shots/m4-macos-verified-relaunch.png),
+  [native notification](shots/m4-macos-verified-notification.png),
+  [notification navigation](shots/m4-macos-verified-notification-open.png).
+- macOS earlier pass: [app](shots/m4-macos-app.png),
   [switcher](shots/m4-macos-switcher.png),
   [call](shots/m4-macos-call.png),
   [menu-bar menu](shots/m4-macos-tray.png),
@@ -329,9 +376,9 @@ See [Tauri's signing instructions](https://tauri.app/distribute/sign/macos/) and
 
 ## Remaining attended and implementation checks
 
-On the iMac, first unlock the console session and recheck the installed release.
-Then repeat restart persistence, native notification delivery/click navigation and
-updater installation. Diagnose an application defect only if it reproduces unlocked. Verify actual screen-share publication and two simultaneous shares,
+On the iMac, quit/relaunch, persistence and native notification navigation are
+verified. When a newer release is needed, verify its macOS updater installation.
+Verify actual screen-share publication and two simultaneous shares,
 not only the system picker. Global PTT still needs a second participant to confirm
 speech only while held, including with another application/game focused. These
 human-dependent checks are not claimed. Gatekeeper/notarization acceptance waits
