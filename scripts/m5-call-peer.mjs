@@ -16,7 +16,7 @@ const base = fixture.origin, channel = fixture.dm_channel_id
 const r = await fetch(`${base}/calls/${channel}/token`, { method: 'POST', headers: { Authorization: `Bearer ${user.session.token}` } })
 assert(r.ok, `Media token status ${r.status}`)
 const media = await r.json()
-const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing', '--auto-select-desktop-capture-source=Entire screen'] })
+const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, handleSIGINT: false, handleSIGTERM: false, args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing', '--auto-select-desktop-capture-source=Entire screen'] })
 let stop
 const stopped = new Promise(resolve => { stop = resolve })
 process.once('SIGINT', () => stop('SIGINT'))
