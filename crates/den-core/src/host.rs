@@ -158,6 +158,7 @@ pub struct AccessRequest {
     pub standing: bool,
     pub status: String,
     pub expires_at: i64,
+    #[schema(value_type = Option<String>)]
     pub grant_id: Option<Id>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -170,11 +171,13 @@ pub struct AccessLog {
     pub host_id: Id,
     pub actor_id: Id,
     pub action: String,
+    #[schema(value_type = Option<String>)]
     pub subject_id: Option<Id>,
     pub created_at: i64,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct OpenTerminal {
+    #[schema(value_type = Option<String>)]
     pub channel_id: Option<Id>,
     pub cols: Option<u16>,
     pub rows: Option<u16>,
@@ -187,16 +190,19 @@ pub struct TerminalState {
     pub owner_id: Id,
     pub cols: u16,
     pub rows: u16,
+    #[schema(value_type = Option<String>)]
     pub active_controller_id: Option<Id>,
     pub viewer_ids: Vec<Id>,
     pub ended_at: Option<i64>,
     pub started_at: i64,
+    #[schema(value_type = Option<String>)]
     pub recording_upload_id: Option<Id>,
     pub recording_capped: bool,
     pub control_request_ids: Vec<Id>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct SetController {
+    #[schema(value_type = Option<String>)]
     pub user_id: Option<Id>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]

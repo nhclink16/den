@@ -30,7 +30,9 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("DEN_LIVEKIT_URL").unwrap_or_default(),
         std::env::var("DEN_LIVEKIT_API_KEY").unwrap_or_default(),
         std::env::var("DEN_LIVEKIT_API_SECRET").unwrap_or_default(),
-    );
+    )
+    .with_apns_from_env()
+    .await?;
     state.cleanup().await?;
     let cleanup = state.clone();
     tokio::spawn(async move {

@@ -154,6 +154,14 @@ pub(crate) async fn changed(s: &AppState, channel: &str, message: Option<&Messag
                     None
                 };
                 if let Some(reason) = reason {
+                    if s.push.is_some() {
+                        let badge = states(s, &user)
+                            .await?
+                            .iter()
+                            .map(|v| v.notification_count)
+                            .sum();
+                        push::notification(s, &user, message, reason.clone(), badge);
+                    }
                     let _ = s.events.send(Event::Notification {
                         user_id: user.clone(),
                         message: message.clone(),

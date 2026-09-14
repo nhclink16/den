@@ -2,6 +2,8 @@ mod appearance;
 pub use appearance::*;
 mod host;
 pub use host::*;
+mod ios;
+pub use ios::*;
 // Shared API types. The server serializes these, the CLI and the web client
 // deserialize them. Keep this crate free of framework dependencies.
 
@@ -48,6 +50,7 @@ pub enum Role {
 pub struct Channel {
     pub id: Id,
     pub name: String,
+    #[schema(value_type = Option<String>)]
     pub category_id: Option<Id>,
     pub kind: ChannelKind,
     pub position: i64,
@@ -69,6 +72,7 @@ pub struct Message {
     pub channel_id: Id,
     pub author_id: Id,
     pub content: String,
+    #[schema(value_type = Option<String>)]
     pub reply_to: Option<Id>,
     pub created_at: String,
     pub edited_at: Option<String>,
@@ -92,6 +96,7 @@ pub enum Event {
     TerminalOutput {
         session_id: Id,
         bytes: Vec<u8>,
+        #[schema(value_type = Option<String>)]
         connection_id: Option<Id>,
     },
     TerminalState {
@@ -137,6 +142,12 @@ pub enum Event {
     CallState {
         channel_id: Id,
         participant_ids: Vec<Id>,
+    },
+    /// Only other DM members with a pending, unexpired invitation receive this.
+    CallInvite {
+        channel_id: Id,
+        from_user_id: Id,
+        expires_at: i64,
     },
     Presence {
         user_id: Id,
@@ -224,6 +235,7 @@ pub struct Invite {
 pub struct CreateToken {
     pub name: String,
     /// Omit for self; a human may also mint credentials for a bot they own.
+    #[schema(value_type = Option<String>)]
     pub user_id: Option<Id>,
 }
 
@@ -268,6 +280,7 @@ pub struct SaveCategory {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SaveChannel {
     pub name: String,
+    #[schema(value_type = Option<String>)]
     pub category_id: Option<Id>,
     pub position: i64,
 }
@@ -281,6 +294,7 @@ pub struct CreateDm {
 pub struct CreateMessage {
     pub content: String,
     #[serde(default)]
+    #[schema(value_type = Option<String>)]
     pub reply_to: Option<Id>,
     #[serde(default)]
     pub upload_ids: Vec<Id>,
@@ -292,8 +306,13 @@ pub struct EditMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct MessageQuery {
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub before: Option<Id>,
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub after: Option<Id>,
     pub limit: Option<u32>,
 }
@@ -335,6 +354,7 @@ pub struct MarkRead {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct ChannelReadState {
     pub channel_id: Id,
+    #[schema(value_type = Option<String>)]
     pub last_read_id: Option<Id>,
     pub unread_count: i64,
     pub mention_count: i64,
@@ -364,9 +384,14 @@ pub enum NotificationReason {
     SubscribedChannel,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct SearchMessages {
     pub q: String,
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub channel_id: Option<Id>,
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub before: Option<Id>,
     pub limit: Option<u32>,
 }
@@ -412,10 +437,12 @@ pub struct CallState {
 pub struct ObjectSummary {
     pub id: Id,
     pub channel_id: Id,
+    #[schema(value_type = Option<String>)]
     pub message_id: Option<Id>,
     pub kind: String,
     pub name: String,
     pub version: i64,
+    #[schema(value_type = Option<String>)]
     pub thumbnail_upload_id: Option<Id>,
     pub thumbnail_url: Option<String>,
     pub created_by: Id,
@@ -450,6 +477,7 @@ pub struct ObjectVersion {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateObject {
     pub name: Option<String>,
+    #[schema(value_type = Option<String>)]
     pub thumbnail_upload_id: Option<Id>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]

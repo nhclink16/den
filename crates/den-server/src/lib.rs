@@ -5,12 +5,15 @@ mod auth;
 mod calls;
 mod chat;
 mod credentials;
+mod devices;
 mod hosts;
 mod inbox;
+mod invitations;
 mod messages;
 mod objects;
 mod openapi;
 pub mod portable;
+mod push;
 mod terminal;
 mod thumbnails;
 mod tickets;
@@ -48,6 +51,8 @@ pub struct Inner {
     pub(crate) hosts: hosts::Hosts,
     pub livekit: Option<calls::LiveKit>,
     pub calls: Mutex<HashMap<String, HashMap<String, String>>>,
+    pub(crate) apns_environment: push::Environment,
+    pub(crate) push: Option<tokio::sync::mpsc::Sender<push::Job>>,
     pub uploads: PathBuf,
     pub bootstrap: PathBuf,
     pub origin: String,
@@ -148,6 +153,8 @@ impl AppState {
             hosts: hosts::Hosts::default(),
             livekit: None,
             calls: Mutex::new(HashMap::new()),
+            apns_environment: push::Environment::default(),
+            push: None,
             uploads,
             bootstrap,
             origin,
@@ -183,7 +190,12 @@ impl AppState {
             .to_string()
     }
     pub async fn cleanup(&self) -> anyhow::Result<()> {
-        uploads::cleanup(self).await
+        uploads::cleanup(self).await?;
+        sqlx::query("DELETE FROM call_invitations WHERE expires_at<=?")
+            .bind(now())
+            .execute(&self.db)
+            .await?;
+        Ok(())
     }
 }
 
@@ -233,6 +245,8 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
+        .route("/devices", post(devices::register))
+        .route("/devices/{id}", delete(devices::remove))
         .route("/users", get(auth::users))
         .route("/users/me", get(auth::me))
         .route(
@@ -287,6 +301,11 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/presence", get(ws::presence))
         .route("/calls", get(calls::list))
         .route("/calls/{channel_id}/token", post(calls::token))
+        .route("/calls/{channel_id}/invite", post(invitations::invite))
+        .route(
+            "/calls/{channel_id}/invite/decline",
+            post(invitations::decline),
+        )
         .route("/livekit/webhook", post(calls::webhook))
         .route(
             "/uploads/{id}/thumbnail",

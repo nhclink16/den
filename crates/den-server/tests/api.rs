@@ -149,6 +149,8 @@ mod m2_files;
 
 #[path = "api/calls.rs"]
 mod calls;
+#[path = "api/ios.rs"]
+mod ios;
 
 #[path = "api/objects.rs"]
 mod objects;

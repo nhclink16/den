@@ -90,6 +90,23 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
             return terminal::can_view(s, &a.user.id, &session.id).await
         }
         Event::AccessDecided { user_id, .. } => return user_id == &a.user.id,
+        Event::CallInvite {
+            channel_id,
+            from_user_id,
+            expires_at,
+        } => {
+            return invitations::pending(
+                &s.db,
+                &a.user.id,
+                &CallInvitation {
+                    channel_id: channel_id.clone(),
+                    from_user_id: from_user_id.clone(),
+                    expires_at: *expires_at,
+                },
+            )
+            .await
+            .unwrap_or(false);
+        }
         Event::Notification {
             user_id, message, ..
         } => {

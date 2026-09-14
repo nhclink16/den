@@ -43,6 +43,8 @@ use utoipa::OpenApi;
         auth::register,
         auth::login,
         auth::logout,
+        devices::register,
+        devices::remove,
         auth::me,
         auth::users,
         credentials::invite,
@@ -82,6 +84,8 @@ use utoipa::OpenApi;
         ws::presence,
         calls::token,
         calls::list,
+        invitations::invite,
+        invitations::decline,
         calls::webhook,
         thumbnails::serve,
         ws::connect
@@ -164,7 +168,12 @@ use utoipa::OpenApi;
         ClientEvent,
         PresenceState,
         CallToken,
-        CallState
+        CallState,
+        DevicePlatform,
+        RegisterDevice,
+        Device,
+        CallInvitation,
+        DeclineCallInvitation
     ))
 )]
 struct Api;

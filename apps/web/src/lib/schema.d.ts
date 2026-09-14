@@ -132,6 +132,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calls/{channel_id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Invite other members of a DM/group DM after joining its call. A repeated request by the active caller returns the same invitation without re-notifying. Another caller conflicts until the 45-second invitation expires. This is invitation signaling, not VoIP delivery or an accept/cancel protocol. */
+        post: operations["post__calls__channel_id__invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/{channel_id}/invite/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Decline the identified invitation for your account across its devices. Repeated declines are idempotent while that invitation exists. An expired or replaced invitation returns 404, so a late decline cannot dismiss a new call. It does not end another participant's call. */
+        post: operations["post__calls__channel_id__invite_decline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calls/{channel_id}/token": {
         parameters: {
             query?: never;
@@ -255,6 +289,40 @@ export interface paths {
         put: operations["put__channels__id__read"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Register an iOS alert APNs token for the authenticated credential. DEN_APNS_ENV selects sandbox or production. Re-registration updates ownership; logout/revocation removes registrations bound to that credential. */
+        post: operations["post__devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Remove your device registration before logging out. Other users cannot remove it, including administrators. */
+        delete: operations["delete__devices__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -979,7 +1047,7 @@ export interface components {
             created_at: number;
             host_id: components["schemas"]["String"];
             id: components["schemas"]["String"];
-            subject_id?: null | components["schemas"]["String"];
+            subject_id?: string | null;
         };
         AccessRequest: {
             capability: components["schemas"]["Capability"];
@@ -987,7 +1055,7 @@ export interface components {
             duration_minutes?: number | null;
             /** Format: int64 */
             expires_at: number;
-            grant_id?: null | components["schemas"]["String"];
+            grant_id?: string | null;
             host_id: components["schemas"]["String"];
             host_name: string;
             id: components["schemas"]["String"];
@@ -1023,6 +1091,19 @@ export interface components {
             credential: components["schemas"]["TokenSecret"];
             user: components["schemas"]["User"];
         };
+        /**
+         * @description An invitation expires 45 seconds after creation. Repeated creation by the
+         *     same caller returns the existing invitation without notifying again.
+         */
+        CallInvitation: {
+            channel_id: components["schemas"]["String"];
+            /**
+             * Format: int64
+             * @description Unix time in seconds. Clients must dismiss an unanswered invitation then.
+             */
+            expires_at: number;
+            from_user_id: components["schemas"]["String"];
+        };
         CallState: {
             channel_id: components["schemas"]["String"];
             participant_ids: components["schemas"]["String"][];
@@ -1040,7 +1121,7 @@ export interface components {
             position: number;
         };
         Channel: {
-            category_id?: null | components["schemas"]["String"];
+            category_id?: string | null;
             id: components["schemas"]["String"];
             kind: components["schemas"]["ChannelKind"];
             /** @description Explicit DM participants. Text and voice channels are visible to all users. */
@@ -1053,7 +1134,7 @@ export interface components {
         ChannelKind: "text" | "voice" | "dm";
         ChannelReadState: {
             channel_id: components["schemas"]["String"];
-            last_read_id?: null | components["schemas"]["String"];
+            last_read_id?: string | null;
             /** Format: int64 */
             mention_count: number;
             /**
@@ -1101,7 +1182,7 @@ export interface components {
         };
         CreateMessage: {
             content: string;
-            reply_to?: null | components["schemas"]["String"];
+            reply_to?: string | null;
             upload_ids?: components["schemas"]["String"][];
         };
         CreateObject: {
@@ -1113,8 +1194,26 @@ export interface components {
         };
         CreateToken: {
             name: string;
-            user_id?: null | components["schemas"]["String"];
+            /** @description Omit for self; a human may also mint credentials for a bot they own. */
+            user_id?: string | null;
         };
+        /**
+         * @description Identify the invitation being declined so a delayed request cannot dismiss
+         *     a newer call in the same DM.
+         */
+        DeclineCallInvitation: {
+            /** Format: int64 */
+            expires_at: number;
+            from_user_id: components["schemas"]["String"];
+        };
+        /** @description Registration receipt. Tokens are deliberately omitted from responses. */
+        Device: {
+            app_version: string;
+            id: components["schemas"]["String"];
+            platform: components["schemas"]["DevicePlatform"];
+        };
+        /** @enum {string} */
+        DevicePlatform: "ios";
         DirectCheck: {
             input: boolean;
             session_id: components["schemas"]["String"];
@@ -1142,7 +1241,7 @@ export interface components {
             user_id: string;
         } | {
             bytes: number[];
-            connection_id?: null | components["schemas"]["String"];
+            connection_id?: string | null;
             session_id: components["schemas"]["String"];
             /** @enum {string} */
             type: "terminal_output";
@@ -1206,6 +1305,13 @@ export interface components {
             participant_ids: components["schemas"]["String"][];
             /** @enum {string} */
             type: "call_state";
+        } | {
+            channel_id: components["schemas"]["String"];
+            /** Format: int64 */
+            expires_at: number;
+            from_user_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "call_invite";
         } | {
             online: boolean;
             /** @enum {string} */
@@ -1378,11 +1484,11 @@ export interface components {
             mention_ids?: components["schemas"]["String"][];
             objects?: components["schemas"]["ObjectSummary"][];
             reactions?: components["schemas"]["Reaction"][];
-            reply_to?: null | components["schemas"]["String"];
+            reply_to?: string | null;
         };
         MessageQuery: {
-            after?: null | components["schemas"]["String"];
-            before?: null | components["schemas"]["String"];
+            after?: string | null;
+            before?: string | null;
             /** Format: int32 */
             limit?: number | null;
         };
@@ -1416,9 +1522,9 @@ export interface components {
             created_by: components["schemas"]["String"];
             id: components["schemas"]["String"];
             kind: string;
-            message_id?: null | components["schemas"]["String"];
+            message_id?: string | null;
             name: string;
-            thumbnail_upload_id?: null | components["schemas"]["String"];
+            thumbnail_upload_id?: string | null;
             thumbnail_url?: string | null;
             updated_at: string;
             /** Format: int64 */
@@ -1429,7 +1535,7 @@ export interface components {
             version: number;
         };
         OpenTerminal: {
-            channel_id?: null | components["schemas"]["String"];
+            channel_id?: string | null;
             /** Format: int32 */
             cols?: number | null;
             /** Format: int32 */
@@ -1448,6 +1554,12 @@ export interface components {
             password: string;
             username: string;
         };
+        RegisterDevice: {
+            app_version: string;
+            platform: components["schemas"]["DevicePlatform"];
+            /** @description APNs token encoded as hexadecimal. Do not log or expose this credential. */
+            token: string;
+        };
         RequestAccess: {
             capability: components["schemas"]["Capability"];
             /** Format: int32 */
@@ -1462,14 +1574,14 @@ export interface components {
             position: number;
         };
         SaveChannel: {
-            category_id?: null | components["schemas"]["String"];
+            category_id?: string | null;
             name: string;
             /** Format: int64 */
             position: number;
         };
         SearchMessages: {
-            before?: null | components["schemas"]["String"];
-            channel_id?: null | components["schemas"]["String"];
+            before?: string | null;
+            channel_id?: string | null;
             /** Format: int32 */
             limit?: number | null;
             q: string;
@@ -1482,7 +1594,7 @@ export interface components {
             user: components["schemas"]["User"];
         };
         SetController: {
-            user_id?: null | components["schemas"]["String"];
+            user_id?: string | null;
         };
         SetReaction: {
             emoji: string;
@@ -1518,7 +1630,7 @@ export interface components {
             type: "terminal_close";
         };
         TerminalState: {
-            active_controller_id?: null | components["schemas"]["String"];
+            active_controller_id?: string | null;
             /** Format: int32 */
             cols: number;
             control_request_ids: components["schemas"]["String"][];
@@ -1529,7 +1641,7 @@ export interface components {
             id: components["schemas"]["String"];
             owner_id: components["schemas"]["String"];
             recording_capped: boolean;
-            recording_upload_id?: null | components["schemas"]["String"];
+            recording_upload_id?: string | null;
             /** Format: int32 */
             rows: number;
             /** Format: int64 */
@@ -1583,7 +1695,7 @@ export interface components {
         };
         UpdateObject: {
             name?: string | null;
-            thumbnail_upload_id?: null | components["schemas"]["String"];
+            thumbnail_upload_id?: string | null;
         };
         UpdateSettings: {
             canvas_enabled?: boolean | null;
@@ -1875,6 +1987,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallState"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls__channel_id__invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallInvitation"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls__channel_id__invite_decline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineCallInvitation"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -2210,13 +2400,14 @@ export interface operations {
     };
     get__channels__id__messages: {
         parameters: {
-            query?: never;
+            query?: {
+                before?: string;
+                after?: string;
+                limit?: number;
+            };
             header?: never;
             path: {
                 id: string;
-                before: null | components["schemas"]["String"];
-                after: null | components["schemas"]["String"];
-                limit: number | null;
             };
             cookie?: never;
         };
@@ -2330,6 +2521,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelReadState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__devices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDevice"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Device"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__devices__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -3187,14 +3446,14 @@ export interface operations {
     };
     get__search_messages: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
+            query: {
                 q: string;
-                channel_id: null | components["schemas"]["String"];
-                before: null | components["schemas"]["String"];
-                limit: number | null;
+                channel_id?: string;
+                before?: string;
+                limit?: number;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
