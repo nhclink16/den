@@ -38,7 +38,7 @@ Done when: a gaming session runs on it with cams.
 
 ## M5 — iOS, native SwiftUI (decided 2026-09-14)
 Native app, iOS 26 and Liquid Glass materials, LiveKit Swift SDK for calls. Canvas and terminal tiles embed a web view inside native tiles. Built on the iMac by Astra.
-- M5a text: login, rooms, messages, DMs, inbox, uploads and video, settings, APNs push (server gains push sending).
+- M5a text: login, rooms, messages, DMs, inbox, uploads and video, settings, APNs push (server gains push sending). Started 2026-09-14, brief in `docs/M5A-IOS-BRIEF.md`.
 - M5b calls: LiveKit Swift, CallKit ringing for DM calls, background audio, picture-in-picture, phone-sized layouts with every share visible.
 - M5c: plugin tiles in embedded web views, multi-server switcher, QR pairing to add a server.
 
