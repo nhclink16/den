@@ -128,10 +128,58 @@ and passing afterward (`den-m5b-restart-race-{red,green}.log`).
 
 ## Production
 
-Backup, deployment and public M1/M3 smokes are the remaining authorized release
-steps. APNs transport is verified against a local protocol stub; real Apple
-delivery remains blocked on the missing APNs key/IDs. No production credentials
-have been invented or added.
+Deployed pushed main `e596399` on 2026-09-14; the server implementation is
+`5f0d2b6`, merged through `5303d3a`. Fable was notified before the shared
+contract/migration merge and coordinated the other lane's deployment hold.
+Native received and verified the final schema before deployment.
+
+The VPS `den-backup` service succeeded at 16:25:49 UTC (ExecMainStatus 0).
+Off-box receipt: `/mnt/storage/den/backups/2026-09-14/den.zip`, 16,878,810 bytes,
+with `complete` updated at 16:25:48 UTC. Then `deploy/release.sh` built and
+installed this exact pushed main revision from `/mnt/storage/den-m5b-release`,
+an isolated clean checkout. This kept the shared main checkout's unfinished web
+dictation work out of the release and preserved all other lane files.
+
+Public health: `https://denchat.app/health` returned
+`{"ok":true,"version":"0.2.1"}`. Public OpenAPI matches the final artifact exactly
+as parsed JSON, including devices, invitation accept/cancel/end/list/get/redeem,
+and generated types. Its compact HTTP body SHA-256 is
+`922859d7d43c36b16f6b81c0e129c805ff07c40256eeb9426011c5e1e3d235e7`.
+Authenticated reads reject missing credentials with 401; the bounded public
+redeem rejects an invalid ticket with 410.
+
+Service invocation `b65d6644deb24f2aa46e5170673b511a` logged exactly one
+`APNs is not configured; push delivery disabled` line and zero startup errors.
+Real Apple delivery remains blocked on the missing APNs key/IDs; the HTTP/2
+provider tests verify transport behavior without calling Apple.
+
+Public M1 passed against `https://denchat.app`: independent CLI sessions and
+messages, two reconnecting WebSocket tails after cutting only their own relay
+connections, 41-second H.264/AAC video (11,894,863 bytes) with chunk resume and
+full authenticated decode, and bot bearer revocation/replacement. Cleanup
+verified five exact messages, one upload, new tokens and three login sessions
+removed. Receipts: `/mnt/storage/den-public-m1-6trbzg08/cleanup-receipts.json`.
+
+Public M3 passed: three cameras, decoded screen/audio, mute/leave,
+push-to-talk/custom key/blur, live text, DM privacy/switching, resync, expected
+public media IP 135.148.120.197, and desktop/mobile captures. Exact cleanup
+removed its one test message and confirmed no new room artifacts.
+
+The first mobile grid screenshot captured the portal layout before its content
+moved into place. Repeating the same smoke with a 600 ms pause before screenshots
+produced a correct three-video mobile grid; the full repeat and exact cleanup
+passed again. Desktop screen-share and settled mobile grid images were visually
+inspected. Extra evidence: `den-m5b-production-m3-settled.log` and
+`den-m5b-production-settled-shots/` under `/mnt/storage`.
+
+Both lanes were notified with the final production contract and schema. The
+server release is complete; native owns its remaining device/CallKit verification
+and fixture cleanup. Apple delivery still needs the APNs key/IDs.
+
+Release evidence under `/mnt/storage/`: `den-m5b-production-release.log`,
+`den-m5b-public-verification.json`, `den-m5b-production-openapi.json`,
+`den-m5b-production-startup.log`, `den-m5b-production-m1.log`,
+`den-m5b-production-m3.log`, and `den-m5b-production-shots/`.
 
 For an attended persistent media peer, run from the server worktree or main:
 
