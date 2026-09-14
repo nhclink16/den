@@ -64,7 +64,8 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryUsageDescription: Choose photos and videos to share in Den.
-        NSMicrophoneUsageDescription: Use your microphone in Den calls.
+        NSMicrophoneUsageDescription: Use your microphone for calls and on-device dictation in Den.
+        NSSpeechRecognitionUsageDescription: Turn speech into message text on this device.
         NSCameraUsageDescription: Share your camera in Den calls.
         NSLocalNetworkUsageDescription: Connect to your self-hosted Den server on your network.
         NSAppTransportSecurity:

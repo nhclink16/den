@@ -32,9 +32,11 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to your self-hosted Den server on your network.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Use your microphone in Den calls.</string>
+	<string>Use your microphone for calls and on-device dictation in Den.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose photos and videos to share in Den.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Turn speech into message text on this device.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

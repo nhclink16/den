@@ -127,6 +127,8 @@ struct ConversationView: View {
                     Color.clear.frame(height: 1).id("timeline-bottom")
                 }
                 .padding(.vertical, 12)
+                .contentShape(Rectangle())
+                .simultaneousGesture(TapGesture().onEnded { store.dictation?.stop() })
             }
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
@@ -197,16 +199,22 @@ struct ConversationView: View {
         }.padding(.horizontal, 16).padding(.vertical, 8).accessibilityLabel("Unread messages start here")
     }
 
-    private var typingIndicator: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let names = (store.typing[channel.id] ?? [:]).filter {
-                $0.key != store.user?.id && context.date.timeIntervalSince($0.value) < 6
-            }.keys.sorted().map(store.userName)
-            if !names.isEmpty {
-                Text(names.joined(separator: ", ") + (names.count == 1 ? " is typing…" : " are typing…"))
-                    .font(theme.bodyFont(.caption)).foregroundStyle(theme.ink2)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 4)
-                    .accessibilityIdentifier("typing-indicator")
+    @ViewBuilder private var typingIndicator: some View {
+        if store.dictationChannelId == channel.id, store.dictation?.state == .listening {
+            Text("listening").font(theme.monoFont(.caption)).foregroundStyle(theme.accent)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 4)
+                .accessibilityIdentifier("dictation-listening")
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let names = (store.typing[channel.id] ?? [:]).filter {
+                    $0.key != store.user?.id && context.date.timeIntervalSince($0.value) < 6
+                }.keys.sorted().map(store.userName)
+                if !names.isEmpty {
+                    Text(names.joined(separator: ", ") + (names.count == 1 ? " is typing…" : " are typing…"))
+                        .font(theme.bodyFont(.caption)).foregroundStyle(theme.ink2)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 4)
+                        .accessibilityIdentifier("typing-indicator")
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ import SwiftUI
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { store.foreground() }
+                    else if phase == .background { store.dictation?.invalidateContext() }
                 }
         }
     }

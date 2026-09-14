@@ -14,6 +14,9 @@ import DenAPI
         let calls = CallController(session: CallSession(), api: api)
         store.calls = calls
         store.voip = VoIPPushController(calls: calls, registration: api)
+        let dictation = DictationController(isCallActive: { [weak calls] in calls?.preventsDictation == true })
+        store.dictation = dictation
+        calls.beforeAudioPreparation = { [weak dictation] in dictation?.invalidateContext() }
     }
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // PushKit may launch us with no SwiftUI scene. Reporting cannot wait for chat restore.

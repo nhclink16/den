@@ -148,12 +148,18 @@ extension CallController {
     }
 
     func reportMalformed(completion: @escaping @Sendable () -> Void) {
+        // A mandatory PushKit report can arrive while dictation owns the microphone.
+        beforeAudioPreparation?()
+        if !preventsDictation { try? CallSession.prepareAudioSessionForCallKit() }
         let id = UUID()
+        pendingSystemReports.insert(id)
         refreshProviderConfiguration()
         provider.reportNewIncomingCall(with: id, update: callUpdate(name: "Den call", handle: "Den")) { [weak self] reportError in
             completion()
             Task { @MainActor [weak self] in
-                if reportError == nil { self?.provider.reportCall(with: id, endedAt: Date(), reason: .failed) }
+                guard let self else { return }
+                if reportError == nil { provider.reportCall(with: id, endedAt: Date(), reason: .failed) }
+                pendingSystemReports.remove(id)
             }
         }
     }

@@ -7,7 +7,11 @@ import Observation
 @MainActor @Observable final class CallController: NSObject {
     let session: CallSession
     private(set) var currentCallID: UUID?
+    private(set) var audioSessionInUse = false
+    var pendingSystemReports: Set<UUID> = []
+    var preventsDictation: Bool { currentCallID != nil || session.callID != nil || audioSessionInUse || !pendingSystemReports.isEmpty }
     var error: String?
+    @ObservationIgnored var beforeAudioPreparation: (@MainActor () -> Void)?
     @ObservationIgnored let api: any CallControllerAPI
     @ObservationIgnored let provider: CXProvider
     @ObservationIgnored let system = CXCallController()
@@ -45,6 +49,10 @@ import Observation
 
     func requestOutgoing(channelID: String, title: String, inviteDM: Bool) async throws {
         guard currentCallID == nil, session.callID == nil, audioLease.activated == nil else { throw CallSession.Failure.alreadyCalling }
+        beforeAudioPreparation?()
+        // Dictation uses a recording category. Restore CallKit's category before the
+        // system transaction, not for the first time inside its start callback.
+        try CallSession.prepareAudioSessionForCallKit()
         let context = CallControllerContext(id: UUID(), channelID: channelID, title: title,
             mode: inviteDM ? .outgoingDM : .hangout)
         contexts[context.id] = context; currentCallID = context.id
@@ -124,6 +132,7 @@ import Observation
         let receipt = track(action)
         guard let context = contexts[action.callUUID], isLive(context), context.mode == .incoming,
               !context.answering else { receipt.finish(false); return }
+        beforeAudioPreparation?()
         context.answering = true
         context.prefetch?.cancel(); context.prefetch = nil
         context.work = Task { @MainActor [weak self] in
@@ -190,6 +199,8 @@ import Observation
 
     func reset() {
         audioLease.reset()
+        audioSessionInUse = false
+        pendingSystemReports.removeAll()
         for receipt in receipts.values { receipt.gate.timedOut() }
         for context in Array(contexts.values) {
             context.ending = true; context.work?.cancel(); context.prefetch?.cancel()
@@ -198,6 +209,7 @@ import Observation
     }
 
     func activated() {
+        defer { audioSessionInUse = audioLease.activated != nil }
         let live = Set(system.callObserver.calls.filter { !$0.hasEnded }.map(\.uuid))
         guard let id = audioLease.activate(liveCallIDs: live),
               let context = contexts[id], isLive(context), context.mediaReady else { return }
@@ -206,6 +218,7 @@ import Observation
     }
 
     func deactivated() {
+        defer { audioSessionInUse = audioLease.activated != nil }
         guard let owner = audioLease.deactivate() else { return }
         session.audioSessionDidDeactivate(for: owner)
     }
@@ -262,7 +275,12 @@ import Observation
         return task
     }
 
-    func adoptIncoming(_ id: UUID) { currentCallID = id }
+    func adoptIncoming(_ id: UUID) {
+        beforeAudioPreparation?()
+        currentCallID = id
+        do { try CallSession.prepareAudioSessionForCallKit() }
+        catch { self.error = "Couldn't prepare call audio. Try answering the call again." }
+    }
 
     func isLive(_ context: CallControllerContext) -> Bool { contexts[context.id] === context && !context.ended && !context.ending }
     func check(_ context: CallControllerContext) throws {

@@ -35,7 +35,12 @@ struct ComposerView: View {
     @State private var showFiles = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var focused = false
+    @State private var selection = NSRange(location: 0, length: 0)
+    @State private var dictationInsertion: DictationInsertion?
+    @State private var dictationID: UUID?
+    @State private var dictationStart: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
     private var uploads: [PendingUpload] { store.pendingUploads.filter { $0.channelId == channel.id } }
     private var canSend: Bool {
@@ -53,7 +58,7 @@ struct ComposerView: View {
                         Text(reply.content.isEmpty ? "Attachment" : reply.content).lineLimit(1).foregroundStyle(theme.ink2)
                     }.font(theme.bodyFont(.caption))
                     Spacer()
-                    Button { self.reply = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    Button { stopDictation(); self.reply = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
                         .accessibilityLabel("Cancel reply")
                 }
             }
@@ -68,15 +73,17 @@ struct ComposerView: View {
             }
             HStack(alignment: .bottom, spacing: 4) {
                 Menu {
-                    Button("Photos and videos", systemImage: "photo.on.rectangle") { showPhotos = true }
-                    Button("Choose a file", systemImage: "folder") { showFiles = true }
+                    Button("Photos and videos", systemImage: "photo.on.rectangle") { stopDictation(); showPhotos = true }
+                    Button("Choose a file", systemImage: "folder") { stopDictation(); showFiles = true }
                 } label: {
                     Image(systemName: "plus").font(.body.weight(.medium)).frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain).foregroundStyle(theme.ink2)
                 .accessibilityLabel("Add an attachment").accessibilityIdentifier("composer-attach")
                 .disabled(importing || store.offline)
-                MessageInput(text: $draft, focused: $focused, theme: theme, onSend: send)
+                .simultaneousGesture(TapGesture().onEnded { stopDictation() })
+                MessageInput(text: $draft, focused: $focused, selection: $selection, theme: theme,
+                             onSend: send, onManualChange: cancelDictation, onEscape: stopDictation)
                     .overlay(alignment: .topLeading) {
                         if draft.isEmpty {
                             Text("Message \(store.channelTitle(channel))")
@@ -85,6 +92,9 @@ struct ComposerView: View {
                         }
                     }
                     .onChange(of: draft) { _, _ in store.sendTyping(channelId: channel.id) }
+                if let dictation = store.dictation, dictation.isAvailable {
+                    dictationButton(dictation)
+                }
                 Button(action: send) {
                     Group {
                         if sending { ProgressView().tint(theme.bg) }
@@ -103,7 +113,18 @@ struct ComposerView: View {
             .overlay { RoundedRectangle(cornerRadius: theme.radius).stroke(theme.line, lineWidth: 1).allowsHitTesting(false) }
         }
         .padding(.horizontal, 12).padding(.vertical, 10 * theme.density)
-        .onDisappear { focused = false }
+        .task { await store.dictation?.refresh() }
+        .onDisappear { cancelDictation(); focused = false }
+        .onChange(of: channel.id) { _, _ in cancelDictation() }
+        .onChange(of: focused) { _, value in if !value { stopDictation() } }
+        .onChange(of: store.dictation?.state) { _, value in
+            if value == .idle { releaseDictation() }
+        }
+        .alert("Dictation", isPresented: Binding(get: { store.dictation?.error != nil }, set: { visible in
+            if !visible { store.dictation?.clearError() }
+        })) {
+            Button("OK") { store.dictation?.clearError() }
+        } message: { Text(store.dictation?.error ?? "") }
         .photosPicker(isPresented: $showPhotos, selection: $photos, maxSelectionCount: 10, matching: .any(of: [.images, .videos]), preferredItemEncoding: .current)
         .onChange(of: photos) { _, value in
             guard !value.isEmpty else { return }
@@ -124,6 +145,79 @@ struct ComposerView: View {
             }
         }
         .onChange(of: reply?.id) { _, value in if value != nil { focused = true } }
+    }
+
+    private func dictationButton(_ dictation: DictationController) -> some View {
+        let listening = dictation.state == .listening
+        let active = dictationID != nil || dictation.isActive
+        return Button {
+            if active { stopDictation() }
+            else { startDictation(dictation) }
+        } label: {
+            ZStack {
+                if listening {
+                    DictationPulse(reduceMotion: reduceMotion, color: theme.accent)
+                        .frame(width: 30, height: 30).accessibilityHidden(true)
+                }
+                if dictation.state == .preparing || dictation.state == .finishing || (active && dictation.state == .idle) {
+                    ProgressView().tint(theme.accent)
+                } else {
+                    Image(systemName: "mic").font(.body.weight(.medium))
+                }
+            }.frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).foregroundStyle(active ? theme.accent : theme.ink2)
+        .disabled(sending || importing)
+        .accessibilityLabel(active ? "Stop dictating" : "Dictate")
+        .accessibilityValue(listening ? "Listening" : "")
+        .accessibilityIdentifier("composer-dictate")
+    }
+
+    private func startDictation(_ controller: DictationController) {
+        guard !sending, !importing, controller.isAvailable,
+              let insertion = DictationInsertion(text: draft, selection: selection) else { return }
+        let id = UUID()
+        let contextRevision = controller.contextRevision
+        dictationInsertion = insertion; dictationID = id
+        store.dictationChannelId = channel.id
+        focused = true
+        dictationStart = Task {
+            guard !Task.isCancelled, dictationID == id, controller.contextRevision == contextRevision else {
+                if dictationID == id { releaseDictation() }
+                return
+            }
+            await controller.start { transcript in
+                guard dictationID == id, store.dictationChannelId == channel.id,
+                      var insertion = dictationInsertion else { return }
+                guard let update = insertion.update(transcript: transcript, currentText: draft) else {
+                    cancelDictation(); return
+                }
+                dictationInsertion = insertion
+                draft = update.text; selection = update.selection
+            }
+            if controller.state == .idle, dictationID == id { releaseDictation() }
+        }
+    }
+
+    private func stopDictation() {
+        guard dictationID != nil, store.dictationChannelId == channel.id else { return }
+        if store.dictation?.state == .idle || store.dictation?.state == .preparing {
+            cancelDictation(); return
+        }
+        store.dictation?.stop()
+    }
+
+    private func cancelDictation() {
+        guard dictationID != nil else { return }
+        if store.dictationChannelId == channel.id { store.dictation?.invalidateContext() }
+        releaseDictation()
+    }
+
+    private func releaseDictation() {
+        guard dictationID != nil else { return }
+        dictationStart?.cancel(); dictationStart = nil
+        dictationID = nil; dictationInsertion = nil
+        if store.dictationChannelId == channel.id { store.dictationChannelId = nil }
     }
 
     private func uploadChip(_ upload: PendingUpload) -> some View {
@@ -171,6 +265,7 @@ struct ComposerView: View {
     }
 
     private func send() {
+        cancelDictation()
         guard canSend else { return }
         sending = true
         let content = draft
@@ -179,11 +274,25 @@ struct ComposerView: View {
             defer { sending = false }
             do {
                 try await store.send(channelId: channel.id, content: content, replyTo: replyId)
-                if draft == content { draft = "" }
+                if draft == content { draft = ""; selection = NSRange(location: 0, length: 0) }
                 if reply?.id == replyId { reply = nil }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onSent()
             } catch { store.report(error) }
         }
+    }
+}
+
+private struct DictationPulse: View {
+    let reduceMotion: Bool
+    let color: Color
+    @State private var expanded = false
+
+    var body: some View {
+        Circle().stroke(color.opacity(expanded && !reduceMotion ? 0.15 : 0.5), lineWidth: 1.5)
+            .scaleEffect(expanded && !reduceMotion ? 1.12 : 0.9)
+            .onAppear { expanded = !reduceMotion }
+            .onChange(of: reduceMotion) { _, value in expanded = !value }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: expanded)
     }
 }

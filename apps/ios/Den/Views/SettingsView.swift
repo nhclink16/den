@@ -27,6 +27,8 @@ struct SettingsView: View {
             Section {
                 NavigationLink { AppearanceView(store: store) } label: { Label("Appearance", systemImage: "paintpalette") }
                 NavigationLink { NotificationSettingsView(store: store) } label: { Label("Notifications", systemImage: "bell") }
+                NavigationLink { VoiceSettingsView(store: store) } label: { Label("Voice", systemImage: "waveform") }
+                    .accessibilityIdentifier("settings-voice")
             }.listRowBackground(theme.bg2)
             Section {
                 NavigationLink { MachinesView(store: store) } label: { Label("Machines", systemImage: "desktopcomputer") }
@@ -50,6 +52,49 @@ struct SettingsView: View {
                 }
             }
         } message: { Text("You can sign back in with your account. This removes saved messages from this iPhone.") }
+    }
+}
+
+private struct VoiceSettingsView: View {
+    let store: AppStore
+    @State private var checking = true
+    @Environment(\.colorScheme) private var colorScheme
+    private var theme: DenTheme { store.theme.resolve(colorScheme) }
+
+    var body: some View {
+        List {
+            if let dictation = store.dictation {
+                @Bindable var dictation = dictation
+                Section {
+                    Picker("Language", selection: $dictation.selectedLanguageID) {
+                        if !dictation.languages.contains(where: { $0.id == dictation.selectedLanguageID }) {
+                            Text(Locale.current.localizedString(forIdentifier: dictation.selectedLanguageID) ?? dictation.selectedLanguageID)
+                                .tag(dictation.selectedLanguageID)
+                        }
+                        ForEach(dictation.languages) { language in
+                            Text(language.name).tag(language.id)
+                        }
+                    }.accessibilityIdentifier("dictation-language")
+                    if dictation.supportsPunctuation {
+                        Toggle("Punctuation", isOn: $dictation.punctuationEnabled)
+                            .accessibilityIdentifier("dictation-punctuation")
+                    }
+                    if checking { ProgressView("Checking available languages…") }
+                    else if !dictation.languages.contains(where: { $0.id == dictation.selectedLanguageID }) {
+                        Text("On-device dictation isn't available for this language.")
+                            .foregroundStyle(theme.ink2)
+                    }
+                } header: { Text("Dictation") } footer: {
+                    Text("Audio stays on this device. Dictation is unavailable during calls.")
+                }.listRowBackground(theme.bg2)
+            }
+        }
+        .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
+        .navigationTitle("Voice").navigationBarTitleDisplayMode(.inline)
+        .task {
+            await store.dictation?.refresh(force: true)
+            checking = false
+        }
     }
 }
 

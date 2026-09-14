@@ -6,14 +6,19 @@ import UIKit
 struct MessageInput: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
+    @Binding var selection: NSRange
     let theme: DenTheme
     let onSend: () -> Void
+    let onManualChange: () -> Void
+    let onEscape: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> ChatTextView {
         let view = ChatTextView()
         view.delegate = context.coordinator
+        view.onEscape = { context.coordinator.parent.onEscape() }
+        view.onInteraction = { context.coordinator.parent.onManualChange() }
         view.backgroundColor = .clear
         view.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         view.textContainer.lineFragmentPadding = 0
@@ -34,7 +39,12 @@ struct MessageInput: UIViewRepresentable {
 
     func updateUIView(_ view: ChatTextView, context: Context) {
         context.coordinator.parent = self
-        if view.text != text { view.text = text }
+        context.coordinator.applyingUpdate = true
+        defer { context.coordinator.applyingUpdate = false }
+        if !view.text.utf16.elementsEqual(text.utf16) { view.text = text }
+        if view.selectedRange != selection, Range(selection, in: text) != nil {
+            view.selectedRange = selection
+        }
         view.font = DenFonts.uiFont(theme.family.fonts.body, compatibleWith: view.traitCollection)
         view.textColor = UIColor(theme.ink)
         view.tintColor = UIColor(theme.accent)
@@ -54,16 +64,32 @@ struct MessageInput: UIViewRepresentable {
 
     @MainActor final class Coordinator: NSObject, UITextViewDelegate {
         var parent: MessageInput
+        var applyingUpdate = false
         init(_ parent: MessageInput) { self.parent = parent }
-        func textViewDidChange(_ textView: UITextView) { parent.text = textView.text }
-        func textViewDidBeginEditing(_ textView: UITextView) { parent.focused = true }
-        func textViewDidEndEditing(_ textView: UITextView) { parent.focused = false }
+        func textViewDidChange(_ textView: UITextView) {
+            guard !applyingUpdate else { return }
+            parent.onManualChange()
+            parent.text = textView.text
+            parent.selection = textView.selectedRange
+        }
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            guard !applyingUpdate, parent.selection != textView.selectedRange else { return }
+            parent.onManualChange()
+            parent.selection = textView.selectedRange
+        }
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            if !applyingUpdate { parent.focused = true }
+        }
+        func textViewDidEndEditing(_ textView: UITextView) {
+            if !applyingUpdate { parent.focused = false }
+        }
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
             if text == "\n", textView.markedTextRange == nil,
                (textView as? ChatTextView)?.insertingLineBreak != true {
                 parent.onSend()
                 return false
             }
+            parent.onManualChange()
             return true
         }
     }
@@ -71,11 +97,20 @@ struct MessageInput: UIViewRepresentable {
 
 final class ChatTextView: UITextView {
     var insertingLineBreak = false
+    var onEscape: (() -> Void)?
+    var onInteraction: (() -> Void)?
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        onInteraction?()
+        super.touchesBegan(touches, with: event)
+    }
     override var keyCommands: [UIKeyCommand]? {
         let newline = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(insertLineBreak))
         newline.discoverabilityTitle = "New line"
         newline.wantsPriorityOverSystemBehavior = true
-        return (super.keyCommands ?? []) + [newline]
+        let escape = UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(stopDictating))
+        escape.discoverabilityTitle = "Stop dictating"
+        escape.wantsPriorityOverSystemBehavior = true
+        return (super.keyCommands ?? []) + [newline, escape]
     }
     @objc private func insertLineBreak() {
         insertingLineBreak = true
@@ -83,4 +118,5 @@ final class ChatTextView: UITextView {
         insertText("\n")
     }
     @objc func dismissKeyboard() { resignFirstResponder() }
+    @objc private func stopDictating() { onEscape?(); resignFirstResponder() }
 }

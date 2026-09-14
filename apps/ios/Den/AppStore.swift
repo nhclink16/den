@@ -28,6 +28,8 @@ import UIKit
     var pendingUploads: [PendingUpload] = []
     var calls: CallController?
     var voip: VoIPPushController?
+    var dictation: DictationController?
+    var dictationChannelId: String?
     @ObservationIgnored var service: DenService?
     @ObservationIgnored var generation = UUID()
     @ObservationIgnored var socket: URLSessionWebSocketTask?
@@ -253,6 +255,7 @@ import UIKit
         let reads = try await activeService().readStates(); try check(expected); readStates = reads
     }
     func logout() async throws {
+        dictation?.invalidateContext()
         // Do not silently abandon a still-registered push endpoint on failure.
         do {
             try await cancelPendingUploads()
@@ -271,6 +274,7 @@ import UIKit
         }
     }
     func stopNetwork() {
+        dictation?.invalidateContext()
         calls?.sessionInvalidated()
         generation = UUID(); socketLoop?.cancel(); socketLoop = nil
         socket?.cancel(with: .goingAway, reason: nil); socket = nil

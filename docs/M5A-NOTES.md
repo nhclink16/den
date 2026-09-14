@@ -135,6 +135,134 @@ Then close Den, send a disposable-account mention/DM from a second client, verif
 the alert/badge, and tap into the exact message. Do not treat registration success
 or a simulated payload as this acceptance check.
 
+## Dictation
+
+The native composer now has an on-device dictation control immediately before
+Send, with the same 44-point plain-button treatment as Attach. Listening uses
+the theme accent, a 1.2-second ease pulse (off under Reduce Motion), and a mono
+`listening` label in place of typing status. Stop leaves text editable; recognition
+never sends a message. Escape, outside taps, manual edits, navigation, background,
+session changes, and call preparation stop or cancel the appropriate session.
+Settings > Voice contains the platform language picker and a persisted
+Punctuation preference where the selected engine supports it.
+
+### Implementation decisions
+
+- Prefer iOS 26 `SpeechAnalyzer` / `SpeechTranscriber` with already-installed
+  assets. No model download or reservation API is called. If unavailable, use
+  `SFSpeechRecognizer` only with both `supportsOnDeviceRecognition` and
+  `requiresOnDeviceRecognition = true`. Hide the button when neither local
+  engine supports the selected language. Microphone and speech prompts occur
+  on first use, not at launch; ownership is rechecked between prompts.
+- Xcode **26.6 (17F113)**, installed iPhoneOS **26.5** SDK, Swift **6.3.3**,
+  Swift 6 strict concurrency, iOS 26 minimum. Context7 had no matching Apple
+  Speech entry; exact APIs were checked against the installed SDK and Apple's
+  [SpeechAnalyzer documentation](https://developer.apple.com/documentation/speech/speechanalyzer),
+  [WWDC25 sample](https://developer.apple.com/videos/play/wwdc2025/277/), and
+  [on-device request documentation](https://developer.apple.com/documentation/speech/sfspeechrecognitionrequest/requiresondevicerecognition).
+  No dependency was added. SpeechTranscriber has no punctuation switch in this
+  SDK, so that setting is shown only for the legacy local engine.
+- Full-session transcript revisions replace only the dictation-owned span at
+  the UTF-16 caret. Preserve surrounding text, including selected text: insert
+  before a selection because selecting an existing draft is not a deletion
+  request. Respect existing whitespace and punctuation, and remove owned
+  separators for an empty transcript. Reject manual changes, including Unicode
+  edits that look identical but change UTF-16 offsets.
+- Capability discovery is shared and cached, including an empty result, across
+  room recreation and new sessions. Settings explicitly refreshes it. The initial
+  platform scan remains on MainActor; no measured background-thread performance
+  improvement is claimed. Each selected driver still rechecks local readiness.
+- Stop closes the tap, engine, and owned audio session synchronously, then
+  permits at most two seconds for final words. Manual edits and context changes
+  immediately invalidate late callbacks. Queued startup tasks are cancelled and
+  carry an invalidation revision, including idle Stop and pre-permission races.
+  Asynchronous cleanup never deactivates a later call's audio session.
+- **Dictation is hidden throughout calls.** LiveKit 2.17.0 exposes a public PCM
+  observer, but Den's quiet-join, mute, activation and route gates have not been
+  validated with a speech consumer on the phone. This is a conservative scope
+  decision, not a claim that microphone reuse was tested and failed. CallKit
+  preparation synchronously revokes dictation and restores its audio category
+  before a system transaction/report. Even a malformed mandatory incoming report
+  holds a dictation-exclusion guard until its report fails or is explicitly ended.
+
+### Verification
+
+Nine focused tests passed at baseline. Deliberate changes then made **all nine
+fail**: stale volatile text, network-capable fallback, old-generation callbacks,
+capture left open during finalization, cumulative insertion, wrong UTF-16 caret,
+external overwrite, unwanted separators, and accepted invalid selections.
+All four mutated source files were restored byte-for-byte before the full suite.
+The request/privacy test constructs a request but starts no recognizer; controller
+tests use fake capture drivers. No ambient microphone capture was used for proof.
+
+Swift 6.3.3's test macros generated immutable receivers for mutating insertion
+calls. Those calls now execute into local variables before `#require`/`#expect`;
+all original inputs and assertions were preserved. Static review also found and
+fixed queued-start and malformed-report exclusion races; those observations are
+not presented as physical CallKit test results.
+
+Evidence: `/tmp/den-ios-dictation-proof/mutation-restored.json`; baseline result
+`test_sim_2026-09-14T19-16-10-583Z_pid86141_5647252d.xcresult`; deliberate red result
+`test_sim_2026-09-14T19-19-29-738Z_pid86141_33befea8.xcresult`.
+After adding discovery caching, all nine passed again in
+`test_sim_2026-09-14T19-34-05-006Z_pid53025_5a0975d6.xcresult`. Removing the cache
+guard then failed the existing cancellation/discovery test's count assertions
+(three other engine tests passed), in
+`test_sim_2026-09-14T19-37-57-870Z_pid55826_30bf3d75.xcresult`. The latest controller
+was restored byte-exact; receipt: `/tmp/den-ios-dictation-proof/cache-mutation-restored.json`.
+An earlier method-level CLI selector matched zero tests and is excluded from
+verification; suite-level selection supplied the real negative proof.
+The final iPhone run passed **39 tests, zero failures and zero skips** in 252
+seconds, including both existing text/navigation UI tests. Result:
+`test_sim_2026-09-14T19-39-08-816Z_pid56724_b5a78ab9.xcresult`.
+The iPad reused those exact build products and passed both UI tests with zero
+failures or skips in 222 seconds. Result:
+`test_sim_2026-09-14T19-44-55-607Z_pid61587_d13ec88a.xcresult`.
+Receipts are `/tmp/den-ios-dictation-proof/final-{iphone,ipad}.json`.
+
+The running iPhone simulator's Voice settings showed the language picker,
+Punctuation switch and local-audio/call limitation copy without clipping.
+[Voice settings screenshot](shots/dictation-simulator-voice.jpg) is a simulator
+layout check only; it does not show physical dictation or listening. Resource
+sync, generated-project/lock checks and the local post-clone hook passed.
+
+The same source built for the physical iPhone through the documented Aqua
+signing helper, **BUILD SUCCEEDED, exit 0**, in
+`~/.local/share/den-ios-tools/runs/aqua-q4s9g5pz`. The pinned CLI installed
+Den 0.3.0 build 1 on Nicholas's connected iOS 27.0 phone and launched process
+**1956** successfully. Receipts:
+`/tmp/den-ios-dictation-proof/device-{install,launch}.json`.
+No speech signing entitlement or App ID change was needed. Existing microphone
+and new speech usage descriptions remain in the generated Info.plist.
+
+The first full run was incomplete, not green: the existing Inbox test lost its
+destination because Den crashed at `ConversationView.swift:91`. The actual crash
+stack reports an array subscript assertion. Lazy `ForEach` rows held an enumerated
+snapshot but fetched their previous message from a changing live array. The
+timeline now captures one immutable array for both operations. The navigation
+assertions were not changed. Minimal crash evidence is
+`/tmp/den-ios-dictation-proof/timeline-crash.json`; the original system report is
+`~/Library/Logs/DiagnosticReports/Den-2026-09-14-152502.ips`.
+
+Separately, local disk exhaustion interrupted the tool connection and left that
+run's result bundle incomplete. Only verified completed lane-owned build/cache
+products were removed; source, logs, result bundles and current build outputs were
+preserved. The pinned XcodeBuildMCP **2.7.0 CLI** provides the same native tools
+while this session's MCP stdio transport is closed. This remains local iMac work,
+not Xcode Cloud usage.
+
+After the final tests and layout check, the official identity-checking fixture
+stop command removed the old isolated text server and its disposable data. Its
+exact SSH forward and private local credential file were also removed. Receipt:
+`/tmp/den-ios-text-fixture-cleanup.json`. The separate call fixture had already
+been cleaned up; neither cleanup touched production conversations.
+
+**Physical acceptance remains open:** dictate a sentence into the actual iPhone
+composer, repeat offline with airplane mode and Wi-Fi off, check caret/manual-edit
+behavior, and capture the listening screen as `docs/shots/dictation-iphone.png`.
+No simulator image is substituted for that requested phone screenshot. Source
+guards and fake-driver tests are not proof of real offline speech recognition.
+
 ## Historical signing investigation
 
 The following notes describe the earlier probe and resolved signing blocker, not
