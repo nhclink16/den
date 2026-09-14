@@ -69,7 +69,7 @@
     e.preventDefault()
     invites = [await api.post<Invite>('/invites', { uses, expires_in_hours: hours }), ...invites]
   }
-  const inviteLink = (code: string) => `${location.origin}/login?invite=${encodeURIComponent(code)}`
+  const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
 
   // --- rooms ---
   let serverName = $state('')
