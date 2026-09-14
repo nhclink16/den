@@ -3,8 +3,9 @@
 Desktop releases are published, the installed Windows and Linux clients upgraded
 through the signed updater, and the paired-theme server is deployed. Full human
 acceptance remains open for audible push-to-talk in a game. The macOS follow-up
-passed several first-session checks but found a blank-window failure on relaunch;
-macOS acceptance is incomplete.
+passed several first-session checks. Later blank captures were taken while macOS
+was locked, so unlocked relaunch acceptance is still required. See the diagnostic
+correction below; those captures do not establish a Den rendering defect.
 Associated HTTPS links also remain an implementation follow-up; `den://` links
 are implemented and verified. These are not recorded as passes.
 
@@ -86,10 +87,10 @@ the real-machine evidence below.
 
 | Check | Windows / WebView2 | Linux / WebKitGTK | macOS / WKWebView |
 | --- | --- | --- | --- |
-| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass first-session launch and real window capture; subsequent relaunch failed |
-| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Pass public login; persistence after restart blocked by blank window |
-| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Pass add/switch public + private server; restart restoration blocked |
-| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Blocked after blank relaunch; private test DM sent, no native toast verified |
+| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass first-session launch and real window capture; subsequent relaunch capture invalidated by locked macOS session |
+| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Pass public login; persistence after restart awaits unlocked acceptance |
+| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Pass add/switch public + private server; restart restoration awaits unlocked acceptance |
+| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Blocked by locked session; private test DM sent, no native toast verified |
 | Click notification to focus/switch/open room | Pass, returned to public server and requested room | Native notification action rendered; click navigation not separately accepted | Not verified; notification delivery blocked |
 | Tray/menu and app window | Captured and inspected | Captured and inspected | Pass, real app and menu-bar menu captured and inspected; Quit exited the process |
 | Call and microphone | Pass, joined public LiveKit room | Failed: LiveKit reports unsupported browser | Pass public call join and local mic control toggles; no remote audio confirmation |
@@ -153,7 +154,7 @@ or screen tile. The session subsequently stopped exposing its main window throug
 accessibility, while WindowServer could still capture its last rendered content.
 The sequence does not establish that the picker caused the later failure.
 
-**Relaunch failed.** Quitting and reopening v0.2.1 produced a persistent blank
+**Historical observation, superseded by the lock-state diagnosis below.** Quitting and reopening v0.2.1 produced a persistent blank
 window. Repeating through GUI Terminal, both with `open` and with the bundle's
 executable directly, also produced a blank window. Screenshots record both paths.
 The native event loop remained alive; a one-second process sample did not show it
@@ -165,9 +166,9 @@ WebContent[10671] failed to do a bootstrap look-up: xpc_error=[1: Operation not 
 WebContent[11377] Failed to look up the port for "com.apple.windowserver.active" (1)
 ```
 
-These are diagnostic evidence, not a proven root cause. The GUI-launch retry
-means the failure cannot yet be dismissed as an SSH-only problem. Recovering the
-blank relaunch is required before accepting restart persistence or the updater.
+These logs alone did not establish a root cause. The later lock-state diagnosis
+below invalidates the visual failure verdict. Repeat relaunch, restart persistence
+and updater acceptance with the console session unlocked.
 
 A private DM was sent successfully with HTTP 200 after relaunch, but no native
 notification was verified while the app was blank. There is therefore no macOS
@@ -182,6 +183,52 @@ The blank app, dedicated capture Terminal window, temporary reverse tunnel,
 disposable server and capture job were stopped. Test scripts and temporary
 credential input were removed. The installed app and its remembered server data
 remain. First Den is offline until the disposable server/tunnel are restarted.
+
+### Locked-session diagnosis, 2026-09-14 00:53–01:10 EDT
+
+The earlier blank-window verdict was premature. `ioreg -n Root -d1` reported
+`CGSSessionScreenIsLocked=Yes` and `CGSSessionScreenLockedTime=1789360621`, which
+is **00:37:01 EDT**, matching the start of the failed visual checks. The existing
+`caffeinate -u -dmi -t 7200` process did not prevent the session from locking.
+Terminal, Finder and Den all exposed zero accessibility windows while locked.
+
+The unchanged installed v0.2.1 was launched from GUI Terminal with `RUST_LOG=debug`
+and stderr redirected outside the repo. It produced no stderr. App and WebKit
+unified logs were collected with `log stream --level debug --predicate`. A process
+sample showed the release's main event loop idle. A separate temporary debug
+bundle enabled webview devtools and logged page-load events, JavaScript errors,
+keychain boundaries and the DOM text at five seconds. No debug code was added to
+the installed app or the repository's application sources.
+
+The debug build loaded `tauri://localhost` successfully. With a fresh private
+origin, missing keychain reads returned, `/settings` returned 200, `/users/me`
+returned 401, and the five-second DOM report contained the complete login form.
+Its real `screencapture` image was nevertheless blank. The WKWebView was attached,
+visible and 1200×800. Removing all Den plugins and rendering a static green page
+also produced a blank capture. A separate minimal Objective-C WKWebView app
+launched through Finder reproduced the same inaccessible window behavior. This
+rules out restored sessions, theme cache and Den's media protocol as necessary
+causes of the locked-session visual symptom.
+
+The debug bundle's reads of existing credentials waited inside
+`SecKeychainFindGenericPassword`; missing entries returned immediately. This was
+measured while locked and with a different executable signature. It is not proof
+that the installed release stalls reading its own credentials while unlocked.
+The original keychain entries were preserved. Temporary remembered-origin changes
+were restored to the public server plus the existing private First Den server.
+Xcode and keychain sign-in were not changed. The separate diagnostic build used
+an updated Rust toolchain and an ad-hoc signature without a signing identity.
+
+The new `scripts/m4-smoke.mjs` regression starts a cold browser context with two
+pre-seeded OS-keychain bridge sessions. It requires the active server's room link
+to become visible within five seconds, without a login form or JavaScript errors.
+It passed in **435 ms**, followed by the full native stub smoke and verified
+cleanup. This checks application startup; it does not substitute for an unlocked
+WKWebView capture or a real keychain/updater test.
+
+**Pending:** unlock the iMac, then repeat the unchanged release first. No v0.2.2
+root-cause fix or macOS updater pass is claimed from locked-session evidence.
+The requested release and installed-app acceptance remain open.
 
 ### Evidence
 
@@ -282,9 +329,9 @@ See [Tauri's signing instructions](https://tauri.app/distribute/sign/macos/) and
 
 ## Remaining attended and implementation checks
 
-On the iMac, first diagnose and fix the blank relaunch described above, then repeat
-restart persistence, native notification delivery/click navigation and updater
-installation. Verify actual screen-share publication and two simultaneous shares,
+On the iMac, first unlock the console session and recheck the installed release.
+Then repeat restart persistence, native notification delivery/click navigation and
+updater installation. Diagnose an application defect only if it reproduces unlocked. Verify actual screen-share publication and two simultaneous shares,
 not only the system picker. Global PTT still needs a second participant to confirm
 speech only while held, including with another application/game focused. These
 human-dependent checks are not claimed. Gatekeeper/notarization acceptance waits
