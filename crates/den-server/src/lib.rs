@@ -293,7 +293,12 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             get(thumbnails::serve).head(thumbnails::serve),
         )
         .route("/uploads", post(uploads::begin))
-        .route("/uploads/{id}", get(uploads::status).patch(uploads::chunk))
+        .route(
+            "/uploads/{id}",
+            get(uploads::status)
+                .patch(uploads::chunk)
+                .delete(uploads::remove),
+        )
         .route("/uploads/{id}/complete", post(uploads::complete))
         .route("/uploads/{id}/file", get(uploads::file).head(uploads::file))
         .route("/ws", get(ws::connect))

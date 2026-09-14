@@ -67,6 +67,7 @@ use utoipa::OpenApi;
         messages::remove,
         uploads::begin,
         uploads::status,
+        uploads::remove,
         uploads::chunk,
         uploads::complete,
         uploads::file,

@@ -240,6 +240,44 @@ pub(crate) async fn file(
         .insert(header::CONTENT_DISPOSITION, disposition.parse().unwrap());
     Ok(response)
 }
+// Smoke tools and owners can remove uploads only after all live references are gone.
+#[utoipa::path(delete,path="/uploads/{id}",params(("id"=String,Path)),responses((status=204),(status=403,body=ApiError),(status=409,body=ApiError)))]
+pub(crate) async fn remove(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+) -> Result<StatusCode> {
+    let _guard = s.writes.lock().await;
+    let upload = load(&s, &id).await?;
+    visible(&s, &a.user.id, &upload.channel_id).await?;
+    let owner: String = sqlx::query_scalar("SELECT owner_id FROM uploads WHERE id=?")
+        .bind(&id)
+        .fetch_one(&s.db)
+        .await?;
+    if owner != a.user.id && a.user.role != Role::Admin {
+        return Err(Error::forbidden());
+    }
+    let referenced: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM uploads WHERE id=? AND message_id IS NOT NULL) OR EXISTS(SELECT 1 FROM objects WHERE thumbnail_upload_id=? OR instr(state,?)>0) OR EXISTS(SELECT 1 FROM terminal_sessions WHERE recording_upload_id=?) OR EXISTS(SELECT 1 FROM users WHERE instr(avatar_url,?)>0)")
+        .bind(&id).bind(&id).bind(&id).bind(&id).bind(&id).fetch_one(&s.db).await?;
+    if referenced {
+        return Err(Error::conflict(
+            "Remove the upload's messages and objects first",
+        ));
+    }
+    for suffix in ["", ".part", ".thumb.png", ".thumb.png.part"] {
+        if let Err(e) = tokio::fs::remove_file(s.uploads.join(format!("{id}{suffix}"))).await {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                return Err(e.into());
+            }
+        }
+    }
+    sqlx::query("DELETE FROM uploads WHERE id=?")
+        .bind(&id)
+        .execute(&s.db)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub(crate) async fn cleanup(s: &AppState) -> anyhow::Result<()> {
     let _guard = s.writes.lock().await;
     let cutoff = now() - 86400;

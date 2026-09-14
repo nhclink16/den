@@ -815,7 +815,7 @@ export interface paths {
         get: operations["get__uploads__id_"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["delete__uploads__id_"];
         options?: never;
         head?: never;
         patch: operations["patch__uploads__id_"];
@@ -3611,6 +3611,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Upload"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__uploads__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */

@@ -193,3 +193,138 @@ async fn upload_resume_survives_uncommitted_bytes_and_serves_authenticated_range
     t.state.cleanup().await.unwrap();
     assert!(!t.dir.join("uploads").join(format!("{stale}.part")).exists());
 }
+
+#[tokio::test]
+async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let bob = t.member("bob").await;
+    let channels: Vec<Channel> = t
+        .req(Method::GET, "/channels", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let cid = &channels.iter().find(|c| c.name == "general").unwrap().id;
+    let upload = t.post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"smoke.bin","content_type":"application/octet-stream","size":1})).await;
+    let id = upload["id"].as_str().unwrap();
+    let path = format!("/uploads/{id}");
+    assert_eq!(
+        t.req(Method::DELETE, &path, "")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        t.req(Method::DELETE, &path, &bob.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    assert_eq!(
+        t.req(Method::PATCH, &path, &alice.token)
+            .header("Upload-Offset", 0)
+            .body("x")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    t.post(&format!("{path}/complete"), &alice.token, json!({}))
+        .await;
+    let message = t
+        .post(
+            &format!("/channels/{cid}/messages"),
+            &alice.token,
+            json!({"content":"smoke","upload_ids":[id]}),
+        )
+        .await;
+    assert_eq!(
+        t.req(Method::DELETE, &path, &alice.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        409
+    );
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/messages/{}", message["id"].as_str().unwrap()),
+            &alice.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        204
+    );
+    let object = t.post(&format!("/channels/{cid}/objects"), &alice.token, json!({"kind":"canvas","name":"smoke","state":{"asset":{"id":"asset","src":format!("/uploads/{id}/file")}}})).await;
+    assert_eq!(
+        t.req(Method::DELETE, &path, &t.admin.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        409
+    );
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/messages/{}", object["message_id"].as_str().unwrap()),
+            &alice.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        204
+    );
+    sqlx::query("INSERT INTO terminal_recordings(upload_id,session_id) VALUES(?, 'ended-smoke')")
+        .bind(id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!(
+        t.req(Method::DELETE, &path, &t.admin.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        204
+    );
+    assert!(!t.dir.join("uploads").join(id).exists());
+    assert_eq!(
+        t.req(Method::GET, &path, &alice.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        404
+    );
+    let remaining: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM terminal_recordings WHERE upload_id=?")
+            .bind(id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!(remaining, 0);
+    let pending = t.post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"pending.bin","content_type":"application/octet-stream","size":1})).await;
+    let id = pending["id"].as_str().unwrap();
+    assert_eq!(
+        t.req(Method::DELETE, &format!("/uploads/{id}"), &alice.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        204
+    );
+    assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
+}
