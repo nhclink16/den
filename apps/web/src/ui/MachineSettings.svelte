@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InlineConfirm from './InlineConfirm.svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
@@ -37,8 +38,8 @@
 {#if section === 'machines'}
   <h2 class="display">Machines</h2>
   <p class="muted">Open a terminal on a machine you connect to {store.settings.instance_name}.</p>
-  {#each machines as h}
-    <div class="row"><span><span class="dot" class:online={h.online}></span>{h.name} <small>{h.online ? 'online' : 'offline'}</small></span><button class="btn quiet" disabled={busy} onclick={() => remove(h)}>Remove</button></div>
+  {#each machines as h (h.id)}
+    <div class="row"><span><span class="dot" class:online={h.online}></span>{h.name} <small>{h.online ? 'online' : 'offline'}</small></span><InlineConfirm action="Remove" sentence={`Remove ${h.name}? Its terminals end and it must be enrolled again.`} disabled={busy} confirm={() => remove(h)} /></div>
   {:else}<p class="muted">Add a machine to open your first terminal.</p>{/each}
   <button class="btn lit" disabled={busy} onclick={add}>Add a machine</button>
   {#if enrollment}
@@ -47,8 +48,8 @@
 {:else}
   <h2 class="display">Access</h2>
   <h3>Standing grants</h3>
-  {#each grants.filter(g => g.expires_at == null) as g}
-    <div class="row"><span>{user(g.grantee_id)} · {machine(g.host_id)}<small>{g.capability === 'terminal_control' ? 'Terminal control' : 'Terminal view'}</small></span><button class="btn quiet" onclick={() => revoke(g)}>Revoke</button></div>
+  {#each grants.filter(g => g.expires_at == null) as g (g.id)}
+    <div class="row"><span>{user(g.grantee_id)} · {machine(g.host_id)}<small>{g.capability === 'terminal_control' ? 'Terminal control' : 'Terminal view'}</small></span><InlineConfirm action="Revoke" sentence={`Revoke ${user(g.grantee_id)}’s access to ${machine(g.host_id)}? They must request access again.`} confirm={() => revoke(g)} /></div>
   {:else}<p class="muted">No standing grants.</p>{/each}
   <h3>Recent access</h3>
   {#each log as entry}<div class="audit"><span>{user(entry.actor_id)} · {entry.action.replaceAll('_', ' ')} · {machine(entry.host_id)}</span><time>{new Date(entry.created_at * 1000).toLocaleString()}</time></div>{:else}<p class="muted">Requests, decisions, and terminal activity appear here.</p>{/each}
@@ -58,6 +59,7 @@
   h2 { font-size: 24px; margin-bottom: 8px; } h3 { margin: 24px 0 12px; font-size: 14px; }
   .muted, small, time { color: var(--ink-3); } .muted { margin-bottom: 16px; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  @media (max-width: 600px) { .row { flex-wrap: wrap; gap: 8px; } }
   .row:last-of-type { margin-bottom: 16px; } small { font: 11px var(--mono); margin-left: 8px; }
   .dot { display: inline-block; width: 7px; height: 7px; background: var(--ink-3); border-radius: 50%; margin-right: 8px; } .online { background: var(--lamp); }
   .enrollment { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); }

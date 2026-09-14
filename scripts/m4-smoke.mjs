@@ -41,7 +41,7 @@ for (const [i, name] of ['one', 'two'].entries()) {
   await api(i, 'PUT', '/users/me/appearance', { mode: 'dark', theme: i ? 'tide' : 'den', custom_themes: [] })
 }
 browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
-const context = await browser.newContext({ viewport: { width: 1300, height: 850 } })
+const context = await browser.newContext({ viewport: { width: 1300, height: 850 }, hasTouch: true })
 await context.exposeFunction('denInvoke', async (command, args = {}) => {
   commands.push({ command, origin: args.origin, path: args.path })
   if (command === 'session_set') { keychain.set(args.origin, args.token); return }
@@ -138,6 +138,40 @@ try {
   await page.screenshot({ path: shots+'/m4-sidebar-collapsed.png' })
   await page.getByRole('button', { name: 'Show sidebar', exact: true }).click()
   await page.getByRole('button', { name: 'Hide sidebar', exact: true }).waitFor()
+  // Destructive machine/access actions require an inline second confirmation on mouse and touch.
+  for (const section of ['machines', 'access']) {
+    const enrolled = await api(1, 'POST', '/hosts/enroll', {})
+    const host = await api(1, 'POST', '/hosts/login', { code: enrolled.code.split('#').at(-1), name: `Confirm smoke ${section}` }, '')
+    cleanups[1].restores.push(() => cleanups[1].api('DELETE', `/hosts/${host.host_id}`, undefined, true))
+    let grant
+    if (section === 'access') {
+      const request = await api(1, 'POST', `/hosts/${host.host_id}/requests`, { capability: 'terminal_view', standing: true }, bob[1].token)
+      await api(1, 'POST', `/requests/${request.id}/decide`, { allow: true })
+      grant = (await api(1, 'GET', '/grants')).find(g => g.host_id === host.host_id && g.grantee_id === bob[1].user.id)
+      assert(grant)
+    }
+    const exists = async () => section === 'machines'
+      ? (await api(1, 'GET', '/hosts')).some(h => h.id === host.host_id)
+      : (await api(1, 'GET', '/grants')).some(g => g.id === grant.id && !g.revoked_at)
+    await page.goto(web + '/settings/' + section)
+    const row = page.locator('.row').filter({ hasText: host.name })
+    const action = section === 'machines' ? 'Remove' : 'Revoke'
+    const button = row.getByRole('button', { name: action, exact: true })
+    const sentence = section === 'machines' ? `Remove ${host.name}? Its terminals end and it must be enrolled again.` : `Revoke desktop_bob’s access to ${host.name}? They must request access again.`
+    await button.click(); await row.getByText(sentence, { exact: true }).waitFor(); assert(await exists(), 'first click must not delete')
+    await row.getByRole('button', { name: 'Keep', exact: true }).click(); assert(await exists())
+    await button.click(); await page.getByRole('link', { name: 'Appearance', exact: true }).focus()
+    await row.getByRole('button', { name: 'Keep', exact: true }).waitFor({ state: 'hidden' }); assert(await exists(), 'blur cancels')
+    await button.click()
+    await row.getByRole('button', { name: 'Keep', exact: true }).waitFor({ state: 'hidden', timeout: 9000 }); assert(await exists(), 'eight-second timeout cancels')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await button.tap(); await row.getByText(sentence, { exact: true }).waitFor(); assert(await exists(), 'first tap must not delete')
+    await page.screenshot({ path: shots + `/settings-${section}-confirm-mobile.png` })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await button.tap(); await until(async () => !await exists())
+    await page.setViewportSize({ width: 1300, height: 850 })
+  }
+  console.log('PASS Machines Remove and Access Revoke: Keep, blur, eight-second expiry and explicit touch confirmation')
   await page.getByRole('button', { name: 'Switch server' }).click()
   await page.locator('.server.active .remove').click()
   await until(() => keychain.size === 1)
