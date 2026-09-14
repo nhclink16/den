@@ -63,6 +63,24 @@ await context.addInitScript(origin => {
   if (!localStorage.getItem('den.native.origin')) localStorage.setItem('den.native.origin', origin)
   window.__TAURI__ = { core: { invoke: (c, a) => window.denInvoke(c, a), convertFileSrc: () => 'den-media://localhost/' }, event: { listen: async () => () => {} } }
 }, bases[0])
+// A cold native launch starts with OS-keychain sessions, before any login UI runs.
+for (const [i, origin] of bases.entries()) keychain.set(origin, admin[i].token)
+savedOrigins = [...bases]
+const bootPage = await context.newPage()
+bootPage.on('pageerror', e => errors.push(e.message))
+const bootStarted = Date.now()
+try {
+  await bootPage.goto(web, { waitUntil: 'commit', timeout: 5000 })
+  await bootPage.locator(`nav.side a[href="/c/${channels[0].id}"]`).waitFor({
+    state: 'visible', timeout: Math.max(1, 5000 - (Date.now() - bootStarted)),
+  })
+  assert(Date.now() - bootStarted < 5000, 'Saved-session boot did not render the room list within 5 s')
+  assert.equal(await bootPage.getByLabel('Username', { exact: true }).count(), 0)
+  assert.deepEqual(errors, [])
+  console.log(`PASS pre-seeded native sessions rendered the room list in ${Date.now() - bootStarted} ms`)
+  await bootPage.evaluate(() => localStorage.clear())
+} finally { await bootPage.close() }
+keychain.clear(); savedOrigins = []
 const page = await context.newPage()
 page.on('pageerror', e => errors.push(e.message))
 const sockets = new Set()
