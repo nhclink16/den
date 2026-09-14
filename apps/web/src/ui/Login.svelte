@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { store } from '../lib/store.svelte'
+  import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
+  import { native } from '../lib/native'
   import Mark from './Mark.svelte'
 
   let mode = $state<'login' | 'register'>('login')
@@ -31,6 +32,7 @@
 <main class="wrap">
   <form class="card" onsubmit={submit}>
     <h1 class="display"><Mark size={40} /><span>{store.settings.instance_name}</span></h1>
+    {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{:else if invite}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Open in Den</a>{/if}
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
     <label>

@@ -519,7 +519,7 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "den"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "den-core"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "den-host"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "den-server"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "argon2",

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SidebarToggle from './SidebarToggle.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { api } from '../lib/api'
@@ -109,6 +110,7 @@
 
 <section class="settings">
   <header class="head">
+    {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="gear" size={18} /></span>
     <h1 class="display">Settings</h1>

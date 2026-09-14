@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 // The API lives at root paths on den-server. In dev, proxy those so the browser
 // origin is the Vite origin and cookies + CSRF just work. Run the server with
 // DEN_ORIGIN=http://localhost:5173.
-const api = ['hosts', 'requests', 'grants', 'access', 'sessions', 'objects', 'auth', 'users', 'invites', 'tokens', 'bots', 'channels', 'dms', 'categories', 'messages', 'uploads', 'health', 'openapi.json', 'search', 'presence', 'calls', 'livekit']
+const api = ['instance', 'hosts', 'requests', 'grants', 'access', 'sessions', 'objects', 'auth', 'users', 'invites', 'tokens', 'bots', 'channels', 'dms', 'categories', 'messages', 'uploads', 'health', 'openapi.json', 'search', 'presence', 'calls', 'livekit']
 
 export default defineConfig({
   plugins: [svelte(), {

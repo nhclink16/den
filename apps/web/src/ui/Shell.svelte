@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import CallDock from './CallDock.svelte'
   import CallView from './CallView.svelte'
@@ -42,7 +43,7 @@
 
   $effect(() => {
     const down = (e: KeyboardEvent) => call.keydown(e), up = (e: KeyboardEvent) => call.keyup(e)
-    const release = () => call.setHeld(false)
+    const release = () => { if (!desktop.global) call.setHeld(false) }
     window.addEventListener('keydown', down); window.addEventListener('keyup', up)
     window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
@@ -55,7 +56,7 @@
 <div class="shell" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
   {#if showSidebar}
     {#if narrow}<button class="scrim" aria-label="Close menu" onclick={() => (drawer = false)}></button>{/if}
-    <aside class="sidebar"><Sidebar /></aside>
+    <aside class="sidebar"><Sidebar {narrow} /></aside>
   {/if}
 
   <main class="main">
@@ -66,7 +67,7 @@
     {#if !call.channel || !call.expanded || router.route.name === 'channel'}
     {#if router.route.name === 'channel'}
       {#if currentChannel}
-        {#key currentChannel.id}
+        {#key store.origin + currentChannel.id}
           <ChannelView channel={currentChannel} onmenu={() => (drawer = !drawer)} {narrow} />
         {/key}
       {:else}

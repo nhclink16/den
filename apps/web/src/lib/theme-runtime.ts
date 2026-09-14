@@ -3,7 +3,7 @@ import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
 export const defaultAppearance: Appearance = { mode: 'system', theme: 'den', custom_themes: [] }
-export const appearanceKey = 'den.appearance'
+export function appearanceCacheKey(origin?: string) { return (window.__TAURI__ ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
 export const colorRoles = ['bg','bg2','bg3','line','ink','ink2','ink3','accent','success','danger'] as const
 // Same OKLab matrices and quantization as den-core/theme_color.rs. Keeping a/b
 // fixed while replacing L preserves OKLCH hue/chroma before sRGB gamut clipping.
@@ -53,9 +53,9 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark') {
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors.bg)
 }
-export function cachedAppearance(): Appearance {
+export function cachedAppearance(origin?: string): Appearance {
   try {
-    const a = JSON.parse(localStorage.getItem(appearanceKey) || 'null')
+    const a = JSON.parse(localStorage.getItem(appearanceCacheKey(origin)) || 'null')
     if (a && ['light','dark','system'].includes(a.mode) && Array.isArray(a.custom_themes)) {
       if (!a.theme) {
         a.theme=a.dark_theme || a.light_theme || 'den'; if(a.theme==='den-light') a.theme='den'

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mediaUrl } from '../../lib/native'
   import { onMount } from 'svelte'
   import { api } from '../../lib/api'
   import { store } from '../../lib/store.svelte'
@@ -58,7 +59,7 @@
     if (!canView || !editor) return
     replayLoaded = state.recording_upload_id!; stream?.destroy(); stream = undefined; direct = false
     try {
-      const response = await fetch(`/uploads/${state.recording_upload_id}/file`)
+      const response = await fetch(mediaUrl(`/uploads/${state.recording_upload_id}/file`))
       if (!response.ok) throw new Error('Recording access denied.')
       replay = (await response.text()).trim().split('\n').filter(Boolean).map(line => { const [ms, bytes] = JSON.parse(line); return [ms, Uint8Array.from(atob(bytes), c => c.charCodeAt(0))] })
       duration = replay.at(-1)?.[0] || 1; seek(0); playing = true

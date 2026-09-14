@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { store } from '../lib/store.svelte'
-  let { userId, size = 32 }: { userId: string; size?: number } = $props()
-  const user = $derived(store.user(userId))
+  import { store, type Store } from '../lib/store.svelte'
+  import { mediaUrl } from '../lib/native'
+  let { userId, size = 32, instance = store }: { userId: string; size?: number; instance?: Store } = $props()
+  const user = $derived(instance.user(userId))
   const label = $derived(user ? (user.display_name || user.username) : '?')
-  const online = $derived(store.online.has(userId))
+  const online = $derived(instance.online.has(userId))
 </script>
 
 <span class="avatar" style="--s:{size}px" title={label}>
   {#if user?.avatar_url}
-    <img src={user.avatar_url} alt="" />
+    <img src={mediaUrl(user.avatar_url, instance.origin)} alt="" />
   {:else}
     <span class="initial">{label.slice(0, 1).toUpperCase()}</span>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mediaUrl } from '../../lib/native'
   import type { ObjectProps } from '..'
   import { objects, openObject } from '../../lib/objects.svelte'
   import Avatar from '../../ui/Avatar.svelte'
@@ -6,7 +7,7 @@
   const people = $derived(objects.presence[object.id] || [])
 </script>
 <button class="canvas-card" title="Open canvas" onclick={() => openObject(object)} data-object-id={object.id}>
-  <span class="preview">{#if object.thumbnail_url}<img src={object.thumbnail_url} alt="Canvas preview" />{/if}</span>
+  <span class="preview">{#if object.thumbnail_url}<img src={mediaUrl(object.thumbnail_url)} alt="Canvas preview" />{/if}</span>
   <span class="caption"><span class="title"><span class="eyebrow">canvas</span><span class="name">{object.name || 'Untitled canvas'}</span></span>
     {#if people.length}<span class="people" aria-label={`${people.length} on this canvas`}><span class="live"></span>{#each people as userId}<Avatar {userId} size={20} />{/each}</span>{/if}
   </span>

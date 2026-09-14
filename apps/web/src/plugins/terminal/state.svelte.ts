@@ -4,7 +4,8 @@ import type { Host, Grant, TerminalState, AccessRequest, LiveObject, ObjectSumma
 export const terminals = $state({ hosts: [] as Host[], grants: [] as Grant[], sessions: {} as Record<string, TerminalState>, requests: {} as Record<string, AccessRequest>, previews: {} as Record<string, string> })
 export async function catalog() {
   if (!store.me) return
-  try { [terminals.hosts, terminals.grants] = await Promise.all([api.get<Host[]>('/hosts'), api.get<Grant[]>('/grants')]) } catch { /* A reconnect retries. */ }
+  const origin = store.origin, request = store.api
+  try { const data = await Promise.all([request.get<Host[]>('/hosts'), request.get<Grant[]>('/grants')]); if (store.origin === origin) [terminals.hosts, terminals.grants] = data } catch { /* A reconnect retries. */ }
 }
 export async function load(object: ObjectSummary) {
   const o = await api.get<LiveObject>(`/objects/${object.id}`)
@@ -23,3 +24,8 @@ store.onEvent(ev => {
   }
 })
 setInterval(() => { if (store.me) void catalog() }, 5000)
+
+window.addEventListener('den-instance', () => {
+  terminals.hosts = []; terminals.grants = []; terminals.sessions = {}; terminals.requests = {}; terminals.previews = {}
+  void catalog()
+})
