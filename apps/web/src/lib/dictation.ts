@@ -1,7 +1,7 @@
 import worklet from './dictation-audio.js?url&no-inline'
 import workerUrl from './dictation.worker.ts?worker&url'
-import wasmUrl from '../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm?url'
-import wasmModule from '../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs?url'
+import wasmUrl from '../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm?url'
+import wasmModule from '../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs?url'
 import { modelCache, hasModel, removeModel } from './dictation-cache'
 export { hasModel }
 export async function remove() { await removeModel() }
