@@ -25,8 +25,8 @@ Done when: two terminals can chat through the CLI, a 41-second clip uploads and 
 - Search (SQLite FTS5).
 Done when: the group can use it in a browser at a real URL instead of Discord for text.
 
-## M2.5 — iOS feasibility spike (next)
-Tauri 2 build of the text client plus a bare LiveKit audio call on a physical iPhone from the iMac. Test camera and mic permissions, Bluetooth audio routing, interruptions, locked-screen audio, reconnection, and a large upload. This decides Tauri vs SwiftUI for M5 before any call UI is built. (Astra)
+## M2.5 — iOS feasibility spike
+Retired 2026-09-14. Decision: the iPhone app is native SwiftUI, not a webview. See M5.
 
 ## M3 — voice and video
 - LiveKit in compose, server mints tokens, hangout room and DM calls.
@@ -36,9 +36,11 @@ Done when: a gaming session runs on it with cams.
 ## M4 — desktop
 - Tauri 2 shells for Windows and Linux, global PTT shortcut, native notifications, auto-update.
 
-## M5 — iOS
-- Tauri 2 iOS build tested on the iMac. If webview call quality is bad, fall back to a native SwiftUI shell using the LiveKit Swift SDK.
-- APNs push.
+## M5 — iOS, native SwiftUI (decided 2026-09-14)
+Native app, iOS 26 and Liquid Glass materials, LiveKit Swift SDK for calls. Canvas and terminal tiles embed a web view inside native tiles. Built on the iMac by Astra.
+- M5a text: login, rooms, messages, DMs, inbox, uploads and video, settings, APNs push (server gains push sending).
+- M5b calls: LiveKit Swift, CallKit ringing for DM calls, background audio, picture-in-picture, phone-sized layouts with every share visible.
+- M5c: plugin tiles in embedded web views, multi-server switcher, QR pairing to add a server.
 
 ## M6 — deploy and integrations
 - Link previews with an SSRF-safe fetcher.

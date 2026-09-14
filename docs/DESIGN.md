@@ -25,7 +25,7 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - IDs are ULIDs, so they sort by creation time. Pagination is by id.
 - Realtime: one WebSocket per client carrying `den_core::Event`, used by both the web client and `den tail`. Heartbeat, reconnect with backoff, and a resync-by-refetch after a gap; no durable event replay. Events are filtered by channel membership. `tail` emits JSON lines and reports gaps.
 - Media: LiveKit self-hosted, pinned version, host networking. Signaling goes through Caddy on `rtc.<domain>`, WebRTC media ports exposed directly, built-in TURN enabled for restrictive networks, with TURN/TLS on 443 of the `rtc` host and its own cert, wired up at deploy time in M2. Server mints room tokens; membership is checked before minting.
-- Client: Svelte 5 + Vite SPA, Tauri 2 shells for Windows, Linux, iOS. iOS work happens on the iMac.
-- Push: APNs once an Apple developer account exists.
+- Client: Svelte 5 + Vite SPA, Tauri 2 shells for Windows, Linux, macOS. iOS is a native SwiftUI app (decided 2026-09-14, no webview shell), built on the iMac.
+- Push: APNs from the server, key at ~/.config/den/apns.p8 on codexbox; Apple developer account exists since 2026-09-12.
 - Hosting: https://denchat.app on the OVHcloud VPS in US-East Vint Hill, VA, Debian 13. Public IPv4 135.148.120.197. Native Den and LiveKit services, Caddy HTTPS and HAProxy routing for TURN/TLS on rtc.denchat.app:443. Nightly offline exports go to codexbox with 14-day retention and real-server restore drills.
 - Link previews wait until the fetcher is SSRF-safe (deny private ranges, size and time limits).
