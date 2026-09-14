@@ -4,7 +4,7 @@ import { chromium } from 'playwright-core'
 import { readFile, mkdir } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 
-const base = process.env.DEN_SMOKE_URL || 'https://den.nicholascaron.com'
+const base = process.env.DEN_SMOKE_URL || 'https://denchat.app'
 const hostName = process.env.DEN_SMOKE_HOST
 assert(hostName, 'Set DEN_SMOKE_HOST to the enrolled machine name')
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS || `${process.env.HOME}/.local/share/den-m6/smoke-credentials.json`, 'utf8'))
@@ -33,7 +33,7 @@ try {
   const page = await context.newPage()
   page.setDefaultTimeout(20000)
   const errors = []
-  page.on('pageerror', e => errors.push(e.message))
+  page.on('pageerror', e => errors.push(e.stack || e.message))
   await page.goto(`${base}/c/${dm.id}`)
   const composer = page.getByRole('textbox', { name: 'Message Just you', exact: true })
   await composer.fill(`/terminal ${hostName}`)

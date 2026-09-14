@@ -1,6 +1,6 @@
 # Multiple devices in one call
 
-Deployed to https://den.nicholascaron.com on 2026-09-13. One account can stay in a call on several devices at once.
+Deployed to https://denchat.app on 2026-09-13. One account can stay in a call on several devices at once.
 Each connection can publish its own camera and screen share. Den does not impose
 a per-account device limit. Available bandwidth and server resources still apply.
 

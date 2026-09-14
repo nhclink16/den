@@ -2,7 +2,7 @@ import { chromium } from 'playwright-core'
 import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 
-const base = 'https://den.nicholascaron.com'
+const base = process.env.DEN_SMOKE_URL || 'https://denchat.app'
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS, 'utf8'))
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: [
   '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',

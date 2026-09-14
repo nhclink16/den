@@ -7,7 +7,7 @@ Three deliverables, in this order, each committed and working before the next:
 2. **Access grants**: a core permission model in the server and client. Requests and approvals are cards in chat.
 3. **Terminal plugin**: the second plugin on the M7a surface, rendering a live PTY with Ghostty's web renderer, docked, expanded, and as a call tile.
 
-Done when: Nicholas installs `den-host` on codexbox with one command and an invite code, opens `/terminal codexbox` in his self-DM, runs `herdr` inside it and drives his fleet, then posts the card into `#general`, m6_bob opens it and watches live with Nicholas's cursor and output, Nicholas grants m6_bob control from the tile, m6_bob types and it lands, Nicholas revokes and m6_bob's keystrokes stop within a second, and all of it works at https://den.nicholascaron.com after `deploy/release.sh`.
+Done when: Nicholas installs `den-host` on codexbox with one command and an invite code, opens `/terminal codexbox` in his self-DM, runs `herdr` inside it and drives his fleet, then posts the card into `#general`, m6_bob opens it and watches live with Nicholas's cursor and output, Nicholas grants m6_bob control from the tile, m6_bob types and it lands, Nicholas revokes and m6_bob's keystrokes stop within a second, and all of it works at https://denchat.app after `deploy/release.sh`.
 
 ## Non-goals for this brief
 No file transfer, no screen control, no direct WebRTC path yet, no screen-state sync yet, no mobile-native terminal. Build the seams for the last two (below) and stop.

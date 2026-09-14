@@ -1,6 +1,6 @@
 # Public VPS
 
-The live instance is https://den.nicholascaron.com. Run `./deploy/release.sh`
+The live instance is https://denchat.app. Run `./deploy/release.sh`
 from codexbox to build and redeploy. The VPS runs Den, LiveKit 1.9.0, Caddy,
 and HAProxy as systemd services. See [M6 notes](../docs/M6-NOTES.md) for setup,
 backups, restore, certificate renewal, verification, and key rotation.

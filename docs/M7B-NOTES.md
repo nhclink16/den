@@ -1,6 +1,6 @@
 # M7b — hosts, grants, and terminals
 
-Completed 2026-09-13 on codexbox. Public app: https://den.nicholascaron.com.
+Completed 2026-09-13 on codexbox. Public app: https://denchat.app.
 
 The work landed in order: the persistent host (`6477f0b`, `d6fcd0f`), the grant model and Settings/CLI (`197db1d`, `ab5db24`), then the Ghostty plugin (`a3d67f8`). Subsequent small commits fixed decision atomicity, resize/reattach ordering, replay dimensions, and verification races. Application release `af19ccd` is deployed; `13bc761` updates the smoke script. All changes were pushed to `main` with explicit-path staging.
 
@@ -53,7 +53,7 @@ Before deployment, `den-backup` completed successfully on the verified VPS `vps-
 
 ```sh
 CARGO_TARGET_DIR=/mnt/storage/den-m7b-target ./deploy/release.sh
-DEN_SMOKE_URL=https://den.nicholascaron.com \
+DEN_SMOKE_URL=https://denchat.app \
 DEN_SMOKE_CREDENTIALS="$HOME/.local/share/den-m6/smoke-credentials.json" \
 DEN_SMOKE_HOST_BIN="$HOME/.local/bin/den-host" \
 node scripts/m7b-smoke.mjs
@@ -65,7 +65,7 @@ The final public run passed with **direct** transport:
 Owner keyboard -> PTY -> Ghostty passed (direct)
 View request, control request, owner promotion and Bob input passed
 Revoked browser and forged API input both denied
-PASS https://den.nicholascaron.com: session 01M2E9NJ1A08BTT340KRXQQ8VR,
+PASS https://denchat.app: session 01M2E9NJ1A08BTT340KRXQQ8VR,
 shared card 01M2E9NK2MJ90R21VBWXRPVAWJ
 ```
 

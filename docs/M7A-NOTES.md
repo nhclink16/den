@@ -1,6 +1,6 @@
 # M7a canvas
 
-Released 2026-09-13 at https://den.nicholascaron.com with `deploy/release.sh`.
+Released 2026-09-13 at https://denchat.app with `deploy/release.sh`.
 Application release commit: `48b666e`. Public smoke object:
 `01M2E5K0GF3WWBAHWZNHVD490X`. The dev smoke and public smoke passed. Screenshots below are from the public
 release. All eight were opened and inspected at 1440×900 and 390×844.
@@ -156,7 +156,7 @@ node scripts/m7a-smoke.mjs
 
 # Public: build and release, then test the installed URL with the release CLI.
 ./deploy/release.sh
-DEN_SMOKE_URL=https://den.nicholascaron.com \
+DEN_SMOKE_URL=https://denchat.app \
 DEN_SMOKE_CREDENTIALS="$HOME/.local/share/den-m6/smoke-credentials.json" \
 DEN_SMOKE_CLI=./target/release/den node scripts/m7a-smoke.mjs
 ```

@@ -2,6 +2,8 @@
 
 A lightweight, self-hosted chat for your friends. Text, DMs, a voice room with cams and screen share, and a CLI so your agents can join without a bot-registration circus.
 
+The live app is https://denchat.app.
+
 Status: pre-alpha, being built in the open. See `docs/ROADMAP.md`.
 
 The server and Den Host use AGPL-3.0-only; the shared types, CLI, web client,

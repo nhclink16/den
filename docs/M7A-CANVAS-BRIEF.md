@@ -4,7 +4,7 @@ Owner: Astra (canvas lane). Fable wrote this and reviews the result. Read `docs/
 
 This is the start of M7. Two deliverables: (1) one new core primitive, the **live object**, and a **minimal client plugin API**; (2) the **canvas plugin** built on tldraw as the first plugin, shipped in the default build behind an admin switch. Do not build a general plugin framework. Build exactly the surface the canvas needs, and keep it small enough that a second kind (a poll, a shared list) could be added in an afternoon.
 
-Done when: someone types `/canvas raid layout` in `#plans`, a card appears in chat, two people on different machines draw on it and see each other's cursors and shapes within a second, an agent adds shapes with the CLI and they show up live, the card's thumbnail updates, and all of it is running at https://den.nicholascaron.com via `deploy/release.sh`.
+Done when: someone types `/canvas raid layout` in `#plans`, a card appears in chat, two people on different machines draw on it and see each other's cursors and shapes within a second, an agent adds shapes with the CLI and they show up live, the card's thumbnail updates, and all of it is running at https://denchat.app via `deploy/release.sh`.
 
 ## Licensing
 tldraw's SDK is source-available under the tldraw license, free with the "made with tldraw" watermark. Keep the watermark. Pin the exact `tldraw` version in `apps/web/package.json`. Note the license in `docs/M7A-NOTES.md` and add a line to `README.md` that the canvas plugin uses tldraw under its license. Do not use `@tldraw/sync` or its server; Den syncs objects itself (below).
@@ -47,4 +47,4 @@ Core reads these in `MessageItem.svelte`, `Composer.svelte`, `Palette.svelte`, a
 ## Verification
 Extend `scripts/` with `m7a-smoke.mjs` using the same fake-media Chromium setup: two contexts as `nicholas` and `m6_bob` against the dev server, nicholas runs `/canvas smoke` in `#general`, both open the card, nicholas draws a rectangle by dispatching pointer events on the tldraw canvas, the script asserts bob's store has a new `shape` record within two seconds, bob's cursor appears on nicholas's screen, the CLI as the `clanker` bot patches in a text shape and both browsers show it, and the card shows a thumbnail within 15 seconds. Screenshots of the card, docked, expanded, and a call grid with a canvas tile to `docs/shots/m7a-*.png` at 1440×900 and 390×844. Look at them before declaring done.
 
-Then run `deploy/release.sh`, rerun the smoke against `https://den.nicholascaron.com` with the m6 credentials file, write `docs/M7A-NOTES.md` (what the plugin API is, the record shapes for agents, sizes, license note), and stop.
+Then run `deploy/release.sh`, rerun the smoke against `https://denchat.app` with the m6 credentials file, write `docs/M7A-NOTES.md` (what the plugin API is, the record shapes for agents, sizes, license note), and stop.
