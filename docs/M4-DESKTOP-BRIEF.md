@@ -1,0 +1,35 @@
+# M4 brief: desktop apps (Tauri 2)
+
+Owner: Astra. Read `docs/HOSTING-PLAN.md` (agreed section: native sessions, single-use WebSocket tickets, the multi-server switcher), `docs/M8-NOTES.md` (release pipeline), `docs/M9-NOTES.md`, `docs/THEMES.md`, `AGENTS.md`, and the web client. One Tauri project, three platforms, the same web client inside. No Electron.
+
+Done when: Nicholas downloads a signed `.dmg` from the GitHub release on the iMac, a `.msi` on the Windows PC, and an `.AppImage` on codexbox or the Arch box, logs into denchat.app in each, adds a second server from a URL, switches between them from the wordmark, holds the global push-to-talk key while another app has focus and is heard in a call, gets a native notification for a DM with the app in the background, shares a screen from inside the app on macOS and Windows, and the app updates itself to the next tagged release.
+
+## Project
+- `apps/desktop` holding the Tauri 2 project; it builds `apps/web` and bundles `dist`. Identifier `app.denchat.desktop`, product name `Den`, icons generated from `design/logos/astra/01-doorway-d.svg` on the dark squircle tile via `cargo tauri icon`. Window: min 900×600, remembers size and position (`tauri-plugin-window-state`), native title bar on Windows and Linux, overlay title bar on macOS with the sidebar extending under it (adjust the sidebar's top padding on macOS only).
+- Plugins, pinned: `global-shortcut`, `notification`, `updater`, `window-state`, `deep-link`, `store`, plus the `keyring` crate for credentials. Nothing else unless the brief needs it.
+- The web client detects it is inside Tauri via `window.__TAURI__` and switches to **native session mode**.
+
+## Server work (small)
+- `POST /auth/ws-ticket` (authenticated, bearer or cookie) → `{ ticket, expires_in: 30 }`, single use, tied to the session. `/ws?ticket=` accepts it once; the existing cookie path is unchanged. Tickets are hashed at rest and never logged. Test: reuse is rejected, expiry is enforced.
+- Bearer sessions already exist. Confirm every endpoint the client uses works with `Authorization: Bearer` and no cookie, including uploads and the objects and terminal paths, and fix any that rely on the cookie.
+- `GET /instance` (public) returns `{ instance_name, icon_url?, version }` so the switcher can show a server before login.
+
+## Native session mode in the client
+- Login stores the bearer session token in the OS keychain through the Rust side (`keyring`), never in `localStorage`. The web layer calls `invoke('session_get' | 'session_set' | 'session_clear', { origin })`. API calls use the bearer header; the WebSocket fetches a ticket first. Logout clears the keychain entry.
+- **Multiple servers.** The store becomes a map of instance stores keyed by origin with one active; each keeps its own WebSocket. The wordmark top-left shows the active instance's name (from `/instance`) with a chevron; clicking opens a popover: icon, name, origin in mono when two names collide, unread count, a textual `@` mention indicator, `Add a server` at the bottom, and `Remove` on hover. The chevron carries an amber dot when any background instance has a mention or DM. `Ctrl/Cmd+Shift+1..9` switches, `Ctrl/Cmd+Shift+]` cycles. Inbox merges instances with an eyebrow per instance; Ctrl+K searches across them with the instance name in mono after each result. Calls stay attached to their instance; switching keeps the dock visible with the instance name in it; logging out of an instance disconnects its call.
+- `Add a server` accepts a URL or an invite link; it fetches `/instance`, shows the name and icon, then login or registration against that origin. Deep links `den://join?url=...&invite=...` open the same flow, and `https://denchat.app/login?invite=` links offer `Open in Den` when the app is installed (register the deep-link scheme and, on macOS and Windows, the associated domain).
+- Appearance follows the active instance's account as today; the theme cache is keyed per origin so switching instances does not flash.
+
+## Native features
+- **Push-to-talk**: the PTT key set in Settings, Voice is registered as a global shortcut while in a call, so it works while a game has focus; release on key up. Show `global` in mono next to the PTT pill in the dock when the shortcut is registered. Unregister when leaving the call.
+- **Notifications**: native OS notifications for the same events the browser notifies, with the instance name in the title when more than one instance is connected, clicking focuses the window, switches instance, and opens the room. Badge count on the dock icon (macOS) and taskbar overlay (Windows) with total unread across instances.
+- **Tray / menu bar**: a small mark, menu with `Open Den`, mute and deafen toggles while in a call, `Quit`. Closing the window hides to tray on Windows and Linux and keeps the app running; macOS follows platform convention.
+- **Screen share**: verify `getDisplayMedia` inside each webview. macOS WKWebView and Windows WebView2 should show the system picker. Linux WebKitGTK is the weak one: test it honestly, and if screen share or WebRTC calls are unreliable there, document the exact failure and do not fake it. Multiple shares from the brief in M7c must work where sharing works.
+- **Updater**: `tauri-plugin-updater` against a signed `latest.json` on the GitHub release, with the update key generated once and stored outside the repo (document where). Check on launch and every 6 hours; a quiet `Update ready · Restart` chip in the sidebar bottom, never a modal.
+
+## Packaging and release
+- Extend `.github/workflows/release.yml`: macOS universal `.dmg` signed with a Developer ID certificate and notarized (Nicholas's Apple developer account; the certificate and app-specific password go into repository secrets, and the notes must say which secrets and how to rotate them), Windows `.msi` and `.exe` (unsigned for now; note that SmartScreen will warn), Linux `.AppImage` and `.deb`. Upload the updater's `latest.json` and signatures with the artifacts. Bump to `v0.2.0`.
+- If a signing prerequisite is missing (no Developer ID certificate yet), build unsigned, say so in the notes, and list the exact steps Nicholas must do in the Apple developer portal.
+
+## Verification
+Automate what can be: the web client's native-session mode against the dev server using a stub `__TAURI__` bridge in Playwright for login, ticket WebSocket, instance switching, and merged inbox; server tests for tickets and bearer coverage. Then real-machine acceptance: install on the iMac (`ssh imac`), the Windows PC (`ssh pc`) and a Linux box, run through the done-when list, and record results per platform in a table in `docs/M4-NOTES.md` with screenshots of the switcher popover, the native notification, the tray menu, and the app window on each OS to `docs/shots/m4-*.png`. Anything that cannot be exercised over SSH (the global hotkey while a game has focus, the macOS notarization prompt) is marked `needs Nicholas` with the exact steps. Stop after the notes.

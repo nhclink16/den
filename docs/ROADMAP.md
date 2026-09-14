@@ -33,8 +33,8 @@ Retired 2026-09-14. Decision: the iPhone app is native SwiftUI, not a webview. S
 - Docked cam strip, screen share, device picker, voice activity and PTT.
 Done when: a gaming session runs on it with cams.
 
-## M4 — desktop
-- Tauri 2 shells for Windows and Linux, global PTT shortcut, native notifications, auto-update.
+## M4 — desktop (started 2026-09-14, brief in `docs/M4-DESKTOP-BRIEF.md`)
+- One Tauri 2 project for macOS, Windows, Linux: native sessions in the keychain, multi-server switcher, global PTT, native notifications, tray, updater, signed releases.
 
 ## M5 — iOS, native SwiftUI (decided 2026-09-14)
 Native app, iOS 26 and Liquid Glass materials, LiveKit Swift SDK for calls. Canvas and terminal tiles embed a web view inside native tiles. Built on the iMac by Astra.
@@ -55,7 +55,7 @@ One core primitive (a live JSON object attached to a message, synced over the ex
 ### M7b — den-host, access grants, terminal plugin (done 2026-09-13, brief in `docs/M7B-HOST-BRIEF.md`)
 A dial-out host binary, a grant model where requests and approvals are cards in chat, and a Ghostty-rendered terminal as the second plugin. Seams left for a direct WebRTC path and libghostty-vt screen-state sync.
 
-### M7c — call layouts (started 2026-09-14, brief in `docs/M7C-LAYOUT-BRIEF.md`)
+### M7c — call layouts (done 2026-09-14, brief in `docs/M7C-LAYOUT-BRIEF.md`)
 Every stream visible at once, drag, resize, pin, pop-out, presets, per-room saved layouts.
 
 - Multiple simultaneous screen shares visible at once, always. Drag, resize, pin, pop-out, per-room saved layouts. See `docs/IDEAS.md`.
@@ -72,5 +72,5 @@ These three items are complete; acceptance is recorded in [M8 notes](M8-NOTES.md
 - Multi-instance client design settled; ships in the Tauri shells (M4), not the browser.
 - Later: admin "Export server backup" download after a privacy review; hosted multi-tenant with one LiveKit per tenant; game-server plugin.
 
-## M9 — appearance and themes (started 2026-09-14, brief in `docs/M9-THEMES-BRIEF.md`)
+## M9 — appearance and themes (done 2026-09-14, brief in `docs/M9-THEMES-BRIEF.md`)
 Shared theme schema in den-core, nine built-in themes, fonts, radius, density, a live editor with export and import, synced per user. Done before the desktop and iOS apps so they consume the same JSON.
