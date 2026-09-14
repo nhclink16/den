@@ -4,7 +4,7 @@ import json
 import pathlib
 import subprocess
 
-URL = 'https://den.nicholascaron.com/health'
+URL = 'https://denchat.app/health'
 STATE = pathlib.Path.home() / '.local/state/den-monitor/state.json'
 
 

@@ -32,4 +32,4 @@ rsync -a "$build_dir/den-server" "$build_dir/den" vps:/home/debian/den-release/b
 rsync -a --delete "$web_dir/" vps:/home/debian/den-release/web/
 rsync -a --delete "$deploy_dir/" vps:/home/debian/den-release/deploy/
 ssh vps 'sudo install -m 755 /home/debian/den-release/bin/den-server /opt/den/bin/den-server.new && sudo mv /opt/den/bin/den-server.new /opt/den/bin/den-server && sudo install -m 755 /home/debian/den-release/bin/den /opt/den/bin/den && sudo rsync -a --delete /home/debian/den-release/web/ /opt/den/web/ && sudo rsync -a --delete /home/debian/den-release/deploy/ /opt/den/deploy/ && sudo install -m 644 /opt/den/deploy/systemd/den-server.service /etc/systemd/system/den-server.service && sudo systemctl daemon-reload && sudo systemctl restart den-server'
-curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 https://den.nicholascaron.com/health
+curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 https://denchat.app/health

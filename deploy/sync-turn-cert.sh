@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cert=$(find /var/lib/caddy/.local/share/caddy/certificates -type f -path '*/rtc.den.nicholascaron.com/rtc.den.nicholascaron.com.crt' -print -quit)
+cert=$(find /var/lib/caddy/.local/share/caddy/certificates -type f -path '*/rtc.denchat.app/rtc.denchat.app.crt' -print -quit)
 [[ -n "$cert" ]] || { echo 'Caddy has not issued the TURN certificate yet' >&2; exit 1; }
 key=${cert%.crt}.key
 openssl x509 -checkend 0 -noout -in "$cert" >/dev/null

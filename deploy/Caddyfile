@@ -5,7 +5,7 @@
 	}
 }
 
-den.nicholascaron.com {
+denchat.app {
 	tls {
 		issuer acme {
 			disable_tlsalpn_challenge
@@ -17,11 +17,30 @@ den.nicholascaron.com {
 	reverse_proxy 127.0.0.1:7000
 }
 
-rtc.den.nicholascaron.com {
+rtc.denchat.app {
 	tls {
 		issuer acme {
 			disable_tlsalpn_challenge
 		}
 	}
 	reverse_proxy 127.0.0.1:7880
+}
+
+# Keep previously shared links, including invite queries, working.
+den.nicholascaron.com {
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+	redir https://denchat.app{uri} 301
+}
+
+rtc.den.nicholascaron.com {
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+	redir https://rtc.denchat.app{uri} 301
 }

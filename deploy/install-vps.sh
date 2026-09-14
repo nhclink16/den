@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y dnsutils
-for name in den.nicholascaron.com rtc.den.nicholascaron.com; do
+for name in denchat.app rtc.denchat.app; do
   [[ $(dig @1.1.1.1 "$name" A +short) = 135.148.120.197 ]] || { echo "DNS mismatch: $name" >&2; exit 1; }
 done
 export DEBIAN_FRONTEND=noninteractive
@@ -31,12 +31,12 @@ import os, pathlib, secrets, pwd
 key, secret = 'API' + secrets.token_hex(12), secrets.token_urlsafe(48)
 p = pathlib.Path('/etc/den/den.env')
 p.write_text(f'''DEN_BIND=127.0.0.1:7000
-DEN_ORIGIN=https://den.nicholascaron.com
+DEN_ORIGIN=https://denchat.app
 DEN_DB=/var/lib/den/den.db
 DEN_UPLOADS=/var/lib/den/uploads
 DEN_BOOTSTRAP_FILE=/var/lib/den/bootstrap.key
 DEN_WEB_DIR=/opt/den/web
-DEN_LIVEKIT_URL=wss://rtc.den.nicholascaron.com
+DEN_LIVEKIT_URL=wss://rtc.denchat.app
 DEN_LIVEKIT_API_KEY={key}
 DEN_LIVEKIT_API_SECRET={secret}
 RUST_LOG=den_server=info

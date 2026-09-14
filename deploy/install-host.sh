@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 if [ "$#" -ne 1 ]; then
-  echo 'Usage: curl -fsSL https://den.nicholascaron.com/install-host.sh | sh -s -- <enrollment-code>' >&2
+  echo 'Usage: curl -fsSL https://denchat.app/install-host.sh | sh -s -- <enrollment-code>' >&2
   exit 1
 fi
 if [ "$(id -u)" -eq 0 ]; then echo 'Run this as your own user, without sudo.' >&2; exit 1; fi
