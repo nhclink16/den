@@ -263,6 +263,60 @@ behavior, and capture the listening screen as `docs/shots/dictation-iphone.png`.
 No simulator image is substituted for that requested phone screenshot. Source
 guards and fake-driver tests are not proof of real offline speech recognition.
 
+### September 14 physical permission crash
+
+Nicholas's first physical dictation attempt exposed a real crash missed by the
+fake-driver tests. The phone report `Den-2026-09-14-160333.ips`, captured at
+16:03:32 Eastern, traps in `_dispatch_assert_queue_fail` and Swift's isolation
+check. The app frame is the speech-authorization completion inside
+`DictationPlatform.authorize(isCurrent:)`, called by TCC on
+`com.apple.root.default-qos`. Dictation had not started audio capture.
+Redacted evidence: `/tmp/den-ios-dictation-crash/crash-receipt.json`.
+
+The iPhoneOS 26.5 headers explicitly allow both microphone and speech permission
+completions off the main thread, but these older Objective-C block declarations
+are not marked Sendable. Our closures inherited MainActor isolation from their
+enclosing type. This is the callback mismatch described in Swift's
+[incremental adoption guide](https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/incrementaladoption/#Unmarked-Sendable-Closures).
+The earlier state tests injected an authorization result and never exercised
+these actual completion closures. The regression needs that callback boundary,
+not another fake-driver start test.
+
+Both real completion literals now explicitly use `@Sendable` and only resume
+their checked continuation. The async function resumes on MainActor for its
+existing ownership and denial checks; those checks were not changed.
+
+The retained regression calls the real platform authorization method. Enable it
+by passing `DEN_TEST_DICTATION_PERMISSIONS=1` in XcodeBuildMCP's `testRunnerEnv`
+and selecting `DenTests/DictationEngineTests`. It may show system permission
+prompts on a fresh test device; it starts no microphone capture or recognizer.
+It is opt-in so ordinary unattended CI does not hang waiting for those prompts.
+The QA simulator's microphone permission was granted with simctl; its actual
+speech permission prompt was allowed through the observed accessibility button.
+
+Before the fix, this test **crashed with signal trap**, while the four existing
+engine tests passed, with no skips. Result:
+`test_sim_2026-09-14T20-11-14-760Z_pid75326_fd06755f.xcresult`, receipt
+`/tmp/den-ios-dictation-crash/actual-permission-red.json`.
+An earlier injected Swift-registrar experiment passed before the fix because it
+changed the Objective-C callback conversion. That seam and its two misleading
+tests were removed; their pass is explicitly excluded from regression proof.
+
+After the two-line callback fix, the same actual-API regression and all existing
+engine/insertion tests passed: **10 passed, zero failed, zero skipped** in 28
+seconds. Result:
+`test_sim_2026-09-14T20-13-57-981Z_pid76494_26492900.xcresult`, receipt
+`/tmp/den-ios-dictation-crash/actual-permission-green.json`.
+No existing assertion was weakened, no privacy request was bypassed in production,
+and no audio was captured for either run.
+
+The corrected app built and signed successfully through the Aqua helper,
+**exit 0**, receipt `~/.local/share/den-ios-tools/runs/aqua-qjet5p0a`. It was
+installed on Nicholas's connected iOS 27.0 phone and launched as process **2126**.
+Receipts: `/tmp/den-ios-dictation-crash/device-{install,launch}.json`.
+This verifies the crash fix's regression and delivery, not a new spoken-sentence
+or offline-recognition pass; Nicholas's actual dictation retry remains needed.
+
 ## Historical signing investigation
 
 The following notes describe the earlier probe and resolved signing blocker, not

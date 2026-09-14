@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Speech
 import Testing
@@ -29,6 +30,20 @@ import Testing
             #expect(request.shouldReportPartialResults)
             #expect(request.addsPunctuation == punctuation)
         }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DEN_TEST_DICTATION_PERMISSIONS"] == "1",
+                   "Opt-in system permission integration: may show microphone and speech prompts; never captures audio."))
+    @MainActor func platformPermissionCallbacksResumeOnOwningActor() async {
+        var ownershipChecks = 0
+        let authorization = await DictationPlatform.authorize(isCurrent: {
+            ownershipChecks += 1
+            return true
+        })
+        #expect(AVAudioApplication.shared.recordPermission == .granted)
+        #expect(SFSpeechRecognizer.authorizationStatus() == .authorized)
+        #expect(authorization == .allowed)
+        #expect(ownershipChecks == 1, "Real permission callbacks must resume on the owning context before proceeding.")
     }
 
     @Test @MainActor func cancellationInvalidatesLatePermissionAndOldSessionCallbacks() async throws {

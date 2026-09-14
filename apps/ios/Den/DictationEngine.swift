@@ -31,12 +31,12 @@ extension DictationController.Dependencies {
 
     static func authorize(isCurrent: @escaping @MainActor () -> Bool) async -> DictationController.Authorization {
         let microphone = await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
+            AVAudioApplication.requestRecordPermission { @Sendable in continuation.resume(returning: $0) }
         }
         guard microphone else { return .microphoneDenied }
         guard isCurrent() else { return .microphoneDenied }
         let speech: SFSpeechRecognizerAuthorizationStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
+            SFSpeechRecognizer.requestAuthorization { @Sendable in continuation.resume(returning: $0) }
         }
         return speech == .authorized ? .allowed : .speechDenied
     }
