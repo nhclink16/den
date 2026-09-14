@@ -71,3 +71,6 @@ These three items are complete; acceptance is recorded in [M8 notes](M8-NOTES.md
 
 - Multi-instance client design settled; ships in the Tauri shells (M4), not the browser.
 - Later: admin "Export server backup" download after a privacy review; hosted multi-tenant with one LiveKit per tenant; game-server plugin.
+
+## M9 — appearance and themes (started 2026-09-14, brief in `docs/M9-THEMES-BRIEF.md`)
+Shared theme schema in den-core, nine built-in themes, fonts, radius, density, a live editor with export and import, synced per user. Done before the desktop and iOS apps so they consume the same JSON.
