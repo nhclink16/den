@@ -57,7 +57,10 @@ struct ConversationView: View {
     }
 
     private var timeline: some View {
-        ScrollViewReader { proxy in
+        // Lazy rows may outlive a store update or a channel transition. Their
+        // neighboring message must come from the same immutable render snapshot.
+        let messages = self.messages
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if store.offline { QuietOfflineChip().padding(.horizontal, 16).padding(.bottom, 8) }
