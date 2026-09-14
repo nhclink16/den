@@ -10,8 +10,8 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
-        appearance::get,
-        appearance::put,
+        appearance::get_appearance,
+        appearance::put_appearance,
         hosts::list,
         hosts::enroll,
         hosts::login,

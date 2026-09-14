@@ -1,7 +1,7 @@
 use crate::{auth::Auth, *};
 
 #[utoipa::path(get,path="/users/me/appearance",responses((status=200,body=Appearance)))]
-pub(crate) async fn get(State(s): State<AppState>, a: Auth) -> Result<Json<Appearance>> {
+pub(crate) async fn get_appearance(State(s): State<AppState>, a: Auth) -> Result<Json<Appearance>> {
     let value: Option<String> =
         sqlx::query_scalar("SELECT appearance FROM user_appearance WHERE user_id=?")
             .bind(&a.user.id)
@@ -13,7 +13,7 @@ pub(crate) async fn get(State(s): State<AppState>, a: Auth) -> Result<Json<Appea
     }))
 }
 #[utoipa::path(put,path="/users/me/appearance",request_body=Appearance,responses((status=200,body=Appearance)))]
-pub(crate) async fn put(
+pub(crate) async fn put_appearance(
     State(s): State<AppState>,
     a: Auth,
     ApiJson(v): ApiJson<Appearance>,

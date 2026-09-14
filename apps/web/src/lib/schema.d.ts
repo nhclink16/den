@@ -876,8 +876,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
-        put: operations["put"];
+        get: operations["get_appearance"];
+        put: operations["put_appearance"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3820,7 +3820,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_appearance: {
         parameters: {
             query?: never;
             header?: never;
@@ -3848,7 +3848,7 @@ export interface operations {
             };
         };
     };
-    put: {
+    put_appearance: {
         parameters: {
             query?: never;
             header?: never;

@@ -231,7 +231,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/users/me", get(auth::me))
         .route(
             "/users/me/appearance",
-            get(appearance::get).put(appearance::put),
+            get(appearance::get_appearance).put(appearance::put_appearance),
         )
         .route("/invites", post(credentials::invite))
         .route("/invites/{id}", delete(credentials::revoke_invite))
