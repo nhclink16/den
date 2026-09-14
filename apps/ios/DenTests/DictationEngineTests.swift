@@ -5,6 +5,116 @@ import Testing
 @testable import Den
 
 @Suite(.serialized) struct DictationEngineTests {
+    @Test(arguments: DictationPCMCase.allCases)
+    @MainActor func tapCopiesHardwarePCMBeforeConversion(_ sample: DictationPCMCase) async throws {
+        let frame = try await Task.detached {
+            let format = try #require(AVAudioFormat(commonFormat: sample.int16 ? .pcmFormatInt16 : .pcmFormatFloat32,
+                                                   sampleRate: 48_000, channels: sample.stereo ? 2 : 1,
+                                                   interleaved: sample.interleaved))
+            let source = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4096))
+            source.frameLength = sample.empty ? 0 : 2048
+            // A tap may deliver fewer frames than its allocation. Poison spare capacity so
+            // copying or analyzing the unused tail cannot accidentally look like valid audio.
+            for item in UnsafeMutableAudioBufferListPointer(source.mutableAudioBufferList) {
+                if let data = item.mData { memset(data, 0x6b, Int(item.mDataByteSize)) }
+            }
+            let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: source.audioBufferList))
+            for (bufferIndex, item) in buffers.enumerated() {
+                guard let data = item.mData else { continue }
+                if sample.int16 {
+                    let values = data.assumingMemoryBound(to: Int16.self)
+                    for index in 0..<Int(item.mDataByteSize) / MemoryLayout<Int16>.size {
+                        let channel = sample.interleaved ? index % Int(item.mNumberChannels) : bufferIndex
+                        let frameIndex = sample.interleaved ? index / Int(item.mNumberChannels) : index
+                        values[index] = sample.amplitude(frame: frameIndex, channel: channel)
+                    }
+                } else {
+                    let values = data.assumingMemoryBound(to: Float.self)
+                    for index in 0..<Int(item.mDataByteSize) / MemoryLayout<Float>.size {
+                        let channel = sample.interleaved ? index % Int(item.mNumberChannels) : bufferIndex
+                        let frameIndex = sample.interleaved ? index / Int(item.mNumberChannels) : index
+                        values[index] = Float(sample.amplitude(frame: frameIndex, channel: channel)) / 32768
+                    }
+                }
+            }
+            let expected = pcmBytes(source)
+            // The same function is invoked by the live hardware tap, not a substitute driver.
+            let captured = DictationAudioCapture.copiedInput(source)
+            if sample.empty {
+                #expect(captured == nil || captured?.buffer.frameLength == 0, "An empty callback must not trap or manufacture samples.")
+                return captured
+            }
+            let input = try #require(captured)
+            #expect(input.buffer !== source, "The tap must own its copy after the borrowed hardware buffer returns.")
+            #expect(input.buffer.format == format)
+            #expect(input.buffer.frameLength == 2048)
+            #expect(pcmBytes(input.buffer) == expected)
+            for item in buffers {
+                if let data = item.mData { memset(data, 0, Int(item.mDataByteSize)) }
+            }
+            #expect(pcmBytes(input.buffer) == expected, "Reusing the source buffer must not alter the captured frame.")
+            return captured
+        }.value
+
+        let floatFormat = try #require(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000,
+                                                    channels: sample.stereo ? 2 : 1, interleaved: false))
+        let intFormat = try #require(AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000,
+                                                  channels: 1, interleaved: false))
+        let stereoIntFormat = try #require(AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000,
+                                                        channels: 2, interleaved: false))
+        let outputFormat = try DictationAudioConverter.analyzerFormat(preferred: floatFormat,
+                                                                      compatibleFormats: [floatFormat, stereoIntFormat, intFormat])
+        #expect(outputFormat == intFormat, "Neither Float32 nor stereo may bypass AnalyzerInput's mono Int16 preconditions.")
+        #expect(try DictationAudioConverter.analyzerFormat(preferred: stereoIntFormat,
+                                                          compatibleFormats: [stereoIntFormat, intFormat]) == intFormat)
+        #expect(throws: DictationAudioError.self) {
+            try DictationAudioConverter.analyzerFormat(preferred: floatFormat, compatibleFormats: [floatFormat])
+        }
+        #expect(throws: DictationAudioError.self) {
+            try DictationAudioConverter.analyzerFormat(preferred: stereoIntFormat, compatibleFormats: [stereoIntFormat])
+        }
+        let converter = DictationAudioConverter(outputFormat: outputFormat)
+        if sample.empty {
+            let empty = try #require(AVAudioPCMBuffer(pcmFormat: floatFormat, frameCapacity: 1))
+            #expect(try converter.convert(empty) == nil, "An empty callback must not manufacture converted samples.")
+            return
+        }
+        let owned = try #require(frame)
+        let converted = try #require(try converter.convert(owned.buffer))
+        #expect(converted.format == intFormat)
+        #expect(converted.frameLength == 2048, "Same-rate normalization must preserve the frame count.")
+        for item in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: converted.audioBufferList)) {
+            let data = try #require(item.mData)
+            let values = data.assumingMemoryBound(to: Int16.self)
+            let samples = UnsafeBufferPointer(start: values, count: Int(item.mDataByteSize) / MemoryLayout<Int16>.size)
+            #expect(samples.count == Int(converted.frameLength), "Check every valid mono sample, never spare allocation capacity.")
+            if sample.stereo {
+                try #require(samples.count == 2048)
+                let silence = samples[0..<512], left = samples[512..<1024], right = samples[1024..<1536]
+                // AudioConverter.h documents format/layout-dependent gain, not fixed .5/.5 averaging.
+                // Isolated channels prove neither was discarded; joint input must remain additive.
+                #expect(silence.allSatisfy { $0 == 0 }, "Mixing must not manufacture sound from silence.")
+                #expect(left.allSatisfy { $0 > 0 && $0 <= 4096 }, "The left channel must contribute without gain beyond its input amplitude.")
+                #expect(right.allSatisfy { $0 > 0 && $0 <= 12288 }, "The right channel must contribute without gain beyond its input amplitude.")
+                #expect(left.allSatisfy { abs(Int($0) - Int(samples[512])) <= 1 }, "A constant left-only segment must remain constant.")
+                #expect(right.allSatisfy { abs(Int($0) - Int(samples[1024])) <= 1 }, "A constant right-only segment must remain constant.")
+                #expect((0..<512).allSatisfy {
+                    abs(Int(samples[1536 + $0]) - Int(samples[512 + $0]) - Int(samples[1024 + $0])) <= 2
+                }, "Both channels together must equal their isolated contributions within two quantization steps. Case=\(sample.rawValue), left=\(samples[512]), right=\(samples[1024]), both=\(samples[1536]).")
+            } else {
+                let mismatches = samples.enumerated().filter { abs(Int($0.element) - 8192) > 1 }
+                let firstMismatches = mismatches.prefix(12).map { "\($0.offset):\($0.element)" }
+                #expect(samples.allSatisfy { abs(Int($0) - 8192) <= 1 },
+                        "Mono must preserve quarter-scale. Case=\(sample.rawValue), frames=\(converted.frameLength), samples=\(samples.count), min=\(String(describing: samples.min())), max=\(String(describing: samples.max())), first=\(Array(samples.prefix(16))), mismatchCount=\(mismatches.count), firstMismatches=\(firstMismatches).")
+            }
+        }
+        // Exercise the real framework constructor only after the same conversion used in production.
+        let analyzed = AnalyzerInput(buffer: converted).buffer
+        #expect(analyzed.frameLength == converted.frameLength)
+        #expect(analyzed.format == intFormat)
+        #expect(pcmBytes(analyzed) == pcmBytes(converted))
+    }
+
     @Test func analyzerRevisionsReplaceVolatileRangesWhileLegacyRemainsCumulative() {
         var transcript = DictationTranscript()
         #expect(transcript.analyzer(text: "Turn left", start: 0, end: 1, isFinal: false) == "Turn left")
@@ -33,15 +143,16 @@ import Testing
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DEN_TEST_DICTATION_PERMISSIONS"] == "1",
-                   "Opt-in system permission integration: may show microphone and speech prompts; never captures audio."))
+                   "Opt-in system permission integration: may show the microphone prompt; never captures audio."))
     @MainActor func platformPermissionCallbacksResumeOnOwningActor() async {
         var ownershipChecks = 0
+        let speechBefore = SFSpeechRecognizer.authorizationStatus()
         let authorization = await DictationPlatform.authorize(isCurrent: {
             ownershipChecks += 1
             return true
         })
         #expect(AVAudioApplication.shared.recordPermission == .granted)
-        #expect(SFSpeechRecognizer.authorizationStatus() == .authorized)
+        #expect(SFSpeechRecognizer.authorizationStatus() == speechBefore, "Local dictation must not request or change legacy speech authorization.")
         #expect(authorization == .allowed)
         #expect(ownershipChecks == 1, "Real permission callbacks must resume on the owning context before proceeding.")
     }
@@ -154,6 +265,33 @@ import Testing
             await Task.yield()
         }
         Issue.record("Expected asynchronous dictation transition did not occur.")
+    }
+}
+
+enum DictationPCMCase: String, CaseIterable, Sendable {
+    case float32MonoPlanar, float32StereoPlanar, float32MonoInterleaved, float32StereoInterleaved
+    case int16MonoPlanar, int16StereoPlanar, int16MonoInterleaved, int16StereoInterleaved
+    case emptyFloat32MonoPlanar
+    var int16: Bool { rawValue.hasPrefix("int16") }
+    var stereo: Bool { rawValue.contains("Stereo") }
+    var interleaved: Bool { rawValue.hasSuffix("Interleaved") }
+    var empty: Bool { self == .emptyFloat32MonoPlanar }
+
+    func amplitude(frame: Int, channel: Int) -> Int16 {
+        guard stereo else { return 8192 }
+        switch frame / 512 {
+        case 0: return 0
+        case 1: return channel == 0 ? 4096 : 0
+        case 2: return channel == 1 ? 12288 : 0
+        default: return channel == 0 ? 4096 : 12288
+        }
+    }
+}
+
+private func pcmBytes(_ buffer: AVAudioPCMBuffer) -> [Data] {
+    UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: buffer.audioBufferList)).map {
+        guard let data = $0.mData, $0.mDataByteSize > 0 else { return Data() }
+        return Data(bytes: data, count: Int($0.mDataByteSize))
     }
 }
 

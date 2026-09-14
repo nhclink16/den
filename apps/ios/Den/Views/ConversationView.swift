@@ -39,7 +39,7 @@ struct ConversationView: View {
                     .accessibilityAddTraits(.isHeader)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showPeople = true } label: { Image(systemName: "person.2") }
+                Button { store.dictation?.stop(); showPeople = true } label: { Image(systemName: "person.2") }
                     .accessibilityLabel("People in this room")
             }
             if channel.kind == .dm {

@@ -117,6 +117,6 @@ final class ChatTextView: UITextView {
         defer { insertingLineBreak = false }
         insertText("\n")
     }
-    @objc func dismissKeyboard() { resignFirstResponder() }
+    @objc func dismissKeyboard() { onEscape?(); resignFirstResponder() }
     @objc private func stopDictating() { onEscape?(); resignFirstResponder() }
 }

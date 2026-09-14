@@ -168,13 +168,34 @@ environment receives the repository checkout; the test environments receive
 | Script | Work |
 | --- | --- |
 | `ci_post_clone.sh` | Install pinned XcodeGen; check committed project/scheme/package locks and fixture archive drift. |
-| `ci_pre_xcodebuild.sh` | For `test-without-building`, build the bundled Rust server, start it on a random loopback port, and seed two disposable users, a text room, and a DM. Other actions do not start it. |
+| `ci_pre_xcodebuild.sh` | For `test-without-building`, build/start the loopback fixture, seed two users and rooms, ready the exact `CI_TEST_DESTINATION_UDID`, and reset Den privacy for the first-use regression. Other actions do not start it. |
 | `ci_post_xcodebuild.sh` | Stop the exact fixture process and remove its private database, uploads, log, credentials, and receipt, including after test failures. |
 
 Hooks must remain executable and adjacent to the project in `ci_scripts`.
 Failures return nonzero. No hook assumes that `/tmp` or files generated on the
 build machine persist on a test worker.
 [Apple custom script documentation](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts)
+
+The UI suite includes first-use dictation after a real privacy reset. A fresh,
+single-use receipt must match the simulator, fixture, bundle and reset command;
+a missing or stale reset fails the test. The simulator-only Debug source exercises
+real microphone authorization and production PCM conversion without opening
+microphone hardware or downloading a speech model. It is not spoken-phone proof.
+
+For a local first-use run, supply the exact simulator UUID and existing native
+test products; the runner provisions and cleans up its own disposable server:
+
+```sh
+python3 apps/ios/scripts/test-first-run-dictation.py \
+  --simulator <UUID> --test-products <Den.xctestproducts> --output <new-proof-directory>
+```
+
+Use `--fixture <private-loopback-fixture.json>` to reuse an existing fixture without
+stopping it, or `--all-ui-tests` for the full UI suite. `--xctestrun` is supported
+instead of `--test-products`. For a separate Xcode/MCP invocation, run
+`ci_scripts/reset-dictation-privacy.py --simulator <UUID> --fixture <path>` first.
+No permissions are pregranted. Cloud execution of this new reset path remains
+unverified until an actual Cloud test action runs.
 
 The post-clone hook also enables the pinned OpenAPI build plugin on the Cloud
 worker, using the exact preference key documented by Generator 1.13.1:

@@ -137,6 +137,124 @@ or a simulated payload as this acceptance check.
 
 ## Dictation
 
+### September 14 physical crash follow-up
+
+The first permission-callback repair (`e188e4e`) did not resolve physical
+dictation. A fresh device report, `Den-2026-09-14-162122.ips`, records
+**EXC_BREAKPOINT / SIGTRAP on thread 15**, queue
+`RealtimeMessenger.mServiceQueue`. Its stack is
+`AnalyzerInput.data(from:)` → `AnalyzerInput.init(buffer:)` → the Den audio tap.
+The report's Den image UUID matches the signed binary installed by that repair.
+This is the first microphone buffer, not the earlier speech-authorization
+callback isolation failure. Private local evidence is under
+`/tmp/den-ios-dictation-buffer-crash/`.
+
+Installed iOS **27.0 (24A434)** beside 26.5 using the official platform download;
+Xcode remains **26.6 (17F113)**. The exact same compiled PCM regression passed
+all nine input cases on 26.5, then trapped on the first Float32 mono case on 27:
+**“Audio sample data must be 16-bit signed integers.”** The failed iOS 27 run is
+`test_sim_2026-09-14T20-38-54-000Z_pid96882_62a49a63.xcresult` (four other tests
+passed, one optional permission integration skipped). Initial simulator startup
+was slow, but XCTest did reach and execute this failing case.
+
+After Int16 conversion, the stereo case exposed a second framework precondition:
+**“Multi-channel audio is not supported.”** That failure is retained in
+`test_sim_2026-09-14T20-53-07-545Z_pid7099_2a953eff.xcresult`. The repair transports
+an owned raw PCM frame out of the tap, chooses only module-compatible **mono
+Int16**, downmixes/converts, and constructs `AnalyzerInput` only afterward.
+No Speech wrapper is used to carry unconverted input into AVAudioConverter.
+Empty callbacks are ignored. Copying reads the buffer's valid `frameLength`, not
+the unused capacity exposed by `mutableAudioBufferList`.
+
+The new nine-case test was adapted, not left unchanged: it now includes unused
+capacity, source-buffer reuse, mono/stereo, planar/interleaved and Float32/Int16.
+An initial stereo assertion assumed arithmetic averaging; iOS 27 returned an
+equal-power result for interleaved Int16. Apple's `AudioConverter.h` documents
+a layout-dependent default mix map, not fixed gains. The revised assertion
+checks isolated left/right contributions, silence and additivity; mono amplitude,
+owned bytes, valid-frame counts and the real Speech constructor remain checked.
+No custom DSP was added to force a test's undocumented gain assumption.
+The final PCM assertions were deliberately challenged with downmixing disabled:
+`test_sim_2026-09-14T21-23-17-963Z_pid25524_8c5721a7.xcresult` fails the new
+buffer test while four other tests pass. The production source was restored
+byte-for-byte before final verification.
+
+The lead audit also found:
+
+- Apple's [permission guide](https://developer.apple.com/documentation/speech/asking-permission-to-use-speech-recognition)
+  scopes speech-recognition authorization to `SFSpeechRecognizer`, not the
+  on-device `SpeechAnalyzer` transcriber. The user's newer one-microphone-prompt
+  instruction supersedes the original brief's two-prompt requirement.
+- `DenApp` already cancels on real `.background`, not `.inactive`; the audio
+  observers likewise use `didEnterBackground`, interruptions and engine reset.
+  **The first-run test found a separate focus race:** the editor lost focus
+  before UIApplication changed from active to inactive. Composer treated this
+  as Stop and cancelled preparation. The actual trace then reported
+  `microphone=true, current=false`. Preparation now ignores that incidental
+  focus loss. Explicit Stop, keyboard Done/Escape, People, timeline taps, navigation,
+  call preparation and real background still stop/cancel. Microphone completion
+  can also arrive while inactive; startup waits briefly for active before audio.
+- T3 Code's record-then-transcribe implementation was examined at commit
+  `549d182aaadbf0e1e195d1a8cdc1805200e6751e`. File transcription is a viable
+  different interaction, but removes live partials and adds recording-file
+  lifecycle work. The reproduced PCM-format failure supports repairing the
+  live conversion boundary instead of adding that fallback for this bug.
+- Authorized iPhone Mirroring stopped at its own Mac-login password gate. No
+  password was entered, no unlock was requested, and no security setting changed.
+
+With those changes, the iOS 27 first-run test passed after `reset all`: exactly
+one mic prompt and one initial tap, preserved draft plus the processed-PCM marker,
+Listening, Stop/edit, and unchanged server message IDs (no auto-send). The same
+run passed all nine buffer cases: `test_sim_2026-09-14T21-20-23-473Z_pid24096_f58ef4d2.xcresult`.
+It contained temporary simulator-only lifecycle tracing, which was then removed.
+The final trace-free full iOS 27 suite passed **41 tests, zero failures**, with
+one old opt-in permission integration skipped:
+`test_sim_2026-09-14T21-29-21-783Z_pid27680_4eae7601.xcresult`.
+The new first-use test was not skipped; it passed in 33.335 seconds.
+Synthetic input is not a physical spoken-dictation claim.
+Reintroducing the old focus-loss cancellation deliberately failed that same UI
+test after Allow: the composer retained `Keep this draft` but never received the
+PCM-driven transcript. The source was restored byte-for-byte and all final native
+source hashes matched the passing trace-free build before subsequent checks.
+Failure result: `test_sim_2026-09-14T21-34-03-893Z_pid29854_97b9b981.xcresult`.
+
+The permanent local runner then passed that same fresh-permission UI test on
+iOS **26.5**, using the exact trace-free test products from the iOS 27 run:
+`/tmp/den-ios-dictation-buffer-crash/final-26-first-run-fixed-runner/first-run.xcresult`.
+Two earlier runner invocations did not reach XCTest: a cold-boot privacy reset
+timed out, and the next invocation exposed Xcode rejecting `-test-iterations 1`.
+The simulator was opened and the invalid repetition argument removed. The final
+runner used the normal single execution with no automatic retries, and reset
+privacy successfully before the passing test. Cloud execution remains unverified.
+
+The signed device build passed in
+`~/.local/share/den-ios-tools/runs/aqua-xcf5u5yh/` (exit 0), and
+`codesign --verify --deep --strict` passed. The new Den image UUID is
+`1145C439-FD18-3273-B06F-400518A6E942`; its sources match the passing trace-free
+test products. The app is at
+`/tmp/den-ios-device/Build/Products/Debug-iphoneos/Den.app`.
+
+**Installation is blocked, not complete.** The native device list reports
+Nicholas's iOS 27 phone disconnected/unavailable. One installation attempt failed
+with CoreDevice error **1011**, unable to locate the requested device. No launch
+or physical spoken/offline retest is claimed, and no unlock was requested.
+Evidence: `/tmp/den-ios-dictation-buffer-crash/device-{list-after-build,install}.json`.
+Install this signed app when the phone is available, then have Nicholas speak;
+the earlier installed build is not this fix. The isolated local fixture was
+stopped with its ownership-checked helper and its private data removed. Both
+owned QA simulators were shut down after testing; the iOS 27 runtime is retained.
+
+Test harness corrections are explicit: Python and Foundation canonicalize `/tmp`
+aliases differently, so both receipt paths now use the same comparison. iOS 27
+permission sheets are matched by visible Den-specific titles, not assumed Alert
+roles. Underlying-app phase assertions were adapted to same-tap PCM delivery and
+Stop/Listening after dismissal; querying behind a system sheet was unreliable.
+Failures return before dependent UI actions and deny only a remaining matching
+Den permission sheet during cleanup. No permission is pregranted or implicitly
+allowed by the test. The host resets privacy before every invocation and supplies
+a fresh single-use, exact-device receipt. This test is part of the regular UI
+suite, not an opt-in skipped permission check.
+
 The native composer now has an on-device dictation control immediately before
 Send, with the same 44-point plain-button treatment as Attach. Listening uses
 the theme accent, a 1.2-second ease pulse (off under Reduce Motion), and a mono
@@ -151,9 +269,11 @@ Punctuation preference where the selected engine supports it.
 - Prefer iOS 26 `SpeechAnalyzer` / `SpeechTranscriber` with already-installed
   assets. No model download or reservation API is called. If unavailable, use
   `SFSpeechRecognizer` only with both `supportsOnDeviceRecognition` and
-  `requiresOnDeviceRecognition = true`. Hide the button when neither local
-  engine supports the selected language. Microphone and speech prompts occur
-  on first use, not at launch; ownership is rechecked between prompts.
+  `requiresOnDeviceRecognition = true` and already-granted legacy authorization.
+  Hide the button when neither eligible local engine supports the selected
+  language. First use requests only the microphone; SpeechAnalyzer does not
+  require legacy speech-service authorization. No new legacy speech prompt is
+  introduced as a fallback. Ownership is rechecked before hardware startup.
 - Xcode **26.6 (17F113)**, installed iPhoneOS **26.5** SDK, Swift **6.3.3**,
   Swift 6 strict concurrency, iOS 26 minimum. Context7 had no matching Apple
   Speech entry; exact APIs were checked against the installed SDK and Apple's

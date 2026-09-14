@@ -35,6 +35,194 @@ final class TextFlowTests: XCTestCase {
         }
     }
 
+    func testFirstRunDictationPermissionsAndFirstPCMFrame() async throws {
+        try configureFixture()
+        try consumeDictationPrivacyReset()
+        app.launchArguments.append("--den-ui-dictation-pcm")
+        let before: [Message] = try await request("/channels/\(fixture.generalChannelId)/messages")
+        let draft = "Keep this draft"
+        let expected = draft + " local dictation sample"
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        // iOS 27 exposes the speech sheet as Other, not Alert. Match its visible
+        // system title and quoted app name independently of the container role.
+        let microphone = system.staticTexts.matching(NSPredicate(
+            format: "(label CONTAINS %@ OR label CONTAINS %@) AND label CONTAINS[c] %@",
+            "“Den”", "\"Den\"", "microphone")).firstMatch
+        let speech = system.staticTexts.matching(NSPredicate(
+            format: "(label CONTAINS %@ OR label CONTAINS %@) AND label CONTAINS[c] %@",
+            "“Den”", "\"Den\"", "speech recognition")).firstMatch
+        defer {
+            // Failure must not leave our permission sheet live across the next reset.
+            // Never dismiss any system UI without the matching visible Den title.
+            for title in [microphone, speech] where title.exists {
+                let deny = permissionButton(system: system, title: title, labels: ["Don’t Allow", "Don't Allow"])
+                if deny.exists && deny.isHittable { deny.tap() }
+            }
+            app.terminate()
+        }
+
+        app.launch()
+        XCTAssertTrue(element("login-submit").waitForExistence(timeout: 10))
+        element("login-submit").tap()
+        try await waitForRooms()
+        openRoom(fixture.generalChannelId)
+        let field = element("composer-field")
+        field.tap()
+        field.typeText(draft)
+        XCTAssertEqual(field.value as? String, draft)
+        let dictate = element("composer-dictate")
+        XCTAssertTrue(dictate.waitForExistence(timeout: 10))
+        XCTAssertTrue(dictate.isHittable)
+        XCTAssertEqual(dictate.label, "Dictate")
+        dictate.tap()
+
+        // This dialog is part of the tested flow, not an interruption to dismiss implicitly.
+        guard microphone.waitForExistence(timeout: 10) else {
+            XCTFail("Fresh privacy state must show the real microphone prompt.")
+            return
+        }
+        guard !speech.exists else {
+            XCTFail("Local dictation must not request Apple's speech service permission.")
+            return
+        }
+        // Underlying app AX is stale while this modal is visible. Do not query it.
+        // Ownership is tested after dismissal by processing PCM from this same tap.
+        let permissionShot = XCTAttachment(screenshot: system.screenshot())
+        permissionShot.name = "dictation-first-run-microphone-permission"
+        permissionShot.lifetime = .keepAlways
+        add(permissionShot)
+        let allow = permissionButton(system: system, title: microphone, labels: ["Allow", "OK"])
+        guard microphone.exists, !speech.exists, allow.exists, allow.isHittable else {
+            XCTFail("The verified microphone title must still be visible with a hittable affirmative action and no speech prompt.")
+            return
+        }
+        allow.tap()
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: microphone)
+        guard await XCTWaiter.fulfillment(of: [dismissed], timeout: 5) == .completed else {
+            XCTFail("The microphone prompt must disappear after Allow.")
+            return
+        }
+        guard !speech.waitForExistence(timeout: 2) else {
+            XCTFail("Local dictation must not show a second speech permission title.")
+            return
+        }
+
+        // The Debug source emits this text only after real production PCM processing.
+        // Merely entering Listening cannot pass this test, and no second mic tap is made.
+        for _ in 0..<100 {
+            guard !speech.exists else {
+                XCTFail("A second speech permission prompt is not part of local dictation.")
+                return
+            }
+            guard !microphone.exists else {
+                XCTFail("The microphone prompt must be dismissed before querying the composer.")
+                return
+            }
+            guard app.state != .notRunning else {
+                XCTFail("Den must survive its first PCM buffer.")
+                return
+            }
+            if field.value as? String == expected { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let receivedDraft = field.value as? String
+        XCTAssertEqual(receivedDraft, expected, "The first processed PCM frame must reach the existing composer draft.")
+        guard receivedDraft == expected else { return }
+        XCTAssertEqual(app.state, .runningForeground)
+        let activeLabel = dictate.label
+        let activeValue = dictate.value as? String
+        XCTAssertEqual(activeLabel, "Stop dictating", "The original start must survive permission presentation without another mic tap.")
+        XCTAssertEqual(activeValue, "Listening")
+        guard activeLabel == "Stop dictating", activeValue == "Listening" else { return }
+        XCTAssertTrue(element("dictation-listening").exists)
+        screenshot("dictation-first-run-pcm-listening")
+
+        dictate.tap()
+        let stopped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Dictate"), object: dictate)
+        let stopResult = await XCTWaiter.fulfillment(of: [stopped], timeout: 5)
+        XCTAssertEqual(stopResult, .completed)
+        guard stopResult == .completed else { return }
+        XCTAssertFalse(element("dictation-listening").exists)
+        field.tap()
+        field.typeText(" edited")
+        XCTAssertEqual(field.value as? String, expected + " edited")
+        XCTAssertTrue(element("composer-send").isEnabled)
+        XCTAssertFalse(speech.exists)
+        let after: [Message] = try await request("/channels/\(fixture.generalChannelId)/messages")
+        XCTAssertEqual(Set(after.map(\.id)), Set(before.map(\.id)), "Dictation and stopping must never send a message.")
+    }
+
+    private func permissionButton(system: XCUIApplication, title: XCUIElement, labels: [String]) -> XCUIElement {
+        // Only containers with this exact visible title may supply the action.
+        system.descendants(matching: .any).containing(.staticText, identifier: title.label)
+            .buttons.matching(NSPredicate(format: "label IN %@", labels)).firstMatch
+    }
+
+    private func consumeDictationPrivacyReset() throws {
+        let environment = ProcessInfo.processInfo.environment
+        let simulator = try XCTUnwrap(environment["SIMULATOR_UDID"].flatMap(UUID.init(uuidString:)),
+                                      "The first-run regression requires an identified simulator, never a physical microphone.")
+        let credentials = URL(fileURLWithPath: fixturePath).resolvingSymlinksInPath()
+        let receiptURL = URL(fileURLWithPath: credentials.path + ".dictation-reset.json")
+        guard FileManager.default.fileExists(atPath: receiptURL.path) else {
+            XCTFail("First-run dictation requires a fresh privacy reset. Use apps/ios/scripts/test-first-run-dictation.py or ci_scripts/reset-dictation-privacy.py before this test invocation.")
+            throw FixtureError.invalidLocalFixture
+        }
+        let attributes = try receiptURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard attributes.isRegularFile == true, attributes.isSymbolicLink == false else {
+            XCTFail("The privacy reset receipt must be a regular file, not a symlink.")
+            throw FixtureError.invalidLocalFixture
+        }
+        let data = try Data(contentsOf: receiptURL)
+        let receipt = try JSONDecoder().decode(DictationPrivacyReset.self, from: data)
+        let age = Date().timeIntervalSince1970 - receipt.resetAt
+        // Python resolves /tmp to /private/tmp. Normalize both paths with the same
+        // Foundation API instead of comparing a host spelling with a simulator spelling.
+        let receiptCredentials = URL(fileURLWithPath: receipt.fixturePath).resolvingSymlinksInPath()
+        let expectedCommand = ["/usr/bin/xcrun", "simctl", "privacy", receipt.simulatorID, "reset", "all", "app.denchat.ios"]
+        var mismatches: [String] = []
+        if receipt.bundleID != "app.denchat.ios" {
+            mismatches.append("bundle expected app.denchat.ios, receipt \(receipt.bundleID)")
+        }
+        if UUID(uuidString: receipt.simulatorID) != simulator {
+            mismatches.append("simulator expected \(simulator.uuidString), receipt \(receipt.simulatorID)")
+        }
+        if receiptCredentials.path != credentials.path {
+            mismatches.append("fixture expected \(credentials.path), receipt canonical \(receiptCredentials.path), receipt original \(receipt.fixturePath)")
+        }
+        if receipt.resetExitCode != 0 {
+            mismatches.append("reset exit expected 0, receipt \(receipt.resetExitCode)")
+        }
+        if receipt.command != expectedCommand {
+            mismatches.append("command expected \(expectedCommand), receipt \(receipt.command)")
+        }
+        if !(-5...1800).contains(age) {
+            mismatches.append("reset age expected -5...1800 seconds, actual \(age)")
+        }
+        guard mismatches.isEmpty else {
+            XCTFail("Privacy reset receipt mismatch: " + mismatches.joined(separator: "; "))
+            throw FixtureError.invalidLocalFixture
+        }
+        let nonce = try XCTUnwrap(UUID(uuidString: receipt.nonce))
+        // Atomic single-use consumption also rejects a rerun that forgot to reset privacy.
+        let consumed = URL(fileURLWithPath: credentials.path + ".dictation-reset-consumed-" + nonce.uuidString + ".json")
+        try FileManager.default.moveItem(at: receiptURL, to: consumed)
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = "dictation-privacy-reset-receipt"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private struct DictationPrivacyReset: Decodable {
+        let nonce: String
+        let bundleID: String
+        let simulatorID: String
+        let fixturePath: String
+        let resetAt: Double
+        let resetExitCode: Int
+        let command: [String]
+    }
+
     func testNativeTextFlowAndSessionRestoration() async throws {
         try configureFixture()
         // Each run must actually change appearance, even when a prior interrupted

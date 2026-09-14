@@ -18,9 +18,13 @@ extension DictationController.Dependencies {
             }
         }
         var legacyIDs: Set<String> = []
-        for locale in SFSpeechRecognizer.supportedLocales() {
-            if SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition == true {
-                legacyIDs.insert(locale.identifier(.bcp47))
+        // Never introduce a second prompt for local dictation. The legacy fallback
+        // is available only where the user has already authorized that API.
+        if SFSpeechRecognizer.authorizationStatus() == .authorized {
+            for locale in SFSpeechRecognizer.supportedLocales() {
+                if SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition == true {
+                    legacyIDs.insert(locale.identifier(.bcp47))
+                }
             }
         }
         return analyzerIDs.union(legacyIDs).map { id in
@@ -34,11 +38,12 @@ extension DictationController.Dependencies {
             AVAudioApplication.requestRecordPermission { @Sendable in continuation.resume(returning: $0) }
         }
         guard microphone else { return .microphoneDenied }
-        guard isCurrent() else { return .microphoneDenied }
-        let speech: SFSpeechRecognizerAuthorizationStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { @Sendable in continuation.resume(returning: $0) }
-        }
-        return speech == .authorized ? .allowed : .speechDenied
+        guard isCurrent() else { return .cancelled }
+        do { try await DictationAudioCapture.waitForForeground() }
+        catch { return .cancelled }
+        // SpeechAnalyzer transcriber modules need microphone permission, not
+        // SFSpeechRecognizer's legacy authorization to use Apple's speech service.
+        return .allowed
     }
 
     /// Both guards are mandatory: the request flag alone is not honored on unsupported devices.
@@ -100,7 +105,11 @@ extension DictationController.Dependencies {
         // Inspect installed assets only. Never reserve, install or download a model here.
         guard await AssetInventory.status(forModules: [module]) == .installed else { throw DictationAudioError.unavailable }
         try check()
-        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else { throw DictationAudioError.unavailable }
+        let preferred = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module])
+        try check()
+        let compatibleFormats = await module.availableCompatibleAudioFormats
+        try check()
+        let format = try DictationAudioConverter.analyzerFormat(preferred: preferred, compatibleFormats: compatibleFormats)
         try check()
         let analyzer = SpeechAnalyzer(modules: [module], options: .init(priority: .userInitiated, modelRetention: .whileInUse))
         self.analyzer = analyzer; transcriber = module
@@ -125,7 +134,8 @@ extension DictationController.Dependencies {
 
     private func prepareLegacy() throws {
         try check()
-        guard language.legacy, let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.id)),
+        guard language.legacy, SFSpeechRecognizer.authorizationStatus() == .authorized,
+              let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.id)),
               recognizer.supportsOnDeviceRecognition, recognizer.isAvailable else { throw DictationAudioError.unavailable }
         let request = try DictationPlatform.legacyRequest(supportsOnDeviceRecognition: recognizer.supportsOnDeviceRecognition, punctuation: punctuation)
         self.recognizer = recognizer; legacyRequest = request

@@ -19,7 +19,7 @@ import UIKit
         let legacy: Bool
     }
     enum State { case idle, preparing, listening, finishing }
-    enum Authorization { case allowed, microphoneDenied, speechDenied }
+    enum Authorization { case allowed, microphoneDenied, cancelled }
     struct Dependencies {
         var discover: @MainActor () async -> [Language]
         var authorize: @MainActor (@escaping @MainActor () -> Bool) async -> Authorization
@@ -105,7 +105,7 @@ import UIKit
         guard owns(expected) else { return }
         switch authorization {
         case .microphoneDenied: fail("Den needs the microphone for dictation. Allow it in Settings.", expected: expected); return
-        case .speechDenied: fail("Den needs speech recognition permission for dictation. Allow it in Settings.", expected: expected); return
+        case .cancelled: cancel(); return
         case .allowed: break
         }
         await refresh()

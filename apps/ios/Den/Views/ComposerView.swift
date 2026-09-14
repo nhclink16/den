@@ -116,7 +116,12 @@ struct ComposerView: View {
         .task { await store.dictation?.refresh() }
         .onDisappear { cancelDictation(); focused = false }
         .onChange(of: channel.id) { _, _ in cancelDictation() }
-        .onChange(of: focused) { _, value in if !value { stopDictation() } }
+        .onChange(of: focused) { _, value in
+            // Permission sheets can end editing before scenePhase becomes inactive.
+            // Explicit Stop, outside taps, navigation and real background still cancel.
+            if !value, store.dictation?.state != .preparing,
+               UIApplication.shared.applicationState == .active { stopDictation() }
+        }
         .onChange(of: store.dictation?.state) { _, value in
             if value == .idle { releaseDictation() }
         }
@@ -169,7 +174,8 @@ struct ComposerView: View {
         .buttonStyle(.plain).foregroundStyle(active ? theme.accent : theme.ink2)
         .disabled(sending || importing)
         .accessibilityLabel(active ? "Stop dictating" : "Dictate")
-        .accessibilityValue(listening ? "Listening" : "")
+        .accessibilityValue(dictation.state == .preparing ? "Preparing" :
+                            dictation.state == .finishing ? "Finishing" : listening ? "Listening" : "")
         .accessibilityIdentifier("composer-dictate")
     }
 

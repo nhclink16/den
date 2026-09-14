@@ -14,7 +14,12 @@ import DenAPI
         let calls = CallController(session: CallSession(), api: api)
         store.calls = calls
         store.voip = VoIPPushController(calls: calls, registration: api)
-        let dictation = DictationController(isCallActive: { [weak calls] in calls?.preventsDictation == true })
+        let callActive: @MainActor () -> Bool = { [weak calls] in calls?.preventsDictation == true }
+#if DEBUG && targetEnvironment(simulator)
+        let dictation = DebugFixture.dictation(isCallActive: callActive) ?? DictationController(isCallActive: callActive)
+#else
+        let dictation = DictationController(isCallActive: callActive)
+#endif
         store.dictation = dictation
         calls.beforeAudioPreparation = { [weak dictation] in dictation?.invalidateContext() }
     }
