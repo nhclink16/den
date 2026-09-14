@@ -33,12 +33,12 @@ async function selected(p,name) {
  await until(async()=>!(await p.getByRole('status').allTextContents()).includes('Saving…'))
 }
 try {
- await api('PUT','/users/me/appearance',{mode:'dark',light_theme:'den-light',dark_theme:'den',custom_themes:[]})
+ await api('PUT','/users/me/appearance',{mode:'dark',theme:'den',custom_themes:[]})
  const c=await context(),page=await c.newPage(); page.on('pageerror',e=>errors.push(e.message))
  await page.goto(base+'/settings/appearance'); await page.getByRole('heading',{name:'Appearance',exact:true}).waitFor()
- assert.equal(await page.locator('.theme-card').count(),9)
+ assert.equal(await page.locator('.theme-card').count(),8)
  await selected(page,'Tide'); assert.equal(await accent(page),'#5fd3c6')
- await until(async()=>(await api('GET','/users/me/appearance')).dark_theme==='tide')
+ await until(async()=>(await api('GET','/users/me/appearance')).theme==='tide')
  // Hold app modules so this screenshot proves the inline cache works before hydration.
  let releaseModules
  const modulesHeld = new Promise(resolve => { releaseModules = resolve })
@@ -54,11 +54,25 @@ try {
  releaseModules()
  await page.unrouteAll({ behavior: 'wait' });await page.getByRole('heading',{name:'Appearance',exact:true}).waitFor()
  await page.getByRole('button',{name:'System',exact:true}).click()
- await page.emulateMedia({colorScheme:'light'});await until(async()=>await accent(page)==='#c77d1f')
+ await page.emulateMedia({colorScheme:'light'});await until(async()=>await accent(page)==='#1e8f85')
  await page.emulateMedia({colorScheme:'dark'});await until(async()=>await accent(page)==='#5fd3c6')
- assert.equal(await page.locator('.theme-card[aria-pressed=true]').count(),2)
+ assert.equal(await page.locator('.theme-card[aria-pressed=true]').count(),1)
+ await page.screenshot({path:`${shots}/m9b-grid-dark.png`})
+ await page.emulateMedia({colorScheme:'light'});await until(async()=>await accent(page)==='#1e8f85')
+ await page.screenshot({path:`${shots}/m9b-grid-light.png`})
+ await page.emulateMedia({colorScheme:'dark'});await until(async()=>await accent(page)==='#5fd3c6')
  await page.getByRole('button',{name:'Customize',exact:true}).click()
  await page.getByLabel('accent hex',{exact:true}).fill('#78dcca');assert.equal(await accent(page),'#78dcca')
+ // Editing Light does not repaint Dark; changing Mode preserves the draft.
+ await page.getByRole('group',{name:'Edit appearance',exact:true}).getByRole('button',{name:'Light',exact:true}).click()
+ await page.getByLabel('accent hex',{exact:true}).fill('#237f78');assert.equal(await accent(page),'#78dcca')
+ await page.locator('fieldset').filter({has:page.locator('legend').filter({hasText:'Mode'})}).getByRole('button',{name:'Light',exact:true}).click()
+ await until(async()=>await accent(page)==='#237f78')
+ await page.screenshot({path:`${shots}/m9b-editor-light.png`})
+ await page.getByRole('button',{name:'Copy from dark',exact:true}).click()
+ await page.getByText('Generated from the dark half, adjust to taste.',{exact:true}).waitFor()
+ await page.locator('fieldset').filter({has:page.locator('legend').filter({hasText:'Mode'})}).getByRole('button',{name:'Dark',exact:true}).click()
+ await until(async()=>await accent(page)==='#78dcca')
  await page.getByRole('button',{name:'Round',exact:true}).click();await page.getByRole('button',{name:'Compact',exact:true}).click()
  assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--r')),'10px')
  assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--density')),'0.8')
@@ -81,11 +95,18 @@ try {
  const imported=(await api('GET','/users/me/appearance')).custom_themes.at(-1)
  assert.deepEqual({...imported,id:exported.id},exported)
  await until(async()=>await second.getByRole('button',{name:'Use M9 sea glass theme',exact:true}).count()===2)
- await page.getByLabel('Import theme file',{exact:true}).setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({...exported,colors:{...exported.colors,accent:'red'}}))})
+ await page.getByLabel('Import theme file',{exact:true}).setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({...exported,dark:{...exported.dark,accent:'red'}}))})
  await until(async()=>(await page.getByRole('alert').allTextContents()).some(t=>t.includes('Invalid theme')))
  assert.equal((await api('GET','/users/me/appearance')).custom_themes.length,2)
+ const legacy={id:'m9b-old',name:'Old half',appearance:'dark',colors:exported.dark,fonts:exported.fonts,radius:exported.radius,density:exported.density}
+ await page.getByLabel('Import theme file',{exact:true}).setInputFiles({name:'old.den-theme.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(legacy))})
+ await until(async()=>(await api('GET','/users/me/appearance')).custom_themes.length===3)
+ const paired=(await api('GET','/users/me/appearance')).custom_themes.at(-1)
+ assert.deepEqual(paired.dark,exported.dark);assert.equal(paired.light.generated,true)
+ const lum=hex=>hex.slice(1).match(/../g).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0)
+ for(const [fg,bg] of [['accent','bg'],['success','bg'],['danger','bg'],['ink','bg'],['ink2','bg2']]) {const a=lum(paired.light[fg]),b=lum(paired.light[bg]);assert((Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5)}
  await page.getByRole('button',{name:'Reset',exact:true}).click()
- await page.getByRole('button',{name:'Dark',exact:true}).click();await selected(page,'Den')
+ await page.locator('fieldset').filter({has:page.locator('legend').filter({hasText:'Mode'})}).getByRole('button',{name:'Dark',exact:true}).click();await selected(page,'Den')
  await until(async()=>await accent(second)==='#e8a44a') // live session event
  await page.getByRole('button',{name:'Customize',exact:true}).click() // close editor
  await page.locator('.pane').evaluate(el=>el.scrollTop=0)
@@ -115,5 +136,5 @@ try {
  assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--body')),'system-ui, sans-serif')
  await page.getByRole('button',{name:'Reset',exact:true}).click()
  assert.deepEqual(errors,[])
- console.log('M9 passed: nine palettes, instant Tide, cached first paint at 50 ms, system light/dark, live fonts/radius/density, custom theme in an independent reloaded session, JSON round trip, invalid import, private live sync, font failure, desktop/mobile screenshots.')
+ console.log('M9b passed: eight paired families, legacy import and generated contrast, Light editor and draft-preserving mode changes, instant Tide, cached first paint at 50 ms, system light/dark, live fonts/radius/density, custom theme in an independent reloaded session, JSON round trip, invalid import, private live sync, font failure, desktop/mobile screenshots.')
 } finally { await api('PUT','/users/me/appearance',original);await browser.close() }

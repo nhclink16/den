@@ -1,19 +1,21 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
+  import { colorRoles, deriveHalf } from '../lib/theme-runtime'
   import { themes, fontFamilies, validateTheme, validName } from '../lib/theme.svelte'
   import type { Theme, ThemeColors, ThemeFonts } from '../lib/types'
   let editor = $state(false)
+  let editingHalf = $state<'light'|'dark'>('dark')
   let naming = $state(false)
   let name = $state('')
   let message = $state('')
   let fileInput: HTMLInputElement
   const active = $derived(themes.active)
-  const roles: (keyof ThemeColors)[] = ['bg','bg2','bg3','line','ink','ink2','ink3','accent','success','danger']
+  const roles = colorRoles
   const fontRoles: (keyof ThemeFonts)[] = ['display','body','mono']
-  const chosen = (t: Theme) => (themes.appearance.mode === 'system' || themes.appearance.mode === t.appearance) && t.id === (t.appearance === 'light' ? themes.appearance.light_theme : themes.appearance.dark_theme)
+  const chosen = (t: Theme) => t.id === themes.appearance.theme
   function change(patch: Partial<Theme>) { message = ''; themes.preview({ ...JSON.parse(JSON.stringify(active)), ...patch }) }
-  function color(role: keyof ThemeColors, value: string) {
-    if (/^#[0-9a-f]{6}$/i.test(value)) change({ colors: { ...active.colors, [role]: value } })
+  function color(role: typeof colorRoles[number], value: string) {
+    if (/^#[0-9a-f]{6}$/i.test(value)) { const { generated, ...colors } = active[editingHalf]; change({ [editingHalf]: { ...colors, [role]: value } }) }
   }
   function font(role: keyof ThemeFonts, value: string) {
     if (validName(value)) change({ fonts: { ...active.fonts, [role]: value } })
@@ -46,29 +48,37 @@
 <div class="appearance">
   <div class="intro"><h2 class="display">Appearance</h2><p class="muted">Themes sync to your account</p></div>
   <fieldset><legend>Mode</legend><div class="segments">
-    {#each ['light','dark','system'] as mode}<button aria-pressed={themes.appearance.mode === mode} onclick={() => themes.save({ ...themes.appearance, mode: mode as 'light' | 'dark' | 'system' })}>{mode[0]!.toUpperCase() + mode.slice(1)}</button>{/each}
+    {#each ['light','dark','system'] as mode}<button aria-pressed={themes.appearance.mode === mode} onclick={() => themes.mode(mode as 'light' | 'dark' | 'system')}>{mode[0]!.toUpperCase() + mode.slice(1)}</button>{/each}
   </div>{#if themes.appearance.mode === 'system'}<p class="hint muted">Follows your device</p>{/if}</fieldset>
   <div class="workspace" class:editing={editor}>
     <div class="gallery">
-      {#each ['light','dark'] as appearance}
-        <h3>{appearance === 'light' ? 'Light themes' : 'Dark themes'}</h3>
-        <div class="theme-grid">
-          {#each themes.all.filter(t => t.appearance === appearance) as t (t.id)}
-            <div class="card-wrap">
-              <button class="theme-card" class:chosen={chosen(t)} aria-label={`Use ${t.name} theme`} aria-pressed={chosen(t)} onclick={() => { themes.select(t); message = '' }}
-                style={`--preview-bg:${t.colors.bg};--preview-bg2:${t.colors.bg2};--preview-bg3:${t.colors.bg3};--preview-line:${t.colors.line};--preview-ink:${t.colors.ink};--preview-ink2:${t.colors.ink2};--preview-accent:${t.colors.accent};--preview-display:"${t.fonts.display}"`}>
-                <div class="mini" aria-hidden="true"><div class="mini-side"><b>den</b><i></i><i></i><i></i></div><div class="mini-main"><div class="mini-message"><span class="mini-avatar"></span><div><b>Evening, everyone</b><span class="mini-mention">@you</span></div></div><div class="mini-composer">Message…</div></div></div>
-                <div class="caption"><span>{t.name}</span>{#if chosen(t)}<span aria-hidden="true">✓</span>{/if}</div>
-              </button>
-              {#if themes.appearance.custom_themes.some(c => c.id === t.id)}<div class="custom-label">custom <button aria-label={`Delete ${t.name} theme`} onclick={() => themes.remove(t.id)}>×</button></div>{/if}
-            </div>
-          {/each}
-        </div>
-      {/each}
-      <div class="actions"><button class="btn" aria-expanded={editor} onclick={() => editor = !editor}>Customize</button><button class="btn" onclick={exportTheme}>Export</button><button class="btn" onclick={() => fileInput.click()}>Import</button><input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept=".json,application/json" aria-label="Import theme file" onchange={importTheme} /></div>
+      <div class="theme-grid">
+        {#each themes.all as t (t.id)}
+          <div class="card-wrap">
+            <button class="theme-card" class:chosen={chosen(t)} aria-label={`Use ${t.name} theme`} aria-pressed={chosen(t)} onclick={() => { themes.select(t); message = '' }} style={`--preview-display:"${t.fonts.display}"`}>
+              <div class="split" aria-hidden="true">
+                {#each ['light','dark'] as half}
+                  {@const c = t[half as 'light'|'dark']}
+                  <div class="mini" class:light={half === 'light'} class:dark={half === 'dark'} class:dimmed={themes.appearance.mode !== 'system' && themes.appearance.mode !== half}
+                    style={`--preview-bg:${c.bg};--preview-bg2:${c.bg2};--preview-bg3:${c.bg3};--preview-line:${c.line};--preview-ink:${c.ink};--preview-ink2:${c.ink2};--preview-accent:${c.accent}`}>
+                    <div class="mini-side"><b>den</b><i></i><i></i><i></i></div><div class="mini-main"><div class="mini-message"><span class="mini-avatar"></span><div><b>Evening, everyone</b><span class="mini-mention">@you</span></div></div><div class="mini-composer">Message…</div></div>
+                  </div>
+                {/each}
+                <svg viewBox="0 0 180 98" preserveAspectRatio="none"><line x1="180" y1="0" x2="0" y2="98" stroke={t[themes.half].line} stroke-width="1" vector-effect="non-scaling-stroke" /></svg>
+              </div>
+              <div class="caption"><span>{t.name}</span>{#if chosen(t)}<span aria-hidden="true">✓</span>{/if}</div>
+            </button>
+            {#if themes.appearance.custom_themes.some(c => c.id === t.id)}<div class="custom-label">custom <button aria-label={`Delete ${t.name} theme`} onclick={() => themes.remove(t.id)}>×</button></div>{/if}
+          </div>
+        {/each}
+      </div>
+      <div class="actions"><button class="btn" aria-expanded={editor} onclick={() => { editor = !editor; if (editor) editingHalf = themes.half }}>Customize</button><button class="btn" onclick={exportTheme}>Export</button><button class="btn" onclick={() => fileInput.click()}>Import</button><input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept=".json,application/json" aria-label="Import theme file" onchange={importTheme} /></div>
     </div>
     {#if editor}<section class="editor" aria-label="Theme editor"><h3>Colors <small class="muted">Live preview</small></h3>
-      {#each roles as role}<div class="color-row"><label for={`hex-${role}`}>{role}</label><input type="color" aria-label={`${role} color`} value={active.colors[role]} oninput={e => color(role, e.currentTarget.value)} /><input id={`hex-${role}`} class="field mono" aria-label={`${role} hex`} value={active.colors[role]} maxlength="7" pattern="#[0-9a-fA-F]{6}" oninput={e => color(role, e.currentTarget.value)} /></div>{/each}
+      <div class="segments" role="group" aria-label="Edit appearance">{#each ['light','dark'] as half}<button aria-pressed={editingHalf === half} onclick={() => editingHalf = half as 'light'|'dark'}>{half === 'light' ? 'Light' : 'Dark'}</button>{/each}</div>
+      {#if active[editingHalf].generated}<p class="hint muted">Generated from the {editingHalf === 'light' ? 'dark' : 'light'} half, adjust to taste.</p>{/if}
+      <button class="copy-half" onclick={() => change({ [editingHalf]: deriveHalf(active[editingHalf === 'light' ? 'dark' : 'light']) })}>Copy from {editingHalf === 'light' ? 'dark' : 'light'}</button>
+      {#each roles as role}<div class="color-row"><label for={`hex-${role}`}>{role}</label><input type="color" aria-label={`${role} color`} value={active[editingHalf][role]} oninput={e => color(role, e.currentTarget.value)} /><input id={`hex-${role}`} class="field mono" aria-label={`${role} hex`} value={active[editingHalf][role]} maxlength="7" pattern="#[0-9a-fA-F]{6}" oninput={e => color(role, e.currentTarget.value)} /></div>{/each}
     </section>{/if}
   </div>
   <section class="fonts"><h3>Fonts</h3><div class="font-grid">{#each fontRoles as role}<div class="font-role">
@@ -94,7 +104,13 @@
   .theme-grid { display: grid; grid-template-columns: repeat(auto-fill,180px); gap: 14px; }
   .theme-card { width: 180px; text-align: start; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; color: var(--ink); }
   .theme-card:hover { border-color: var(--ink2); } .theme-card.chosen { outline: 2px solid var(--ink2); outline-offset: 2px; }
-  .mini { height: 98px; display: flex; background: var(--preview-bg); color: var(--preview-ink); font-family: system-ui,sans-serif; }
+  .split { position: relative; height: 98px; background: var(--bg); }
+  .split > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mini.light { clip-path: polygon(0 0,100% 0,0 100%); }
+  .mini.dark { clip-path: polygon(100% 0,100% 100%,0 100%); }
+  .mini.dimmed { opacity: .7; }
+  .copy-half { margin-top: 10px; display: block; font-size: 12px; color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; }
+  .mini { position: absolute; inset: 0; height: 98px; display: flex; background: var(--preview-bg); color: var(--preview-ink); font-family: system-ui,sans-serif; }
   .mini-side { width: 42px; background: var(--preview-bg2); padding: 9px 7px; border-inline-end: 1px solid var(--preview-line); }
   .mini-side b { font-size: 10px; } .mini-side i { display: block; height: 3px; background: var(--preview-line); margin-top: 9px; border-radius: 2px; }
   .mini-main { flex: 1; padding: 15px 8px 8px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
