@@ -8,6 +8,7 @@ server_pid=''
 cleanup() {
   [[ -z "$server_pid" ]] || kill "$server_pid" 2>/dev/null || true
   docker stop "$container" >/dev/null 2>&1 || true
+  if [[ ${DEN_SMOKE_KEEP:-0} != 1 ]]; then rm -rf -- "$scratch"; fi
 }
 trap cleanup EXIT
 umask 077
@@ -42,7 +43,7 @@ set -a
 source "$scratch/server.env"
 set +a
 docker run --rm -d --name "$container" --network host -v "$scratch/livekit.yaml:/etc/livekit.yaml:ro" livekit/livekit-server:v1.9.0 --config /etc/livekit.yaml >/dev/null
-DEN_BIND=127.0.0.1:17400 DEN_ORIGIN=http://127.0.0.1:17400 DEN_DB="$scratch/den.db" DEN_UPLOADS="$scratch/uploads" DEN_BOOTSTRAP_FILE="$scratch/bootstrap.key" DEN_WEB_DIR="$PWD/apps/web/dist" DEN_LIVEKIT_URL=ws://127.0.0.1:17880 target/release/den-server > "$scratch/server.log" 2>&1 &
+DEN_BIND=127.0.0.1:17400 DEN_ORIGIN=http://127.0.0.1:17400 DEN_DB="$scratch/den.db" DEN_UPLOADS="$scratch/uploads" DEN_BOOTSTRAP_FILE="$scratch/bootstrap.key" DEN_WEB_DIR="$PWD/apps/web/dist" DEN_LIVEKIT_URL=ws://127.0.0.1:17880 "${CARGO_TARGET_DIR:-target}/release/den-server" > "$scratch/server.log" 2>&1 &
 server_pid=$!
 for _ in {1..50}; do
   kill -0 "$server_pid"
@@ -51,5 +52,7 @@ for _ in {1..50}; do
 done
 export DEN_SMOKE_CREDENTIALS="$scratch/credentials.json" DEN_SMOKE_URL=http://127.0.0.1:17400 DEN_SMOKE_MEDIA_IP=127.0.0.1 DEN_SMOKE_SHOTS="file://$scratch/shots/"
 node scripts/multidevice-smoke.mjs "$scratch" | tee "$scratch/multidevice.log"
+# Account setup above shares the server login budget with the next smoke.
+sleep 60
 node scripts/m3-smoke.mjs | tee "$scratch/m3.log"
-printf 'Smoke evidence: %s\n' "$scratch"
+[[ ${DEN_SMOKE_KEEP:-0} != 1 ]] || printf 'Smoke evidence: %s\n' "$scratch"
