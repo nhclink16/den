@@ -1,0 +1,218 @@
+[
+  {
+    "id": "den",
+    "name": "Den",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#1b1916",
+      "bg2": "#232019",
+      "bg3": "#2c2821",
+      "line": "#3a3429",
+      "ink": "#ece5d8",
+      "ink2": "#a89f8f",
+      "ink3": "#6f6759",
+      "accent": "#e8a44a",
+      "success": "#8da874",
+      "danger": "#d2623e"
+    },
+    "fonts": {
+      "display": "Zilla Slab",
+      "body": "Atkinson Hyperlegible",
+      "mono": "IBM Plex Mono"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "den-light",
+    "name": "Den Light",
+    "appearance": "light",
+    "colors": {
+      "bg": "#f4efe6",
+      "bg2": "#ebe5da",
+      "bg3": "#e2dbcd",
+      "line": "#d3cabb",
+      "ink": "#26221c",
+      "ink2": "#5e564a",
+      "ink3": "#8a8173",
+      "accent": "#c77d1f",
+      "success": "#5f7f4a",
+      "danger": "#b8462a"
+    },
+    "fonts": {
+      "display": "Zilla Slab",
+      "body": "Atkinson Hyperlegible",
+      "mono": "IBM Plex Mono"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "moss",
+    "name": "Moss",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#151a15",
+      "bg2": "#1b221b",
+      "bg3": "#232c23",
+      "line": "#2f3a2f",
+      "ink": "#e4ead9",
+      "ink2": "#a3ad98",
+      "ink3": "#6c7566",
+      "accent": "#9ccf6f",
+      "success": "#7fbf8a",
+      "danger": "#d9694f"
+    },
+    "fonts": {
+      "display": "Gabarito",
+      "body": "Atkinson Hyperlegible",
+      "mono": "JetBrains Mono"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "tide",
+    "name": "Tide",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#0f1518",
+      "bg2": "#151d21",
+      "bg3": "#1c272c",
+      "line": "#27353c",
+      "ink": "#dfe8ec",
+      "ink2": "#98a9b1",
+      "ink3": "#63737b",
+      "accent": "#5fd3c6",
+      "success": "#7fd39a",
+      "danger": "#e26d5c"
+    },
+    "fonts": {
+      "display": "Sora",
+      "body": "Inter",
+      "mono": "IBM Plex Mono"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "ember",
+    "name": "Ember",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#191313",
+      "bg2": "#211919",
+      "bg3": "#2b2020",
+      "line": "#3a2b2b",
+      "ink": "#f0e4e0",
+      "ink2": "#b09c97",
+      "ink3": "#7a6864",
+      "accent": "#f4845f",
+      "success": "#8fc48a",
+      "danger": "#ff4d6d"
+    },
+    "fonts": {
+      "display": "Bricolage Grotesque",
+      "body": "Atkinson Hyperlegible",
+      "mono": "Fira Code"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "iris",
+    "name": "Iris",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#14121b",
+      "bg2": "#1a1724",
+      "bg3": "#231f2f",
+      "line": "#302a40",
+      "ink": "#ebe6f5",
+      "ink2": "#a89fbd",
+      "ink3": "#726985",
+      "accent": "#b48cff",
+      "success": "#8fd39a",
+      "danger": "#ff6b8a"
+    },
+    "fonts": {
+      "display": "Manrope",
+      "body": "Manrope",
+      "mono": "Fira Code"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "paper",
+    "name": "Paper",
+    "appearance": "light",
+    "colors": {
+      "bg": "#fafaf7",
+      "bg2": "#f2f1ec",
+      "bg3": "#e9e8e1",
+      "line": "#dad9d1",
+      "ink": "#1f1f1d",
+      "ink2": "#5c5c57",
+      "ink3": "#8b8b84",
+      "accent": "#2f6fed",
+      "success": "#2f8f5b",
+      "danger": "#d6453d"
+    },
+    "fonts": {
+      "display": "Source Serif 4",
+      "body": "Source Sans 3",
+      "mono": "Source Code Pro"
+    },
+    "radius": "soft",
+    "density": "comfortable"
+  },
+  {
+    "id": "slate",
+    "name": "Slate",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#111214",
+      "bg2": "#17181b",
+      "bg3": "#1f2024",
+      "line": "#2a2c31",
+      "ink": "#e6e7ea",
+      "ink2": "#9a9ca3",
+      "ink3": "#64666d",
+      "accent": "#8b93ff",
+      "success": "#6fcf97",
+      "danger": "#f26b6b"
+    },
+    "fonts": {
+      "display": "Geist",
+      "body": "Geist",
+      "mono": "Geist Mono"
+    },
+    "radius": "soft",
+    "density": "compact"
+  },
+  {
+    "id": "terminal",
+    "name": "Terminal",
+    "appearance": "dark",
+    "colors": {
+      "bg": "#000000",
+      "bg2": "#0a0a0a",
+      "bg3": "#141414",
+      "line": "#262626",
+      "ink": "#d0d0d0",
+      "ink2": "#8a8a8a",
+      "ink3": "#555555",
+      "accent": "#33ff66",
+      "success": "#5fd38d",
+      "danger": "#ff5555"
+    },
+    "fonts": {
+      "display": "JetBrains Mono",
+      "body": "JetBrains Mono",
+      "mono": "JetBrains Mono"
+    },
+    "radius": "sharp",
+    "density": "comfortable"
+  }
+]

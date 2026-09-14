@@ -869,6 +869,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/notification-preferences": {
         parameters: {
             query?: never;
@@ -952,6 +968,14 @@ export interface components {
             error: string;
             message: string;
         };
+        Appearance: {
+            custom_themes: components["schemas"]["Theme"][];
+            dark_theme: string;
+            light_theme: string;
+            mode: components["schemas"]["AppearanceMode"];
+        };
+        /** @enum {string} */
+        AppearanceMode: "light" | "dark" | "system";
         BeginUpload: {
             channel_id: components["schemas"]["String"];
             content_type: string;
@@ -1081,6 +1105,11 @@ export interface components {
         };
         /** @description Every event pushed over the WebSocket stream. The CLI's `tail` prints these. */
         Event: {
+            appearance: components["schemas"]["Appearance"];
+            /** @enum {string} */
+            type: "appearance_updated";
+            user_id: string;
+        } | {
             bytes: number[];
             connection_id?: null | components["schemas"]["String"];
             session_id: components["schemas"]["String"];
@@ -1474,6 +1503,38 @@ export interface components {
         TerminalWrite: {
             text: string;
         };
+        Theme: {
+            appearance: components["schemas"]["ThemeAppearance"];
+            colors: components["schemas"]["ThemeColors"];
+            density: components["schemas"]["ThemeDensity"];
+            fonts: components["schemas"]["ThemeFonts"];
+            id: string;
+            name: string;
+            radius: components["schemas"]["ThemeRadius"];
+        };
+        /** @enum {string} */
+        ThemeAppearance: "light" | "dark";
+        ThemeColors: {
+            accent: string;
+            bg: string;
+            bg2: string;
+            bg3: string;
+            danger: string;
+            ink: string;
+            ink2: string;
+            ink3: string;
+            line: string;
+            success: string;
+        };
+        /** @enum {string} */
+        ThemeDensity: "compact" | "comfortable";
+        ThemeFonts: {
+            body: string;
+            display: string;
+            mono: string;
+        };
+        /** @enum {string} */
+        ThemeRadius: "sharp" | "soft" | "round";
         Token: {
             id: components["schemas"]["String"];
             name: string;
@@ -3746,6 +3807,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appearance"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Appearance"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appearance"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */

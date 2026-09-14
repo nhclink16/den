@@ -1,3 +1,5 @@
+mod appearance;
+pub use appearance::*;
 mod host;
 pub use host::*;
 // Shared API types. The server serializes these, the CLI and the web client
@@ -68,6 +70,10 @@ pub struct Message {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    AppearanceUpdated {
+        user_id: String,
+        appearance: Appearance,
+    },
     TerminalOutput {
         session_id: Id,
         bytes: Vec<u8>,

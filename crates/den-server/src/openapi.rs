@@ -10,6 +10,8 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
+        appearance::get,
+        appearance::put,
         hosts::list,
         hosts::enroll,
         hosts::login,
@@ -82,6 +84,14 @@ use utoipa::OpenApi;
         ws::connect
     ),
     components(schemas(
+        Appearance,
+        Theme,
+        ThemeColors,
+        ThemeFonts,
+        ThemeAppearance,
+        AppearanceMode,
+        ThemeRadius,
+        ThemeDensity,
         Host,
         HostEnrollment,
         HostCredential,

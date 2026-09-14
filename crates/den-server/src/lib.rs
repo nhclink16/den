@@ -1,5 +1,6 @@
 mod access;
 mod activity;
+mod appearance;
 mod auth;
 mod calls;
 mod chat;
@@ -228,6 +229,10 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/auth/logout", post(auth::logout))
         .route("/users", get(auth::users))
         .route("/users/me", get(auth::me))
+        .route(
+            "/users/me/appearance",
+            get(appearance::get).put(appearance::put),
+        )
         .route("/invites", post(credentials::invite))
         .route("/invites/{id}", delete(credentials::revoke_invite))
         .route(
