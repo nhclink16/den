@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SidebarToggle from './SidebarToggle.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import type { Message } from '../lib/types'
@@ -32,6 +33,7 @@
 
 <section class="search">
   <header class="head">
+    {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="search" size={18} /></span>
     <form class="bar" onsubmit={submit}>

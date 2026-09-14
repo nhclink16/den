@@ -100,6 +100,14 @@ try {
   const storage = await page.evaluate(() => JSON.stringify(localStorage))
   for (const token of keychain.values()) assert(!storage.includes(token), 'Bearer token leaked into localStorage')
   assert.equal(keychain.size, 2)
+  await page.getByRole('button', { name: 'Hide sidebar', exact: true }).click()
+  for (const path of ['/inbox', '/find?q=desktop', '/settings', `/c/${channels[1].id}`]) {
+    await page.evaluate(async path => (await import('/src/lib/router.svelte.ts')).router.go(path), path)
+    await page.getByRole('button', { name: 'Show sidebar', exact: true }).waitFor()
+  }
+  await page.screenshot({ path: 'docs/shots/m4-sidebar-collapsed.png' })
+  await page.getByRole('button', { name: 'Show sidebar', exact: true }).click()
+  await page.getByRole('button', { name: 'Hide sidebar', exact: true }).waitFor()
   await page.evaluate(async () => { const { instances } = await import('/src/lib/store.svelte.ts'); await instances.remove(instances.active) })
   assert.equal(keychain.size, 1)
   assert.equal(savedOrigins.length, 1)

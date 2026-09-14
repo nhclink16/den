@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SidebarToggle from './SidebarToggle.svelte'
   import ObjectDock from './ObjectDock.svelte'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
@@ -40,6 +41,7 @@
 
 <section class="view" aria-label={store.title(channel)} ondragenter={(e) => { e.preventDefault(); dragging++ }} ondragleave={() => dragging--} ondragover={(e) => e.preventDefault()} ondrop={onDrop}>
   <header class="head">
+    {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind">{#if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
     <h1 class="display">{store.title(channel)}</h1>

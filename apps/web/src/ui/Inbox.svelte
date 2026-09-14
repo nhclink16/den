@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { instances, type Store } from '../lib/store.svelte'
+  import SidebarToggle from './SidebarToggle.svelte'
+  import { instances, store, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { render } from '../lib/markdown'
   import { shortTime, dayLabel } from '../lib/time'
@@ -28,6 +29,7 @@
 
 <section class="inbox">
   <header class="head">
+    {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="inbox" size={18} /></span>
     <h1 class="display">Inbox</h1>

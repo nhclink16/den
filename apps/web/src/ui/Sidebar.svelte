@@ -1,5 +1,6 @@
 <script lang="ts">
   import { call } from '../lib/call.svelte'
+  import SidebarToggle from './SidebarToggle.svelte'
   import CallDock from './CallDock.svelte'
   import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
@@ -10,6 +11,7 @@
   import ServerSwitcher from './ServerSwitcher.svelte'
   import Mark from './Mark.svelte'
 
+  let { narrow = false }: { narrow?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
   const uncategorized = $derived(store.textChannels.filter((c) => !c.category_id))
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
@@ -20,6 +22,7 @@
   <div class="brand">
     {#if native}<ServerSwitcher />{:else}<a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /><span title={store.settings.instance_name}>{store.settings.instance_name}</span></a>{/if}
     <span class="conn" class:off={!store.connected} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
+    {#if !narrow}<SidebarToggle hide />{/if}
   </div>
 
   <a href="/inbox" class="row inbox" class:active={router.route.name === 'inbox'} class:lit={inboxCount > 0} onclick={go('/inbox')}>

@@ -56,7 +56,7 @@
 <div class="shell" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
   {#if showSidebar}
     {#if narrow}<button class="scrim" aria-label="Close menu" onclick={() => (drawer = false)}></button>{/if}
-    <aside class="sidebar"><Sidebar /></aside>
+    <aside class="sidebar"><Sidebar {narrow} /></aside>
   {/if}
 
   <main class="main">
@@ -67,7 +67,7 @@
     {#if !call.channel || !call.expanded || router.route.name === 'channel'}
     {#if router.route.name === 'channel'}
       {#if currentChannel}
-        {#key currentChannel.id}
+        {#key store.origin + currentChannel.id}
           <ChannelView channel={currentChannel} onmenu={() => (drawer = !drawer)} {narrow} />
         {/key}
       {:else}
