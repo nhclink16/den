@@ -3,7 +3,8 @@
 Scope follows the server addendum in [M5a brief](M5A-IOS-BRIEF.md).
 `astra-ios` owns this server work in `/mnt/storage/den-server-ios`, branch
 `server-ios`. The iMac's `den-ios` lane owns `apps/ios` and native/cloud tests.
-No production deployment is part of this change.
+The server change was deployed to production on September 14, 2026, after the
+implementation merge and a separate deployment request. Evidence is below.
 
 ## Device registration and alert push
 
@@ -42,8 +43,7 @@ and [token authentication](https://developer.apple.com/documentation/usernotific
 interfaces. Tests use a local HTTP/2 stub and a disposable test-only EC key pair.
 They never contact Apple.
 
-Configuration, supplied to the server process through `/etc/den/den.env` on a
-future deployment:
+Configuration to enable APNs through `/etc/den/den.env`:
 
 ```sh
 DEN_APNS_KEY_PATH=/path/to/private/apns.p8
@@ -120,8 +120,9 @@ form was dropped by Swift OpenAPI Generator 1.9 and 1.13.1.
 
 An exact branch schema snapshot is supplied to the iMac at
 `~/.local/share/den-ios-tools/server-ios-openapi.json`, with a matching Debian
-artifact at `/mnt/storage/den-server-ios-openapi.json`. Regenerate from a local
-server after pulling the merge; production has not been updated by this lane.
+artifact at `/mnt/storage/den-server-ios-openapi.json`. Production now serves
+the same schema at `https://denchat.app/openapi.json`, verified by parsed JSON
+equality. The compact HTTP response has different whitespace from the snapshot.
 The final snapshot's SHA-256 is
 `b2fd728d912bbcdae29020f28f501a2a628d6051ce47386614dcc1a1dfa5f480`.
 
@@ -171,3 +172,49 @@ credential-file path.
 Builds use `CARGO_TARGET_DIR=/mnt/storage/den-m5-target`. Check logs are under
 `/mnt/storage/den-m5-*.log`; no user credentials or production APNs keys belong
 in those logs or in Git.
+
+## Production deployment, September 14, 2026
+
+Deployed `main` commit `7198f6290741a5494da33a89446efc0bd1a85832` using
+`CARGO_TARGET_DIR=/mnt/storage/den-m5-target ./deploy/release.sh` from the main
+checkout. First ran `ssh vps 'sudo systemctl start den-backup'` successfully.
+The off-VPS archive is `/mnt/storage/den/backups/2026-09-14/den.zip`, with a
+completion receipt at `2026-09-14T15:14:53Z`. The new server started at
+`2026-09-14T15:17:45Z`; all nine migrations are recorded as successful.
+
+Public health returned HTTP 200 and `{"ok":true,"version":"0.2.1"}`. The
+installed server binary SHA-256 matches the local release binary:
+`e3cd388d5373163599509959c31fb3c428c0ba11bd585a03f5af5f0c184aa2b7`.
+
+Public OpenAPI exposes `POST /devices`, `DELETE /devices/{id}`,
+`POST /calls/{channel_id}/invite`, and
+`POST /calls/{channel_id}/invite/decline`. The query parameter locations and
+inline nullable IDs match the exact schema already supplied to the native lane.
+Unauthenticated device/invitation POST requests returned 401. The compact public
+schema SHA-256 is
+`50ab656df983189a10c7823572c7a8c6891ebe31cc85da79001a313f4f9ad0cf`.
+
+Service invocation `02cf744cb8b94581a18f76e7180ee4a6` logged exactly one
+`APNs is not configured; push delivery disabled` line and no startup errors.
+APNs delivery still needs the missing credentials; the endpoints remain usable.
+
+Both public smokes passed against `https://denchat.app`:
+
+- M1 public adaptation at `/mnt/storage/den-m5-public-m1.py`: existing test users
+  log in through independent CLI sessions, send/read/tail messages, and reconnect
+  the same tail processes after a loopback relay cuts only their public WebSocket
+  connections. Production is not restarted for this test. A 41-second H.264/AAC
+  clip, 11,894,863 bytes, passes chunk upload/resume, authenticated HEAD/range,
+  and full HTTP decoding. A new token for the existing bot sends successfully;
+  revocation returns 401 and a replacement works. Cleanup verifies removal of
+  five exact messages, one upload, new tokens, and three login sessions.
+- `scripts/m3-smoke.mjs`: public media at `135.148.120.197`, three cameras,
+  screen/audio delivery, mute/leave, push-to-talk and custom key/blur handling,
+  text during calls, DM privacy and switching, resync, and desktop/mobile
+  screenshots. Cleanup removed its one message and verified no new room
+  artifacts. Desktop screen-share and mobile grid screenshots were inspected.
+
+Local evidence: `/mnt/storage/den-m5-production-{release,m1,m3,startup}.log`,
+`/mnt/storage/den-m5-production-openapi.json`, and
+`/mnt/storage/den-m5-production-shots/`. Public M1 cleanup receipts are in
+`/mnt/storage/den-public-m1-67pmui9e/cleanup-receipts.json`.
