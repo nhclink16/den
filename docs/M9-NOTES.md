@@ -151,6 +151,30 @@ notice of the shared-type/migration merge. Its per-origin cache and captured-ori
 save behavior remain intact; its native-session files and design artifacts were
 not included in M9b commits.
 
-Public deployment and smoke are pending the desktop lane's v0.2.1 signed update
-acceptance. v0.2.0 bundled the retired appearance schema, so the desktop lane asked
-that its update be published and checked before the server rollout.
+The exact [v0.2.1 release](https://github.com/nhclink16/den/releases/tag/v0.2.1),
+source `698f9f8`, is deployed on https://denchat.app. Deployment waited for the
+desktop lane's Windows and Linux signed-update acceptance because v0.2.0 bundled
+the retired appearance schema. Native paired Appearance verification and Windows
+shutdown remain with that lane.
+
+The downloaded server archive matched the published SHA256SUMS. Before deployment,
+that binary booted a private schema-7 database containing a legacy custom theme.
+Its authenticated API returned the selected paired family, preserved every authored
+dark color, and marked the generated light half. The full browser smoke passed
+against its bundled SPA as well.
+
+`den-backup.service` completed with Result=success and ExecMainStatus=0 before
+`CARGO_TARGET_DIR=/mnt/storage/den-m9-target bash deploy/release.sh v0.2.1`.
+Public health reports `ok: true`, version `0.2.1`. SQLite records migration 8;
+both pre-existing appearance rows have the new family field and no old dark field.
+
+The public M9b smoke passed using `m6_bob`. It restored the account's original
+appearance and deleted its temporary self-DM message. Credentials stayed outside
+the repository. Reproduce with the M9 public command above, using the updated
+`scripts/m9-smoke.mjs`.
+
+Public screenshots were inspected at 1440 x 900:
+
+- [Light family grid](shots/m9b-grid-light.png)
+- [Dark family grid](shots/m9b-grid-dark.png)
+- [Light editor](shots/m9b-editor-light.png)
