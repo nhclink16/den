@@ -33,3 +33,8 @@ Done when: Nicholas downloads a signed `.dmg` from the GitHub release on the iMa
 
 ## Verification
 Automate what can be: the web client's native-session mode against the dev server using a stub `__TAURI__` bridge in Playwright for login, ticket WebSocket, instance switching, and merged inbox; server tests for tickets and bearer coverage. Then real-machine acceptance: install on the iMac (`ssh imac`), the Windows PC (`ssh pc`) and a Linux box, run through the done-when list, and record results per platform in a table in `docs/M4-NOTES.md` with screenshots of the switcher popover, the native notification, the tray menu, and the app window on each OS to `docs/shots/m4-*.png`. Anything that cannot be exercised over SSH (the global hotkey while a game has focus, the macOS notarization prompt) is marked `needs Nicholas` with the exact steps. Stop after the notes.
+
+## Addendum 2026-09-14: sidebar collapse button (web and desktop)
+- A 28px icon button with the existing `panel` icon at the far right of the sidebar's wordmark row, tooltip `Hide sidebar · Ctrl+\` (`⌘\` on macOS). It sets the same `layout.sidebar` preference the shortcut uses.
+- When the sidebar is hidden and the viewport is not narrow, the same icon appears as the first item in the main header of every view (room, inbox, search, settings), tooltip `Show sidebar`. On narrow viewports the existing menu button remains and nothing changes.
+- The call dock stays visible while collapsed, as today. Include the button in the switcher popover work since both touch the wordmark row. Screenshot the collapsed state with the header button visible.
