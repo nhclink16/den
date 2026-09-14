@@ -31,6 +31,8 @@ async fn call_token_authorization_and_voice_channel() {
         assert_eq!(claims.video.room, *id);
         assert!(claims.video.room_join && claims.video.can_publish && claims.video.can_subscribe);
         assert!(!claims.video.room_admin);
+        assert!(claims.video.can_update_own_metadata);
+        assert!(!claims.video.can_publish_data);
     }
     let dm = t
         .post(

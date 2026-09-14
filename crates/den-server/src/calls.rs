@@ -34,6 +34,7 @@ pub(crate) async fn token(
             room_join: true,
             room: channel_id,
             can_publish_data: false,
+            can_update_own_metadata: true,
             ..Default::default()
         })
         .to_jwt()
