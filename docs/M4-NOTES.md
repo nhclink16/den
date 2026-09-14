@@ -2,7 +2,9 @@
 
 Desktop releases are published, the installed Windows and Linux clients upgraded
 through the signed updater, and the paired-theme server is deployed. Full human
-acceptance remains open on macOS and for audible push-to-talk in a game.
+acceptance remains open for audible push-to-talk in a game. The macOS follow-up
+passed several first-session checks but found a blank-window failure on relaunch;
+macOS acceptance is incomplete.
 Associated HTTPS links also remain an implementation follow-up; `den://` links
 are implemented and verified. These are not recorded as passes.
 
@@ -84,20 +86,20 @@ the real-machine evidence below.
 
 | Check | Windows / WebView2 | Linux / WebKitGTK | macOS / WKWebView |
 | --- | --- | --- | --- |
-| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass, DMG install and running process; window inspection needs Nicholas |
-| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Needs Nicholas |
-| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Needs Nicholas |
-| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Needs Nicholas |
-| Click notification to focus/switch/open room | Pass, returned to public server and requested room | Native notification action rendered; click navigation not separately accepted | Needs Nicholas |
-| Tray/menu and app window | Captured and inspected | Captured and inspected | Needs Nicholas; no usable display capture |
-| Call and microphone | Pass, joined public LiveKit room | Failed: LiveKit reports unsupported browser | Needs Nicholas |
-| Global PTT with another app focused | Press and release observed with Notepad foreground; audible/game check needs Nicholas | Global shortcut press/release event observed, but call unavailable | Needs Nicholas |
-| System screen picker and simultaneous shares | Pass, two active screen-share tiles captured | `getDisplayMedia({video:true})` rejected with `OverconstrainedError: Invalid constraint` before picker | Needs Nicholas |
-| Call remains attached across server switch | Pass, dock retained `hangout · Den` | Blocked by unsupported calls | Needs Nicholas |
-| Native upload and authenticated thumbnail | Pass, file uploaded in UI; `den-media.localhost` thumbnail loaded with nonzero natural width | Basic native HTTP/media path exercised; upload not separately accepted on release | Needs Nicholas |
-| `den://join` routing | Pass through registered OS scheme | Pass through repeat app launch/forwarding | Registered in bundle; needs Nicholas |
-| Signed 0.2.0 → 0.2.1 updater | Pass, signed download, restart, running version 0.2.1 and both sessions retained | Pass, restart, release hash, all three sessions retained | Needs Nicholas; latest DMG installed manually |
-| Paired Appearance against deployed server | Pass, eight families; selected Tide in native UI and read `theme=tide` back; restored original preference | Paired private-server themes rendered after update | Needs Nicholas |
+| Install and launch real release | Pass, MSI exit 0 | Pass, AppImage | Pass first-session launch and real window capture; subsequent relaunch failed |
+| Public login, OS credential persistence | Pass, retained after update | Pass, Secret Service; retained after update | Pass public login; persistence after restart blocked by blank window |
+| Add second server, switch and restore | Pass, public + private test server | Pass, public + two private servers | Pass add/switch public + private server; restart restoration blocked |
+| Native DM notification | Pass, OS toast captured | Pass, OS notification captured after update | Blocked after blank relaunch; private test DM sent, no native toast verified |
+| Click notification to focus/switch/open room | Pass, returned to public server and requested room | Native notification action rendered; click navigation not separately accepted | Not verified; notification delivery blocked |
+| Tray/menu and app window | Captured and inspected | Captured and inspected | Pass, real app and menu-bar menu captured and inspected; Quit exited the process |
+| Call and microphone | Pass, joined public LiveKit room | Failed: LiveKit reports unsupported browser | Pass public call join and local mic control toggles; no remote audio confirmation |
+| Global PTT with another app focused | Press and release observed with Notepad foreground; audible/game check needs Nicholas | Global shortcut press/release event observed, but call unavailable | Not tested; audible/game check still needs Nicholas |
+| System screen picker and simultaneous shares | Pass, two active screen-share tiles captured | `getDisplayMedia({video:true})` rejected with `OverconstrainedError: Invalid constraint` before picker | Pass real system picker; no active share confirmed and no multiple-share pass |
+| Call remains attached across server switch | Pass, dock retained `hangout · Den` | Blocked by unsupported calls | Not exercised in this pass |
+| Native upload and authenticated thumbnail | Pass, file uploaded in UI; `den-media.localhost` thumbnail loaded with nonzero natural width | Basic native HTTP/media path exercised; upload not separately accepted on release | Not exercised in this pass |
+| `den://join` routing | Pass through registered OS scheme | Pass through repeat app launch/forwarding | Pass registered OS URL opened the private-server preview/login flow |
+| Signed 0.2.0 → 0.2.1 updater | Pass, signed download, restart, running version 0.2.1 and both sessions retained | Pass, restart, release hash, all three sessions retained | Installed 0.2.1 matches latest manifest; updater installation remains unverified |
+| Paired Appearance against deployed server | Pass, eight families; selected Tide in native UI and read `theme=tide` back; restored original preference | Paired private-server themes rendered after update | Per-account themes rendered across origins; editor/save not exercised |
 
 The Windows update crossed from a machine-wide MSI to the per-user NSIS install.
 It displayed an MSI removal confirmation and an elevation prompt. Subsequent
@@ -111,11 +113,75 @@ This is an actual runtime failure, not a missing automation permission. Use the
 browser for calls on this machine. The AppImage notification currently shows a
 generic/missing icon in XFCE; notification delivery itself works.
 
-The iMac's displays were online but asleep. `screencapture` repeatedly returned
-`could not create image from display`, including after a wake assertion. The app
-and WebKit processes ran, but that does not establish login, microphone, picker,
-notification, menu or updater acceptance. No substitute macOS screenshots were
-fabricated. `security find-identity -v -p codesigning` found zero valid identities.
+The initial unattended iMac pass could not capture the displays. The follow-up
+below supersedes that capture limitation. The earlier signing probe found zero
+valid identities; signing/keychain setup was not inspected or changed during the
+follow-up because Nicholas was working on it separately.
+
+### macOS follow-up, 2026-09-14 00:15–00:48 EDT
+
+Tested the installed, unsigned `~/Applications/Den.app` v0.2.1 on
+`Nicholas-Work.local`, macOS 26.6.1. No Xcode, keychain sign-in, signing identity,
+or system signing configuration was changed. No quarantine attribute was present
+on the app at the final check, so no quarantine removal was needed.
+
+Direct SSH `screencapture` failed even with the displays awake;
+`CGPreflightScreenCaptureAccess()` returned false. Nicholas enabled Screen &
+System Audio Recording for Terminal. Driving `screencapture` through a dedicated
+GUI Terminal window then worked. The app/menu images use real WindowServer IDs
+with `screencapture -x -o -l`; the picker uses `-R680,183,1200,800` around Den's
+window. These are actual captures, not reconstructed UI or browser substitutes.
+The dedicated capture window excluded Nicholas's Xcode work.
+
+The first running app session successfully logged into denchat.app as Nicholas.
+`open 'den://join?url=http%3A%2F%2F127.0.0.1%3A17900'` opened the registered scheme,
+previewed First Den, and accepted the private test account login. A temporary SSH
+reverse tunnel connected that URL to the existing disposable M4 database on
+codexbox. The switcher showed both servers, and selecting each changed the
+account, room contents and theme. Input used macOS accessibility controls and,
+where text events were needed, keyboard events addressed to Den's PID.
+
+The public hangout joined with one participant and a live call dock. The UI
+reached `Mute microphone`, then responded to mute with `Unmute microphone`.
+That establishes local control behavior, not audible reception by another person.
+The menu-bar menu displayed Open Den, checked Mute microphone, Deafen and Quit.
+Quit later exited the application process.
+
+Share screen opened macOS's Shared Content Picker Controls. A real capture shows
+`Share This Window` over Den. Selection did not produce a confirmed active share
+or screen tile. The session subsequently stopped exposing its main window through
+accessibility, while WindowServer could still capture its last rendered content.
+The sequence does not establish that the picker caused the later failure.
+
+**Relaunch failed.** Quitting and reopening v0.2.1 produced a persistent blank
+window. Repeating through GUI Terminal, both with `open` and with the bundle's
+executable directly, also produced a blank window. Screenshots record both paths.
+The native event loop remained alive; a one-second process sample did not show it
+blocked in a keychain operation. Unified logs included these WebKit child errors:
+
+```text
+WebContent[10671] Failed to look up the port for "com.apple.windowserver.active" (1)
+WebContent[10671] failed to do a bootstrap look-up: xpc_error=[1: Operation not permitted]
+WebContent[11377] Failed to look up the port for "com.apple.windowserver.active" (1)
+```
+
+These are diagnostic evidence, not a proven root cause. The GUI-launch retry
+means the failure cannot yet be dismissed as an SSH-only problem. Recovering the
+blank relaunch is required before accepting restart persistence or the updater.
+
+A private DM was sent successfully with HTTP 200 after relaunch, but no native
+notification was verified while the app was blank. There is therefore no macOS
+notification screenshot or notification-click pass. A substitute system-script
+notification was not used. The installed bundle reports 0.2.1; the GitHub manifest
+retrieved from the iMac also reports 0.2.1 with both Darwin architectures. No update
+chip appeared in the working first session, but this is not proof of an updater
+check succeeding. Download verification, installation and restart through the
+macOS updater remain unverified.
+
+The blank app, dedicated capture Terminal window, temporary reverse tunnel,
+disposable server and capture job were stopped. Test scripts and temporary
+credential input were removed. The installed app and its remembered server data
+remain. First Den is offline until the disposable server/tunnel are restarted.
 
 ### Evidence
 
@@ -135,6 +201,13 @@ fabricated. `security find-identity -v -p codesigning` found zero valid identiti
   [call failure](shots/m4-linux-call-limit.png),
   [update chip](shots/m4-linux-update.png),
   [deep link](shots/m4-linux-deeplink.png).
+- macOS: [app](shots/m4-macos-app.png),
+  [switcher](shots/m4-macos-switcher.png),
+  [call](shots/m4-macos-call.png),
+  [menu-bar menu](shots/m4-macos-tray.png),
+  [system picker](shots/m4-macos-picker.png),
+  [blank relaunch](shots/m4-macos-restarted.png),
+  [blank GUI relaunch](shots/m4-macos-restarted-gui.png).
 - Browser: [public collapsed sidebar](shots/m4-public-sidebar-collapsed.png).
   Stub-only evidence: [switcher](shots/m4-native-stub-switcher.png),
   [Inbox](shots/m4-native-stub-inbox.png),
@@ -209,16 +282,13 @@ See [Tauri's signing instructions](https://tauri.app/distribute/sign/macos/) and
 
 ## Remaining attended and implementation checks
 
-On the iMac, wake/unlock the displays, open `~/Applications/Den.app`, log into
-`https://denchat.app`, add a second running server from its reachable URL, and use
-the wordmark and shortcuts to switch. Allow microphone/camera/notifications as
-prompted. Join a call with a second participant; set PTT, focus another app, and
-have that participant confirm speech only while held. Share two windows using
-the system picker. Send a DM while Den is backgrounded and click its native
-notification. Capture app, switcher, notification and menu-bar menu. For updater
-acceptance, install the retained v0.2.0 DMG, quit/relaunch, click the update chip,
-then confirm version 0.2.1 and retained login. Keep Appearance closed until updated.
-Gatekeeper/notarization acceptance must wait for the signed release above.
+On the iMac, first diagnose and fix the blank relaunch described above, then repeat
+restart persistence, native notification delivery/click navigation and updater
+installation. Verify actual screen-share publication and two simultaneous shares,
+not only the system picker. Global PTT still needs a second participant to confirm
+speech only while held, including with another application/game focused. These
+human-dependent checks are not claimed. Gatekeeper/notarization acceptance waits
+for Nicholas's signing setup and a signed release.
 
 On Windows, repeat the audible PTT check while an actual game has focus. Inspect
 Installed Apps for any obsolete MSI entry from the first release. The updated
