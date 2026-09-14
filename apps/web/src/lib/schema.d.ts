@@ -1002,9 +1002,8 @@ export interface components {
         };
         Appearance: {
             custom_themes: components["schemas"]["Theme"][];
-            dark_theme: string;
-            light_theme: string;
             mode: components["schemas"]["AppearanceMode"];
+            theme: string;
         };
         /** @enum {string} */
         AppearanceMode: "light" | "dark" | "system";
@@ -1541,11 +1540,11 @@ export interface components {
             text: string;
         };
         Theme: {
-            appearance: components["schemas"]["ThemeAppearance"];
-            colors: components["schemas"]["ThemeColors"];
+            dark: components["schemas"]["ThemeColors"];
             density: components["schemas"]["ThemeDensity"];
             fonts: components["schemas"]["ThemeFonts"];
             id: string;
+            light: components["schemas"]["ThemeColors"];
             name: string;
             radius: components["schemas"]["ThemeRadius"];
         };
@@ -1557,6 +1556,7 @@ export interface components {
             bg2: string;
             bg3: string;
             danger: string;
+            generated?: boolean;
             ink: string;
             ink2: string;
             ink3: string;

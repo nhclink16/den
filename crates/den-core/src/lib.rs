@@ -468,3 +468,5 @@ pub struct ObjectPresence {
     pub channel_id: Id,
     pub user_ids: Vec<Id>,
 }
+
+pub mod theme_color;

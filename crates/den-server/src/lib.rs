@@ -116,6 +116,7 @@ impl AppState {
             .execute(&mut *migration)
             .await?;
         drop(migration);
+        appearance::complete_theme_pairs(&db).await?;
         if sqlx::query_scalar!("SELECT count(*) FROM users")
             .fetch_one(&db)
             .await?

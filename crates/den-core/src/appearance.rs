@@ -40,6 +40,8 @@ pub struct ThemeColors {
     pub accent: String,
     pub success: String,
     pub danger: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub generated: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -53,8 +55,8 @@ pub struct ThemeFonts {
 pub struct Theme {
     pub id: String,
     pub name: String,
-    pub appearance: ThemeAppearance,
-    pub colors: ThemeColors,
+    pub light: ThemeColors,
+    pub dark: ThemeColors,
     pub fonts: ThemeFonts,
     pub radius: ThemeRadius,
     pub density: ThemeDensity,
@@ -63,16 +65,14 @@ pub struct Theme {
 #[serde(deny_unknown_fields)]
 pub struct Appearance {
     pub mode: AppearanceMode,
-    pub light_theme: String,
-    pub dark_theme: String,
+    pub theme: String,
     pub custom_themes: Vec<Theme>,
 }
 impl Default for Appearance {
     fn default() -> Self {
         Self {
             mode: AppearanceMode::System,
-            light_theme: "den-light".into(),
-            dark_theme: "den".into(),
+            theme: "den".into(),
             custom_themes: vec![],
         }
     }
@@ -100,18 +100,19 @@ impl Theme {
         {
             return Err("Names must be 1-40 letters, numbers, spaces, hyphens or underscores");
         }
-        let c = &self.colors;
-        if [
-            &c.bg, &c.bg2, &c.bg3, &c.line, &c.ink, &c.ink2, &c.ink3, &c.accent, &c.success,
-            &c.danger,
-        ]
-        .into_iter()
-        .any(|v| {
-            v.len() != 7
-                || !v.starts_with('#')
-                || !v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
-        }) {
-            return Err("Colors must be six-digit hex values");
+        for c in [&self.light, &self.dark] {
+            if [
+                &c.bg, &c.bg2, &c.bg3, &c.line, &c.ink, &c.ink2, &c.ink3, &c.accent, &c.success,
+                &c.danger,
+            ]
+            .into_iter()
+            .any(|v| {
+                v.len() != 7
+                    || !v.starts_with('#')
+                    || !v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+            }) {
+                return Err("Colors must be six-digit hex values");
+            }
         }
         Ok(())
     }
@@ -134,16 +135,8 @@ impl Appearance {
             }
             themes.push(t.clone());
         }
-        for (id, appearance) in [
-            (&self.light_theme, ThemeAppearance::Light),
-            (&self.dark_theme, ThemeAppearance::Dark),
-        ] {
-            if !themes
-                .iter()
-                .any(|t| &t.id == id && t.appearance == appearance)
-            {
-                return Err("Select an existing theme of the matching appearance");
-            }
+        if !themes.iter().any(|t| t.id == self.theme) {
+            return Err("Select an existing theme family");
         }
         Ok(())
     }

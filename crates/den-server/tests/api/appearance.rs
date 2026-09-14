@@ -22,10 +22,10 @@ async fn appearance_validates_persists_and_stays_private() {
     let mut theme = builtin_themes()[3].clone();
     theme.id = "custom-tide".into();
     theme.name = "My tide".into();
-    theme.colors.accent = "#abcdef".into();
+    theme.dark.accent = "#abcdef".into();
     let mut value = json!(Appearance {
         mode: AppearanceMode::Dark,
-        dark_theme: theme.id.clone(),
+        theme: theme.id.clone(),
         custom_themes: vec![theme],
         ..Appearance::default()
     });
@@ -108,7 +108,7 @@ async fn appearance_validates_persists_and_stays_private() {
     assert_eq!(other, initial);
     let good = value.clone();
     for (field, bad) in [
-        ("colors", json!({"accent":"red"})),
+        ("dark", json!({"accent":"red"})),
         (
             "fonts",
             json!({"display":"x; background:red","body":"Inter","mono":"Inter"}),
@@ -125,7 +125,7 @@ async fn appearance_validates_persists_and_stays_private() {
                 .await
                 .unwrap()
                 .status(),
-            if matches!(field, "colors" | "radius") {
+            if matches!(field, "dark" | "radius") {
                 422
             } else {
                 400
@@ -134,8 +134,8 @@ async fn appearance_validates_persists_and_stays_private() {
         );
     }
     for bad in [
-        json!({"mode":"system","light_theme":"tide","dark_theme":"den","custom_themes":[]}),
-        json!({"mode":"dark","light_theme":"den-light","dark_theme":"missing","custom_themes":[]}),
+        json!({"mode":"system","theme":"den-light","custom_themes":[]}),
+        json!({"mode":"dark","theme":"missing","custom_themes":[]}),
     ] {
         assert_eq!(
             t.req(Method::PUT, path, &alice.token)
