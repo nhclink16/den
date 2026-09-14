@@ -28,6 +28,9 @@ impl Test {
         Self::with_voice(false).await
     }
     async fn with_voice(configured: bool) -> Self {
+        Self::with_voice_at(configured.then_some("ws://127.0.0.1:1")).await
+    }
+    async fn with_voice_at(voice: Option<&str>) -> Self {
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -40,9 +43,9 @@ impl Test {
         )
         .await
         .unwrap();
-        let state = if configured {
+        let state = if let Some(voice) = voice {
             state.with_livekit(
-                "ws://127.0.0.1:1".into(),
+                voice.into(),
                 "test-key".into(),
                 "test-secret-at-least-thirty-two-bytes".into(),
             )
@@ -151,6 +154,8 @@ mod m2_files;
 mod calls;
 #[path = "api/ios.rs"]
 mod ios;
+#[path = "api/ios_calls.rs"]
+mod ios_calls;
 
 #[path = "api/objects.rs"]
 mod objects;

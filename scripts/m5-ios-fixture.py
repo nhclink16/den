@@ -32,18 +32,79 @@ def private_json(path, value):
         out.write("\n")
 
 
-def start(binary):
+def free_port(kind=socket.SOCK_STREAM, address="127.0.0.1"):
+    with socket.socket(type=kind) as listener:
+        listener.bind((address, 0))
+        return listener.getsockname()[1]
+
+
+def start_livekit(directory, origin):
+    media_ip = subprocess.check_output(["tailscale", "ip", "-4"], text=True).strip()
+    # Validate before using an address in Docker/network configuration.
+    import ipaddress
+    if ipaddress.ip_address(media_ip) not in ipaddress.ip_network("100.64.0.0/10"):
+        raise RuntimeError("Expected this machine's Tailnet IPv4 address")
+    port = free_port()
+    udp = free_port(socket.SOCK_DGRAM, media_ip)
+    key, secret = "fixture" + secrets.token_hex(8), secrets.token_urlsafe(32)
+    name = directory.name + "-livekit"
+    config = directory / "livekit.json"
+    private_json(config, {
+        "port": port, "bind_addresses": ["127.0.0.1"],
+        "rtc": {"node_ip": media_ip, "udp_port": udp, "tcp_port": 0,
+                "use_external_ip": False, "ips": {"includes": [media_ip + "/32"]}},
+        "turn": {"enabled": False}, "keys": {key: secret},
+        "webhook": {"api_key": key, "urls": [origin + "/livekit/webhook"]},
+        "logging": {"level": "warn"},
+        "room": {"departure_timeout": 5},
+    })
+    container = subprocess.check_output([
+        "docker", "run", "-d", "--name", name, "--network", "host",
+        "--label", "den.fixture=" + str(directory),
+        "--mount", f"type=bind,src={config},dst=/fixture.json,readonly",
+        "livekit/livekit-server:v1.9.0", "--config", "/fixture.json",
+    ], text=True).strip()
+    # Record exact ownership immediately so failure cleanup has a durable receipt.
+    private_json(directory / "livekit-receipt.json", {"container": container, "directory": str(directory)})
+    for _ in range(100):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}", timeout=1):
+                return {"DEN_LIVEKIT_URL": f"ws://127.0.0.1:{port}",
+                        "DEN_LIVEKIT_API_KEY": key, "DEN_LIVEKIT_API_SECRET": secret}, {
+                            "livekit_configured": True, "livekit_port": port,
+                            "livekit_media_ip": media_ip, "livekit_udp_port": udp}
+        except OSError:
+            time.sleep(0.1)
+    raise RuntimeError("Isolated LiveKit failed to start; inspect its container log privately")
+
+
+def stop_livekit(directory):
+    path = directory / "livekit-receipt.json"
+    if not path.exists():
+        return
+    receipt = json.loads(path.read_text())
+    inspect = subprocess.run(["docker", "inspect", receipt["container"]], capture_output=True, text=True)
+    if inspect.returncode == 0:
+        instance = json.loads(inspect.stdout)[0]
+        if instance["Config"]["Labels"].get("den.fixture") != str(directory):
+            raise RuntimeError("Container ownership mismatch; refusing cleanup")
+        subprocess.run(["docker", "rm", "-f", receipt["container"]], check=True, stdout=subprocess.DEVNULL)
+
+
+def start(binary, livekit=False):
     directory = Path(tempfile.mkdtemp(prefix="den-ios-fixture-", dir="/mnt/storage"))
     process = None
     try:
-        with socket.socket() as listener:
-            listener.bind(("127.0.0.1", 0))
-            port = listener.getsockname()[1]
+        port = free_port()
         origin = f"http://127.0.0.1:{port}"
         env = {key: value for key, value in os.environ.items() if not key.startswith("DEN_")}
         env.update(DEN_BIND=f"127.0.0.1:{port}", DEN_ORIGIN=origin,
                    DEN_DB=str(directory / "den.db"), DEN_UPLOADS=str(directory / "uploads"),
                    DEN_BOOTSTRAP_FILE=str(directory / "bootstrap.key"))
+        media = {"livekit_configured": False}
+        if livekit:
+            media_env, media = start_livekit(directory, origin)
+            env.update(media_env)
         with (directory / "server.log").open("w") as log:
             process = subprocess.Popen([str(binary)], cwd=directory, env=env,
                                        stdout=log, stderr=log, start_new_session=True)
@@ -74,7 +135,7 @@ def start(binary):
         credentials = directory / "credentials.json"
         private_json(credentials, {
             "origin": origin, "port": port, "general_channel_id": general["id"],
-            "dm_channel_id": dm["id"], "livekit_configured": False,
+            "dm_channel_id": dm["id"], **media,
             "users": [{"username": "ios_alex", "password": first_password, "session": first},
                       {"username": "ios_blair", "password": second_password, "session": second}],
         })
@@ -82,11 +143,13 @@ def start(binary):
             "pid": process.pid, "binary": str(binary.resolve()), "directory": str(directory),
             "port": port, "process_start": Path(f"/proc/{process.pid}/stat").read_text().split()[21],
         })
-        print(json.dumps({"port": port, "credentials_file": str(credentials)}))
+        print(json.dumps({"port": port, "credentials_file": str(credentials),
+                          **({"livekit_port": media["livekit_port"]} if livekit else {})}))
     except BaseException:
         if process and process.poll() is None:
             process.terminate()
             process.wait(timeout=10)
+        stop_livekit(directory)
         if os.environ.get("DEN_SMOKE_KEEP") != "1":
             shutil.rmtree(directory)
         raise
@@ -113,6 +176,7 @@ def stop(directory):
             time.sleep(0.1)
         else:
             raise RuntimeError("Fixture did not stop; its files were preserved")
+    stop_livekit(directory)
     if os.environ.get("DEN_SMOKE_KEEP") == "1":
         print("Stopped fixture; DEN_SMOKE_KEEP=1 preserved its directory")
     else:
@@ -126,10 +190,11 @@ if __name__ == "__main__":
     create = commands.add_parser("start")
     create.add_argument("--binary", type=Path, default=Path(os.environ.get(
         "CARGO_TARGET_DIR", "/mnt/storage/den-m5-target")) / "debug/den-server")
+    create.add_argument("--livekit", action="store_true", help="Private two-peer media on this Tailnet node")
     remove = commands.add_parser("stop")
     remove.add_argument("--dir", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "start":
-        start(args.binary.resolve())
+        start(args.binary.resolve(), args.livekit)
     else:
         stop(args.dir)

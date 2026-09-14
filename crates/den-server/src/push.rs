@@ -6,24 +6,11 @@ use tokio::sync::mpsc;
 
 const TOPIC: &str = "app.denchat.ios";
 
-#[derive(Clone, Copy, Default)]
-pub(crate) enum Environment {
-    #[default]
-    Sandbox,
-    Production,
-}
-impl Environment {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Sandbox => "sandbox",
-            Self::Production => "production",
-        }
-    }
-    fn endpoint(self) -> &'static str {
-        match self {
-            Self::Sandbox => "https://api.sandbox.push.apple.com",
-            Self::Production => "https://api.push.apple.com",
-        }
+pub(crate) type Environment = DeviceEnvironment;
+fn endpoint(environment: Environment) -> &'static str {
+    match environment {
+        Environment::Sandbox => "https://api.sandbox.push.apple.com",
+        Environment::Production => "https://api.push.apple.com",
     }
 }
 
@@ -36,7 +23,7 @@ pub(crate) fn now_millis() -> i64 {
 
 pub(crate) struct Apns {
     environment: Environment,
-    endpoint: String,
+    endpoints: [String; 2],
     http: reqwest::Client,
     key: EncodingKey,
     key_id: String,
@@ -53,7 +40,10 @@ impl Apns {
     ) -> anyhow::Result<Self> {
         Ok(Self {
             environment,
-            endpoint: environment.endpoint().into(),
+            endpoints: [
+                endpoint(Environment::Sandbox).into(),
+                endpoint(Environment::Production).into(),
+            ],
             http: reqwest::Client::builder()
                 .http2_prior_knowledge()
                 .redirect(reqwest::redirect::Policy::none())
@@ -95,7 +85,7 @@ impl Apns {
 }
 
 impl AppState {
-    /// Configure alert APNs once before sharing the server state. No credentials
+    /// Configure APNs once before sharing the server state. No credentials
     /// means one startup log and a no-op sender. Tests do not read process env.
     pub async fn with_apns_from_env(mut self) -> anyhow::Result<Self> {
         let environment = match std::env::var("DEN_APNS_ENV").as_deref() {
@@ -182,9 +172,8 @@ pub(crate) fn notification(
     );
 }
 
-/// The same custom fields are used by the socket event and the future VoIP
-/// payload. This slice sends an ordinary alert token; it never mislabels an
-/// alert registration as PushKit or sends apns-push-type: voip to that token.
+/// Queue only an initial incoming call. Delivery selects registered VoIP or
+/// alert transport and rechecks invitation, credential, and device generation.
 pub(crate) fn invitation(s: &AppState, user: &str, invite: &CallInvitation) {
     queue(
         s,
@@ -205,6 +194,9 @@ struct Destination {
     token: String,
     generation: i64,
     registered_at: i64,
+    purpose: String,
+    environment: String,
+    client_id: Option<String>,
 }
 #[derive(Deserialize)]
 struct Rejection {
@@ -216,16 +208,14 @@ async fn deliver(db: &SqlitePool, apns: &mut Apns, job: &Job) -> anyhow::Result<
     if now() >= job.expires_at {
         return Ok(());
     }
-    let body = serde_json::to_vec(&job.payload)?;
-    anyhow::ensure!(body.len() <= 4096, "APNs payload exceeds alert limit");
     let devices = sqlx::query_as::<_, Destination>(
-        "SELECT d.id,d.token,d.generation,d.registered_at FROM devices d
-         WHERE d.user_id=? AND d.environment=? AND
+        "SELECT d.id,d.token,d.generation,d.registered_at,d.purpose,d.environment,d.client_id FROM devices d
+         WHERE d.user_id=? AND (? OR d.purpose='alert') AND
          (EXISTS(SELECT 1 FROM sessions WHERE id=d.session_id AND expires_at>?)
           OR EXISTS(SELECT 1 FROM tokens WHERE id=d.token_id))",
     )
     .bind(&job.user_id)
-    .bind(apns.environment.as_str())
+    .bind(job.invitation.is_some())
     .bind(now())
     .fetch_all(db)
     .await?;
@@ -241,6 +231,13 @@ async fn deliver(db: &SqlitePool, apns: &mut Apns, job: &Job) -> anyhow::Result<
         if let Some(invite) = &job.invitation {
             if !crate::invitations::pending(db, &job.user_id, invite).await? {
                 break;
+            }
+            if device.purpose == "alert" && device.client_id.is_some() {
+                let has_voip:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM devices d WHERE d.user_id=? AND d.client_id=? AND d.environment=? AND d.purpose='voip' AND (EXISTS(SELECT 1 FROM sessions WHERE id=d.session_id AND expires_at>?) OR EXISTS(SELECT 1 FROM tokens WHERE id=d.token_id)))")
+                    .bind(&job.user_id).bind(&device.client_id).bind(&device.environment).bind(now()).fetch_one(db).await?;
+                if has_voip {
+                    continue;
+                }
             }
         }
         // Re-registration, logout or account switching while this job was queued
@@ -259,20 +256,67 @@ async fn deliver(db: &SqlitePool, apns: &mut Apns, job: &Job) -> anyhow::Result<
         if !current {
             continue;
         }
+        let voip = device.purpose == "voip";
+        let mut payload = job.payload.clone();
+        if let Some(invite) = &job.invitation {
+            let name: String = sqlx::query_scalar("SELECT display_name FROM users WHERE id=?")
+                .bind(&invite.from_user_id)
+                .fetch_one(db)
+                .await?;
+            if voip {
+                let Some(ticket) =
+                    crate::invitation_tickets::issue(db, &device.id, device.generation, invite)
+                        .await
+                        .map_err(|_| anyhow::anyhow!("Cannot issue invitation ticket"))?
+                else {
+                    continue;
+                };
+                payload = serde_json::to_value(IncomingVoipCall {
+                    invitation_id: invite.id.clone(),
+                    channel_id: invite.channel_id.clone(),
+                    from_user_id: invite.from_user_id.clone(),
+                    from_display_name: name,
+                    expires_at: invite.expires_at,
+                    fetch_ticket: ticket,
+                })?;
+                payload["type"] = json!("call_invite");
+                payload["aps"] = json!({});
+            } else {
+                payload["invitation_id"] = json!(invite.id);
+                payload["from_display_name"] = json!(name);
+            }
+        }
+        let body = serde_json::to_vec(&payload)?;
+        anyhow::ensure!(
+            body.len() <= if voip { 5120 } else { 4096 },
+            "APNs payload exceeds limit"
+        );
         let bearer = apns.bearer()?.to_owned();
-        let response = apns
+        let endpoint = &apns.endpoints[usize::from(device.environment == "production")];
+        let mut request = apns
             .http
-            .post(format!("{}/3/device/{}", apns.endpoint, device.token))
+            .post(format!("{}/3/device/{}", endpoint, device.token))
             .bearer_auth(bearer)
-            .header("apns-topic", TOPIC)
-            .header("apns-push-type", "alert")
+            .header(
+                "apns-topic",
+                if voip { "app.denchat.ios.voip" } else { TOPIC },
+            )
+            .header("apns-push-type", if voip { "voip" } else { "alert" })
             .header("apns-priority", "10")
-            .header("apns-collapse-id", &job.channel_id)
-            .header("apns-expiration", job.expires_at.to_string())
+            .header(
+                "apns-expiration",
+                if voip {
+                    "0".into()
+                } else {
+                    job.expires_at.to_string()
+                },
+            )
             .header("content-type", "application/json")
-            .body(body.clone())
-            .send()
-            .await?;
+            .body(body);
+        if !voip {
+            request = request.header("apns-collapse-id", &job.channel_id);
+        }
+        let response = request.send().await?;
         let status = response.status();
         if status.is_success() {
             continue;

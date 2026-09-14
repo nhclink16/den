@@ -145,9 +145,27 @@ pub enum Event {
     },
     /// Only other DM members with a pending, unexpired invitation receive this.
     CallInvite {
+        invitation_id: Id,
         channel_id: Id,
         from_user_id: Id,
         expires_at: i64,
+    },
+    CallInvitationState {
+        call: CallInvitationState,
+    },
+    CallInviteAccepted {
+        call: CallInvitationState,
+        user_id: Id,
+        answer_id: String,
+    },
+    CallInviteCancelled {
+        call: CallInvitationState,
+    },
+    CallInviteExpired {
+        call: CallInvitationState,
+    },
+    CallEnded {
+        call: CallInvitationState,
     },
     Presence {
         user_id: Id,

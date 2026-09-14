@@ -86,6 +86,12 @@ use utoipa::OpenApi;
         calls::list,
         invitations::invite,
         invitations::decline,
+        invitations::accept,
+        invitations::cancel,
+        invitations::end,
+        invitations::list,
+        invitations::get,
+        invitation_tickets::redeem,
         calls::webhook,
         thumbnails::serve,
         ws::connect
@@ -170,10 +176,19 @@ use utoipa::OpenApi;
         CallToken,
         CallState,
         DevicePlatform,
+        DevicePurpose,
+        DeviceEnvironment,
         RegisterDevice,
         Device,
         CallInvitation,
-        DeclineCallInvitation
+        DeclineCallInvitation,
+        InvitationStatus,
+        CallAcceptance,
+        CallInvitationState,
+        AcceptCallInvitation,
+        IdentifyCallInvitation,
+        RedeemCallInvitation,
+        IncomingVoipCall
     ))
 )]
 struct Api;
@@ -208,6 +223,7 @@ pub(crate) async fn serve() -> Json<utoipa::openapi::OpenApi> {
                 | "/auth/init"
                 | "/auth/login"
                 | "/auth/register"
+                | "/calls/invitations/redeem"
         );
         for (method, op) in [
             ("get", &mut item.get),

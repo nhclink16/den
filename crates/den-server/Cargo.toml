@@ -37,3 +37,5 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "cookies"] }
 tokio-tungstenite = "0.28"
 futures-util = "0.3"
+livekit-protocol = "=0.7.13"
+prost = "0.12"

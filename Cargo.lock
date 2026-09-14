@@ -618,6 +618,8 @@ dependencies = [
  "image",
  "jsonwebtoken",
  "livekit-api",
+ "livekit-protocol",
+ "prost",
  "pulldown-cmark",
  "rand 0.8.8",
  "reqwest",

@@ -24,10 +24,14 @@ struct Fixture {
     dir: PathBuf,
     requests: mpsc::Receiver<Captured>,
     server: tokio::task::JoinHandle<()>,
+    den: Option<(String, tokio::task::JoinHandle<()>)>,
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
         self.server.abort();
+        if let Some((_, server)) = &self.den {
+            server.abort();
+        }
         let _ = std::fs::remove_dir_all(&self.dir);
     }
 }
@@ -63,7 +67,7 @@ impl Fixture {
         let dir = std::env::temp_dir().join(format!("den-apns-test-{}", ulid::Ulid::new()));
         let mut apns =
             Apns::new(environment, "test-key-id".into(), "test-team".into(), KEY).unwrap();
-        apns.endpoint = endpoint;
+        apns.endpoints = [endpoint.clone(), format!("{endpoint}/production")];
         let state = AppState::open(
             dir.join("den.db"),
             dir.join("uploads"),
@@ -98,6 +102,7 @@ impl Fixture {
             dir,
             requests,
             server,
+            den: None,
         }
     }
     async fn auth(&self, id: &str) -> crate::auth::Auth {
@@ -117,6 +122,9 @@ impl Fixture {
                 platform: DevicePlatform::Ios,
                 token: token.into(),
                 app_version: "1.0".into(),
+                purpose: DevicePurpose::Alert,
+                environment: None,
+                client_id: None,
             }),
         )
         .await
@@ -143,6 +151,31 @@ impl Fixture {
             .await
             .expect("APNs request timed out")
             .expect("stub stopped")
+    }
+    async fn redeem(&mut self, ticket: &str) -> reqwest::Response {
+        if self.den.is_none() {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("http://{}", listener.local_addr().unwrap());
+            let app = crate::router(self.state.clone());
+            let task = tokio::spawn(async move {
+                axum::serve(
+                    listener,
+                    app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+                )
+                .await
+                .unwrap();
+            });
+            self.den = Some((url, task));
+        }
+        reqwest::Client::new()
+            .post(format!(
+                "{}/calls/invitations/redeem",
+                self.den.as_ref().unwrap().0
+            ))
+            .json(&json!({"ticket":ticket}))
+            .send()
+            .await
+            .unwrap()
     }
     async fn count(&self) -> i64 {
         sqlx::query_scalar("SELECT count(*) FROM devices")
@@ -318,12 +351,10 @@ async fn queue_rechecks_account_ownership_logout_environment_and_invitation_decl
         .execute(&f.state.db)
         .await
         .unwrap();
-    f.message("dm", "wrong APNs environment").await;
-    assert!(
-        tokio::time::timeout(Duration::from_millis(100), f.requests.recv())
-            .await
-            .is_err()
-    );
+    f.message("dm", "registered production destination").await;
+    let delivered = f.receive().await;
+    assert_eq!(delivered.path, "/production/3/device/ab02");
+    delivered.reply.send((StatusCode::OK, json!({}))).unwrap();
     sqlx::query("UPDATE devices SET environment='sandbox'")
         .execute(&f.state.db)
         .await
@@ -350,6 +381,7 @@ async fn queue_rechecks_account_ownership_logout_environment_and_invitation_decl
         f.auth("bob").await,
         axum::extract::Path("dm".into()),
         ApiJson(DeclineCallInvitation {
+            invitation_id: Some(invite.id.clone()),
             from_user_id: invite.from_user_id,
             expires_at: invite.expires_at,
         }),
@@ -402,4 +434,197 @@ async fn call_invitation_alert_has_future_voip_fields_and_expires_in_45_seconds(
     assert_eq!(r.headers["apns-expiration"], invite.expires_at.to_string());
     assert_eq!(r.headers["apns-push-type"], "alert");
     r.reply.send((StatusCode::OK, json!({}))).unwrap();
+}
+
+#[tokio::test]
+async fn pushkit_sends_one_state_ticket_without_duplicate_alert_or_media_credentials() {
+    let mut f = Fixture::new(Environment::Sandbox).await;
+    let client_id = "7c57e315-034c-45b2-8faa-b5696cafc4db";
+    for (token, purpose, environment, client) in [
+        ("ab04", DevicePurpose::Voip, Environment::Sandbox, client_id),
+        (
+            "ab05",
+            DevicePurpose::Alert,
+            Environment::Sandbox,
+            client_id,
+        ),
+        (
+            "ab06",
+            DevicePurpose::Alert,
+            Environment::Production,
+            "25450a80-b211-4697-a789-00840b4d38f8",
+        ),
+    ] {
+        let _ = crate::devices::register(
+            State(f.state.clone()),
+            f.auth("bob").await,
+            ApiJson(RegisterDevice {
+                platform: DevicePlatform::Ios,
+                token: token.into(),
+                app_version: "1".into(),
+                purpose,
+                environment: Some(environment),
+                client_id: Some(client.into()),
+            }),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("registration failed"));
+    }
+    f.state
+        .calls
+        .lock()
+        .await
+        .entry("dm".into())
+        .or_default()
+        .insert("alice:phone".into(), "PA_alice".into());
+    let invite = crate::invitations::invite(
+        State(f.state.clone()),
+        f.auth("alice").await,
+        axum::extract::Path("dm".into()),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("invite failed"))
+    .0;
+    let voip = f.receive().await;
+    assert_eq!(voip.path, "/3/device/ab04");
+    assert_eq!(voip.headers["apns-push-type"], "voip");
+    assert_eq!(voip.headers["apns-topic"], "app.denchat.ios.voip");
+    assert_eq!(voip.headers["apns-priority"], "10");
+    assert_eq!(voip.headers["apns-expiration"], "0");
+    assert!(voip.headers.get("apns-collapse-id").is_none());
+    assert_eq!(voip.body["aps"], json!({}));
+    assert_eq!(voip.body["invitation_id"], invite.id);
+    assert_eq!(voip.body["from_display_name"], "alice");
+    assert!(voip.body.get("token").is_none());
+    assert!(voip.body.get("livekit_token").is_none());
+    assert!(voip.body["fetch_ticket"]
+        .as_str()
+        .is_some_and(|s| s.len() >= 32));
+    voip.reply.send((StatusCode::OK, json!({}))).unwrap();
+    let fallback = f.receive().await;
+    assert_eq!(
+        fallback.path, "/production/3/device/ab06",
+        "Same-installation alert must be suppressed; other environment still delivers"
+    );
+    assert_eq!(fallback.headers["apns-push-type"], "alert");
+    fallback.reply.send((StatusCode::OK, json!({}))).unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(150), f.requests.recv())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn voip_ticket_is_one_use_state_only_and_invalidated_by_rotation_and_logout() {
+    let mut f = Fixture::new(Environment::Sandbox).await;
+    let registration = RegisterDevice {
+        platform: DevicePlatform::Ios,
+        token: "f001".into(),
+        app_version: "1".into(),
+        purpose: DevicePurpose::Voip,
+        environment: None,
+        client_id: Some("c7853376-bc49-427d-952c-c3018318116a".into()),
+    };
+    let _ = crate::devices::register(
+        State(f.state.clone()),
+        f.auth("bob").await,
+        ApiJson(registration.clone()),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("registration failed"));
+    f.state
+        .calls
+        .lock()
+        .await
+        .entry("dm".into())
+        .or_default()
+        .insert("alice:phone".into(), "PA_alice".into());
+    async fn incoming(f: &mut Fixture) -> (CallInvitation, String) {
+        let invite = crate::invitations::invite(
+            State(f.state.clone()),
+            f.auth("alice").await,
+            axum::extract::Path("dm".into()),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("invite failed"))
+        .0;
+        let push = f.receive().await;
+        let ticket = push.body["fetch_ticket"].as_str().unwrap().to_owned();
+        push.reply.send((StatusCode::OK, json!({}))).unwrap();
+        (invite, ticket)
+    }
+    async fn cancel(f: &Fixture, invite: &CallInvitation) {
+        crate::invitations::cancel(
+            State(f.state.clone()),
+            f.auth("alice").await,
+            axum::extract::Path("dm".into()),
+            ApiJson(IdentifyCallInvitation {
+                invitation_id: invite.id.clone(),
+            }),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("cancel failed"));
+    }
+    let (invite, ticket) = incoming(&mut f).await;
+    assert_eq!(f.redeem("not-a-ticket").await.status(), 410);
+    let base = f.den.as_ref().unwrap().0.clone();
+    let client = reqwest::Client::new();
+    let (first, second) = tokio::join!(
+        client
+            .post(format!("{base}/calls/invitations/redeem"))
+            .json(&json!({"ticket":ticket}))
+            .send(),
+        client
+            .post(format!("{base}/calls/invitations/redeem"))
+            .json(&json!({"ticket":ticket}))
+            .send()
+    );
+    let (first, second) = (first.unwrap(), second.unwrap());
+    assert!(matches!(
+        (first.status().as_u16(), second.status().as_u16()),
+        (200, 410) | (410, 200)
+    ));
+    let response = if first.status() == 200 { first } else { second };
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    let state: Value = response.json().await.unwrap();
+    assert_eq!(state["invitation"]["id"], invite.id);
+    assert_eq!(state["state"], "ringing");
+    assert!(state.get("token").is_none());
+    assert!(state.get("url").is_none());
+    assert_eq!(f.redeem(&ticket).await.status(), 410);
+    cancel(&f, &invite).await;
+    let (invite, ticket) = incoming(&mut f).await;
+    let _ = crate::devices::register(
+        State(f.state.clone()),
+        f.auth("bob").await,
+        ApiJson(registration),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("rotation failed"));
+    assert_eq!(f.redeem(&ticket).await.status(), 410);
+    cancel(&f, &invite).await;
+    let (invite, ticket) = incoming(&mut f).await;
+    // Advance only this persisted capability's deadline, keeping its registration live.
+    sqlx::query("UPDATE call_fetch_tickets SET expires_at=? WHERE invitation_id=?")
+        .bind(now() - 1)
+        .bind(&invite.id)
+        .execute(&f.state.db)
+        .await
+        .unwrap();
+    assert_eq!(f.redeem(&ticket).await.status(), 410);
+    cancel(&f, &invite).await;
+    let (_, ticket) = incoming(&mut f).await;
+    let base = f.den.as_ref().unwrap().0.clone();
+    assert_eq!(
+        reqwest::Client::new()
+            .post(format!("{base}/auth/logout"))
+            .bearer_auth("bob")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        204
+    );
+    assert_eq!(f.redeem(&ticket).await.status(), 410);
 }

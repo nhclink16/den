@@ -8,6 +8,8 @@ mod credentials;
 mod devices;
 mod hosts;
 mod inbox;
+mod invitation_state;
+mod invitation_tickets;
 mod invitations;
 mod messages;
 mod objects;
@@ -51,6 +53,8 @@ pub struct Inner {
     pub(crate) hosts: hosts::Hosts,
     pub livekit: Option<calls::LiveKit>,
     pub calls: Mutex<HashMap<String, HashMap<String, String>>>,
+    pub(crate) call_rooms: Mutex<HashMap<String, calls::MediaRoom>>,
+    pub(crate) call_revision: std::sync::atomic::AtomicU64,
     pub(crate) apns_environment: push::Environment,
     pub(crate) push: Option<tokio::sync::mpsc::Sender<push::Job>>,
     pub uploads: PathBuf,
@@ -153,6 +157,8 @@ impl AppState {
             hosts: hosts::Hosts::default(),
             livekit: None,
             calls: Mutex::new(HashMap::new()),
+            call_rooms: Mutex::new(HashMap::new()),
+            call_revision: std::sync::atomic::AtomicU64::new(0),
             apns_environment: push::Environment::default(),
             push: None,
             uploads,
@@ -191,10 +197,10 @@ impl AppState {
     }
     pub async fn cleanup(&self) -> anyhow::Result<()> {
         uploads::cleanup(self).await?;
-        sqlx::query("DELETE FROM call_invitations WHERE expires_at<=?")
-            .bind(now())
-            .execute(&self.db)
-            .await?;
+        let _guard = self.writes.lock().await;
+        invitation_state::expire(self)
+            .await
+            .map_err(|_| anyhow::anyhow!("Invitation cleanup failed"))?;
         Ok(())
     }
 }
@@ -300,6 +306,21 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/search/messages", get(activity::search))
         .route("/presence", get(ws::presence))
         .route("/calls", get(calls::list))
+        .route("/calls/invitations", get(invitations::list))
+        .route(
+            "/calls/invitations/redeem",
+            post(invitation_tickets::redeem),
+        )
+        .route("/calls/invitations/{invitation_id}", get(invitations::get))
+        .route(
+            "/calls/{channel_id}/invite/accept",
+            post(invitations::accept),
+        )
+        .route(
+            "/calls/{channel_id}/invite/cancel",
+            post(invitations::cancel),
+        )
+        .route("/calls/{channel_id}/invite/end", post(invitations::end))
         .route("/calls/{channel_id}/token", post(calls::token))
         .route("/calls/{channel_id}/invite", post(invitations::invite))
         .route(

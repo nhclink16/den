@@ -45,46 +45,92 @@ pub(crate) async fn token(
     }))
 }
 
+#[derive(Clone)]
+pub(crate) struct MediaRoom {
+    pub sid: String,
+    pub created_at: i64,
+    pub finished: bool,
+}
+
+/// Fetch outside the write lock. A newer webhook invalidates this snapshot.
+pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
+    use std::sync::atomic::Ordering;
+    let Some(lk) = &s.livekit else {
+        return Ok(());
+    };
+    let revision = s.call_revision.load(Ordering::SeqCst);
+    let url = lk
+        .url
+        .replacen("wss://", "https://", 1)
+        .replacen("ws://", "http://", 1);
+    let client = RoomClient::with_api_key(&url, &lk.key, &lk.secret)
+        .with_request_timeout(Duration::from_secs(2));
+    let Ok(rooms) = client.list_rooms(channels.to_vec()).await else {
+        return Ok(());
+    };
+    let mut snapshots = Vec::new();
+    for channel in channels {
+        if let Some(room) = rooms.iter().find(|r| &r.name == channel) {
+            if let Ok(users) = client.list_participants(channel).await {
+                snapshots.push((
+                    channel.clone(),
+                    Some(MediaRoom {
+                        sid: room.sid.clone(),
+                        created_at: room.creation_time_ms.max(room.creation_time * 1000),
+                        finished: false,
+                    }),
+                    users
+                        .into_iter()
+                        .map(|p| (p.identity, p.sid))
+                        .collect::<HashMap<_, _>>(),
+                ));
+            }
+        } else {
+            snapshots.push((channel.clone(), None, HashMap::new()));
+        }
+    }
+    let _guard = s.writes.lock().await;
+    if s.call_revision.load(Ordering::SeqCst) != revision {
+        return Ok(());
+    }
+    let mut calls = s.calls.lock().await;
+    let mut known = s.call_rooms.lock().await;
+    for (channel, room, users) in snapshots {
+        let changed = calls.get(&channel) != Some(&users);
+        if let Some(room) = room {
+            known.insert(channel.clone(), room);
+        } else if let Some(room) = known.get_mut(&channel) {
+            room.finished = true;
+        }
+        let participants = user_ids(Some(&users));
+        calls.insert(channel.clone(), users);
+        if changed {
+            let _ = s.events.send(Event::CallState {
+                channel_id: channel.clone(),
+                participant_ids: participants.clone(),
+            });
+        }
+        invitation_state::media(s, &channel, &participants, true).await?;
+    }
+    s.call_revision.fetch_add(1, Ordering::SeqCst);
+    Ok(())
+}
+
 #[utoipa::path(get,path="/calls",responses((status=200,body=Vec<CallState>)))]
 pub(crate) async fn list(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<CallState>>> {
     let Json(channels) = chat::channels(State(s.clone()), a).await?;
-    let mut calls = s.calls.lock().await;
-    // Repair missed webhooks and server restarts during resync. A media outage
-    // must not prevent the text client from booting; retain the last snapshot.
-    if let Some(lk) = &s.livekit {
-        let url = lk
-            .url
-            .replacen("wss://", "https://", 1)
-            .replacen("ws://", "http://", 1);
-        let client = RoomClient::with_api_key(&url, &lk.key, &lk.secret)
-            .with_request_timeout(Duration::from_secs(2));
-        if let Ok(rooms) = client
-            .list_rooms(channels.iter().map(|c| c.id.clone()).collect())
-            .await
-        {
-            for c in &channels {
-                if rooms.iter().any(|r| r.name == c.id) {
-                    if let Ok(users) = client.list_participants(&c.id).await {
-                        calls.insert(
-                            c.id.clone(),
-                            users.into_iter().map(|p| (p.identity, p.sid)).collect(),
-                        );
-                    }
-                } else {
-                    calls.remove(&c.id);
-                }
-            }
-        }
-    }
+    refresh(
+        &s,
+        &channels.iter().map(|c| c.id.clone()).collect::<Vec<_>>(),
+    )
+    .await?;
+    let calls = s.calls.lock().await;
     Ok(Json(
         channels
             .into_iter()
-            .map(|c| {
-                let participant_ids = user_ids(calls.get(&c.id));
-                CallState {
-                    channel_id: c.id,
-                    participant_ids,
-                }
+            .map(|c| CallState {
+                participant_ids: user_ids(calls.get(&c.id)),
+                channel_id: c.id,
             })
             .collect(),
     ))
@@ -113,14 +159,54 @@ pub(crate) async fn webhook(
     ) {
         return Ok(StatusCode::NO_CONTENT);
     }
+    // After restart an unmatched finish may describe an older room generation.
+    // A provider snapshot must establish which room exists before using absence.
+    if event.event == "room_finished" && !s.call_rooms.lock().await.contains_key(&room.name) {
+        refresh(&s, std::slice::from_ref(&room.name)).await?;
+    }
+    use std::sync::atomic::Ordering;
+    let _guard = s.writes.lock().await;
     let mut calls = s.calls.lock().await;
+    let mut known = s.call_rooms.lock().await;
     if event.event == "room_finished" {
+        if known
+            .get(&room.name)
+            .is_none_or(|current| current.sid != room.sid || current.finished)
+        {
+            return Ok(StatusCode::NO_CONTENT);
+        }
         calls.remove(&room.name);
+        known.insert(
+            room.name.clone(),
+            MediaRoom {
+                sid: room.sid.clone(),
+                created_at: room.creation_time_ms.max(room.creation_time * 1000),
+                finished: true,
+            },
+        );
     } else if let Some(p) = event.participant {
-        // Shared dev LiveKit may send rooms belonging to another Den database.
         if visible(&s, user_id(&p.identity), &room.name).await.is_err() {
             return Ok(StatusCode::NO_CONTENT);
         }
+        let created_at = room.creation_time_ms.max(room.creation_time * 1000);
+        if let Some(current) = known.get(&room.name) {
+            if current.sid != room.sid {
+                if event.event != "participant_joined" || created_at < current.created_at {
+                    return Ok(StatusCode::NO_CONTENT);
+                }
+                calls.remove(&room.name);
+            } else if current.finished {
+                return Ok(StatusCode::NO_CONTENT);
+            }
+        }
+        known.insert(
+            room.name.clone(),
+            MediaRoom {
+                sid: room.sid.clone(),
+                created_at,
+                finished: false,
+            },
+        );
         let users = calls.entry(room.name.clone()).or_default();
         if event.event == "participant_joined" {
             users.insert(p.identity, p.sid);
@@ -128,11 +214,19 @@ pub(crate) async fn webhook(
             users.remove(&p.identity);
         }
     }
+    s.call_revision.fetch_add(1, Ordering::SeqCst);
     let participant_ids = user_ids(calls.get(&room.name));
     let _ = s.events.send(Event::CallState {
-        channel_id: room.name,
-        participant_ids,
+        channel_id: room.name.clone(),
+        participant_ids: participant_ids.clone(),
     });
+    invitation_state::media(
+        &s,
+        &room.name,
+        &participant_ids,
+        event.event == "room_finished",
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

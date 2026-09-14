@@ -91,6 +91,7 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         }
         Event::AccessDecided { user_id, .. } => return user_id == &a.user.id,
         Event::CallInvite {
+            invitation_id,
             channel_id,
             from_user_id,
             expires_at,
@@ -99,6 +100,7 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
                 &s.db,
                 &a.user.id,
                 &CallInvitation {
+                    id: invitation_id.clone(),
                     channel_id: channel_id.clone(),
                     from_user_id: from_user_id.clone(),
                     expires_at: *expires_at,
@@ -106,6 +108,15 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
             )
             .await
             .unwrap_or(false);
+        }
+        Event::CallInvitationState { call }
+        | Event::CallInviteAccepted { call, .. }
+        | Event::CallInviteCancelled { call }
+        | Event::CallInviteExpired { call }
+        | Event::CallEnded { call } => {
+            return invitation_state::authorized(s, a, &call.invitation.id)
+                .await
+                .is_ok();
         }
         Event::Notification {
             user_id, message, ..

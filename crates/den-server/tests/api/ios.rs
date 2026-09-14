@@ -10,6 +10,39 @@ async fn register(t: &Test, session: &Session, token: &str) -> Value {
 }
 
 #[tokio::test]
+async fn alert_and_voip_registrations_are_independent_and_keep_legacy_defaults() {
+    let t = Test::new().await;
+    let alert = register(&t, &t.admin, "aabb11").await;
+    let body = json!({"platform":"ios","token":"aabb11","app_version":"1.1", "purpose":"voip", "environment":"sandbox", "client_id":"f9d8032e-ea75-4f71-938c-25f55701c050"});
+    let voip = t.post("/devices", &t.admin.token, body.clone()).await;
+    assert_ne!(
+        alert["id"], voip["id"],
+        "A PushKit registration must not overwrite an alert token"
+    );
+    assert_eq!(alert["purpose"], "alert");
+    assert_eq!(voip["purpose"], "voip");
+    assert_eq!(voip["environment"], "sandbox");
+    assert_eq!(
+        t.post("/devices", &t.admin.token, body).await["id"],
+        voip["id"]
+    );
+    for receipt in [&alert, &voip] {
+        assert_eq!(
+            t.req(
+                Method::DELETE,
+                &format!("/devices/{}", receipt["id"].as_str().unwrap()),
+                &t.admin.token
+            )
+            .send()
+            .await
+            .unwrap()
+            .status(),
+            204
+        );
+    }
+}
+
+#[tokio::test]
 async fn device_registration_is_scoped_idempotent_and_follows_account_switches() {
     let t = Test::new().await;
     let bob = t.member("device_bob").await;
@@ -241,6 +274,7 @@ async fn invitations_require_dm_call_participation_and_only_reach_pending_recipi
         .as_secs() as i64;
     assert!((44..=45).contains(&(until - time)));
     let event = Event::CallInvite {
+        invitation_id: invite["id"].as_str().unwrap().into(),
         channel_id: channel.into(),
         from_user_id: t.admin.user.id.clone(),
         expires_at: until,
@@ -366,10 +400,12 @@ async fn concurrent_callers_cannot_replace_a_live_invite_but_expiry_allows_a_new
     );
     t.state.cleanup().await.unwrap();
     assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM call_invitations")
-            .fetch_one(&t.state.db)
-            .await
-            .unwrap(),
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM call_invitations WHERE state IN ('ringing','active')"
+        )
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap(),
         1
     );
 }

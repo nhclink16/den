@@ -132,6 +132,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calls/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__calls_invitations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/invitations/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Redeem a one-use recipient/device-bound capability for invitation state only. No Den bearer is needed and no login or media credentials are returned. Ticket expires at the original ringing deadline. Invalid, replayed, or revoked tickets return 410. */
+        post: operations["post__calls_invitations_redeem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__calls_invitations__invitation_id_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calls/{channel_id}/invite": {
         parameters: {
             query?: never;
@@ -141,8 +190,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Invite other members of a DM/group DM after joining its call. A repeated request by the active caller returns the same invitation without re-notifying. Another caller conflicts until the 45-second invitation expires. This is invitation signaling, not VoIP delivery or an accept/cancel protocol. */
+        /** @description Create a 45-second DM invitation after joining its call. The active caller's retries return the same generation without re-ringing. Accepted media survives the ringing deadline. */
         post: operations["post__calls__channel_id__invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/{channel_id}/invite/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description First answer wins per recipient account. Matching answer UUID and credential retries return state; another credential/answer returns answered_elsewhere. Fetch media separately through the existing token endpoint. An answer that never joins is cleared after a 20-second grace only when LiveKit confirms no connection for that recipient account; an outage preserves it. */
+        post: operations["post__calls__channel_id__invite_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/{channel_id}/invite/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Caller-only cancellation before any acceptance. A cancelled generation retries with 204; active or other terminal generations return 409. Never disconnects media. */
+        post: operations["post__calls__channel_id__invite_cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -158,8 +241,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Decline the identified invitation for your account across its devices. Repeated declines are idempotent while that invitation exists. An expired or replaced invitation returns 404, so a late decline cannot dismiss a new call. It does not end another participant's call. */
+        /** @description Decline for your recipient account. Legacy caller/expiry matching remains supported; include invitation_id to identify the exact generation. Accepted answers cannot be declined. */
         post: operations["post__calls__channel_id__invite_decline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calls/{channel_id}/invite/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Caller-only signaling cleanup. Already terminal generations are idempotent. Does not disconnect any LiveKit participants; normally leave only your own media connection. */
+        post: operations["post__calls__channel_id__invite_end"];
         delete?: never;
         options?: never;
         head?: never;
@@ -303,7 +403,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Register an iOS alert APNs token for the authenticated credential. DEN_APNS_ENV selects sandbox or production. Re-registration updates ownership; logout/revocation removes registrations bound to that credential. */
+        /** @description Register an iOS alert or PushKit token for the authenticated credential. Purpose defaults to alert; environment defaults to DEN_APNS_ENV. PushKit requires a client_id installation UUID. Explicit environments route independently. Logout/revocation removes credential-bound registrations. */
         post: operations["post__devices"];
         delete?: never;
         options?: never;
@@ -1037,6 +1137,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptCallInvitation: {
+            answer_id: string;
+            invitation_id: components["schemas"]["String"];
+        };
         AccessDecision: {
             allow: boolean;
         };
@@ -1091,6 +1195,10 @@ export interface components {
             credential: components["schemas"]["TokenSecret"];
             user: components["schemas"]["User"];
         };
+        CallAcceptance: {
+            answer_id: string;
+            user_id: components["schemas"]["String"];
+        };
         /**
          * @description An invitation expires 45 seconds after creation. Repeated creation by the
          *     same caller returns the existing invitation without notifying again.
@@ -1103,6 +1211,13 @@ export interface components {
              */
             expires_at: number;
             from_user_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+        };
+        CallInvitationState: {
+            accepted: components["schemas"]["CallAcceptance"][];
+            declined_user_ids: components["schemas"]["String"][];
+            invitation: components["schemas"]["CallInvitation"];
+            state: components["schemas"]["InvitationStatus"];
         };
         CallState: {
             channel_id: components["schemas"]["String"];
@@ -1205,15 +1320,23 @@ export interface components {
             /** Format: int64 */
             expires_at: number;
             from_user_id: components["schemas"]["String"];
+            invitation_id?: string | null;
         };
         /** @description Registration receipt. Tokens are deliberately omitted from responses. */
         Device: {
             app_version: string;
+            client_id?: string | null;
+            environment: components["schemas"]["DeviceEnvironment"];
             id: components["schemas"]["String"];
             platform: components["schemas"]["DevicePlatform"];
+            purpose: components["schemas"]["DevicePurpose"];
         };
         /** @enum {string} */
+        DeviceEnvironment: "sandbox" | "production";
+        /** @enum {string} */
         DevicePlatform: "ios";
+        /** @enum {string} */
+        DevicePurpose: "alert" | "voip";
         DirectCheck: {
             input: boolean;
             session_id: components["schemas"]["String"];
@@ -1310,8 +1433,31 @@ export interface components {
             /** Format: int64 */
             expires_at: number;
             from_user_id: components["schemas"]["String"];
+            invitation_id: components["schemas"]["String"];
             /** @enum {string} */
             type: "call_invite";
+        } | {
+            call: components["schemas"]["CallInvitationState"];
+            /** @enum {string} */
+            type: "call_invitation_state";
+        } | {
+            answer_id: string;
+            call: components["schemas"]["CallInvitationState"];
+            /** @enum {string} */
+            type: "call_invite_accepted";
+            user_id: components["schemas"]["String"];
+        } | {
+            call: components["schemas"]["CallInvitationState"];
+            /** @enum {string} */
+            type: "call_invite_cancelled";
+        } | {
+            call: components["schemas"]["CallInvitationState"];
+            /** @enum {string} */
+            type: "call_invite_expired";
+        } | {
+            call: components["schemas"]["CallInvitationState"];
+            /** @enum {string} */
+            type: "call_ended";
         } | {
             online: boolean;
             /** @enum {string} */
@@ -1453,11 +1599,30 @@ export interface components {
             code: string;
             name: string;
         };
+        IdentifyCallInvitation: {
+            invitation_id: components["schemas"]["String"];
+        };
+        /**
+         * @description Generated projection of the incoming VoIP custom fields, excluding aps/type.
+         *     Report these to CallKit immediately, before any network request.
+         */
+        IncomingVoipCall: {
+            channel_id: components["schemas"]["String"];
+            /** Format: int64 */
+            expires_at: number;
+            /** @description One-use state-only read capability, never a media or login credential. */
+            fetch_ticket: string;
+            from_display_name: string;
+            from_user_id: components["schemas"]["String"];
+            invitation_id: components["schemas"]["String"];
+        };
         Instance: {
             icon_url?: string | null;
             instance_name: string;
             version: string;
         };
+        /** @enum {string} */
+        InvitationStatus: "ringing" | "active" | "cancelled" | "expired" | "ended";
         Invite: {
             code: string;
             /** Format: int64 */
@@ -1549,6 +1714,10 @@ export interface components {
             emoji: string;
             user_ids: components["schemas"]["String"][];
         };
+        RedeemCallInvitation: {
+            /** @description One-use read capability. Never place in a URL or log. */
+            ticket: string;
+        };
         Register: {
             invite: string;
             password: string;
@@ -1556,7 +1725,12 @@ export interface components {
         };
         RegisterDevice: {
             app_version: string;
+            /** @description Installation UUID; required for PushKit, optional for legacy alert clients. */
+            client_id?: string | null;
+            /** @description Defaults to DEN_APNS_ENV. Explicit sandbox and production route independently. */
+            environment?: string | null;
             platform: components["schemas"]["DevicePlatform"];
+            purpose?: components["schemas"]["DevicePurpose"];
             /** @description APNs token encoded as hexadecimal. Do not log or expose this credential. */
             token: string;
         };
@@ -2000,6 +2174,112 @@ export interface operations {
             };
         };
     };
+    get__calls_invitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallInvitationState"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls_invitations_redeem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemCallInvitation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallInvitationState"];
+                };
+            };
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__calls_invitations__invitation_id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallInvitationState"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     post__calls__channel_id__invite: {
         parameters: {
             query?: never;
@@ -2018,6 +2298,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CallInvitation"];
                 };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls__channel_id__invite_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptCallInvitation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallInvitationState"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls__channel_id__invite_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyCallInvitation"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             409: {
                 headers: {
@@ -2066,6 +2428,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApiError"];
                 };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__calls__channel_id__invite_end: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyCallInvitation"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {
