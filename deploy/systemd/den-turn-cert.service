@@ -1,0 +1,7 @@
+[Unit]
+Description=Copy Caddy certificate to LiveKit after renewal
+After=caddy.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/den/bin/sync-turn-cert.sh

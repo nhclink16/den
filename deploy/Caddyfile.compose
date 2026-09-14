@@ -1,0 +1,8 @@
+# Historical Docker outline only. The live VPS uses systemd and Caddyfile.
+{$DEN_DOMAIN} {
+    reverse_proxy den:7000
+}
+
+rtc.{$DEN_DOMAIN} {
+    reverse_proxy host.docker.internal:7880
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id\n        WHERE m.rowid IN (SELECT rowid FROM message_search WHERE message_search MATCH ?)\n        AND (c.kind='text' OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=?))\n        AND (? IS NULL OR c.id=?) AND (? IS NULL OR m.id<?) ORDER BY m.id DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f7e914a7ebe7c659ab200f800a6b9d11524946a1b85ecaaccbaf3ca8b0f6329e"
+}

@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id,username,display_name,avatar_url,bot as \"bot: bool\",role FROM users ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "avatar_url",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "bot: bool",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "role",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "6f5c5f2dbf2b9511de85e15792285927416c5e15784d40a4c8f87bfc3788fc1b"
+}

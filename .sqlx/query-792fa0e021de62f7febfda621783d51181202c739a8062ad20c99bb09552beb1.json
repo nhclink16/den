@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT r.last_read_id as \"last_read_id?\",\n        (SELECT count(*) FROM messages m WHERE m.channel_id=c.id AND m.author_id<>? AND (r.last_read_id IS NULL OR m.id>r.last_read_id)) as \"unread_count!: i64\",\n        (SELECT count(*) FROM messages m JOIN message_mentions mm ON mm.message_id=m.id AND mm.user_id=? WHERE m.channel_id=c.id AND m.author_id<>? AND (r.last_read_id IS NULL OR m.id>r.last_read_id)) as \"mention_count!: i64\",\n        (SELECT count(*) FROM messages m WHERE m.channel_id=c.id AND m.author_id<>? AND (r.last_read_id IS NULL OR m.id>r.last_read_id)\n            AND ((coalesce(p.mentions,1)=1 AND EXISTS(SELECT 1 FROM message_mentions mm WHERE mm.message_id=m.id AND mm.user_id=?))\n                OR (coalesce(p.dms,1)=1 AND c.kind='dm') OR EXISTS(SELECT 1 FROM channel_subscriptions cs WHERE cs.channel_id=c.id AND cs.user_id=?))) as \"notification_count!: i64\"\n        FROM channels c LEFT JOIN read_state r ON r.channel_id=c.id AND r.user_id=? LEFT JOIN notification_preferences p ON p.user_id=? WHERE c.id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "last_read_id?",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "unread_count!: i64",
+        "ordinal": 1,
+        "type_info": "Null"
+      },
+      {
+        "name": "mention_count!: i64",
+        "ordinal": 2,
+        "type_info": "Null"
+      },
+      {
+        "name": "notification_count!: i64",
+        "ordinal": 3,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "792fa0e021de62f7febfda621783d51181202c739a8062ad20c99bb09552beb1"
+}

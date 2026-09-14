@@ -1,0 +1,29 @@
+name: Rust API and CLI
+on:
+  push:
+    paths: ['crates/**', 'Cargo.*', '.cargo/**', '.sqlx/**', 'scripts/m1-smoke.py', '.github/workflows/rust.yml']
+  pull_request:
+    paths: ['crates/**', 'Cargo.*', '.cargo/**', '.sqlx/**', 'scripts/m1-smoke.py', '.github/workflows/rust.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --workspace
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: python3 scripts/m1-smoke.py
+      - run: cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features sqlite,rustls
+      - name: Check SQLx metadata against migrations
+        env:
+          DATABASE_URL: sqlite://target/schema.db
+          SQLX_OFFLINE: 'false'
+        run: |
+          cargo sqlx database create
+          cargo sqlx migrate run --source crates/den-server/migrations
+          cargo sqlx prepare --workspace --check -- --all-targets

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE invites SET uses_left=uses_left-1 WHERE secret_hash=? AND uses_left>0 AND expires_at>?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4ea20a8596cab33d6e0ece27d5bc5a0341b647c0d17b5801390ef5ca86d564d9"
+}

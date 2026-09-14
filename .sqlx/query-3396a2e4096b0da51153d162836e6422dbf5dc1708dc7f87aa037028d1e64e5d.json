@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT coalesce(sum(size-offset),0) as \"reserved!: i64\" FROM uploads WHERE complete=0",
+  "describe": {
+    "columns": [
+      {
+        "name": "reserved!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3396a2e4096b0da51153d162836e6422dbf5dc1708dc7f87aa037028d1e64e5d"
+}

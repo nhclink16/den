@@ -1,0 +1,29 @@
+[package]
+name = "den-desktop"
+version = "0.2.2"
+edition = "2021"
+license = "MIT"
+
+[workspace]
+
+[build-dependencies]
+tauri-build = "=2.6.3"
+
+[dependencies]
+tauri = { version = "=2.11.5", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "=2.3.2"
+tauri-plugin-notification = "=2.4.0"
+tauri-plugin-updater = "=2.11.0"
+tauri-plugin-window-state = "=2.4.1"
+tauri-plugin-deep-link = "=2.4.10"
+tauri-plugin-store = "=2.4.4"
+keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# The notification plugin drops desktop click callbacks; use its backend for room navigation.
+notify-rust = "=4.18.0"
+
+# Forward repeat launches and Windows/Linux deep links into the running app.
+tauri-plugin-single-instance = { version = "=2.4.4", features = ["deep-link"] }

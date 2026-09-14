@@ -1,0 +1,9 @@
+[Unit]
+Description=Check Caddy's TURN certificate every five minutes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

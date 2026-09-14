@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT emoji,user_id FROM reactions WHERE message_id=? ORDER BY emoji,user_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "emoji",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3c812741d3760f101de6c9c176558a908d7ea060cd099b1897b5f03e41e2aeda"
+}

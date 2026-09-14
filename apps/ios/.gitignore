@@ -1,0 +1,6 @@
+Den.xcodeproj/xcuserdata/
+Den.xcodeproj/project.xcworkspace/xcuserdata/
+.build/
+DerivedData/
+Packages/*/.build/
+Packages/*/.swiftpm/

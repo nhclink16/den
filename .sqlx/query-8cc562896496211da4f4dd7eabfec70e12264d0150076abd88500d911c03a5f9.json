@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO uploads(id,channel_id,owner_id,filename,content_type,size,touched_at) VALUES(?,?,?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "8cc562896496211da4f4dd7eabfec70e12264d0150076abd88500d911c03a5f9"
+}

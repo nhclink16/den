@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO reactions(message_id,user_id,emoji) VALUES(?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2a7780d1f3bcaa5ba95f575b63fcf494afd1f43565ad995bccba42f286b68dde"
+}
