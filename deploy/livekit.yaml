@@ -1,0 +1,23 @@
+port: 7880
+bind_addresses: [127.0.0.1]
+rtc:
+  node_ip: ${LIVEKIT_NODE_IP}
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: false
+  ips:
+    includes: ["${LIVEKIT_NODE_IP}/32"]
+# Tailnet clients reach media directly. TURN certificates belong to the later
+# public VPS deployment; do not enable TURN with an example domain here.
+turn:
+  enabled: false
+keys:
+  ${DEN_LIVEKIT_API_KEY}: ${DEN_LIVEKIT_API_SECRET}
+webhook:
+  api_key: ${DEN_LIVEKIT_API_KEY}
+  urls:
+    - http://127.0.0.1:7000/livekit/webhook
+    - http://127.0.0.1:7200/livekit/webhook
+logging:
+  level: warn

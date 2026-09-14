@@ -1,0 +1,23 @@
+[Unit]
+Description=Den chat server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=den
+Group=den
+WorkingDirectory=/var/lib/den
+EnvironmentFile=/etc/den/den.env
+Environment=DEN_DEPLOY_DIR=/opt/den/deploy
+ExecStart=/opt/den/bin/den-server
+Restart=always
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/den
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

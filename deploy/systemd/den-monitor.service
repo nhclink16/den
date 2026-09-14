@@ -1,0 +1,8 @@
+[Unit]
+Description=Check public Den health and send failure/recovery through Hermes
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/nicholas/den/deploy/monitor.py
+TimeoutStartSec=90

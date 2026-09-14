@@ -1,0 +1,13 @@
+[Unit]
+Description=Keep fourteen days of Den backups
+
+[Service]
+Type=oneshot
+User=den-backup
+Group=den-backup
+ExecStart=/usr/local/lib/den/prune-backups.py
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/storage/den/backups
+PrivateTmp=true

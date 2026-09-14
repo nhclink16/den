@@ -1,0 +1,115 @@
+name: Den
+options:
+  bundleIdPrefix: app.denchat
+  deploymentTarget:
+    iOS: '26.0'
+  xcodeVersion: '26.6'
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: UH434K44A3
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '0.3.0'
+    CURRENT_PROJECT_VERSION: '1'
+packages:
+  DenAPI:
+    path: Packages/DenAPI
+  LiveKit:
+    url: https://github.com/livekit/client-sdk-swift.git
+    exactVersion: 2.17.0
+targets:
+  Den:
+    type: application
+    platform: iOS
+    sources:
+      - path: Den
+        excludes:
+          - Resources/Fonts
+      - path: Den/Resources/Fonts
+        type: folder
+    dependencies:
+      - package: DenAPI
+      - package: LiveKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Den
+        INFOPLIST_KEY_UILaunchScreen_Generation: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          DEN_APNS_ENVIRONMENT: sandbox
+        Release:
+          DEN_APNS_ENVIRONMENT: production
+    info:
+      path: Den/Info.plist
+      properties:
+        CFBundleDisplayName: Den
+        DenAPNSEnvironment: $(DEN_APNS_ENVIRONMENT)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchMark
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSPhotoLibraryUsageDescription: Choose photos and videos to share in Den.
+        NSMicrophoneUsageDescription: Use your microphone for calls and on-device dictation in Den.
+        NSSpeechRecognitionUsageDescription: Turn speech into message text on this device.
+        NSCameraUsageDescription: Share your camera in Den calls.
+        NSLocalNetworkUsageDescription: Connect to your self-hosted Den server on your network.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UIBackgroundModes:
+          - remote-notification
+          - audio
+          - voip
+    entitlements:
+      path: Den/Den.entitlements
+      properties:
+        aps-environment: development
+  DenTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: DenTests
+    dependencies:
+      - target: Den
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios.tests
+  DenUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: DenUITests
+    dependencies:
+      - target: Den
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios.uitests
+schemes:
+  Den:
+    build:
+      targets:
+        Den: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - DenTests
+        - DenUITests
+    archive:
+      config: Release

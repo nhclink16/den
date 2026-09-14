@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Den: Doorway d</title>
+  <style>
+    :root { color: #1b1916; }
+    @media (prefers-color-scheme: dark) { :root { color: #ece5d8; } }
+  </style>
+  <defs>
+    <mask id="doorway">
+      <rect width="64" height="64" fill="white"/>
+      <path fill="black" d="M22 64V36a10 10 0 0 1 20 0v28H22Z"/>
+    </mask>
+  </defs>
+  <path fill="currentColor" mask="url(#doorway)" d="M44 4h12v52H30C16 56 8 48 8 36s9-22 22-22c6 0 10 2 14 5V4Z"/>
+  <path fill="#e8a44a" d="M26 56V36a6 6 0 0 1 12 0v20H26Z"/>
+</svg>

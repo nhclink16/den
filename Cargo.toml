@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["crates/den-core", "crates/den-server", "crates/den-cli", "crates/den-host"]
+
+[workspace.package]
+version = "0.2.1"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nhclink16/den"
+
+[workspace.dependencies]
+den-core = { path = "crates/den-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = { version = "5", features = ["axum_extras"] }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Den: Couch party</title>
+  <style>
+    :root { color: #1b1916; }
+    @media (prefers-color-scheme: dark) { :root { color: #ece5d8; } }
+  </style>
+  <path fill="currentColor" d="M14 26v-8a8 8 0 0 1 8-8h20a8 8 0 0 1 8 8v8h-8v-8H22v8h-8Z"/>
+  <path fill="currentColor" d="M8 26h8a4 4 0 0 1 4 4v12h24V30a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4h-4v6h-8v-6H20v6h-8v-6H8a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4Z"/>
+  <rect x="24" y="24" width="16" height="14" rx="3" fill="#e8a44a"/>
+</svg>

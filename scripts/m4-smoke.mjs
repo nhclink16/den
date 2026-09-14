@@ -1,0 +1,187 @@
+import { SmokeCleanup } from './smoke-cleanup.mjs'
+// Two disposable den-server processes on 17900/17901 and Vite on 17902.
+import { chromium } from 'playwright-core'
+import { readFile, mkdir, writeFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import assert from 'node:assert/strict'
+const bases = JSON.parse(process.env.DEN_SMOKE_BASES || '["http://127.0.0.1:17900","http://127.0.0.1:17901"]')
+const web = process.env.DEN_SMOKE_URL || 'http://localhost:17902'
+const cleanups = []
+let browser
+const password = randomBytes(24).toString('hex')
+const admin = [], bob = [], channels = [], keychain = new Map(), commands = [], errors = []
+let savedOrigins = []
+async function api(i, method, path, body, token = admin[i]?.token) {
+  const r = await fetch(bases[i] + path, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) })
+  assert(r.ok, `${method} ${path}: ${r.status}`)
+  return r.status === 204 ? null : r.json()
+}
+// Keep credentials outside git so a rerun can reuse its disposable databases.
+const data = process.env.DEN_SMOKE_DATA || '/mnt/storage/den-m4-smoke'
+const privateFile = data+'/credentials.json'
+let credentials
+try { credentials = JSON.parse(await readFile(privateFile, 'utf8')) } catch { credentials = { password } }
+try {
+for (const [i, name] of ['one', 'two'].entries()) {
+  try {
+    const key = await readFile(`${data}/${name}/bootstrap.key`, 'utf8')
+    admin[i] = await api(i, 'POST', '/auth/init', { username: 'desktop_admin', password: credentials.password, bootstrap_token: key }, '')
+  } catch { admin[i] = await api(i, 'POST', '/auth/login', { username: 'desktop_admin', password: credentials.password }, '') }
+  await writeFile(privateFile, JSON.stringify(credentials), { mode: 0o600 })
+  const cleanup = await SmokeCleanup.start(bases[i], admin[i].token); cleanups.push(cleanup)
+  const originalSettings = await api(i, 'GET', '/settings'), originalAppearance = await api(i, 'GET', '/users/me/appearance')
+  cleanup.restores.push(() => api(i, 'PUT', '/settings', originalSettings), () => api(i, 'PUT', '/users/me/appearance', originalAppearance))
+  await api(i, 'PUT', '/settings', { instance_name: i ? 'Second Den' : 'First Den' })
+  try { bob[i] = await api(i, 'POST', '/auth/login', { username: 'desktop_bob', password: credentials.password }, '') }
+  catch {
+    const inv = await api(i, 'POST', '/invites', { uses: 1, expires_in_hours: 1 })
+    bob[i] = await api(i, 'POST', '/auth/register', { username: 'desktop_bob', password: credentials.password, invite: inv.code }, '')
+  }
+  channels[i] = (await api(i, 'GET', '/channels')).find(c => c.kind === 'text')
+  await api(i, 'PUT', '/users/me/appearance', { mode: 'dark', theme: i ? 'tide' : 'den', custom_themes: [] })
+}
+browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] })
+const context = await browser.newContext({ viewport: { width: 1300, height: 850 }, hasTouch: true })
+await context.exposeFunction('denInvoke', async (command, args = {}) => {
+  commands.push({ command, origin: args.origin, path: args.path })
+  if (command === 'session_set') { keychain.set(args.origin, args.token); return }
+  if (command === 'session_get') return keychain.get(args.origin) || null
+  if (command === 'session_clear') { keychain.delete(args.origin); return }
+  if (command === 'instances_get') return savedOrigins
+  if (command === 'instances_set') { savedOrigins = args.origins; return }
+  if (command === 'platform') return 'linux'
+  if (command === 'deep_links') return []
+  if (command === 'update_check') return false
+  if (command === 'api_request') {
+    assert(bases.includes(args.origin))
+    const token = keychain.get(args.origin)
+    const r = await fetch(args.origin + args.path, { method: args.method, headers: { ...args.headers, ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: args.body ? new Uint8Array(args.body) : undefined })
+    return { status: r.status, headers: Object.fromEntries(r.headers), body: Array.from(new Uint8Array(await r.arrayBuffer())) }
+  }
+})
+await context.addInitScript(origin => {
+  if (!localStorage.getItem('den.native.origin')) localStorage.setItem('den.native.origin', origin)
+  window.__TAURI__ = { core: { invoke: (c, a) => window.denInvoke(c, a), convertFileSrc: () => 'den-media://localhost/' }, event: { listen: async () => () => {} } }
+}, bases[0])
+// A cold native launch starts with OS-keychain sessions, before any login UI runs.
+for (const [i, origin] of bases.entries()) keychain.set(origin, admin[i].token)
+savedOrigins = [...bases]
+const bootPage = await context.newPage()
+bootPage.on('pageerror', e => errors.push(e.message))
+const bootStarted = Date.now()
+try {
+  await bootPage.goto(web, { waitUntil: 'commit', timeout: 5000 })
+  await bootPage.locator(`nav.side a[href="/c/${channels[0].id}"]`).waitFor({
+    state: 'visible', timeout: Math.max(1, 5000 - (Date.now() - bootStarted)),
+  })
+  assert(Date.now() - bootStarted < 5000, 'Saved-session boot did not render the room list within 5 s')
+  assert.equal(await bootPage.getByLabel('Username', { exact: true }).count(), 0)
+  assert.deepEqual(errors, [])
+  console.log(`PASS pre-seeded native sessions rendered the room list in ${Date.now() - bootStarted} ms`)
+  await bootPage.evaluate(() => localStorage.clear())
+} finally { await bootPage.close() }
+keychain.clear(); savedOrigins = []
+const page = await context.newPage()
+page.on('pageerror', e => errors.push(e.message))
+const sockets = new Set()
+page.on('websocket', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
+const until = async fn => { for (let n = 0; n < 100; n++) { if (await fn()) return; await page.waitForTimeout(100) } throw Error('Timed out') }
+try {
+  await page.goto(web)
+  await page.getByLabel('Username', { exact: true }).fill('desktop_admin')
+  await page.getByLabel('Password', { exact: true }).fill(credentials.password)
+  await page.getByRole('button', { name: 'Come in', exact: true }).click()
+  await page.getByRole('button', { name: 'Switch server' }).waitFor()
+  await until(() => commands.some(c => c.path === '/auth/ws-ticket' && c.origin === bases[0]))
+  await page.getByRole('button', { name: 'Switch server' }).click()
+  await page.getByRole('button', { name: 'Add a server' }).click()
+  await page.getByLabel('Server URL').fill(bases[1])
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('heading', { name: 'Second Den' }).waitFor()
+  await page.getByLabel('Username', { exact: true }).fill('desktop_admin')
+  await page.getByLabel('Password', { exact: true }).fill(credentials.password)
+  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await until(async () => (await page.getByRole('button', { name: 'Switch server' }).textContent()).includes('Second Den'))
+  await until(() => commands.some(c => c.path === '/auth/ws-ticket' && c.origin === bases[1]))
+  await page.keyboard.press('Control+Shift+Digit1')
+  await until(async () => (await page.getByRole('button', { name: 'Switch server' }).textContent()).includes('First Den'))
+  assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#e8a44a')
+  await page.keyboard.press('Control+Shift+BracketRight')
+  await until(async () => (await page.getByRole('button', { name: 'Switch server' }).textContent()).includes('Second Den'))
+  assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '#5fd3c6')
+  await page.getByRole('link', { name: /^Inbox/ }).click()
+  for (let i = 0; i < 2; i++) await api(i, 'POST', `/channels/${channels[i].id}/messages`, { content: `@desktop_admin Desktop smoke ${i} ${Date.now()}` }, bob[i].token)
+  await until(async () => /First Den/i.test(await page.locator('section.inbox').innerText()) && /Second Den/i.test(await page.locator('section.inbox').innerText()))
+  assert.match(await page.locator('section.inbox').innerText(), /First Den/i)
+  assert.match(await page.locator('section.inbox').innerText(), /Second Den/i)
+  const shots = process.env.DEN_SMOKE_SHOTS || 'docs/shots'
+  await mkdir(shots, { recursive: true })
+  await page.screenshot({ path: shots+'/m4-native-stub-inbox.png' })
+  await page.getByRole('button', { name: 'Switch server' }).click()
+  await page.screenshot({ path: shots+'/m4-native-stub-switcher.png' })
+  await page.getByRole('button', { name: 'Close server switcher' }).click()
+  await page.keyboard.press('Control+k')
+  await page.getByPlaceholder('Jump to a room, a person, or an action').fill('general')
+  assert.equal(await page.locator('.palette .hint').filter({ hasText: /First Den|Second Den/ }).count(), 2)
+  await page.keyboard.press('Escape')
+  await page.reload()
+  await page.getByRole('button', { name: 'Switch server' }).waitFor()
+  await until(() => bases.every(origin => [...sockets].some(s => s.url().startsWith(origin.replace('http', 'ws') + '/ws?ticket='))))
+  const storage = await page.evaluate(() => JSON.stringify(localStorage))
+  for (const token of keychain.values()) assert(!storage.includes(token), 'Bearer token leaked into localStorage')
+  assert.equal(keychain.size, 2)
+  await page.getByRole('button', { name: 'Hide sidebar', exact: true }).click()
+  for (const path of ['/inbox', '/find?q=desktop', '/settings', `/c/${channels[1].id}`]) {
+    await page.goto(web + path)
+    await page.getByRole('button', { name: 'Show sidebar', exact: true }).waitFor()
+  }
+  await page.screenshot({ path: shots+'/m4-sidebar-collapsed.png' })
+  await page.getByRole('button', { name: 'Show sidebar', exact: true }).click()
+  await page.getByRole('button', { name: 'Hide sidebar', exact: true }).waitFor()
+  // Destructive machine/access actions require an inline second confirmation on mouse and touch.
+  for (const section of ['machines', 'access']) {
+    const enrolled = await api(1, 'POST', '/hosts/enroll', {})
+    const host = await api(1, 'POST', '/hosts/login', { code: enrolled.code.split('#').at(-1), name: `Confirm smoke ${section}` }, '')
+    cleanups[1].restores.push(() => cleanups[1].api('DELETE', `/hosts/${host.host_id}`, undefined, true))
+    let grant
+    if (section === 'access') {
+      const request = await api(1, 'POST', `/hosts/${host.host_id}/requests`, { capability: 'terminal_view', standing: true }, bob[1].token)
+      await api(1, 'POST', `/requests/${request.id}/decide`, { allow: true })
+      grant = (await api(1, 'GET', '/grants')).find(g => g.host_id === host.host_id && g.grantee_id === bob[1].user.id)
+      assert(grant)
+    }
+    const exists = async () => section === 'machines'
+      ? (await api(1, 'GET', '/hosts')).some(h => h.id === host.host_id)
+      : (await api(1, 'GET', '/grants')).some(g => g.id === grant.id && !g.revoked_at)
+    await page.goto(web + '/settings/' + section)
+    const row = page.locator('.row').filter({ hasText: host.name })
+    const action = section === 'machines' ? 'Remove' : 'Revoke'
+    const button = row.getByRole('button', { name: action, exact: true })
+    const sentence = section === 'machines' ? `Remove ${host.name}? Its terminals end and it must be enrolled again.` : `Revoke desktop_bob’s access to ${host.name}? They must request access again.`
+    await button.click(); await row.getByText(sentence, { exact: true }).waitFor(); assert(await exists(), 'first click must not delete')
+    await row.getByRole('button', { name: 'Keep', exact: true }).click(); assert(await exists())
+    await button.click(); await page.getByRole('link', { name: 'Appearance', exact: true }).focus()
+    await row.getByRole('button', { name: 'Keep', exact: true }).waitFor({ state: 'hidden' }); assert(await exists(), 'blur cancels')
+    await button.click()
+    await row.getByRole('button', { name: 'Keep', exact: true }).waitFor({ state: 'hidden', timeout: 9000 }); assert(await exists(), 'eight-second timeout cancels')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await button.tap(); await row.getByText(sentence, { exact: true }).waitFor(); assert(await exists(), 'first tap must not delete')
+    await page.screenshot({ path: shots + `/settings-${section}-confirm-mobile.png` })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await button.tap(); await until(async () => !await exists())
+    await page.setViewportSize({ width: 1300, height: 850 })
+  }
+  console.log('PASS Machines Remove and Access Revoke: Keep, blur, eight-second expiry and explicit touch confirmation')
+  await page.getByRole('button', { name: 'Switch server' }).click()
+  await page.locator('.server.active .remove').click()
+  await until(() => keychain.size === 1)
+  assert.equal(keychain.size, 1)
+  assert.equal(savedOrigins.length, 1)
+  assert.deepEqual(errors, [])
+  console.log('PASS native login, bearer-only HTTP, two ticket WebSockets, switcher, shortcuts, per-origin appearance, merged inbox, cross-server palette, resume and keychain logout')
+} finally { await browser?.close() }
+} finally {
+  const results = await Promise.allSettled(cleanups.map(c => c.finish(browser)))
+  const failed = results.filter(r => r.status === 'rejected')
+  if (failed.length) throw new AggregateError(failed.map(r => r.reason), 'Native smoke cleanup failed')
+}

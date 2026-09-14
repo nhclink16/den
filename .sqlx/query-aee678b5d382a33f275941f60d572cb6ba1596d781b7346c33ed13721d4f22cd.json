@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM channels WHERE id=? AND kind IN ('text','voice')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "aee678b5d382a33f275941f60d572cb6ba1596d781b7346c33ed13721d4f22cd"
+}
