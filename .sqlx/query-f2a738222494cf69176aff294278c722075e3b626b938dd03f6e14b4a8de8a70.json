@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE messages SET mentions_indexed=1 WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f2a738222494cf69176aff294278c722075e3b626b938dd03f6e14b4a8de8a70"
+}

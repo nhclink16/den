@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channels(id,name,kind,dm_key) VALUES(?,'DM','dm',?) ON CONFLICT(dm_key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "aadff5972dc32191d504795bae18cf3f57315f8f20eeeffeb32489cb89d225c3"
+}

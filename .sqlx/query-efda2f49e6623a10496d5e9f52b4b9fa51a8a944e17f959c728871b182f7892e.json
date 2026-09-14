@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM channel_subscriptions WHERE user_id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "efda2f49e6623a10496d5e9f52b4b9fa51a8a944e17f959c728871b182f7892e"
+}

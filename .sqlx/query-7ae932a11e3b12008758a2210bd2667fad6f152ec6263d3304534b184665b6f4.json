@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT mentions as \"mentions: bool\",dms as \"dms: bool\" FROM notification_preferences WHERE user_id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "mentions: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "dms: bool",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "7ae932a11e3b12008758a2210bd2667fad6f152ec6263d3304534b184665b6f4"
+}

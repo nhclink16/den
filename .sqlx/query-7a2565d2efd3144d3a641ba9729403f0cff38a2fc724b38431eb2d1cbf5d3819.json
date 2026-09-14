@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO channel_members(channel_id,user_id) VALUES(?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7a2565d2efd3144d3a641ba9729403f0cff38a2fc724b38431eb2d1cbf5d3819"
+}

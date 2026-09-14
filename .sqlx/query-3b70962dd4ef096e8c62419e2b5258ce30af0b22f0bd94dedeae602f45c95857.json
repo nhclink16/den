@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO message_mentions(message_id,user_id)\n            SELECT ?,u.id FROM users u JOIN channels c ON c.id=? WHERE u.username=?\n            AND (c.kind='text' OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=u.id))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "3b70962dd4ef096e8c62419e2b5258ce30af0b22f0bd94dedeae602f45c95857"
+}

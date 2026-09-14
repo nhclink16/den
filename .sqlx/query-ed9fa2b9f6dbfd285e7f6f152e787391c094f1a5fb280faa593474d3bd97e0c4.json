@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id,t.name,t.user_id FROM tokens t JOIN users u ON u.id=t.user_id WHERE u.id=? OR u.owner_id=? ORDER BY t.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ed9fa2b9f6dbfd285e7f6f152e787391c094f1a5fb280faa593474d3bd97e0c4"
+}

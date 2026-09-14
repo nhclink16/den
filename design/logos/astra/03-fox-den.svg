@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Den: Fox den</title>
+  <style>
+    :root { color: #1b1916; }
+    @media (prefers-color-scheme: dark) { :root { color: #ece5d8; } }
+  </style>
+  <path fill="#e8a44a" d="m8 8 16 10a28 28 0 0 1 16 0L56 8l-4 30c-2 8-10 16-20 20-10-4-18-12-20-20L8 8Z"/>
+  <path fill="currentColor" d="M12 28c10 0 16 6 20 14 4-8 10-14 20-14l-2 10c-2 6-10 13-18 16-8-3-16-10-18-16l-2-10Z"/>
+</svg>

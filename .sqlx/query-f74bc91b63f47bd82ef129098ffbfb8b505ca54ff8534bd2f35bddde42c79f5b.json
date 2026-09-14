@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE categories SET name=?,position=? WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f74bc91b63f47bd82ef129098ffbfb8b505ca54ff8534bd2f35bddde42c79f5b"
+}

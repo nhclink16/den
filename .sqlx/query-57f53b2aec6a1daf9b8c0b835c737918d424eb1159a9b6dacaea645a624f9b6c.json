@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE uploads SET complete=1,touched_at=? WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "57f53b2aec6a1daf9b8c0b835c737918d424eb1159a9b6dacaea645a624f9b6c"
+}

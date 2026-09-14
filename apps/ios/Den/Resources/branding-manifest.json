@@ -1,0 +1,19 @@
+{
+  "sources": {
+    "apps/desktop/icon.svg": "b99d3b04fdb7320924d5e55be9450abdd91d3bb49f065ab043ae065516fd2d07",
+    "crates/den-core/src/themes.json": "f2a5ce81588e913262997b90d9a65cb5236c033b2ef6d3b34dc3f39c60501f00"
+  },
+  "assets": {
+    "AppIcon.appiconset/AppIcon.png": "4f5b3070ec160f5e9f83337e5b5b62ec1e3b14b0336e9f0293a17efc7ffe805a",
+    "AppIcon.appiconset/Contents.json": "852920cb36e95beb53771138a4b8195a16fcce1cc31250632f246081cc638f9a",
+    "Contents.json": "f5fb0e1f3a8142892ed092efb5955c1c2cc537003a89ad7bbdb9dade7fe8985f",
+    "LaunchBackground.colorset/Contents.json": "30cb02e54ebaaabb5ff529fc794834b19f74c2808c8d030ae47d34b66d344f37",
+    "LaunchMark.imageset/Contents.json": "1a0945fd640a48b5a64caf8680aac0bdc5044d23cded6c7d54c3a4377d8995f5",
+    "LaunchMark.imageset/LaunchMark-dark@1x.png": "bf8c3346cce15f5f6cdd97b43fa0089340e6245c7bfa000afb810560601db39c",
+    "LaunchMark.imageset/LaunchMark-dark@2x.png": "ec407b8e3b4975c5243fc498df5089e01fcd3410a0ee92a201a1cbead83796a2",
+    "LaunchMark.imageset/LaunchMark-dark@3x.png": "8fe8054fe079a4a3569e0d735119a455961ec6d4120e955628c189b32d00daff",
+    "LaunchMark.imageset/LaunchMark-light@1x.png": "788c87d4eee15f8b589c504a3ecc5d771671d928c00106a9ada61dda059def23",
+    "LaunchMark.imageset/LaunchMark-light@2x.png": "04b2a5ffb70017bf0fd9d7a99081185d5d6c242d33a70e60812218b38d373aab",
+    "LaunchMark.imageset/LaunchMark-light@3x.png": "169a5e4c2f1cf99ce9485d8bca9ddf2a5d716ccc919efd4108178933ea240307"
+  }
+}

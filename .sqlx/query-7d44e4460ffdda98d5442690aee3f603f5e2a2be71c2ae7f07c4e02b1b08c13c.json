@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id FROM users u JOIN channels c ON c.id=? WHERE c.kind='text' OR EXISTS(SELECT 1 FROM channel_members cm WHERE cm.channel_id=c.id AND cm.user_id=u.id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7d44e4460ffdda98d5442690aee3f603f5e2a2be71c2ae7f07c4e02b1b08c13c"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_subscriptions(user_id,channel_id) VALUES(?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7ca7728d6852a309ac62967bfcc330612ef923b7ac21ac07444121a7af382f2f"
+}

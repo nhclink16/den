@@ -1,0 +1,19 @@
+[Unit]
+Description=Den LiveKit 1.9.0
+After=network-online.target den-turn-cert.service
+Wants=network-online.target
+
+[Service]
+User=livekit
+Group=livekit
+ExecStart=/opt/den/bin/livekit-server --config /etc/livekit/livekit.yaml
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

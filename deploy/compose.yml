@@ -1,0 +1,36 @@
+# Production outline for one VPS. Render data/livekit.yaml with VPS signaling,
+# webhook routing, and TURN certificates before use. See README.md for tailnet dev.
+services:
+  den:
+    build: ..
+    restart: unless-stopped
+    environment:
+      DEN_BIND: 0.0.0.0:7000
+      DEN_ORIGIN: https://${DEN_DOMAIN}
+      DEN_DB: /data/den.db
+      DEN_UPLOADS: /data/uploads
+      DEN_LIVEKIT_URL: wss://rtc.${DEN_DOMAIN}
+      DEN_LIVEKIT_API_KEY: ${DEN_LIVEKIT_API_KEY}
+      DEN_LIVEKIT_API_SECRET: ${DEN_LIVEKIT_API_SECRET}
+    volumes:
+      - ./data/den:/data
+
+  livekit:
+    image: livekit/livekit-server:v1.9.0
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    network_mode: host
+    volumes:
+      - ./data/livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DEN_DOMAIN: ${DEN_DOMAIN}
+    volumes:
+      - ./Caddyfile.compose:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data

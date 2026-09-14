@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT owner_id FROM users WHERE id=? AND bot=1",
+  "describe": {
+    "columns": [
+      {
+        "name": "owner_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "af4e7c2dac0a2fdf43d6aba1012dc1ada668c7cef28c54b22fc755e4f5225a96"
+}
