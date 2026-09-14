@@ -21,6 +21,7 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "@huggingface/transformers": "3.8.1",
     "ghostty-web": "0.4.0",
     "livekit-client": "2.15.6",
     "react": "18.3.1",

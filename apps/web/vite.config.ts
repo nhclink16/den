@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 const api = ['instance', 'hosts', 'requests', 'grants', 'access', 'sessions', 'objects', 'auth', 'users', 'invites', 'tokens', 'bots', 'channels', 'dms', 'categories', 'messages', 'uploads', 'health', 'openapi.json', 'search', 'presence', 'calls', 'livekit']
 
 export default defineConfig({
+  worker: { format: 'es' },
   plugins: [svelte(), {
     name: 'den-first-paint',
     async transformIndexHtml(html) {
