@@ -39,6 +39,9 @@ try {
  assert.equal(await page.locator('.theme-card').count(),8)
  await selected(page,'Tide'); assert.equal(await accent(page),'#5fd3c6')
  await until(async()=>(await api('GET','/users/me/appearance')).theme==='tide')
+ // M9-era local storage migrates before first paint, including a one-half custom.
+ const tide=JSON.parse(await readFile(new URL('../crates/den-core/src/themes.json',import.meta.url),'utf8')).find(t=>t.id==='tide')
+ await page.evaluate(t=>localStorage.setItem('den.appearance',JSON.stringify({mode:'dark',dark_theme:'old-cache',light_theme:'den-light',custom_themes:[{id:'old-cache',name:'Old cache',appearance:'dark',colors:t.dark,fonts:t.fonts,radius:t.radius,density:t.density}]})),tide)
  // Hold app modules so this screenshot proves the inline cache works before hydration.
  let releaseModules
  const modulesHeld = new Promise(resolve => { releaseModules = resolve })
@@ -46,6 +49,7 @@ try {
  await page.reload({waitUntil:'commit'});await page.waitForTimeout(50)
  assert.equal(await accent(page),'#5fd3c6')
  assert.equal(await page.locator('#app > *').count(),0)
+ assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'old-cache')
  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(15, 21, 24)')
  const capture = await c.newCDPSession(page)
  const firstPaint = await capture.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
@@ -57,10 +61,13 @@ try {
  await page.emulateMedia({colorScheme:'light'});await until(async()=>await accent(page)==='#1e8f85')
  await page.emulateMedia({colorScheme:'dark'});await until(async()=>await accent(page)==='#5fd3c6')
  assert.equal(await page.locator('.theme-card[aria-pressed=true]').count(),1)
+ await page.getByRole('button',{name:'Dark',exact:true}).click()
+ assert.equal(await page.locator('.theme-card .mini.light').first().evaluate(el=>getComputedStyle(el).opacity),'0.7')
  await page.screenshot({path:`${shots}/m9b-grid-dark.png`})
- await page.emulateMedia({colorScheme:'light'});await until(async()=>await accent(page)==='#1e8f85')
+ await page.getByRole('button',{name:'Light',exact:true}).click();await until(async()=>await accent(page)==='#1e8f85')
+ assert.equal(await page.locator('.theme-card .mini.dark').first().evaluate(el=>getComputedStyle(el).opacity),'0.7')
  await page.screenshot({path:`${shots}/m9b-grid-light.png`})
- await page.emulateMedia({colorScheme:'dark'});await until(async()=>await accent(page)==='#5fd3c6')
+ await page.getByRole('button',{name:'Dark',exact:true}).click();await until(async()=>await accent(page)==='#5fd3c6')
  await page.getByRole('button',{name:'Customize',exact:true}).click()
  await page.getByLabel('accent hex',{exact:true}).fill('#78dcca');assert.equal(await accent(page),'#78dcca')
  // Editing Light does not repaint Dark; changing Mode preserves the draft.

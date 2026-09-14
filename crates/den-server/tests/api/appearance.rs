@@ -27,7 +27,6 @@ async fn appearance_validates_persists_and_stays_private() {
         mode: AppearanceMode::Dark,
         theme: theme.id.clone(),
         custom_themes: vec![theme],
-        ..Appearance::default()
     });
     let mut sockets = vec![];
     for session in [&alice, &bob] {

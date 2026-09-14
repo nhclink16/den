@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte'
   import { colorRoles, deriveHalf } from '../lib/theme-runtime'
   import { themes, fontFamilies, validateTheme, validName } from '../lib/theme.svelte'
-  import type { Theme, ThemeColors, ThemeFonts } from '../lib/types'
+  import type { Theme, ThemeFonts } from '../lib/types'
   let editor = $state(false)
   let editingHalf = $state<'light'|'dark'>('dark')
   let naming = $state(false)
@@ -42,6 +42,15 @@
     } catch (e) { themes.error = (e as Error).message }
     fileInput.value = ''
   }
+  // Load gallery captions even before a family is selected.
+  $effect(() => {
+    const families = [...new Set(themes.all.map(t => t.fonts.display))]
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400`).join('&')}&display=swap`
+    document.head.append(link)
+    return () => link.remove()
+  })
   onDestroy(() => themes.reset())
 </script>
 
