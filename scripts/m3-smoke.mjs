@@ -30,7 +30,7 @@ async function login(username) {
     }
   })
   const page = await context.newPage(); pages.push(page)
-  page.on('pageerror', (err) => errors.push(err.message))
+  page.on('pageerror', (err) => errors.push(err.stack || err.message))
   await page.goto(base)
   await page.getByLabel('Username', { exact: true }).fill(username)
   await page.getByLabel('Password', { exact: true }).fill(process.env.DEN_SMOKE_PASSWORD || credentials.users?.[username] || credentials.password)

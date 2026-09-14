@@ -21,13 +21,16 @@
   })
 
   async function onScroll() {
+    const scroller = el
+    if (!scroller) return
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
     stickToBottom = nearBottom
     if (el.scrollTop < 120 && !store.exhausted.has(channel.id) && !store.loadingOlder.has(channel.id)) {
       const before = el.scrollHeight
       await store.loadOlder(channel.id)
       await tick()
-      el.scrollTop += el.scrollHeight - before
+      // The history request can outlive this channel view.
+      if (el === scroller && scroller.isConnected) scroller.scrollTop += scroller.scrollHeight - before
     }
   }
 

@@ -66,7 +66,8 @@
     }
   }
 
-  function grow() { dismissed = false; selected = 0; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
+  // A send can finish after navigation or call expansion removes this composer.
+  function grow() { if (!ta) return; dismissed = false; selected = 0; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
 
   async function submit() {
     const content = text.trim()
