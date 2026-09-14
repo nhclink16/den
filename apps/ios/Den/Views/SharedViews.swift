@@ -24,6 +24,8 @@ struct PersonAvatar: View {
         ZStack(alignment: .bottomTrailing) {
             Text(String(store.userName(userId).prefix(1)).uppercased())
                 .font(theme.bodyFont(.subheadline).weight(.semibold))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(theme.ink2)
                 .frame(width: size, height: size)
                 .background(theme.bg3, in: RoundedRectangle(cornerRadius: theme.radius))
@@ -83,6 +85,8 @@ struct RoomLabel: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: channel.kind == .voice ? "headphones" : channel.kind == .dm ? "bubble.left.and.bubble.right" : "number")
+                .font(.system(size: 20))
+                .accessibilityHidden(true)
                 .foregroundStyle(channel.kind == .voice && !participants.isEmpty ? theme.accent : theme.ink3)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {

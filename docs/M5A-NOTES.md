@@ -86,6 +86,36 @@ Mutation receipts: `/tmp/den-ios-unit-proof.md`,
 `/tmp/den-ios-ui-mutation-proof/README.md`. These temporary local artifacts are
 not durable Cloud run links. No Xcode Cloud run is claimed here.
 
+### Photos, Files and iPad follow-up
+
+The real simulator Photos picker selected a four-second synthetic video. Den
+uploaded and sent it; its authenticated download matched the original 1,557
+bytes and SHA-256 `c92042cbf78c77a55010fedd2e639eef16cb3cc8bc5c46df019081d050f952bc`.
+The native AVPlayer scrubber moved from one second elapsed to three seconds.
+Save to Files, reimport through the Files picker, and send produced the same bytes.
+These were temporary UI automation probes, not additional retained regression
+tests. Evidence: `/tmp/den-ios-photos-files-proof/README.md`; final result
+`test_sim_2026-09-14T16-10-25-279Z_pid99391_9a98d157.xcresult`.
+[Actual video controls](shots/m5a-iphone-video.png) show the simulator, not the phone.
+
+An iPad cold launch with the owned SSH fixture forward closed restored cached
+rooms and messages without a modal error. Reopening that forward automatically
+reconnected and displayed a message created during the outage, without tapping
+refresh. The Offline indicator disappeared. The server itself was never stopped.
+Evidence: `/tmp/den-ios-offline-proof.json`, simulator process 50535, semantic
+snapshots 11 and 12. [Cached chat](shots/m5a-ipad-offline.jpg).
+
+Largest accessibility text initially crowded the split sidebar. At those sizes,
+Rooms now uses full-width navigation; author and timestamp stack, and decorative
+icons/avatar initials stay inside their bounds. Normal iPad split navigation is
+preserved. The edited app built and ran successfully in
+`build_run_sim_2026-09-14T16-13-08-182Z_pid86141_c9112448.log`.
+Inspected captures: [large rooms](shots/m5a-ipad-accessibility-rooms.jpg),
+[large chat](shots/m5a-ipad-accessibility-chat.jpg),
+[normal light split view](shots/m5a-ipad-light.jpg). The simulator's text setting
+was restored to its original Large value. This is visual/semantic inspection,
+not a completed VoiceOver hardware audit.
+
 ### Device acceptance still to finish
 
 | Check | Result |
@@ -93,8 +123,8 @@ not durable Cloud run links. No Xcode Cloud run is claimed here.
 | Signed real Den install and launch | Pass, native device tools |
 | Physical video scrubbing | Pass, Nicholas's report |
 | Revised composer appearance and Return behavior | Updated signed install/launch; simulator Return-to-send and layout pass |
-| Offline cold cache and reconnect | Implemented; final outage exercise pending |
-| iPad, Dynamic Type, light/dark captures | Final layout pass pending |
+| Offline cold cache and reconnect | Pass, iPad cold launch with fixture forward closed, cached chat visible without modal; automatic reconnect received the message sent during outage |
+| iPad, Dynamic Type, light/dark captures | Pass, iPad Pro 11-inch M5 iOS 26.5, normal light/dark and largest accessibility text; full-width navigation at accessibility sizes |
 | Closed-app mention/DM push and tap | Blocked: APNs key/config missing |
 | Notification permission denial and Settings recovery | Native tests pass; hardware follow-up remains |
 | Calls, mic/camera/route/background/lock | M5b, not text acceptance |

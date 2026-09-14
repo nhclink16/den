@@ -5,6 +5,7 @@ struct RoomsView: View {
     @Bindable var store: AppStore
     @State private var newDM = false
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorScheme) private var colorScheme
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
     private var selected: API.Channel? { store.channels.first { $0.id == store.selectedChannelId } }
@@ -14,7 +15,7 @@ struct RoomsView: View {
 
     var body: some View {
         Group {
-            if sizeClass == .regular {
+            if sizeClass == .regular && !dynamicTypeSize.isAccessibilitySize {
                 NavigationSplitView {
                     roomList
                 } detail: {

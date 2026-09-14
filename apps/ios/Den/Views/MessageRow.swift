@@ -15,6 +15,7 @@ struct MessageRow: View {
     @State private var editDraft = ""
     @State private var savingEdit = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
     private var own: Bool { message.authorId == store.user?.id }
     private let quickReactions = ["👍", "😂", "❤️", "🔥", "👀", "💀"]
@@ -90,12 +91,15 @@ struct MessageRow: View {
     }
 
     private var authorLine: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                authorName
-                timestamp
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 2) { authorName; timestamp }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) { authorName; timestamp }
+                    VStack(alignment: .leading, spacing: 2) { authorName; timestamp }
+                }
             }
-            VStack(alignment: .leading, spacing: 2) { authorName; timestamp }
         }
     }
 
