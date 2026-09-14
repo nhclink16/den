@@ -64,6 +64,8 @@ try {
  assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--density')),'0.8')
  await page.getByLabel('body font',{exact:true}).selectOption('Atkinson Hyperlegible')
  assert((await page.evaluate(()=>document.documentElement.style.getPropertyValue('--body'))).includes('Atkinson Hyperlegible'))
+ await page.locator('.pane').evaluate(el=>el.scrollTop=0)
+ await page.screenshot({path:`${shots}/m9-editor-desktop.png`})
  await page.getByRole('button',{name:'Save as new theme',exact:true}).click()
  await page.getByLabel('Theme name',{exact:true}).fill('M9 sea glass')
  await page.getByRole('button',{name:'Save theme',exact:true}).click()
