@@ -37,3 +37,6 @@ Given one half, produce the other by: swapping ink and bg lightness in OKLCH whi
 
 ## Verification
 Update `scripts/m9-smoke.mjs`: pick `tide`, assert the dark half under dark mode and the light half under light emulation from the same selection; create a custom theme from one half and assert the other half exists and passes contrast; confirm an M9-era stored appearance migrates to a family. Contrast script runs on all eighteen palettes. Screenshots of the new grid in light and dark mode, and the editor's Light tab, to `docs/shots/m9b-*.png`. Release, run the public smoke, append to `docs/M9-NOTES.md` under `## M9b`, stop.
+
+## Addendum: completion notice
+Final step, after the notes: `herdr agent prompt fable "[astra-m8] M9b done, see docs/M9-NOTES.md"`. One line.
