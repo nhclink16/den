@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Den",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "identifier": "app.denchat.desktop",
   "build": {
     "beforeDevCommand": "npm --prefix ../web run dev",
@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' ipc: http://ipc.localhost https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob: den-media: http://den-media.localhost https:; media-src 'self' blob: den-media: http://den-media.localhost; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
+      "csp": "default-src 'self'; script-src 'self' blob: 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' ipc: http://ipc.localhost https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob: den-media: http://den-media.localhost https:; media-src 'self' blob: den-media: http://den-media.localhost; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {
