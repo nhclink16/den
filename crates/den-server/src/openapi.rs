@@ -10,6 +10,8 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
+        objects::instance,
+        tickets::issue,
         appearance::get_appearance,
         appearance::put_appearance,
         hosts::list,
@@ -124,6 +126,8 @@ use utoipa::OpenApi;
         UpdateSettings,
         ApiError,
         Health,
+        Instance,
+        WsTicket,
         User,
         Role,
         Channel,
@@ -190,20 +194,25 @@ pub(crate) async fn serve() -> Json<utoipa::openapi::OpenApi> {
             "/hosts/login"
                 | "/livekit/webhook"
                 | "/health"
+                | "/instance"
                 | "/auth/init"
                 | "/auth/login"
                 | "/auth/register"
         );
-        for op in [
-            &mut item.get,
-            &mut item.post,
-            &mut item.put,
-            &mut item.patch,
-            &mut item.delete,
+        for (method, op) in [
+            ("get", &mut item.get),
+            ("post", &mut item.post),
+            ("put", &mut item.put),
+            ("patch", &mut item.patch),
+            ("delete", &mut item.delete),
         ]
         .into_iter()
-        .flatten()
+        .filter_map(|(method, op)| op.as_mut().map(|op| (method, op)))
         {
+            op.operation_id = Some(format!(
+                "{method}_{}",
+                path.replace(['/', '{', '}', '-'], "_")
+            ));
             if public {
                 op.security = Some(Vec::new());
             }

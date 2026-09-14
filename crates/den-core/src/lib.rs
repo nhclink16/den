@@ -11,6 +11,21 @@ use utoipa::ToSchema;
 /// Opaque identifier used for every entity. Sortable by creation time.
 pub type Id = String;
 
+/// A short-lived, single-use credential for a native client's WebSocket upgrade.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct WsTicket {
+    pub ticket: String,
+    pub expires_in: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Instance {
+    pub instance_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
+    pub version: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct User {
     pub id: Id,

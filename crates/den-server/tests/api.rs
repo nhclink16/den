@@ -444,3 +444,6 @@ async fn terminal_grants_enforce_view_control_revoke_expiry_and_privacy() {
 
 #[path = "api/appearance.rs"]
 mod appearance;
+
+#[path = "api/desktop.rs"]
+mod desktop;

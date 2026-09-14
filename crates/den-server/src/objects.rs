@@ -244,3 +244,12 @@ pub(crate) async fn update(
     }
     Ok(Json(load(&s, &id).await?.summary))
 }
+
+#[utoipa::path(get,path="/instance",responses((status=200,body=Instance)))]
+pub(crate) async fn instance(State(s): State<AppState>) -> Result<Json<Instance>> {
+    Ok(Json(Instance {
+        instance_name: read_settings(&s).await?.instance_name,
+        icon_url: None,
+        version: env!("CARGO_PKG_VERSION").into(),
+    }))
+}

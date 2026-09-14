@@ -39,3 +39,6 @@ export type Appearance = S['Appearance']
 export type Theme = S['Theme']
 export type ThemeColors = S['ThemeColors']
 export type ThemeFonts = S['ThemeFonts']
+
+export type WsTicket = S['WsTicket']
+export type Instance = S['Instance']

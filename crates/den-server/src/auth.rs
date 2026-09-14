@@ -81,6 +81,22 @@ impl Auth {
 impl FromRequestParts<AppState> for Auth {
     type Rejection = Error;
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self> {
+        if parts.method == Method::GET && parts.uri.path() == "/ws" {
+            let query = axum::extract::Query::<HashMap<String, String>>::try_from_uri(&parts.uri)
+                .map_err(|_| Error::unauthorized())?;
+            if let Some(ticket) = query.get("ticket") {
+                let auth = s
+                    .tickets
+                    .lock()
+                    .await
+                    .take(ticket, Instant::now())
+                    .ok_or_else(Error::unauthorized)?;
+                if !auth.valid(s).await {
+                    return Err(Error::unauthorized());
+                }
+                return Ok(auth);
+            }
+        }
         let bearer = parts
             .headers
             .get(header::AUTHORIZATION)

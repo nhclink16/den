@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["log"];
+        get: operations["get__access_log"];
         put?: never;
         post?: never;
         delete?: never;
@@ -29,7 +29,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["bootstrap"];
+        post: operations["post__auth_init"];
         delete?: never;
         options?: never;
         head?: never;
@@ -45,7 +45,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["login"];
+        post: operations["post__auth_login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -61,7 +61,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["logout"];
+        post: operations["post__auth_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -77,7 +77,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["register"];
+        post: operations["post__auth_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/ws-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__auth_ws_ticket"];
         delete?: never;
         options?: never;
         head?: never;
@@ -93,7 +109,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["bot"];
+        post: operations["post__bots"];
         delete?: never;
         options?: never;
         head?: never;
@@ -107,7 +123,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["get__calls"];
         put?: never;
         post?: never;
         delete?: never;
@@ -125,7 +141,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["token"];
+        post: operations["post__calls__channel_id__token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -139,9 +155,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["categories"];
+        get: operations["get__categories"];
         put?: never;
-        post: operations["create_category"];
+        post: operations["post__categories"];
         delete?: never;
         options?: never;
         head?: never;
@@ -156,9 +172,9 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_category"];
+        put: operations["put__categories__id_"];
         post?: never;
-        delete: operations["delete_category"];
+        delete: operations["delete__categories__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -171,9 +187,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["channels"];
+        get: operations["get__channels"];
         put?: never;
-        post: operations["create_channel"];
+        post: operations["post__channels"];
         delete?: never;
         options?: never;
         head?: never;
@@ -187,10 +203,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["channel"];
-        put: operations["update_channel"];
+        get: operations["get__channels__id_"];
+        put: operations["put__channels__id_"];
         post?: never;
-        delete: operations["delete_channel"];
+        delete: operations["delete__channels__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -203,9 +219,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["messages"];
+        get: operations["get__channels__id__messages"];
         put?: never;
-        post: operations["send"];
+        post: operations["post__channels__id__messages"];
         delete?: never;
         options?: never;
         head?: never;
@@ -221,7 +237,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["create"];
+        post: operations["post__channels__id__objects"];
         delete?: never;
         options?: never;
         head?: never;
@@ -236,7 +252,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["mark_read"];
+        put: operations["put__channels__id__read"];
         post?: never;
         delete?: never;
         options?: never;
@@ -253,7 +269,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["dm"];
+        post: operations["post__dms"];
         delete?: never;
         options?: never;
         head?: never;
@@ -267,7 +283,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["grants"];
+        get: operations["get__grants"];
         put?: never;
         post?: never;
         delete?: never;
@@ -286,7 +302,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["revoke"];
+        delete: operations["delete__grants__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -299,7 +315,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["health"];
+        get: operations["get__health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -315,7 +331,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["get__hosts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -333,7 +349,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["direct_check"];
+        post: operations["post__hosts_direct_check"];
         delete?: never;
         options?: never;
         head?: never;
@@ -349,7 +365,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["enroll"];
+        post: operations["post__hosts_enroll"];
         delete?: never;
         options?: never;
         head?: never;
@@ -365,7 +381,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["login"];
+        post: operations["post__hosts_login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -379,7 +395,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["connect"];
+        get: operations["get__hosts_ws"];
         put?: never;
         post?: never;
         delete?: never;
@@ -398,7 +414,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove"];
+        delete: operations["delete__hosts__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -413,7 +429,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["request"];
+        post: operations["post__hosts__id__requests"];
         delete?: never;
         options?: never;
         head?: never;
@@ -429,7 +445,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["open"];
+        post: operations["post__hosts__id__sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__instance"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -445,7 +477,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["invite"];
+        post: operations["post__invites"];
         delete?: never;
         options?: never;
         head?: never;
@@ -462,7 +494,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["revoke_invite"];
+        delete: operations["delete__invites__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -478,7 +510,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** @description LiveKit signed webhook. Authorization is the LiveKit JWT over the raw body, not a Den session. */
-        post: operations["webhook"];
+        post: operations["post__livekit_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -492,13 +524,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["message"];
+        get: operations["get__messages__id_"];
         put?: never;
         post?: never;
-        delete: operations["remove"];
+        delete: operations["delete__messages__id_"];
         options?: never;
         head?: never;
-        patch: operations["edit"];
+        patch: operations["patch__messages__id_"];
         trace?: never;
     };
     "/messages/{id}/reactions": {
@@ -509,9 +541,9 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["react"];
+        put: operations["put__messages__id__reactions"];
         post?: never;
-        delete: operations["unreact"];
+        delete: operations["delete__messages__id__reactions"];
         options?: never;
         head?: never;
         patch?: never;
@@ -524,13 +556,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
+        get: operations["get__objects__id_"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update"];
+        patch: operations["patch__objects__id_"];
         trace?: never;
     };
     "/objects/{id}/patch": {
@@ -542,7 +574,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["patch"];
+        post: operations["post__objects__id__patch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -556,7 +588,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["summary"];
+        get: operations["get__objects__id__summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -572,7 +604,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["presence"];
+        get: operations["get__presence"];
         put?: never;
         post?: never;
         delete?: never;
@@ -590,7 +622,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decide"];
+        post: operations["post__requests__id__decide"];
         delete?: never;
         options?: never;
         head?: never;
@@ -604,7 +636,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["search"];
+        get: operations["get__search_messages"];
         put?: never;
         post?: never;
         delete?: never;
@@ -623,7 +655,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["close"];
+        delete: operations["delete__sessions__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -638,7 +670,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["controller"];
+        post: operations["post__sessions__id__controller"];
         delete?: never;
         options?: never;
         head?: never;
@@ -654,7 +686,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["direct_token"];
+        post: operations["post__sessions__id__direct_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -670,7 +702,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["request_control"];
+        post: operations["post__sessions__id__request_control"];
         delete?: never;
         options?: never;
         head?: never;
@@ -686,7 +718,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["share"];
+        post: operations["post__sessions__id__share"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,7 +734,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["write"];
+        post: operations["post__sessions__id__write"];
         delete?: never;
         options?: never;
         head?: never;
@@ -716,8 +748,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["settings"];
-        put: operations["save_settings"];
+        get: operations["get__settings"];
+        put: operations["put__settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -732,9 +764,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["tokens"];
+        get: operations["get__tokens"];
         put?: never;
-        post: operations["create_token"];
+        post: operations["post__tokens"];
         delete?: never;
         options?: never;
         head?: never;
@@ -751,7 +783,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["revoke_token"];
+        delete: operations["delete__tokens__id_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -766,7 +798,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["begin"];
+        post: operations["post__uploads"];
         delete?: never;
         options?: never;
         head?: never;
@@ -780,13 +812,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["status"];
+        get: operations["get__uploads__id_"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["chunk"];
+        patch: operations["patch__uploads__id_"];
         trace?: never;
     };
     "/uploads/{id}/complete": {
@@ -798,7 +830,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["complete"];
+        post: operations["post__uploads__id__complete"];
         delete?: never;
         options?: never;
         head?: never;
@@ -812,7 +844,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["file"];
+        get: operations["get__uploads__id__file"];
         put?: never;
         post?: never;
         delete?: never;
@@ -828,7 +860,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["serve"];
+        get: operations["get__uploads__id__thumbnail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -844,7 +876,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["users"];
+        get: operations["get__users"];
         put?: never;
         post?: never;
         delete?: never;
@@ -860,7 +892,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["me"];
+        get: operations["get__users_me"];
         put?: never;
         post?: never;
         delete?: never;
@@ -876,8 +908,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_appearance"];
-        put: operations["put_appearance"];
+        get: operations["get__users_me_appearance"];
+        put: operations["put__users_me_appearance"];
         post?: never;
         delete?: never;
         options?: never;
@@ -892,8 +924,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_preferences"];
-        put: operations["put_preferences"];
+        get: operations["get__users_me_notification_preferences"];
+        put: operations["put__users_me_notification_preferences"];
         post?: never;
         delete?: never;
         options?: never;
@@ -908,7 +940,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["read_states"];
+        get: operations["get__users_me_read_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -924,7 +956,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["connect"];
+        get: operations["get__ws"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1316,6 +1348,11 @@ export interface components {
             code: string;
             name: string;
         };
+        Instance: {
+            icon_url?: string | null;
+            instance_name: string;
+            version: string;
+        };
         Invite: {
             code: string;
             /** Format: int64 */
@@ -1574,6 +1611,12 @@ export interface components {
             role: components["schemas"]["Role"];
             username: string;
         };
+        /** @description A short-lived, single-use credential for a native client's WebSocket upgrade. */
+        WsTicket: {
+            /** Format: int32 */
+            expires_in: number;
+            ticket: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1583,7 +1626,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    log: {
+    get__access_log: {
         parameters: {
             query?: never;
             header?: never;
@@ -1611,7 +1654,7 @@ export interface operations {
             };
         };
     };
-    bootstrap: {
+    post__auth_init: {
         parameters: {
             query?: never;
             header?: never;
@@ -1651,7 +1694,7 @@ export interface operations {
             };
         };
     };
-    login: {
+    post__auth_login: {
         parameters: {
             query?: never;
             header?: never;
@@ -1691,7 +1734,7 @@ export interface operations {
             };
         };
     };
-    logout: {
+    post__auth_logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -1717,7 +1760,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    post__auth_register: {
         parameters: {
             query?: never;
             header?: never;
@@ -1757,7 +1800,35 @@ export interface operations {
             };
         };
     };
-    bot: {
+    post__auth_ws_ticket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WsTicket"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__bots: {
         parameters: {
             query?: never;
             header?: never;
@@ -1789,7 +1860,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    get__calls: {
         parameters: {
             query?: never;
             header?: never;
@@ -1817,7 +1888,7 @@ export interface operations {
             };
         };
     };
-    token: {
+    post__calls__channel_id__token: {
         parameters: {
             query?: never;
             header?: never;
@@ -1863,7 +1934,7 @@ export interface operations {
             };
         };
     };
-    categories: {
+    get__categories: {
         parameters: {
             query?: never;
             header?: never;
@@ -1891,7 +1962,7 @@ export interface operations {
             };
         };
     };
-    create_category: {
+    post__categories: {
         parameters: {
             query?: never;
             header?: never;
@@ -1923,7 +1994,7 @@ export interface operations {
             };
         };
     };
-    update_category: {
+    put__categories__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -1957,7 +2028,7 @@ export interface operations {
             };
         };
     };
-    delete_category: {
+    delete__categories__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -1985,7 +2056,7 @@ export interface operations {
             };
         };
     };
-    channels: {
+    get__channels: {
         parameters: {
             query?: never;
             header?: never;
@@ -2013,7 +2084,7 @@ export interface operations {
             };
         };
     };
-    create_channel: {
+    post__channels: {
         parameters: {
             query?: never;
             header?: never;
@@ -2045,7 +2116,7 @@ export interface operations {
             };
         };
     };
-    channel: {
+    get__channels__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2075,7 +2146,7 @@ export interface operations {
             };
         };
     };
-    update_channel: {
+    put__channels__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2109,7 +2180,7 @@ export interface operations {
             };
         };
     };
-    delete_channel: {
+    delete__channels__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2137,7 +2208,7 @@ export interface operations {
             };
         };
     };
-    messages: {
+    get__channels__id__messages: {
         parameters: {
             query?: never;
             header?: never;
@@ -2170,7 +2241,7 @@ export interface operations {
             };
         };
     };
-    send: {
+    post__channels__id__messages: {
         parameters: {
             query?: never;
             header?: never;
@@ -2204,7 +2275,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    post__channels__id__objects: {
         parameters: {
             query?: never;
             header?: never;
@@ -2238,7 +2309,7 @@ export interface operations {
             };
         };
     };
-    mark_read: {
+    put__channels__id__read: {
         parameters: {
             query?: never;
             header?: never;
@@ -2272,7 +2343,7 @@ export interface operations {
             };
         };
     };
-    dm: {
+    post__dms: {
         parameters: {
             query?: never;
             header?: never;
@@ -2304,7 +2375,7 @@ export interface operations {
             };
         };
     };
-    grants: {
+    get__grants: {
         parameters: {
             query?: never;
             header?: never;
@@ -2332,7 +2403,7 @@ export interface operations {
             };
         };
     };
-    revoke: {
+    delete__grants__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2360,7 +2431,7 @@ export interface operations {
             };
         };
     };
-    health: {
+    get__health: {
         parameters: {
             query?: never;
             header?: never;
@@ -2388,7 +2459,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    get__hosts: {
         parameters: {
             query?: never;
             header?: never;
@@ -2416,7 +2487,7 @@ export interface operations {
             };
         };
     };
-    direct_check: {
+    post__hosts_direct_check: {
         parameters: {
             query?: never;
             header?: never;
@@ -2448,7 +2519,7 @@ export interface operations {
             };
         };
     };
-    enroll: {
+    post__hosts_enroll: {
         parameters: {
             query?: never;
             header?: never;
@@ -2476,7 +2547,7 @@ export interface operations {
             };
         };
     };
-    login: {
+    post__hosts_login: {
         parameters: {
             query?: never;
             header?: never;
@@ -2508,7 +2579,7 @@ export interface operations {
             };
         };
     };
-    connect: {
+    get__hosts_ws: {
         parameters: {
             query?: never;
             header?: never;
@@ -2534,7 +2605,7 @@ export interface operations {
             };
         };
     };
-    remove: {
+    delete__hosts__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2562,7 +2633,7 @@ export interface operations {
             };
         };
     };
-    request: {
+    post__hosts__id__requests: {
         parameters: {
             query?: never;
             header?: never;
@@ -2596,7 +2667,7 @@ export interface operations {
             };
         };
     };
-    open: {
+    post__hosts__id__sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -2630,7 +2701,35 @@ export interface operations {
             };
         };
     };
-    invite: {
+    get__instance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Instance"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__invites: {
         parameters: {
             query?: never;
             header?: never;
@@ -2662,7 +2761,7 @@ export interface operations {
             };
         };
     };
-    revoke_invite: {
+    delete__invites__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2690,7 +2789,7 @@ export interface operations {
             };
         };
     };
-    webhook: {
+    post__livekit_webhook: {
         parameters: {
             query?: never;
             header?: never;
@@ -2736,7 +2835,7 @@ export interface operations {
             };
         };
     };
-    message: {
+    get__messages__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2766,7 +2865,7 @@ export interface operations {
             };
         };
     };
-    remove: {
+    delete__messages__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2794,7 +2893,7 @@ export interface operations {
             };
         };
     };
-    edit: {
+    patch__messages__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2828,7 +2927,7 @@ export interface operations {
             };
         };
     };
-    react: {
+    put__messages__id__reactions: {
         parameters: {
             query?: never;
             header?: never;
@@ -2862,7 +2961,7 @@ export interface operations {
             };
         };
     };
-    unreact: {
+    delete__messages__id__reactions: {
         parameters: {
             query?: never;
             header?: never;
@@ -2896,7 +2995,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get__objects__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2926,7 +3025,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    patch__objects__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -2960,7 +3059,7 @@ export interface operations {
             };
         };
     };
-    patch: {
+    post__objects__id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -2994,7 +3093,7 @@ export interface operations {
             };
         };
     };
-    summary: {
+    get__objects__id__summary: {
         parameters: {
             query?: never;
             header?: never;
@@ -3024,7 +3123,7 @@ export interface operations {
             };
         };
     };
-    presence: {
+    get__presence: {
         parameters: {
             query?: never;
             header?: never;
@@ -3052,7 +3151,7 @@ export interface operations {
             };
         };
     };
-    decide: {
+    post__requests__id__decide: {
         parameters: {
             query?: never;
             header?: never;
@@ -3086,7 +3185,7 @@ export interface operations {
             };
         };
     };
-    search: {
+    get__search_messages: {
         parameters: {
             query?: never;
             header?: never;
@@ -3119,7 +3218,7 @@ export interface operations {
             };
         };
     };
-    close: {
+    delete__sessions__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -3147,7 +3246,7 @@ export interface operations {
             };
         };
     };
-    controller: {
+    post__sessions__id__controller: {
         parameters: {
             query?: never;
             header?: never;
@@ -3181,7 +3280,7 @@ export interface operations {
             };
         };
     };
-    direct_token: {
+    post__sessions__id__direct_token: {
         parameters: {
             query?: never;
             header?: never;
@@ -3211,7 +3310,7 @@ export interface operations {
             };
         };
     };
-    request_control: {
+    post__sessions__id__request_control: {
         parameters: {
             query?: never;
             header?: never;
@@ -3241,7 +3340,7 @@ export interface operations {
             };
         };
     };
-    share: {
+    post__sessions__id__share: {
         parameters: {
             query?: never;
             header?: never;
@@ -3275,7 +3374,7 @@ export interface operations {
             };
         };
     };
-    write: {
+    post__sessions__id__write: {
         parameters: {
             query?: never;
             header?: never;
@@ -3307,7 +3406,7 @@ export interface operations {
             };
         };
     };
-    settings: {
+    get__settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -3335,7 +3434,7 @@ export interface operations {
             };
         };
     };
-    save_settings: {
+    put__settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -3367,7 +3466,7 @@ export interface operations {
             };
         };
     };
-    tokens: {
+    get__tokens: {
         parameters: {
             query?: never;
             header?: never;
@@ -3395,7 +3494,7 @@ export interface operations {
             };
         };
     };
-    create_token: {
+    post__tokens: {
         parameters: {
             query?: never;
             header?: never;
@@ -3427,7 +3526,7 @@ export interface operations {
             };
         };
     };
-    revoke_token: {
+    delete__tokens__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -3455,7 +3554,7 @@ export interface operations {
             };
         };
     };
-    begin: {
+    post__uploads: {
         parameters: {
             query?: never;
             header?: never;
@@ -3495,7 +3594,7 @@ export interface operations {
             };
         };
     };
-    status: {
+    get__uploads__id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -3525,7 +3624,7 @@ export interface operations {
             };
         };
     };
-    chunk: {
+    patch__uploads__id_: {
         parameters: {
             query?: never;
             header: {
@@ -3570,7 +3669,7 @@ export interface operations {
             };
         };
     };
-    complete: {
+    post__uploads__id__complete: {
         parameters: {
             query?: never;
             header?: never;
@@ -3600,7 +3699,7 @@ export interface operations {
             };
         };
     };
-    file: {
+    get__uploads__id__file: {
         parameters: {
             query?: never;
             header?: {
@@ -3690,7 +3789,7 @@ export interface operations {
             };
         };
     };
-    serve: {
+    get__uploads__id__thumbnail: {
         parameters: {
             query?: never;
             header?: never;
@@ -3764,7 +3863,7 @@ export interface operations {
             };
         };
     };
-    users: {
+    get__users: {
         parameters: {
             query?: never;
             header?: never;
@@ -3792,7 +3891,7 @@ export interface operations {
             };
         };
     };
-    me: {
+    get__users_me: {
         parameters: {
             query?: never;
             header?: never;
@@ -3820,7 +3919,7 @@ export interface operations {
             };
         };
     };
-    get_appearance: {
+    get__users_me_appearance: {
         parameters: {
             query?: never;
             header?: never;
@@ -3848,7 +3947,7 @@ export interface operations {
             };
         };
     };
-    put_appearance: {
+    put__users_me_appearance: {
         parameters: {
             query?: never;
             header?: never;
@@ -3880,7 +3979,7 @@ export interface operations {
             };
         };
     };
-    get_preferences: {
+    get__users_me_notification_preferences: {
         parameters: {
             query?: never;
             header?: never;
@@ -3908,7 +4007,7 @@ export interface operations {
             };
         };
     };
-    put_preferences: {
+    put__users_me_notification_preferences: {
         parameters: {
             query?: never;
             header?: never;
@@ -3940,7 +4039,7 @@ export interface operations {
             };
         };
     };
-    read_states: {
+    get__users_me_read_state: {
         parameters: {
             query?: never;
             header?: never;
@@ -3968,7 +4067,7 @@ export interface operations {
             };
         };
     };
-    connect: {
+    get__ws: {
         parameters: {
             query?: never;
             header?: never;

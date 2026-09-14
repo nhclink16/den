@@ -13,6 +13,7 @@ mod openapi;
 pub mod portable;
 mod terminal;
 mod thumbnails;
+mod tickets;
 mod uploads;
 mod web;
 mod ws;
@@ -53,6 +54,7 @@ pub struct Inner {
     pub max_upload: i64,
     pub events: broadcast::Sender<Event>,
     pub writes: Mutex<()>,
+    pub(crate) tickets: Mutex<tickets::Tickets>,
     pub attempts: Mutex<HashMap<String, (Instant, u32)>>,
     pub presence: std::sync::Mutex<HashMap<String, usize>>,
     pub object_presence: std::sync::Mutex<ObjectPresenceConnections>,
@@ -152,6 +154,7 @@ impl AppState {
             events,
             writes: Mutex::new(()),
             attempts: Mutex::new(HashMap::new()),
+            tickets: Mutex::new(tickets::Tickets::default()),
             presence: std::sync::Mutex::new(HashMap::new()),
             object_presence: std::sync::Mutex::new(HashMap::new()),
             thumbnails: Arc::new(tokio::sync::Semaphore::new(1)),
@@ -189,6 +192,8 @@ pub fn router(state: AppState) -> Router {
 pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
     let settings_web = web_dir.clone();
     Router::new()
+        .route("/instance", get(objects::instance))
+        .route("/auth/ws-ticket", post(tickets::issue))
         .route("/hosts", get(hosts::list))
         .route("/hosts/enroll", post(hosts::enroll))
         .route("/hosts/login", post(hosts::login))
