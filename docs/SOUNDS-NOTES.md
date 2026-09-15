@@ -9,6 +9,10 @@ lane. Shared types are in `den-core`; the web schema is generated from OpenAPI.
   silence, missing IDs, admin-only server changes, account isolation, CSRF,
   512 KiB and five-second limits, non-audio rejection, all-or-nothing ZIP
   validation, chat installation, partial-pack layering, and offline backup restore.
+- A WebSocket compatibility test keeps legacy, explicitly disabled, opted-in,
+  and native-ticket sockets open across account and server changes. Later chat
+  messages prove legacy streams remain usable; sound updates reach only opted-in
+  sockets with the correct account targeting.
 - Chromium exercised file replacement, account persistence after reload, named
   packs, admin server defaults, normal channel uploads, preview without install,
   installing a pack and a single sound, focused-room suppression, away-room audio,

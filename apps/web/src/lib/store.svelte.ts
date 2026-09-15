@@ -267,11 +267,11 @@ export class Store {
     if (this.ws || this.connecting || !this.me) return
     this.connecting = true
     const generation = this.generation
-    let url = `${this.origin.replace(/^http/, 'ws')}/ws`
+    let url = `${this.origin.replace(/^http/, 'ws')}/ws?sounds=true`
     try {
       if (native) {
         const ticket = await this.api.post<import('./types').WsTicket>('/auth/ws-ticket')
-        url += `?ticket=${encodeURIComponent(ticket.ticket)}`
+        url += `&ticket=${encodeURIComponent(ticket.ticket)}`
       }
       if (generation !== this.generation || !this.me) return
     } catch {

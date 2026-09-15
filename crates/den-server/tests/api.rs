@@ -509,3 +509,5 @@ mod voice_preferences;
 mod music;
 #[path = "api/sounds.rs"]
 mod sounds;
+#[path = "api/sounds_ws.rs"]
+mod sounds_ws;

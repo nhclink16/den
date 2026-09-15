@@ -59,12 +59,15 @@ impl Drop for Connected {
         }
     }
 }
+// New event variants must be opt-in while older Rust clients reject unknown tags.
 #[derive(Default, serde::Deserialize)]
 pub(crate) struct Options {
     #[serde(default)]
     music: bool,
+    #[serde(default)]
+    sounds: bool,
 }
-#[utoipa::path(get,path="/ws",params(("music"=Option<bool>,Query,description="Opt in to music queue events; omitted for older clients")),responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
+#[utoipa::path(get,path="/ws",params(("music"=Option<bool>,Query,description="Opt in to music queue events; omitted for older clients"),("sounds"=Option<bool>,Query,description="Opt in to sound preference events; omitted for older clients")),responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
 pub(crate) async fn connect(
     State(s): State<AppState>,
     a: Auth,
@@ -74,7 +77,7 @@ pub(crate) async fn connect(
     let rx = s.events.subscribe();
     ws.max_message_size(128 * 1024)
         .max_frame_size(128 * 1024)
-        .on_upgrade(move |socket| run(s, a, socket, rx, options.music))
+        .on_upgrade(move |socket| run(s, a, socket, rx, options))
 }
 async fn event(socket: &mut WebSocket, event: &Event) -> bool {
     let Ok(json) = serde_json::to_string(event) else {
@@ -173,7 +176,7 @@ async fn run(
     a: Auth,
     mut socket: WebSocket,
     mut rx: broadcast::Receiver<Event>,
-    music: bool,
+    options: Options,
 ) {
     if !a.valid(&s).await {
         return;
@@ -268,8 +271,8 @@ async fn run(
                 if !a.valid(&s).await {break;}
                 match incoming {
                     Ok(v)=>{
-                        // Old typed clients cannot decode new variants. Only opted-in sockets receive music.
-                        if matches!(&v, Event::MusicQueueUpdated { .. }) && !music { continue; }
+                        if matches!(&v, Event::MusicQueueUpdated { .. }) && !options.music {continue;}
+                        if matches!(v, Event::SoundsUpdated { .. }) && !options.sounds {continue;}
                         let permitted = if let Event::TerminalOutput{session_id,connection_id,..} = &v {
                             terminals.contains(session_id) && connection_id.as_ref().is_none_or(|id|id==&connection) && terminal::can_view(&s,&a.user.id,session_id).await
                         } else if let Event::ObjectCursor { id, user_id, .. } = &v {

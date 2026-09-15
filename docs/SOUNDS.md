@@ -85,8 +85,11 @@ Authoritative types: `den-core/src/sounds.rs`. OpenAPI and TypeScript are genera
 - `POST /uploads/{id}/sounds`: install, with `{ "event": null }` for a pack or an
   event key for a single sound.
 
-Cookie writes require CSRF and Origin. `sounds_updated` with a user ID reaches
-only that account; server changes broadcast an invalidation. Reconnect refetches.
+Cookie writes require CSRF and Origin. WebSocket clients must explicitly connect
+to `/ws?sounds=true` to receive `sounds_updated`; omitted or false leaves legacy
+Rust streams unchanged. A user ID targets only that account; server changes
+broadcast an invalidation to opted-in sockets. Native clients retain the flag
+alongside `&ticket=...`. Reconnect refetches.
 Files live under `DEN_UPLOADS/sounds/<user-id>/<sound-id>` or `sounds/server/`.
 Offline `den-server export` and `import` include the database metadata and files.
 
