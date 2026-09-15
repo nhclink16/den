@@ -102,16 +102,23 @@ sidebars for the comparison.
   keep controls reachable, and avoid overlap or a cluster in the top third.
 - [ ] Return to 1900 × 1100. Verify the original tile geometry returns and all
   video streams continue. Capture both orientations and a silent transition video.
-- [ ] Repeat with a saved Custom layout. Positions must survive the round trip.
-  Custom does not automatically stack; select Auto to recover a full-width layout.
-  Record the active preset when investigating unused space.
+- [ ] Build a Custom layout in landscape. On the first portrait visit, an unsaved
+  portrait layout must start from a full-width preset. Rotate back and compare the
+  original landscape localStorage string byte for byte.
+- [ ] Save a different Custom layout in portrait. Rotate both ways and confirm
+  each arrangement returns independently, with neither saved string modified.
+- [ ] Reset while in portrait. Confirm that both orientation keys are removed and
+  landscape also returns to its default preset.
+- [ ] Near a square call area, toggle the people panel without resizing the window.
+  Record whether it changes which orientation's arrangement is shown.
 - [ ] During attended hardware QA, move the window between real landscape and
   portrait monitors and repeat at each monitor's display scaling. A virtual X11
   resize proves native window response, but does not cover mixed-DPI monitor changes.
 
 The Linux automation is `scripts/electron-portrait-smoke.mjs`. It runs a second
 Chromium participant, publishes a screen-share track, and checks native X11 resizing,
-video frame progress, tile bounds, Custom persistence, and recovery to Auto. Its
+video frame progress, tile bounds, separate Custom layouts, byte-identical storage,
+and resetting both orientations. Its
 camera and display inputs are generated; Den and LiveKit carry the real tracks.
 It requires `xdotool`, Chromium, Playwright, an X11 window manager, and a display
 large enough for both window sizes. Optional recording also requires ffmpeg and
@@ -131,4 +138,6 @@ node scripts/electron-portrait-smoke.mjs
 `DEN_ELECTRON_CDP`, `DEN_ELECTRON_WINDOW`, `DEN_SMOKE_URL`, and `DEN_SMOKE_SHOTS`
 override the desktop endpoint, X11 window ID, private server, and output directory.
 Use a dedicated display with only the test Electron window and its browser peer.
-See [portrait acceptance](../../docs/DESKTOP-PORTRAIT-QA.md) for measured results.
+See [Custom orientation acceptance](../../docs/DESKTOP-ORIENTATION-QA.md) for current
+results and [the PR #7 baseline](../../docs/DESKTOP-PORTRAIT-QA.md) for the original
+shared-layout behavior.

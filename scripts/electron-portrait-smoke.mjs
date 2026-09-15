@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 
 const base = process.env.DEN_SMOKE_URL || 'http://127.0.0.1:17010'
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS || '/mnt/storage/den-electron-acceptance/credentials.json', 'utf8'))
-const output = process.env.DEN_SMOKE_SHOTS || 'docs/shots/pr/desktop-portrait'
+const output = process.env.DEN_SMOKE_SHOTS || 'docs/shots/pr/portrait-layout-memory'
 const display = process.env.DISPLAY || ':101'
 const x = (...args) => execFileSync('xdotool', args.map(String), { env: { ...process.env, DISPLAY: display } }).toString().trim()
 const windowId = process.env.DEN_ELECTRON_WINDOW || x('search', '--onlyvisible', '--class', '^den$').split('\n')[0]
@@ -37,6 +37,8 @@ async function capture(name) {
     const rect = e => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }
     return {
       viewport: [innerWidth, innerHeight], preset: document.querySelector('.presets').innerText,
+      activePreset: document.querySelector('.presets button[aria-pressed="true"]')?.textContent.trim() || 'Custom',
+      savedLayouts: Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('den.call-layout:')).map(k => [k, localStorage.getItem(k)])),
       scroll: rect(document.querySelector('.grid-scroll')), canvas: rect(document.querySelector('.grid-canvas')),
       tiles: [...document.querySelectorAll('.layout-tile')].map(e => ({
         key: e.dataset.tileKey, kind: e.dataset.kind,
@@ -84,10 +86,6 @@ try {
   const peerWindow = x('search', '--onlyvisible', '--class', '^chromium$').split('\n').at(-1)
   x('windowminimize', peerWindow)
   await resize(1900, 1100)
-  if (process.env.DEN_RECORD === '1') {
-    recording = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'x11grab', '-framerate', '12', '-video_size', '1940x1960', '-i', display, '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-threads', '2', '-pix_fmt', 'yuv420p', `${output}/rotation.mp4`])
-    await sleep(1500)
-  }
   const wide = await capture('landscape'); await sleep(1800)
   await resize(1100, 1900); const tall = await capture('portrait'); await sleep(2500)
   assert(tall.tiles.every(t => t.cell.col === 0 && t.cell.w === 12), 'Auto did not stack full-width portrait tiles')
@@ -98,7 +96,6 @@ try {
   await resize(1900, 1100); const back = await capture('landscape-return'); await sleep(1800)
   assert.deepEqual(shape(wide), shape(back), 'Landscape geometry changed after the round trip')
   for (const before of wide.tiles) assert(back.tiles.find(t => t.key === before.key).video[0].frames > before.video[0].frames, 'Video stalled during native resizing')
-  if (recording) { const done = new Promise(resolve => recording.once('exit', resolve)); recording.stdin.write('q'); await done; recording = null }
   // Reproduce Andy's half-width screenshot using real tile keyboard controls.
   const screen = page.locator('.layout-tile[data-kind="screen"]'), cams = page.locator('.layout-tile[data-kind="cam"]')
   await screen.focus(); for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowLeft')
@@ -106,15 +103,48 @@ try {
   await cams.nth(1).focus(); for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft')
   await page.mouse.move(1890, 1080); await sleep(500)
   const custom = await capture('custom-half-width'); assert(custom.preset.includes('Custom')); assert.equal(custom.tiles[0].cell.w, 6)
-  await resize(1100, 1900); await capture('custom-portrait')
-  await resize(1900, 1100); const customBack = await capture('custom-landscape-return'); assert.deepEqual(shape(custom), shape(customBack))
+  if (process.env.DEN_RECORD === '1') {
+    recording = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'x11grab', '-framerate', '12', '-video_size', '1940x1960', '-i', display, '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-threads', '2', '-pix_fmt', 'yuv420p', `${output}/custom-rotation.mp4`])
+    await sleep(1500)
+  }
+  await resize(1100, 1900); const firstPortrait = await capture('custom-to-portrait-default'); await sleep(1800)
+  assert.equal(firstPortrait.activePreset, 'Auto', 'First portrait visit inherited landscape Custom')
+  assert.deepEqual(shape(tall), shape(firstPortrait), 'Portrait did not start from its full-width preset')
+  assert(firstPortrait.canvas.height / firstPortrait.scroll.height > .6, 'Portrait stayed at the old 38% height baseline')
+  assert.deepEqual(custom.savedLayouts, firstPortrait.savedLayouts, 'Rotation modified the saved landscape layout')
+  await resize(1900, 1100); const customBack = await capture('custom-landscape-return'); await sleep(1800); assert.deepEqual(shape(custom), shape(customBack))
+  assert.deepEqual(custom.savedLayouts, customBack.savedLayouts)
+  // Author a different arrangement in portrait using the real resize control.
+  await resize(1100, 1900); await screen.focus(); await page.keyboard.press('Shift+ArrowDown'); await sleep(500)
+  const portraitCustom = await capture('portrait-custom'); assert.equal(portraitCustom.activePreset, 'Custom')
+  const landscapeKey = Object.keys(custom.savedLayouts).find(k => !k.endsWith(':portrait'))
+  assert(landscapeKey && portraitCustom.savedLayouts[`${landscapeKey}:portrait`], 'Portrait layout was not stored separately')
+  assert.equal(custom.savedLayouts[landscapeKey], portraitCustom.savedLayouts[landscapeKey], 'Landscape layout bytes changed while editing portrait')
+  await resize(1900, 1100); const separateWide = await capture('separate-landscape-custom'); assert.deepEqual(shape(custom), shape(separateWide))
+  await resize(1100, 1900); const separateTall = await capture('portrait-custom-return'); assert.deepEqual(shape(portraitCustom), shape(separateTall))
+  assert.deepEqual(portraitCustom.savedLayouts, separateTall.savedLayouts)
+  assert.equal(custom.savedLayouts[landscapeKey], separateWide.savedLayouts[landscapeKey], 'Landscape layout did not return byte-identical')
+  if (recording) { const done = new Promise(resolve => recording.once('exit', resolve)); recording.stdin.write('q'); await done; recording = null }
+  // Diagnostic: a sidebar can cross the call-area orientation boundary while the
+  // native window stays landscape. Capture that interaction without treating it
+  // as a failure of the two independently stored arrangements.
+  await resize(1400, 1100); const withPeople = await capture('sidebar-visible')
+  await page.getByTitle('Toggle people (Ctrl+Shift+M)').click(); await sleep(700)
+  const withoutPeople = await capture('sidebar-hidden')
+  assert.deepEqual(withPeople.savedLayouts, withoutPeople.savedLayouts, 'Sidebar toggle modified saved layout bytes')
+  await page.getByTitle('Toggle people (Ctrl+Shift+M)').click(); await sleep(700)
+  await resize(1100, 1900)
+  // Reset clears both orientations, including the one that is not visible.
+  await screen.focus(); await page.keyboard.press('r'); await sleep(500)
+  const reset = await capture('reset-both'); assert(!reset.savedLayouts[landscapeKey] && !reset.savedLayouts[`${landscapeKey}:portrait`])
+  await resize(1900, 1100)
   await page.getByRole('button', { name: 'Auto', exact: true }).click(); await sleep(500)
   const restored = await capture('auto-restored'); assert.deepEqual(shape(wide), shape(restored))
   const connections = await page.evaluate(() => window.__portraitPeers.map(p => ({ connection: p.connectionState, ice: p.iceConnectionState })))
   assert(connections.length >= 2 && connections.every(p => p.connection === 'connected'))
   assert.deepEqual(errors, [])
   await writeFile(`${output}/verification.json`, JSON.stringify({ nativeWindowResized: true, generatedCameraAndDisplayInput: true, connections, errors, results }, null, 2) + '\n')
-  console.log('PASS: live share + two cams; landscape/portrait/landscape; Custom preserved; Auto fills width; decoded video continues')
+  console.log('PASS: live share + two cams; landscape/portrait/landscape; landscape Custom restored; portrait starts Auto and remembers its own Custom; reset clears both; decoded video continues')
 } finally {
   if (recording) recording.stdin.write('q')
   for (const p of [page, peer].filter(Boolean)) if (!p.isClosed()) {
