@@ -1,0 +1,119 @@
+{
+  "app": [
+    {
+      "type": "outbound-rtp",
+      "kind": "audio",
+      "bytesSent": 4409
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 15161
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 15389
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 83089
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "audio",
+      "bytesSent": 4409
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 15161
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 15389
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 83089
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "audio",
+      "bytesReceived": 2574,
+      "totalAudioEnergy": 0.11730303576630433
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "video",
+      "bytesReceived": 4735,
+      "framesDecoded": 13
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "audio",
+      "bytesReceived": 2574,
+      "totalAudioEnergy": 0.11730303576630433
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "video",
+      "bytesReceived": 4735,
+      "framesDecoded": 13
+    }
+  ],
+  "peer": [
+    {
+      "type": "outbound-rtp",
+      "kind": "audio",
+      "bytesSent": 2740
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 53291
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 11271
+    },
+    {
+      "type": "outbound-rtp",
+      "kind": "video",
+      "bytesSent": 15726
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "audio",
+      "bytesReceived": 2457,
+      "totalAudioEnergy": 0.11624885683770554
+    },
+    {
+      "type": "inbound-rtp",
+      "kind": "video",
+      "bytesReceived": 6457,
+      "framesDecoded": 15
+    }
+  ],
+  "audioElements": [
+    {
+      "paused": false,
+      "readyState": 4,
+      "muted": false
+    }
+  ],
+  "renderer": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Den/0.2.2 Chrome/152.0.7977.78 Electron/44.3.0 Safari/537.36",
+    "bridge": true,
+    "node": "undefined",
+    "size": [
+      1200,
+      800
+    ]
+  },
+  "errors": []
+}

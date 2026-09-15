@@ -1,0 +1,10 @@
+{
+  "scope": {
+    "unknown": true,
+    "escape": true,
+    "node": "undefined"
+  },
+  "errors": [],
+  "ticketSockets": 2,
+  "platform": "windows"
+}

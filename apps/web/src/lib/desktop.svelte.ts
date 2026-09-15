@@ -1,6 +1,7 @@
 import { call } from './call.svelte'
 import { instances } from './store.svelte'
 import { native, invoke, listen } from './native'
+import type { DesktopEvent } from './desktop'
 import { router } from './router.svelte'
 import type { Event } from './types'
 
@@ -14,7 +15,7 @@ class Desktop {
     if (!native) return
     const cleanup: (() => void)[] = []
     let stopped = false
-    const on = async <T>(event: string, handler: (data: T) => void) => { const off = await listen<T>(event, handler); if (stopped) off(); else cleanup.push(off) }
+    const on = async <T>(event: DesktopEvent, handler: (data: T) => void) => { const off = await listen<T>(event, handler); if (stopped) off(); else cleanup.push(off) }
     void invoke<string>('platform').then(p => this.platform = p)
     void on<boolean>('ptt', held => call.setHeld(held))
     void on<string>('tray-action', action => { if (action === 'mute') void call.toggleMic(); if (action === 'deafen') void call.toggleOutput() })
@@ -42,7 +43,7 @@ class Desktop {
     this.shortcut = key
     this.chain = this.chain.catch(() => {}).then(async () => {
       this.global = false; call.setHeld(false)
-      try { await invoke('ptt_register', { key: key || null }); this.global = !!key } catch (e) { call.error = `Global push-to-talk: ${e}` }
+      try { await invoke('tray_state', { inCall: !!call.room, muted: !call.micOn, deafened: call.outputMuted }); await invoke('ptt_register', { key: key || null }); this.global = !!key } catch (e) { call.error = `Global push-to-talk: ${e}` }
     })
   }
   async restart() { try { await invoke('update_restart') } catch (e) { instances.active.toast = `Update failed: ${e}` } }

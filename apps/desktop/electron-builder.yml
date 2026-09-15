@@ -1,0 +1,50 @@
+appId: app.denchat.desktop
+productName: Den
+asar: true
+npmRebuild: false
+files:
+  - electron/**
+  - icons/**
+extraResources:
+  - from: ../web/dist
+    to: web
+protocols:
+  name: Den invite
+  schemes: [den]
+artifactName: Den-${version}-${os}-${arch}.${ext}
+publish:
+  provider: github
+  owner: nhclink16
+  repo: den
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  icon: icons/icon.icns
+  x64ArchFiles: '**/uiohook-napi/prebuilds/**/*'
+  category: public.app-category.social-networking
+  minimumSystemVersion: '12.0'
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: Den uses your microphone in calls.
+    NSCameraUsageDescription: Den uses your camera when you turn on video.
+    NSAudioCaptureUsageDescription: Den shares audio when you share your screen.
+win:
+  target: [nsis, msi]
+  icon: icons/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+linux:
+  target: [AppImage, deb]
+  icon: icons
+  category: Network
+  desktop:
+    entry:
+      StartupWMClass: Den
+      MimeType: x-scheme-handler/den;
