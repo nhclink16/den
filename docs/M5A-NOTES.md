@@ -1,5 +1,46 @@
 # M5a native iOS text
 
+## September 15 physical-phone update and Offline diagnosis
+
+Nicholas returned to the office and reported Offline in the mobile app. The
+paired iPhone was available on iOS 27.0. A fresh pinned XcodeBuildMCP 2.7.0 stdio
+session listed both simulators and devices; device inspection confirmed the
+installed app was 0.3.0 (1).
+
+Production health returned HTTP 200. Its current appearance contract requires
+`light_theme` and `dark_theme`, while build 1 requires the removed `theme` field.
+This is a verified incompatibility, not a captured phone-side decoding error.
+Appearance participates in the all-or-nothing native refresh; restore and
+reconnect classify its decoding failure as Offline. The integrated native
+schema matches production's bootstrap response schemas and checked chat/auth
+paths. No native source change or rebuild was needed for this update.
+
+Installed the already-built `Den-integrated.xcarchive` application over the
+existing app, without uninstalling or clearing data. Its strict code signature
+passed and its provisioning profile includes Nicholas's phone. XcodeBuildMCP
+reported install and launch success (PID 5495); independent device inspection
+confirmed **0.3.0 (2)**. The production-origin chat cache was freshly written at
+2026-09-15 17:47:42 UTC, evidence that the updated app read the server after
+launch. No chat contents or credentials were copied out. The original Offline
+banner and its disappearance have not been visually verified: iPhone Mirroring
+requested the Mac login. Nicholas was asked to confirm the banner and dictate
+two sentences separated by a pause, then tap the checkmark. Spoken recognition
+and acceptance of the revised controls still require that result.
+
+Evidence: `/tmp/den-phone-app-status.json`,
+`/tmp/den-phone-app-after-install.json`, `/tmp/den-phone-cache-files.json`,
+`/tmp/den-ios-offline-production-schema.json`, and the existing integrated
+archive receipt. Binary SHA256 remains
+`53478fdb7cd7da79eb2952bad8219dd688c6961a1d5709be730f16bae073ab07`.
+
+TestFlight has not been updated by this installation. A new Aqua-session
+keychain check succeeded, but one fresh distribution export still failed with
+`No Accounts` and `No signing certificate "iOS Distribution" found`, exit 70.
+Evidence is `~/.local/share/den-ios-tools/runs/aqua-p0lwh1uz/`. No repeated export,
+credential changes, distribution upload, or public App Store release occurred.
+Build 1 should not be treated as compatible with the current server for Andrew's
+testing; the updated native build must reach TestFlight first.
+
 ## September 14 implementation update
 
 The native SwiftUI client now exists in `apps/ios`. It builds with Swift 6 strict
