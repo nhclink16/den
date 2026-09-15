@@ -32,3 +32,32 @@ test('rejoining connections reuse vacant saved slots without merging simultaneou
   assert.equal(slots['user:other'],'user:other');assert.equal(slots['user:new'],'user:old')
   assert.equal(new Set(Object.values(participantSlots(['user:x','user:y','user:z'],saved))).size,3)
 })
+
+// Andy reported a rotated monitor leaving most of the call area black. The cause was
+// layout, not styling: tiles were laid out across the narrow axis and the row height
+// was bounded by the column width, so the rows could never grow into the spare height.
+test('a portrait container stacks tiles instead of spreading them across the narrow axis', () => {
+  const few: TileSpec[] = [{key:'n:screen',kind:'screen'},{key:'a:cam',kind:'cam'},{key:'n:cam',kind:'cam'}]
+  const wide = presetCells(few, 'Auto', {})
+  const tall = presetCells(few, 'Auto', {}, true)
+
+  // Landscape keeps two cams beside each other; portrait gives each the full width.
+  assert.equal(wide['a:cam'].w, 6)
+  assert.equal(tall['a:cam'].w, 12)
+  assert.equal(tall['a:cam'].col, 0)
+  assert.equal(tall['n:cam'].col, 0)
+  assert.notEqual(tall['a:cam'].row, tall['n:cam'].row)
+
+  // Stacking is what buys the height back, so portrait must occupy more rows.
+  const rows = (cells: Record<string, {row:number;h:number}>) => Math.max(...Object.values(cells).map(c => c.row + c.h))
+  assert(rows(tall) > rows(wide), 'portrait should use more rows than landscape')
+
+  // A crowd still pairs up: stacking five cams full width would scroll off the screen.
+  const crowd: TileSpec[] = ['a','b','c','d','e'].map(k => ({key:`${k}:cam`, kind:'cam' as const}))
+  assert.equal(presetCells(crowd, 'Auto', {}, true)['a:cam'].w, 6)
+
+  // Nothing overlaps in either orientation.
+  for (const cells of [wide, tall])
+    for (const [i, a] of Object.values(cells).entries())
+      for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a as never, b as never))
+})
