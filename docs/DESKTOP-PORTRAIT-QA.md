@@ -1,5 +1,8 @@
 # Desktop portrait call acceptance
 
+Historical PR #7 baseline. PR #9 subsequently changed Custom storage; see the
+[orientation follow-up](DESKTOP-ORIENTATION-QA.md) for current behavior.
+
 2026-09-15. Tested the packaged Electron AppImage built from `43531a9`, the merged
 PR #7, on codexbox. No application layout change was needed for Auto.
 

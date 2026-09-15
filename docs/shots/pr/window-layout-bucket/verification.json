@@ -1,0 +1,1299 @@
+{
+  "nativeWindowResized": true,
+  "generatedCameraAndDisplayInput": true,
+  "connections": [
+    {
+      "connection": "connected",
+      "ice": "connected"
+    },
+    {
+      "connection": "connected",
+      "ice": "connected"
+    }
+  ],
+  "errors": [],
+  "results": [
+    {
+      "name": "landscape",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {},
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 22,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 29,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 29,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "portrait",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "windowPortrait": true,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {},
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 398.640625,
+        "width": 600,
+        "height": 1119.71875
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 398.640625,
+            "width": 600,
+            "height": 453.0625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 61,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 859.703125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 81,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 12,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1189.03125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 80,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "landscape-return",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {},
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 110,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 146,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 146,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-half-width",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 696,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 148,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 196,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 616,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 197,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-to-portrait-default",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "windowPortrait": true,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 398.640625,
+        "width": 600,
+        "height": 1119.71875
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 398.640625,
+            "width": 600,
+            "height": 453.0625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 182,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 859.703125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 242,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 12,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1189.03125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 242,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-landscape-return",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 696,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 220,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 294,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 616,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 294,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "portrait-custom",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "windowPortrait": true,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}",
+        "den.call-layout:014976B5C19921152EE7083399:portrait": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":12,\"h\":8,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":8,\"w\":12,\"h\":5,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":0,\"row\":13,\"w\":12,\"h\":5,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 365.703125,
+        "width": 600,
+        "height": 1185.59375
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 8
+          },
+          "rect": {
+            "x": 264,
+            "y": 365.703125,
+            "width": 600,
+            "height": 518.921875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 267,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 8,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 892.625,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 356,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 13,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1221.96875,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 356,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "separate-landscape-custom",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}",
+        "den.call-layout:014976B5C19921152EE7083399:portrait": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":12,\"h\":8,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":8,\"w\":12,\"h\":5,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":0,\"row\":13,\"w\":12,\"h\":5,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 696,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 279,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 372,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 616,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 372,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "portrait-custom-return",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "windowPortrait": true,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}",
+        "den.call-layout:014976B5C19921152EE7083399:portrait": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":12,\"h\":8,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":8,\"w\":12,\"h\":5,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":0,\"row\":13,\"w\":12,\"h\":5,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 365.703125,
+        "width": 600,
+        "height": 1185.59375
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 8
+          },
+          "rect": {
+            "x": 264,
+            "y": 365.703125,
+            "width": 600,
+            "height": 518.921875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 290,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 8,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 892.625,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 387,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 13,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1221.96875,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 387,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sidebar-visible",
+      "viewport": [
+        1400,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}",
+        "den.call-layout:014976B5C19921152EE7083399:portrait": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":12,\"h\":8,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":8,\"w\":12,\"h\":5,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":0,\"row\":13,\"w\":12,\"h\":5,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 900,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 900,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 446,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 305,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 219,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 406,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 491,
+            "y": 740.296875,
+            "width": 219,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 640,
+              "height": 360,
+              "frames": 407,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sidebar-hidden",
+      "viewport": [
+        1400,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "activePreset": "Custom",
+      "savedLayouts": {
+        "den.call-layout:014976B5C19921152EE7083399": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":6,\"h\":7,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":3,\"row\":7,\"w\":3,\"h\":3,\"pinned\":false}}}",
+        "den.call-layout:014976B5C19921152EE7083399:portrait": "{\"preset\":\"Custom\",\"tiles\":{\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1\":{\"col\":0,\"row\":0,\"w\":12,\"h\":8,\"pinned\":false},\"01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam\":{\"col\":0,\"row\":8,\"w\":12,\"h\":5,\"pinned\":false},\"01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam\":{\"col\":0,\"row\":13,\"w\":12,\"h\":5,\"pinned\":false}}}"
+      },
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1120,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 182.5,
+        "width": 1120,
+        "height": 752
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 182.5,
+            "width": 556,
+            "height": 518.390625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 320,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 708.890625,
+            "width": 274,
+            "height": 217.59375
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 425,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 546,
+            "y": 708.890625,
+            "width": 274,
+            "height": 217.59375
+          },
+          "video": [
+            {
+              "width": 640,
+              "height": 360,
+              "frames": 426,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reset-both",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "windowPortrait": true,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {},
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 398.640625,
+        "width": 600,
+        "height": 1119.71875
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 398.640625,
+            "width": 600,
+            "height": 453.0625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 351,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 859.703125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 466,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 12,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1189.03125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 640,
+              "height": 360,
+              "frames": 467,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "auto-restored",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "windowPortrait": false,
+      "preset": "Auto\nEven\nFocus",
+      "activePreset": "Auto",
+      "savedLayouts": {},
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 1920,
+              "height": 1080,
+              "frames": 363,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HS7200BD6ZX0B4NJBSW72P:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 481,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HS726WPPZX282VSQ9N833W:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 640,
+              "height": 360,
+              "frames": 482,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
