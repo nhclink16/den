@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT thread_id FROM thread_tasks WHERE user_id=? AND channel_id=? AND task_id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "thread_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "thread_tasks",
+            "name": "thread_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5e57b0efe49e4cd089bd2e20fb11de58cb3f73f63b74cb4ada24d1d11d0e2855"
+}
