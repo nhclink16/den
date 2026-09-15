@@ -68,6 +68,7 @@ pub struct Appearance {
     pub light_theme: String,
     pub dark_theme: String,
     #[serde(default)]
+    #[schema(schema_with = crate::nullable_object_schema::<Background>)]
     pub background: Option<Background>,
     #[serde(
         default = "default_contrast",
