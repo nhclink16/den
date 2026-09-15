@@ -87,6 +87,40 @@ actually deleted.
 
 ---
 
+## Spotify app registered, 2026-09-15
+
+The developer app exists, so Part B is no longer blocked on credentials.
+
+- **Client ID:** `9efa4ca0d79a4be5a934a22c229ad656`. Client IDs are public and travel in the
+  authorize URL; this one is safe to commit.
+- **Client secret:** never printed, never committed. It lives on the iMac at
+  `~/.config/den/spotify.env`, mode 600. **It is not on the VPS yet.** Whoever builds Part B
+  has to move it to the server that will actually perform the token exchange, since the iMac
+  is not where Den runs.
+- **Redirect URIs registered:** `https://denchat.app/spotify/callback` and
+  `http://127.0.0.1:5173/spotify/callback`.
+- Scopes intended: `user-read-playback-state`, `user-read-currently-playing`. Read only.
+  OAuth has not been exercised yet.
+
+### Three things that will bite whoever implements this
+
+**`localhost` is banned by Spotify; only explicit loopback IPs are allowed.** And `localhost`
+and `127.0.0.1` are different origins to a browser, while Den checks `Origin` against
+`DEN_ORIGIN` and scopes cookies per origin. So local testing must run the server with
+`DEN_ORIGIN=http://127.0.0.1:5173` *and* browse to `127.0.0.1:5173`. Mixing the two silently
+breaks the callback, the session cookie, or both. A portless loopback URI was attempted,
+since our dev ports move around, and the dashboard rejected it as insecure.
+
+**Refresh tokens expire after 180 days.** A host who connects and then does not host a Jam for
+six months comes back to a dead token, so the UI has to handle re-authorisation as a normal
+state rather than an error, and storing a refresh token is not a one-time setup.
+
+**The app is in development mode: five authenticated users, owner needs Premium.** This is
+not a constraint for the design, because only the Jam *host* authenticates so Den can read
+what is playing; joiners deep-link into their own Spotify app and consume no slot. It would
+only bind if we ever showed every participant's now-playing. No quota extension was requested
+and none is needed.
+
 ## Answered by Nicholas, 2026-09-15
 
 **Q2, server-side DJ: yes.** The server plays the audio and joins the call as a
