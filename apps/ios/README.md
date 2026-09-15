@@ -71,6 +71,64 @@ The XcodeGen installer downloads the
 its pinned SHA-256, and unpacks into a temporary tools directory. It does not
 change Homebrew or require `sudo`.
 
+## Pull request checks on GitHub Actions
+
+`.github/workflows/ios.yml` runs `DenTests` on `macos-26` for pull requests that
+touch `apps/ios/**` or the workflow, and for pushes to `main`. It never runs
+`DenUITests`: this job deliberately excludes fixture-backed and permission UI
+testing. That suite runs locally through `ci_scripts/fixture.py` and
+`scripts/test-first-run-dictation.py`; the local and Cloud UI workflows stay
+separate from this check.
+
+The job runs on `macos-26` with `DEVELOPER_DIR` pinned to **Xcode 26.6** and, in
+the same place, that Xcode's **iOS 26.5** runtime, so a later runtime never lands
+under an older compiler. Both are preinstalled, and `macos-26` is a standard
+arm64 runner of the same class as the images the other workflows use, not a
+larger or paid one.
+
+The pin exists for an SDK floor, not a preference. `VoIPPushController` uses
+`PKVoIPPushMetadata`, which PushKit marks `API_AVAILABLE(ios(26.4))`. An
+`@available` check gates *using* a symbol at runtime; it cannot put that symbol
+into an older SDK. The first run took `macos-15` and Xcode 26.3, whose SDK is
+26.2, and failed to compile `VoIPPushController.swift:147`, which could not find
+`PKVoIPPushMetadata`
+([run 35015355633](https://github.com/nhclink16/den/actions/runs/35015355633)).
+Xcode 26.6 ships SDK 26.5, which clears that floor. It is not the only
+preinstalled pairing that would; Xcode 26.4.1 and SDK 26.4 also clear it. Xcode
+26.6 is this image's default and matches the baseline in Local project setup
+above. Raise both pins together if a later API lifts the floor again.
+
+The iPhone model and UDID come from `xcrun simctl list devices available` on the
+pinned runtime rather than from any machine's hardcoded device, and a missing
+Xcode or runtime fails the job with a message pointing at the
+[image readme](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md)
+to repin. Nothing in the job downloads a toolchain, runtime or tool.
+
+Packages resolve once with `-onlyUsePackageVersionsFromResolvedFile` into the
+derived data the test step reuses, and the job fails if that rewrites either
+lockfile, so a green run cannot hide a dependency upgrade. The OpenAPI plugin
+reads the committed schema, checked with `prepare-client-schema.py --check`; the
+job never fetches a live contract or builds the Rust fixture.
+
+Signing follows the local rule above: allowed, automatic, and ad-hoc.
+`DEVELOPMENT_TEAM` is passed empty because the runner has no Apple account, which
+keeps the simulator's ad-hoc identity and asks for no certificate, profile or
+provisioning update. The run proves this rather than assuming it, printing
+`security find-identity -p codesigning -v` and the built app's `codesign -dvv`,
+and failing unless the signature is `adhoc`. Neither imports certificates nor
+changes a keychain. The first run recorded **0 valid identities** on the runner,
+but it stopped during compilation, before any app was produced or its signature
+checked. That step looks for the
+built executable rather than the `.app` directory alone, because a failed compile
+leaves a partial bundle behind.
+
+`DictationEngineTests` guards its opt-in system permission test on
+`DEN_TEST_DICTATION_PERMISSIONS`, which the job sets to `0` through
+`TEST_RUNNER_DEN_TEST_DICTATION_PERMISSIONS` so it is a recorded skip and never a
+simulator prompt. Today that is 55 passing tests and that one skip. The job reads
+the result bundle afterwards and fails a run that reports no passing tests, so an
+empty suite cannot pass as green, and uploads `DenTests.xcresult` either way.
+
 ## Remote iteration with TestFlight
 
 **September 14, 20:32 EDT:** the first local upload of **0.3.0 (1)** succeeded

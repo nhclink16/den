@@ -1,0 +1,115 @@
+name: iOS native
+on:
+  push:
+    branches: [main]
+    paths: ['apps/ios/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['apps/ios/**', '.github/workflows/ios.yml']
+permissions:
+  contents: read
+jobs:
+  den-tests:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      # VoIPPushController uses PKVoIPPushMetadata, which PushKit marks
+      # API_AVAILABLE(ios(26.4)). An @available check gates using a symbol at runtime;
+      # it cannot put one into an older SDK. Xcode 26.3 on macos-15 ships SDK 26.2 and
+      # failed to compile it. Xcode 26.6 here ships SDK 26.5, which clears that floor;
+      # it is this image's default and matches the project's documented 26.6 baseline.
+      # Pin the runtime with it so a later one never lands under an older compiler.
+      # Nothing here downloads a toolchain, a runtime or a tool.
+      # https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      DEN_SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm the selected Xcode
+        run: |
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "$DEVELOPER_DIR is gone from the runner image. Repin Xcode and its iOS runtime from the image readme above." >&2
+            exit 1
+          fi
+          xcodebuild -version
+          swift --version
+      - name: Check the committed client schema
+        run: python3 apps/ios/scripts/prepare-client-schema.py --check
+      - name: Resolve the committed package pins
+        run: |
+          xcodebuild -resolvePackageDependencies -project apps/ios/Den.xcodeproj -scheme Den \
+            -onlyUsePackageVersionsFromResolvedFile -skipPackagePluginValidation \
+            -derivedDataPath build/DerivedData
+          git diff --exit-code -- \
+            apps/ios/Den.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved \
+            apps/ios/Packages/DenAPI/Package.resolved
+      - name: Pick an available iPhone on the pinned runtime
+        id: simulator
+        run: |
+          den_udid=$(python3 - <<'PY'
+          import json, os, subprocess, sys
+          runtime = os.environ["DEN_SIMULATOR_RUNTIME"]
+          listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"],
+                                   capture_output=True, text=True, check=True)
+          phones = [device for device in json.loads(listing.stdout)["devices"].get(runtime, [])
+                    if device["name"].startswith("iPhone")]
+          if not phones:
+              raise SystemExit(f"{runtime} has no available iPhone on this image; repin from the image readme.")
+          print(phones[0]["name"], file=sys.stderr)
+          print(phones[0]["udid"])
+          PY
+          ) || exit 1
+          echo "udid=$den_udid" >> "$GITHUB_OUTPUT"
+      - name: Run DenTests
+        env:
+          # Documented skip for the opt-in system permission test, never a prompt.
+          TEST_RUNNER_DEN_TEST_DICTATION_PERMISSIONS: '0'
+          DEN_TEST_DICTATION_PERMISSIONS: '0'
+        run: |
+          # Signing stays allowed: DenTests exercises the real SessionVault, and an
+          # unsigned build fails setup with keychain(-34018). The empty team keeps the
+          # simulator's ad-hoc identity and asks this runner for no account or profile.
+          xcodebuild test \
+            -project apps/ios/Den.xcodeproj \
+            -scheme Den \
+            -configuration Debug \
+            -destination "id=${{ steps.simulator.outputs.udid }}" \
+            -only-testing:DenTests \
+            -parallel-testing-enabled NO \
+            -jobs 2 \
+            -disableAutomaticPackageResolution \
+            -skipPackagePluginValidation \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/DenTests.xcresult \
+            DEVELOPMENT_TEAM=''
+      - name: Summarize the reported tests
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          summary = json.loads(subprocess.run(
+              ["xcrun", "xcresulttool", "get", "test-results", "summary",
+               "--path", "build/DenTests.xcresult", "--compact"],
+              capture_output=True, text=True, check=True).stdout)
+          print("passed {passedTests}, failed {failedTests}, skipped {skippedTests}"
+                " of {totalTestCount}".format(**summary))
+          if summary["failedTests"] or summary["passedTests"] < 1:
+              raise SystemExit("DenTests did not report a clean, nonempty run; this green would be vacuous.")
+          PY
+      - name: Record the signature the runner actually produced
+        if: always()
+        run: |
+          security find-identity -p codesigning -v || true
+          den_app=build/DerivedData/Build/Products/Debug-iphonesimulator/Den.app
+          # A failed compile still leaves the bundle directory, so check the executable.
+          if [ ! -f "$den_app/Den" ]; then
+            echo 'No app was built; the test step output has the reason.'
+            exit 0
+          fi
+          den_signature=$(codesign -dvv "$den_app" 2>&1)
+          printf '%s\n' "$den_signature"
+          printf '%s\n' "$den_signature" | grep -qx 'Signature=adhoc'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: den-tests-results
+          path: build/DenTests.xcresult
+          if-no-files-found: warn
