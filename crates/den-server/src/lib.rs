@@ -23,6 +23,7 @@ mod push;
 mod sounds;
 mod terminal;
 mod terminal_recording;
+mod threads;
 mod thumbnails;
 mod tickets;
 mod uploads;
@@ -368,6 +369,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             "/channels/{id}/messages",
             get(messages::messages).post(messages::send),
         )
+        .route("/threads/{id}/messages", get(threads::replies))
         .route(
             "/messages/{id}",
             get(activity::message)

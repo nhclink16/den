@@ -107,6 +107,14 @@ pub(crate) async fn mark_read(
     Path(channel): Path<String>,
     ApiJson(v): ApiJson<MarkRead>,
 ) -> Result<Json<ChannelReadState>> {
+    // Until the read model lands, the channel marker is the flat one. Ignoring
+    // roots_only and reading flat anyway would mark read the thread replies the
+    // caller is telling us it never displayed.
+    if v.roots_only {
+        return Err(Error::bad(
+            "Reading the main conversation separately is not supported yet",
+        ));
+    }
     visible(&s, &a.user.id, &channel).await?;
     let _guard = s.writes.lock().await;
     if sqlx::query_scalar!(

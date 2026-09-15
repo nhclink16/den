@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.author_id FROM messages m JOIN threads t ON t.root_message_id=m.id WHERE t.id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "author_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "db9784168b8f9576a7179ad48a54377f1e3953a86782f412f4d46feeb329ca24"
+}
