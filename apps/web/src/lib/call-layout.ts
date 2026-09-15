@@ -3,7 +3,13 @@ export type Cell = { col: number; row: number; w: number; h: number; pinned: boo
 export type Layout = { preset: Preset; tiles: Record<string, Cell> }
 export type TileSpec = { key: string; kind: 'cam' | 'screen' | 'canvas' | 'terminal' }
 export const columns = 12
-export const storageKey = (room: string) => `den.call-layout:${room}`
+// A layout authored for a wide window does not survive a rotation: its columns are
+// relative, so a tile that was a comfortable half of a landscape window becomes a
+// sliver of a portrait one. Keep one per orientation instead of reflowing someone's
+// arrangement out from under them. Landscape keeps the original key, so nobody's
+// existing layout moves.
+export const storageKey = (room: string, portrait = false) =>
+  `den.call-layout:${room}${portrait ? ':portrait' : ''}`
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(n)))
 export function bounds(cell: Cell): Cell {
   const w = clamp(cell.w, 2, columns), h = clamp(cell.h, 2, 24)
@@ -12,10 +18,10 @@ export function bounds(cell: Cell): Cell {
 export function overlaps(a: Cell, b: Cell) {
   return a.col < b.col + b.w && a.col + a.w > b.col && a.row < b.row + b.h && a.row + a.h > b.row
 }
-export function readLayout(room: string, mobile: boolean): Layout {
+export function readLayout(room: string, mobile: boolean, portrait = false): Layout {
   const empty: Layout = { preset: mobile ? 'Focus' : 'Auto', tiles: {} }
   try {
-    const raw = JSON.parse(localStorage.getItem(storageKey(room)) || 'null')
+    const raw = JSON.parse(localStorage.getItem(storageKey(room, portrait)) || 'null')
     if (!raw || !['Auto', 'Even', 'Focus', 'Custom'].includes(raw.preset) || !raw.tiles || typeof raw.tiles !== 'object') return empty
     const tiles: Record<string, Cell> = {}
     for (const [key, value] of Object.entries(raw.tiles).slice(-200)) {
