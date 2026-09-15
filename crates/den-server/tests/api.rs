@@ -198,6 +198,8 @@ mod ios_calls;
 mod objects;
 #[path = "api/portable.rs"]
 mod portable;
+#[path = "api/threads.rs"]
+mod threads;
 
 #[tokio::test]
 async fn host_enrollment_is_single_use_and_expires() {

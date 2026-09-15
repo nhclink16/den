@@ -29,6 +29,8 @@ pub(crate) async fn with_uploads(s: &AppState, v: DbMessage) -> Result<Message> 
         )
         .fetch_all(&s.db)
         .await?,
+        thread_id: None,
+        thread: None,
     })
 }
 pub(crate) async fn get_message(s: &AppState, id: &str) -> Result<Message> {

@@ -1173,6 +1173,15 @@
               "format": "int32",
               "minimum": 0
             }
+          },
+          {
+            "name": "roots_only",
+            "in": "query",
+            "description": "True returns the main conversation only. Absent or false is the legacy flat list.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -6206,6 +6215,12 @@
               "channel_id": {
                 "$ref": "#/components/schemas/String"
               },
+              "thread_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -6279,6 +6294,20 @@
               "null"
             ]
           },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque job identity supplied by a runner, scoped to this author and channel."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Explicit thread destination. Absent is not by itself a main-conversation\nsend: reply_to or task_id may still place the message in a thread."
+          },
           "upload_ids": {
             "type": "array",
             "items": {
@@ -6300,12 +6329,30 @@
           "name": {
             "type": "string"
           },
+          "reply_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "state": {
             "type": "object",
             "additionalProperties": {},
             "propertyNames": {
               "type": "string"
             }
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -6851,6 +6898,12 @@
               "channel_id": {
                 "$ref": "#/components/schemas/String"
               },
+              "thread_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -7156,9 +7209,62 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Shared thread metadata. Authorized by the parent channel, like any other\nchannel event. New variants go here, last, so no existing variant moves.",
+            "required": [
+              "thread",
+              "type"
+            ],
+            "properties": {
+              "thread": {
+                "$ref": "#/components/schemas/ThreadSummary"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "thread_updated"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "One user's own thread position. Never delivered to anybody else.",
+            "required": [
+              "user_id",
+              "state",
+              "type"
+            ],
+            "properties": {
+              "state": {
+                "$ref": "#/components/schemas/ThreadReadState"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "thread_read_state_updated"
+                ]
+              },
+              "user_id": {
+                "$ref": "#/components/schemas/String"
+              }
+            }
           }
         ],
         "description": "Every event pushed over the WebSocket stream. The CLI's `tail` prints these."
+      },
+      "FollowThread": {
+        "type": "object",
+        "required": [
+          "following"
+        ],
+        "properties": {
+          "following": {
+            "type": "boolean"
+          }
+        }
       },
       "Grant": {
         "type": "object",
@@ -7521,6 +7627,16 @@
                   "null"
                 ]
               },
+              "session_ids": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/String"
+                },
+                "description": "Retained PTYs. None identifies a legacy host, not an empty inventory."
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -7740,6 +7856,22 @@
         "properties": {
           "message_id": {
             "$ref": "#/components/schemas/String"
+          },
+          "roots_only": {
+            "type": "boolean",
+            "description": "Legacy false marks the flat conversation through this message. New clients\nsend true for the main timeline and read threads at the thread endpoint."
+          }
+        }
+      },
+      "MarkThreadRead": {
+        "type": "object",
+        "description": "Advances one thread's own read position. A thread read never moves the main\nconversation's position, and reading does not by itself follow the thread.",
+        "required": [
+          "message_id"
+        ],
+        "properties": {
+          "message_id": {
+            "$ref": "#/components/schemas/String"
           }
         }
       },
@@ -7804,6 +7936,78 @@
               "string",
               "null"
             ]
+          },
+          "thread": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Shared thread metadata. Deliberately free of per-user state so one payload can\nbe broadcast to every member who can see the parent channel.",
+            "required": [
+              "id",
+              "channel_id",
+              "root_message_id",
+              "title",
+              "created_by",
+              "created_at",
+              "reply_count",
+              "last_activity_at"
+            ],
+            "properties": {
+              "channel_id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "created_by": {
+                "$ref": "#/components/schemas/String"
+              },
+              "id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "last_activity_at": {
+                "type": "string"
+              },
+              "last_reply_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reply_count": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "resolved_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Both resolution fields are set together or not at all."
+              },
+              "resolved_by": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "root_message_id": {
+                "$ref": "#/components/schemas/String",
+                "description": "The message the conversation hangs off. It stays in the main conversation."
+              },
+              "title": {
+                "type": "string",
+                "description": "A snapshot inferred at creation. Editing the root never rewrites it."
+              }
+            }
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set on replies. Roots and main-conversation messages leave it absent."
           }
         }
       },
@@ -7829,6 +8033,13 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "roots_only": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "True returns the main conversation only. Absent or false is the legacy flat list."
           }
         }
       },
@@ -8140,6 +8351,12 @@
             "format": "int32",
             "minimum": 0
           },
+          "reply_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "rows": {
             "type": [
               "integer",
@@ -8147,6 +8364,19 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Conversation context, so a task's first card can land with the work that\ncaused it. The object still belongs to its message; this is not a second\nthread assignment."
           }
         }
       },
@@ -8539,6 +8769,24 @@
         "properties": {
           "channel_id": {
             "$ref": "#/components/schemas/String"
+          },
+          "reply_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -9116,6 +9364,159 @@
           "round"
         ]
       },
+      "ThreadQuery": {
+        "type": "object",
+        "description": "Thread IDs are creation-ordered ULIDs, so listing pages by ID like the other lists.\nFilters combine: a thread must satisfy every one that is present.",
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "resolved": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Absent lists every thread; false lists the open strip; true lists resolved history."
+          },
+          "unread_only": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "True lists only threads contributing unread activity to this caller's channel\ntotal. Absent or false applies no unread filter."
+          }
+        }
+      },
+      "ThreadReadState": {
+        "type": "object",
+        "description": "One user's position in one thread. Following changes unread accounting, never access.",
+        "required": [
+          "thread_id",
+          "channel_id",
+          "following",
+          "unread_count",
+          "mention_count",
+          "notification_count"
+        ],
+        "properties": {
+          "channel_id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "following": {
+            "type": "boolean"
+          },
+          "last_read_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mention_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "notification_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unread replies eligible under current preferences, excluding own messages."
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "unread_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ThreadSummary": {
+        "type": "object",
+        "description": "Shared thread metadata. Deliberately free of per-user state so one payload can\nbe broadcast to every member who can see the parent channel.",
+        "required": [
+          "id",
+          "channel_id",
+          "root_message_id",
+          "title",
+          "created_by",
+          "created_at",
+          "reply_count",
+          "last_activity_at"
+        ],
+        "properties": {
+          "channel_id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "last_activity_at": {
+            "type": "string"
+          },
+          "last_reply_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reply_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Both resolution fields are set together or not at all."
+          },
+          "resolved_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "root_message_id": {
+            "$ref": "#/components/schemas/String",
+            "description": "The message the conversation hangs off. It stays in the main conversation."
+          },
+          "title": {
+            "type": "string",
+            "description": "A snapshot inferred at creation. Editing the root never rewrites it."
+          }
+        }
+      },
+      "ThreadView": {
+        "type": "object",
+        "required": [
+          "thread",
+          "read_state"
+        ],
+        "properties": {
+          "read_state": {
+            "$ref": "#/components/schemas/ThreadReadState"
+          },
+          "thread": {
+            "$ref": "#/components/schemas/ThreadSummary"
+          }
+        }
+      },
       "Token": {
         "type": "object",
         "required": [
@@ -9177,6 +9578,24 @@
             ]
           },
           "instance_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateThread": {
+        "type": "object",
+        "description": "Rename, resolve or reopen. An omitted field is left unchanged.",
+        "properties": {
+          "resolved": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "title": {
             "type": [
               "string",
               "null"

@@ -122,6 +122,7 @@ async fn presence_counts_tabs_and_typing_uses_authenticated_identity_and_members
         .send(Frame::Text(
             serde_json::to_string(&ClientEvent::Typing {
                 channel_id: cid.into(),
+                thread_id: None,
             })
             .unwrap()
             .into(),
@@ -129,7 +130,7 @@ async fn presence_counts_tabs_and_typing_uses_authenticated_identity_and_members
         .await
         .unwrap();
     let events = until(&mut peer, |e| matches!(e, Event::Typing { .. })).await;
-    assert!(events.iter().any(|e|matches!(e,Event::Typing{user_id,channel_id} if user_id==&alice.user.id && channel_id==cid)));
+    assert!(events.iter().any(|e|matches!(e,Event::Typing{user_id,channel_id,..} if user_id==&alice.user.id && channel_id==cid)));
     assert!(!events
         .iter()
         .any(|e| matches!(e,Event::Presence{user_id,online:false} if user_id==&alice.user.id)));

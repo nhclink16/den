@@ -1749,6 +1749,7 @@ export interface components {
             y: number;
         } | {
             channel_id: components["schemas"]["String"];
+            thread_id?: string | null;
             /** @enum {string} */
             type: "typing";
         };
@@ -1768,14 +1769,24 @@ export interface components {
         CreateMessage: {
             content: string;
             reply_to?: string | null;
+            /** @description Opaque job identity supplied by a runner, scoped to this author and channel. */
+            task_id?: string | null;
+            /**
+             * @description Explicit thread destination. Absent is not by itself a main-conversation
+             *     send: reply_to or task_id may still place the message in a thread.
+             */
+            thread_id?: string | null;
             upload_ids?: components["schemas"]["String"][];
         };
         CreateObject: {
             kind: string;
             name: string;
+            reply_to?: string | null;
             state?: {
                 [key: string]: unknown;
             };
+            task_id?: string | null;
+            thread_id?: string | null;
         };
         CreateToken: {
             name: string;
@@ -1907,6 +1918,7 @@ export interface components {
             type: "message_deleted";
         } | {
             channel_id: components["schemas"]["String"];
+            thread_id?: string | null;
             /** @enum {string} */
             type: "typing";
             user_id: components["schemas"]["String"];
@@ -1976,6 +1988,18 @@ export interface components {
             reason: string;
             /** @enum {string} */
             type: "resync";
+        } | {
+            thread: components["schemas"]["ThreadSummary"];
+            /** @enum {string} */
+            type: "thread_updated";
+        } | {
+            state: components["schemas"]["ThreadReadState"];
+            /** @enum {string} */
+            type: "thread_read_state_updated";
+            user_id: components["schemas"]["String"];
+        };
+        FollowThread: {
+            following: boolean;
         };
         Grant: {
             capability: components["schemas"]["Capability"];
@@ -2068,6 +2092,8 @@ export interface components {
             user_id: components["schemas"]["String"];
         } | {
             direct_url?: string | null;
+            /** @description Retained PTYs. None identifies a legacy host, not an empty inventory. */
+            session_ids?: components["schemas"]["String"][] | null;
             /** @enum {string} */
             type: "hello";
         } | {
@@ -2127,6 +2153,18 @@ export interface components {
         };
         MarkRead: {
             message_id: components["schemas"]["String"];
+            /**
+             * @description Legacy false marks the flat conversation through this message. New clients
+             *     send true for the main timeline and read threads at the thread endpoint.
+             */
+            roots_only?: boolean;
+        };
+        /**
+         * @description Advances one thread's own read position. A thread read never moves the main
+         *     conversation's position, and reading does not by itself follow the thread.
+         */
+        MarkThreadRead: {
+            message_id: components["schemas"]["String"];
         };
         Message: {
             attachments: components["schemas"]["Upload"][];
@@ -2140,12 +2178,37 @@ export interface components {
             objects?: components["schemas"]["ObjectSummary"][];
             reactions?: components["schemas"]["Reaction"][];
             reply_to?: string | null;
+            /**
+             * @description Shared thread metadata. Deliberately free of per-user state so one payload can
+             *     be broadcast to every member who can see the parent channel.
+             */
+            thread?: {
+                channel_id: components["schemas"]["String"];
+                created_at: string;
+                created_by: components["schemas"]["String"];
+                id: components["schemas"]["String"];
+                last_activity_at: string;
+                last_reply_id?: string | null;
+                /** Format: int64 */
+                reply_count: number;
+                /** @description Both resolution fields are set together or not at all. */
+                resolved_at?: string | null;
+                resolved_by?: string | null;
+                /** @description The message the conversation hangs off. It stays in the main conversation. */
+                root_message_id: components["schemas"]["String"];
+                /** @description A snapshot inferred at creation. Editing the root never rewrites it. */
+                title: string;
+            } | null;
+            /** @description Set on replies. Roots and main-conversation messages leave it absent. */
+            thread_id?: string | null;
         };
         MessageQuery: {
             after?: string | null;
             before?: string | null;
             /** Format: int32 */
             limit?: number | null;
+            /** @description True returns the main conversation only. Absent or false is the legacy flat list. */
+            roots_only?: boolean | null;
         };
         MicrophoneSettings: {
             /** @default true */
@@ -2237,8 +2300,16 @@ export interface components {
             channel_id?: string | null;
             /** Format: int32 */
             cols?: number | null;
+            reply_to?: string | null;
             /** Format: int32 */
             rows?: number | null;
+            task_id?: string | null;
+            /**
+             * @description Conversation context, so a task's first card can land with the work that
+             *     caused it. The object still belongs to its message; this is not a second
+             *     thread assignment.
+             */
+            thread_id?: string | null;
         };
         OrderMusic: {
             ids: string[];
@@ -2347,6 +2418,9 @@ export interface components {
         };
         ShareTerminal: {
             channel_id: components["schemas"]["String"];
+            reply_to?: string | null;
+            task_id?: string | null;
+            thread_id?: string | null;
         };
         /** @enum {string} */
         SoundEvent: "message" | "mention" | "dm" | "call_join" | "call_leave" | "someone_joined" | "someone_left" | "screen_share_started" | "terminal_bell" | "upload_complete" | "error";
@@ -2487,6 +2561,63 @@ export interface components {
         };
         /** @enum {string} */
         ThemeRadius: "sharp" | "soft" | "round";
+        /**
+         * @description Thread IDs are creation-ordered ULIDs, so listing pages by ID like the other lists.
+         *     Filters combine: a thread must satisfy every one that is present.
+         */
+        ThreadQuery: {
+            before?: string | null;
+            /** Format: int32 */
+            limit?: number | null;
+            /** @description Absent lists every thread; false lists the open strip; true lists resolved history. */
+            resolved?: boolean | null;
+            /**
+             * @description True lists only threads contributing unread activity to this caller's channel
+             *     total. Absent or false applies no unread filter.
+             */
+            unread_only?: boolean | null;
+        };
+        /** @description One user's position in one thread. Following changes unread accounting, never access. */
+        ThreadReadState: {
+            channel_id: components["schemas"]["String"];
+            following: boolean;
+            last_read_id?: string | null;
+            /** Format: int64 */
+            mention_count: number;
+            /**
+             * Format: int64
+             * @description Unread replies eligible under current preferences, excluding own messages.
+             */
+            notification_count: number;
+            thread_id: components["schemas"]["String"];
+            /** Format: int64 */
+            unread_count: number;
+        };
+        /**
+         * @description Shared thread metadata. Deliberately free of per-user state so one payload can
+         *     be broadcast to every member who can see the parent channel.
+         */
+        ThreadSummary: {
+            channel_id: components["schemas"]["String"];
+            created_at: string;
+            created_by: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            last_activity_at: string;
+            last_reply_id?: string | null;
+            /** Format: int64 */
+            reply_count: number;
+            /** @description Both resolution fields are set together or not at all. */
+            resolved_at?: string | null;
+            resolved_by?: string | null;
+            /** @description The message the conversation hangs off. It stays in the main conversation. */
+            root_message_id: components["schemas"]["String"];
+            /** @description A snapshot inferred at creation. Editing the root never rewrites it. */
+            title: string;
+        };
+        ThreadView: {
+            read_state: components["schemas"]["ThreadReadState"];
+            thread: components["schemas"]["ThreadSummary"];
+        };
         Token: {
             id: components["schemas"]["String"];
             name: string;
@@ -2503,6 +2634,11 @@ export interface components {
         UpdateSettings: {
             canvas_enabled?: boolean | null;
             instance_name?: string | null;
+        };
+        /** @description Rename, resolve or reopen. An omitted field is left unchanged. */
+        UpdateThread: {
+            resolved?: boolean | null;
+            title?: string | null;
         };
         Upload: {
             channel_id: components["schemas"]["String"];
@@ -3459,6 +3595,8 @@ export interface operations {
                 before?: string;
                 after?: string;
                 limit?: number;
+                /** @description True returns the main conversation only. Absent or false is the legacy flat list. */
+                roots_only?: boolean;
             };
             header?: never;
             path: {
