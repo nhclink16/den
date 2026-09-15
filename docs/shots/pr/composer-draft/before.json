@@ -1,0 +1,87 @@
+{
+  "label": "before",
+  "base": "http://127.0.0.1:17027",
+  "results": [
+    {
+      "case": "edited draft survives a late success",
+      "expected": "draft B retained, exactly one A posted",
+      "pass": false,
+      "requestBodies": [
+        {
+          "content": "first message",
+          "reply_to": null,
+          "upload_ids": []
+        }
+      ],
+      "draftAfterSuccess": "",
+      "channelTranscript": [
+        "first message"
+      ]
+    },
+    {
+      "case": "untouched draft clears after success",
+      "expected": "draft cleared",
+      "pass": true,
+      "draftAfterSuccess": "",
+      "requestBodies": [
+        {
+          "content": "plain send",
+          "reply_to": null,
+          "upload_ids": []
+        }
+      ],
+      "channelTranscript": [
+        "plain send"
+      ]
+    },
+    {
+      "case": "failed send preserves the draft",
+      "expected": "draft preserved, nothing posted",
+      "pass": true,
+      "draftAfterSuccess": "doomed message",
+      "errorShown": "held send rejected",
+      "channelTranscript": []
+    },
+    {
+      "case": "edit A to B back to A stays intact",
+      "expected": "draft retained despite equal text",
+      "pass": false,
+      "draftAfterSuccess": "",
+      "requestBodies": [
+        {
+          "content": "round trip",
+          "reply_to": null,
+          "upload_ids": []
+        }
+      ],
+      "channelTranscript": [
+        "round trip"
+      ]
+    },
+    {
+      "case": "reply target set during a send survives",
+      "expected": "reply bar still shown",
+      "pass": false,
+      "replyBarVisible": false,
+      "draftAfterSuccess": "",
+      "channelTranscript": [
+        "anchor for reply",
+        "sent before replying"
+      ]
+    },
+    {
+      "case": "slash command success keeps a newer draft",
+      "expected": "draft B retained after /canvas",
+      "pass": false,
+      "draftAfterSuccess": "",
+      "objectRequests": 1
+    }
+  ],
+  "passed": "2/6",
+  "pageErrors": [],
+  "expectedConsoleResponses": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ],
+  "unexpectedConsoleErrors": []
+}

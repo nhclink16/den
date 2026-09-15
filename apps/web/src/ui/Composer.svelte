@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
-  import { planComposerSubmit } from '../lib/composer-submit'
+  import { planComposerSubmit, shouldClearDraft, type DraftIdentity } from '../lib/composer-submit'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
@@ -13,6 +13,11 @@
   let { channel, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
 
   let text = $state('')
+  // Every text change goes through setText so the edit count stays honest: a send
+  // that resolves later compares this, not the string, before clearing the box.
+  let revision = $state(0)
+  function setText(value: string) { if (value === text) return; text = value; revision++ }
+  const draft = (): DraftIdentity => ({ channelId: channel.id, replyToId: replyTo?.id ?? null, revision })
   const pending = $derived(store.uploads.forChannel(channel.id))
   let busy = $state(false)
   let error = $state('')
@@ -20,7 +25,7 @@
   let selected = $state(0)
   const commands = $derived(plugins.flatMap((p) => p.slashCommands))
   const matches = $derived(!dismissed && /^\/\S*$/.test(text) ? commands.filter((c) => c.name.startsWith(text.slice(1))) : [])
-  function pickCommand(name: string) { text = `/${name} `; dismissed = true; ta.focus() }
+  function pickCommand(name: string) { setText(`/${name} `); dismissed = true; ta.focus() }
 
   // Mentions. The caret matters, so this cannot key off `text` alone: typing `@a`
   // in the middle of a sentence should offer people, and moving away should stop.
@@ -55,7 +60,7 @@
   function pickPerson(u: User) {
     const at = text.slice(0, caret).lastIndexOf('@')
     const pos = at + u.username.length + 2
-    text = `${text.slice(0, at)}@${u.username} ${text.slice(caret)}`
+    setText(`${text.slice(0, at)}@${u.username} ${text.slice(caret)}`)
     dismissed = true
     requestAnimationFrame(() => { ta?.focus(); ta?.setSelectionRange(pos, pos); caret = pos; grow() })
   }
@@ -116,18 +121,20 @@
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
     if (!plan || uploading || busy) return
+    const submitted = draft()
     busy = true; error = ''
     try {
       if (plan.kind === 'command') {
         const command = commands.find((c) => c.name === plan.name)!
-        await command.run({ channelId: channel.id, args: plan.args, post: (content) => store.send(channel.id, content) })
-        text = ''; replyTo = null
+        await command.run({ channelId, args: plan.args, post: (content) => store.send(channelId, content) })
         // Commands never receive upload IDs, so completed attachments stay queued.
       } else {
-        await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: plan.uploadIds })
-        text = ''; replyTo = null
+        await store.send(channelId, content, { reply_to: submitted.replyToId ?? undefined, upload_ids: plan.uploadIds })
+        // Consume exactly what was transmitted, whatever the box holds by now.
         queue.sent(channelId, plan.uploadIds)
       }
+      // Clear only the draft that was actually sent; it stayed editable throughout.
+      if (shouldClearDraft(submitted, draft())) { setText(''); replyTo = null }
       requestAnimationFrame(grow)
     } catch (err) { error = (err as Error).message } finally {
       busy = false
@@ -181,8 +188,8 @@
   <div class="box" class:uploading>
     <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
-    <textarea bind:this={ta} bind:value={text} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
-    <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { text = value; requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
+    <textarea bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
+    <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={text.trim() || pending.some((p) => p.done)} onclick={submit} disabled={uploading || busy} title="Send (Enter)"><Icon name="send" size={16} /></button>
   </div>
 </div>
