@@ -64,10 +64,10 @@
 
 <style>
   .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; }
-  .start { padding: 28px 20px 18px; }
+  .start { padding: 28px var(--gutter) 18px; }
   .start-title { font-size: 28px; }
   .center { text-align: center; padding: 8px; font-size: 13px; }
-  .day { display: flex; align-items: center; gap: 12px; margin: 14px 20px 6px; color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
+  .day { display: flex; align-items: center; gap: 12px; margin: 14px var(--gutter) 6px; color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
   .day::before, .day::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .new { display: flex; align-items: center; gap: 10px; margin: 6px 20px; color: var(--lamp); font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
   .new::before { content: ''; flex: 1; height: 1px; background: var(--lamp); opacity: 0.6; }

@@ -22,7 +22,12 @@
       else await store.register(username.trim(), password, invite.trim())
       router.go('/', true)
     } catch (err) {
-      error = (err as Error).message || 'Something went wrong'
+      // The server returns one 401 string for a dozen unrelated cases. On the login
+      // form there is only one thing it can mean, so say that instead.
+      const e = err as { status?: number; message?: string }
+      error = e.status === 401
+        ? "That username and password don't match. Check for typos, or ask an admin to reset your password."
+        : e.message || 'Something went wrong. Try again.'
     } finally {
       busy = false
     }
@@ -51,7 +56,7 @@
       <p class="faint small">Passwords need at least 12 characters. A sentence works.</p>
     {/if}
 
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
+    <p class="error" role="alert">{error}</p>
 
     <button class="btn lit" type="submit" disabled={busy}>{mode === 'login' ? 'Come in' : 'Join'}</button>
     <button class="btn quiet" type="button" onclick={() => { mode = mode === 'login' ? 'register' : 'login'; error = '' }}>
@@ -72,6 +77,6 @@
   h1 + p { margin: -6px 0 6px; }
   label { display: flex; flex-direction: column; gap: 6px; }
   .small { font-size: 13px; margin: -4px 0 0; }
-  .error { color: var(--ember); margin: 0; font-size: 14px; }
+  .error { color: var(--danger); margin: 0; font-size: 14px; min-height: 1.4em; line-height: 1.4; }
   .btn { justify-content: center; }
 </style>

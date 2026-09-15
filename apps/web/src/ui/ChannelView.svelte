@@ -89,7 +89,7 @@
   .object-slot.hidden { display: none; }
   .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
   .head {
-    display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px;
+    display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px;
     border-bottom: 1px solid var(--line);
   }
   .kind { color: var(--ink-3); display: grid; }
@@ -97,11 +97,11 @@
   .spacer { flex: 1; }
   .iconbtn { padding: 6px; }
   .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; color: var(--ink-3); background: var(--bg-2); }
-  .search:focus-within { border-color: var(--line); color: var(--ink-2); }
+  .search:focus-within { border-color: var(--accent); color: var(--ink-2); box-shadow: 0 0 0 3px var(--accent-glow); }
   .search input { background: none; border: 0; outline: 0; width: 120px; font-size: 13px; color: var(--ink); transition: width 0.15s; }
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
-  .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
+  .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
   .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }

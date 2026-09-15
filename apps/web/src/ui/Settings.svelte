@@ -7,6 +7,7 @@
   import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
   import Appearance from './Appearance.svelte'
   import MachineSettings from './MachineSettings.svelte'
+  import InlineConfirm from './InlineConfirm.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import Icon from './Icon.svelte'
 
@@ -56,7 +57,6 @@
     } catch (err) { agentErr = (err as Error).message }
   }
   async function revoke(t: Token) {
-    if (!confirm(`Revoke "${t.name}"? Anything using it stops working.`)) return
     await api.del(`/tokens/${t.id}`); await loadTokens()
   }
   async function copy(s: string) { await navigator.clipboard.writeText(s); copied = true; setTimeout(() => (copied = false), 1500) }
@@ -97,11 +97,9 @@
     try { await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length }); newChan = ''; await store.resync() } catch (err) { roomErr = (err as Error).message }
   }
   async function delChannel(c: Channel) {
-    if (!confirm(`Delete #${c.name} and everything in it?`)) return
     await api.del(`/channels/${c.id}`); await store.resync()
   }
   async function delCategory(c: Category) {
-    if (!confirm(`Delete the "${c.name}" category? Its rooms stay, uncategorized.`)) return
     await api.del(`/categories/${c.id}`); await store.resync()
   }
 
@@ -194,7 +192,7 @@
             <span class="tname">{t.name}</span>
             <span class="muted">{owner?.bot ? `agent ${owner.display_name || owner.username}` : 'you'}</span>
             <span class="spacer"></span>
-            <button class="btn quiet danger" onclick={() => revoke(t)}>Revoke</button>
+            <InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />
           </div>
         {/each}
 
@@ -243,10 +241,10 @@
           {#if cat || chans.length}
             <div class="cat-row">
               <span class="eyebrow">{cat ? cat.name : 'Uncategorized'}</span>
-              {#if cat}<button class="btn quiet danger" onclick={() => delCategory(cat)}>Delete category</button>{/if}
+              {#if cat}<InlineConfirm action="Delete category" sentence={`Delete the "${cat.name}" category? Its rooms stay, uncategorised.`} confirm={() => delCategory(cat)} />{/if}
             </div>
             {#each chans as c (c.id)}
-              <div class="tok"><Icon name="hash" /><span class="tname">{c.name}</span><span class="spacer"></span><button class="btn quiet danger" onclick={() => delChannel(c)}>Delete</button></div>
+              <div class="tok"><Icon name="hash" /><span class="tname">{c.name}</span><span class="spacer"></span><InlineConfirm action="Delete" sentence={`Delete #${c.name} and every message in it?`} confirm={() => delChannel(c)} /></div>
             {/each}
           {/if}
         {/each}
@@ -254,7 +252,7 @@
       {:else if section === 'account'}
         <h2 class="display">Account</h2>
         <p>Signed in as <b>{store.me?.display_name || store.me?.username}</b> <span class="muted">@{store.me?.username}</span>{#if admin} <span class="faint mono">admin</span>{/if}</p>
-        <button class="btn danger" onclick={logout}>Log out</button>
+        <button class="btn" onclick={logout}>Log out</button>
       {/if}
     </div>
   </div>
@@ -276,6 +274,7 @@
   .toc a.active { background: var(--bg-3); color: var(--ink); font-weight: 700; }
   .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 13px; }
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .pane { overflow-y: auto; padding: 20px 28px 40px; max-width: 680px; }
   .pane.appearance-pane { max-width: none; width: 100%; }
   @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px; gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane.appearance-pane { padding: 20px 16px; } }

@@ -80,7 +80,7 @@
     </div>
     <div class="tools">
       <div class="pick-wrap">
-        <button title="React" onclick={() => (picker = !picker)}>😶</button>
+        <button title="React" aria-label="React to this message" onclick={() => (picker = !picker)}><span aria-hidden="true">😶</span></button>
         {#if picker}
           <div class="picker" role="menu">
             {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); picker = false }}>{e}</button>{/each}
@@ -109,7 +109,10 @@
   .author { font-weight: 700; }
   .bot { color: var(--lamp); display: inline-grid; align-self: center; }
   .time { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
-  .text { overflow-wrap: anywhere; }
+  /* Prose ran 120-260 characters per line on a wide window. Attachments,
+     code blocks and embeds stay full width. */
+  .text { overflow-wrap: anywhere; max-width: 68ch; }
+  .text :global(pre) { max-width: none; }
   .edited { color: var(--ink-3); font-size: 12px; }
   .edit { resize: vertical; margin-top: 2px; }
   .hint { font-size: 12px; margin-top: 2px; }
@@ -121,10 +124,11 @@
   .reply-ref .who { color: var(--ink-2); font-weight: 700; }
   .reply-ref .snippet { overflow: hidden; text-overflow: ellipsis; }
   .tools {
-    position: absolute; right: 16px; top: -12px; display: none; gap: 2px;
+    opacity: 0; pointer-events: none; transition: opacity .12s;
+    position: absolute; right: var(--gutter); top: -12px; display: flex; gap: 2px;
     background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 2px;
   }
-  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { display: flex; }
+  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; }
   .tools button { padding: 5px; border-radius: 4px; color: var(--ink-2); display: grid; }
   .tools button:hover { background: var(--bg-3); color: var(--ink); }
   .tools button.danger:hover { color: var(--ember); }
