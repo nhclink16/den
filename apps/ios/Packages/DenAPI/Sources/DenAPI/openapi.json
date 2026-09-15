@@ -2510,6 +2510,334 @@
         }
       }
     },
+    "/rooms/{id}/music": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "get__rooms__id__music",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/pause": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "post__rooms__id__music_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseMusic"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/queue": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "post__rooms__id__music_queue",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMusic"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/queue/order": {
+      "put": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "put__rooms__id__music_queue_order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderMusic"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/queue/{track_id}": {
+      "delete": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "delete__rooms__id__music_queue__track_id_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "track_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/seek": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "post__rooms__id__music_seek",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeekMusic"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/music/skip": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "operationId": "post__rooms__id__music_skip",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MusicQueue"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/search/messages": {
       "get": {
         "tags": [
@@ -2685,6 +3013,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DirectToken"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/recording": {
+      "post": {
+        "tags": [
+          "terminal_recording"
+        ],
+        "operationId": "post__sessions__id__recording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalRecording"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminalState"
                 }
               }
             }
@@ -2889,6 +3267,107 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/sounds": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__settings_sounds",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundPack"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "put__settings_sounds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoundPack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/sounds/files/{id}": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__settings_sounds_files__id_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server audio bytes"
           },
           "default": {
             "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
@@ -3340,6 +3819,135 @@
           },
           "416": {
             "description": "Unsatisfiable range"
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{id}/sounds": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__uploads__id__sounds",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundPack"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "post__uploads__id__sounds",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallSound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{id}/sounds/{sound}": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__uploads__id__sounds__sound_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sound",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated attachment audio"
           },
           "default": {
             "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
@@ -4017,6 +4625,94 @@
         }
       }
     },
+    "/users/me/hosts/{id}/recording": {
+      "get": {
+        "tags": [
+          "terminal_recording"
+        ],
+        "operationId": "get__users_me_hosts__id__recording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminalRecording"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "terminal_recording"
+        ],
+        "operationId": "put__users_me_hosts__id__recording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalRecording"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminalRecording"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me/notification-preferences": {
       "get": {
         "tags": [
@@ -4151,6 +4847,286 @@
                   "items": {
                     "$ref": "#/components/schemas/ChannelReadState"
                   }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/sounds": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__users_me_sounds",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "put__users_me_sounds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoundPreferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/sounds/export": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__users_me_sounds_export",
+        "responses": {
+          "200": {
+            "description": "Current effective pack as .den-sounds.zip"
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/sounds/import": {
+      "put": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "put__users_me_sounds_import",
+        "requestBody": {
+          "content": {
+            "application/zip": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/sounds/{id}": {
+      "get": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "get__users_me_sounds__id_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audio bytes"
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sounds"
+        ],
+        "operationId": "put__users_me_sounds__id_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "audio/wav": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoundRef"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/voice": {
+      "get": {
+        "tags": [
+          "voice_preferences"
+        ],
+        "operationId": "get__users_me_voice",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoicePreferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "voice_preferences"
+        ],
+        "operationId": "put__users_me_voice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoicePreferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merges device entries with saved preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoicePreferences"
                 }
               }
             }
@@ -4403,6 +5379,26 @@
           "ws"
         ],
         "operationId": "get__ws",
+        "parameters": [
+          {
+            "name": "music",
+            "in": "query",
+            "description": "Opt in to music queue events; omitted for older clients",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sounds",
+            "in": "query",
+            "description": "Opt in to sound preference events; omitted for older clients",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "101": {
             "description": "Event stream; first event requires resync"
@@ -4547,6 +5543,17 @@
             "type": "boolean"
           },
           "status": {
+            "type": "string"
+          }
+        }
+      },
+      "AddMusic": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
             "type": "string"
           }
         }
@@ -4826,6 +5833,12 @@
           "bootstrap_token": {
             "type": "string"
           },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "password": {
             "type": "string"
           },
@@ -4949,6 +5962,61 @@
           },
           "url": {
             "type": "string"
+          }
+        }
+      },
+      "CameraResolution": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "720p",
+          "1080p"
+        ]
+      },
+      "CameraSettings": {
+        "type": "object",
+        "properties": {
+          "brightness": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "default": null
+          },
+          "contrast": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "default": null
+          },
+          "frame_rate": {
+            "type": "integer",
+            "format": "int32",
+            "default": 30,
+            "minimum": 0
+          },
+          "mirror": {
+            "type": "boolean",
+            "default": true
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CameraResolution"
+              }
+            ],
+            "default": "auto"
+          },
+          "saturation": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "default": null
           }
         }
       },
@@ -5412,6 +6480,44 @@
           {
             "type": "object",
             "required": [
+              "queue",
+              "type"
+            ],
+            "properties": {
+              "queue": {
+                "$ref": "#/components/schemas/MusicQueue"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "music_queue_updated"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sounds_updated"
+                ]
+              },
+              "user_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "user",
               "type"
             ],
@@ -5424,6 +6530,28 @@
               },
               "user": {
                 "$ref": "#/components/schemas/User"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_id",
+              "preferences",
+              "type"
+            ],
+            "properties": {
+              "preferences": {
+                "$ref": "#/components/schemas/VoicePreferences"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "voice_preferences_updated"
+                ]
+              },
+              "user_id": {
+                "type": "string"
               }
             }
           },
@@ -6517,6 +7645,21 @@
           }
         }
       },
+      "InstallSound": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SoundEvent"
+              }
+            ]
+          }
+        }
+      },
       "Instance": {
         "type": "object",
         "required": [
@@ -6688,6 +7831,130 @@
             "minimum": 0
           }
         }
+      },
+      "MicrophoneSettings": {
+        "type": "object",
+        "properties": {
+          "auto_gain_control": {
+            "type": "boolean",
+            "default": true
+          },
+          "echo_cancellation": {
+            "type": "boolean",
+            "default": true
+          },
+          "gain": {
+            "type": "number",
+            "format": "double",
+            "default": 1.0
+          },
+          "noise_suppression": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "MusicQueue": {
+        "type": "object",
+        "required": [
+          "room_id",
+          "participant_id",
+          "queue",
+          "paused",
+          "position_seconds",
+          "updated_at",
+          "revision"
+        ],
+        "properties": {
+          "participant_id": {
+            "type": "string",
+            "description": "Stable LiveKit participant identity; use the regular participant volume control."
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "position_seconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MusicTrack"
+            }
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Server time for the progress position, in Unix milliseconds."
+          }
+        }
+      },
+      "MusicTrack": {
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "url",
+          "title",
+          "added_by",
+          "position",
+          "state"
+        ],
+        "properties": {
+          "added_by": {
+            "type": "string"
+          },
+          "duration": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "id": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/MusicTrackState"
+          },
+          "thumbnail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "MusicTrackState": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "loading",
+          "playing",
+          "paused",
+          "failed"
+        ]
       },
       "NotificationPreferences": {
         "type": "object",
@@ -6883,6 +8150,31 @@
           }
         }
       },
+      "OrderMusic": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PauseMusic": {
+        "type": "object",
+        "required": [
+          "paused"
+        ],
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          }
+        }
+      },
       "PresenceState": {
         "type": "object",
         "required": [
@@ -6996,6 +8288,13 @@
           "invite"
         ],
         "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What people see. Falls back to the username when absent, so older\nclients that predate the field still register."
+          },
           "invite": {
             "type": "string"
           },
@@ -7063,6 +8362,23 @@
           },
           "standing": {
             "type": "boolean"
+          }
+        }
+      },
+      "ResolvedSound": {
+        "type": "object",
+        "required": [
+          "sound"
+        ],
+        "properties": {
+          "sound": {
+            "$ref": "#/components/schemas/SoundRef"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7142,6 +8458,18 @@
           }
         }
       },
+      "SeekMusic": {
+        "type": "object",
+        "required": [
+          "position_seconds"
+        ],
+        "properties": {
+          "position_seconds": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "Session": {
         "type": "object",
         "required": [
@@ -7211,6 +8539,225 @@
         "properties": {
           "channel_id": {
             "$ref": "#/components/schemas/String"
+          }
+        }
+      },
+      "SoundEvent": {
+        "type": "string",
+        "enum": [
+          "message",
+          "mention",
+          "dm",
+          "call_join",
+          "call_leave",
+          "someone_joined",
+          "someone_left",
+          "screen_share_started",
+          "terminal_bell",
+          "upload_complete",
+          "error"
+        ]
+      },
+      "SoundPack": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sounds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sounds": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SoundRef"
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "message",
+                "mention",
+                "dm",
+                "call_join",
+                "call_leave",
+                "someone_joined",
+                "someone_left",
+                "screen_share_started",
+                "terminal_bell",
+                "upload_complete",
+                "error"
+              ]
+            }
+          }
+        }
+      },
+      "SoundPreferences": {
+        "type": "object",
+        "properties": {
+          "custom_packs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoundPack"
+            },
+            "default": []
+          },
+          "master_volume": {
+            "type": "integer",
+            "format": "int32",
+            "default": 70,
+            "minimum": 0
+          },
+          "overrides": {
+            "type": "object",
+            "default": {},
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SoundRef"
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "message",
+                "mention",
+                "dm",
+                "call_join",
+                "call_leave",
+                "someone_joined",
+                "someone_left",
+                "screen_share_started",
+                "terminal_bell",
+                "upload_complete",
+                "error"
+              ]
+            }
+          },
+          "pack_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "volumes": {
+            "type": "object",
+            "default": {},
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "message",
+                "mention",
+                "dm",
+                "call_join",
+                "call_leave",
+                "someone_joined",
+                "someone_left",
+                "screen_share_started",
+                "terminal_bell",
+                "upload_complete",
+                "error"
+              ]
+            }
+          }
+        }
+      },
+      "SoundRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "builtin"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "upload"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "silent"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "SoundState": {
+        "type": "object",
+        "required": [
+          "preferences",
+          "server_pack",
+          "resolved"
+        ],
+        "properties": {
+          "preferences": {
+            "$ref": "#/components/schemas/SoundPreferences"
+          },
+          "resolved": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResolvedSound"
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "message",
+                "mention",
+                "dm",
+                "call_join",
+                "call_leave",
+                "someone_joined",
+                "someone_left",
+                "screen_share_started",
+                "terminal_bell",
+                "upload_complete",
+                "error"
+              ]
+            }
+          },
+          "server_pack": {
+            "$ref": "#/components/schemas/SoundPack"
           }
         }
       },
@@ -7341,6 +8888,17 @@
           }
         ]
       },
+      "TerminalRecording": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "TerminalState": {
         "type": "object",
         "required": [
@@ -7393,6 +8951,9 @@
             "$ref": "#/components/schemas/String"
           },
           "recording_capped": {
+            "type": "boolean"
+          },
+          "recording_enabled": {
             "type": "boolean"
           },
           "recording_upload_id": {
@@ -7746,6 +9307,32 @@
           },
           "username": {
             "type": "string"
+          }
+        }
+      },
+      "VoicePreferences": {
+        "type": "object",
+        "description": "PUT merges device entries, preserving other devices on the account.",
+        "properties": {
+          "cameras": {
+            "type": "object",
+            "default": {},
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CameraSettings"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "microphones": {
+            "type": "object",
+            "default": {},
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MicrophoneSettings"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },

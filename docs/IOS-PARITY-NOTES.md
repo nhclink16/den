@@ -6,15 +6,22 @@ sound pack, profile editor, voice preferences or terminal recording UI was added
 
 ## Live schema snapshot
 
-Fetched `https://denchat.app/openapi.json` on 2026-09-15, 113,885 bytes, SHA-256
-`f262e47901ca75bf685b57a60014ba942d7607a7d90a30c9dd18cbb0e4ee2b5f`, retained at
-`/tmp/den-live-openapi-2026-09-15.json`. `Packages/DenAPI/Sources/DenAPI/openapi.json`
-is deliberately **not** updated here: the canonical/derived split belongs to the decoder
-change, and regeneration happens after rebasing onto it.
+`scripts/regenerate-api.sh` was run against `https://denchat.app/openapi.json` on
+2026-09-15. `Packages/DenAPI/Contract/openapi.json` is byte-identical to what the server
+served, 113,885 bytes, SHA-256
+`f262e47901ca75bf685b57a60014ba942d7607a7d90a30c9dd18cbb0e4ee2b5f`, and
+`Sources/DenAPI/openapi.json` is derived from it by `prepare-client-schema.py`, which
+drops the 15 `additionalProperties: false` constraints and changes nothing else.
+
+The canonical contract is one line, because that is what the server sends. Review it with
+a semantic diff rather than by reading the file.
 
 ## Differences between the committed snapshot and the live schema
 
-Nothing the native app calls changed. Every difference is an addition:
+Nothing the native app calls changed. Every difference is an addition. The semantic diff
+from the contract as committed in `b4a7b1c` to the one saved here: 18 paths added, none
+removed, `/ws` the only changed path; 19 schemas added, none removed; 4 schemas changed,
+each gaining one optional property; 3 `Event` tags added, none removed.
 
 | Difference | Native effect |
 | --- | --- |
