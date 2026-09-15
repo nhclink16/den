@@ -13,10 +13,7 @@ extension AppStore {
                 do {
                     let ticket = try await service.ticket()
                     try self.check(expected)
-                    var components = URLComponents(url: service.origin, resolvingAgainstBaseURL: false)!
-                    components.scheme = service.origin.scheme == "https" ? "wss" : "ws"
-                    components.path = "/ws"; components.queryItems = [.init(name: "ticket", value: ticket.ticket)]
-                    guard let url = components.url else { throw DenFailure.invalidOrigin }
+                    let url = try AppStore.socketURL(origin: service.origin, ticket: ticket.ticket)
                     // The websocket uses a one-use ticket, not an Authorization default header.
                     let socket = service.session.webSocketTask(with: url)
                     self.socket = socket; socket.resume()
@@ -58,6 +55,16 @@ extension AppStore {
             }
         }
     }
+    /// The only query item is the one-use ticket. Den gates music and sound events behind
+    /// `?music=`/`?sounds=` opt-ins for clients that consume them; iOS has neither consumer,
+    /// so it stays opted out and ignores the tags it does not route instead.
+    static func socketURL(origin: URL, ticket: String) throws -> URL {
+        guard var components = URLComponents(url: origin, resolvingAgainstBaseURL: false) else { throw DenFailure.invalidOrigin }
+        components.scheme = origin.scheme == "https" ? "wss" : "ws"
+        components.path = "/ws"; components.queryItems = [.init(name: "ticket", value: ticket)]
+        guard let url = components.url else { throw DenFailure.invalidOrigin }
+        return url
+    }
     func foreground() {
         guard service != nil else { return }
         connectSocket()
@@ -67,10 +74,17 @@ extension AppStore {
     func sendTyping(channelId: String) {
         guard Date().timeIntervalSince(lastTyping) >= 3, let socket else { return }
         lastTyping = Date()
-        // ClientEvent is generated from the shared schema; only typing is emitted by M5a.
+        guard let frame = AppStore.typingFrame(channelId: channelId) else { return }
+        Task { try? await socket.send(.string(frame)) }
+    }
+    /// ClientEvent is generated from the shared schema; typing is the only event iOS emits.
+    /// Its variants are inline, so every generated payload type is named by oneOf position,
+    /// and `object_open`/`object_close` are shape-identical. Regeneration could therefore
+    /// renumber them and still compile. A test pins the bytes this produces to the wire tag.
+    static func typingFrame(channelId: String) -> String? {
         let event = API.ClientEvent.case4(.init(channelId: channelId, _type: .typing))
-        guard let data = try? JSONEncoder().encode(event) else { return }
-        Task { try? await socket.send(.string(String(decoding: data, as: UTF8.self))) }
+        guard let data = try? JSONEncoder().encode(event) else { return nil }
+        return String(decoding: data, as: UTF8.self)
     }
     func receive(_ data: Data) async throws {
         // Route by the wire tag rather than generator-assigned oneOf case numbers.
@@ -116,6 +130,7 @@ extension AppStore {
         case "call_invitation_state":
             let call = try field("call", as: API.CallInvitationState.self)
             await calls?.receiveAuthenticated(call)
+        case "user_updated": apply(try field("user", as: API.User.self))
         case "appearance_updated": theme.receive(try field("appearance", as: API.Appearance.self))
         case "notification_preferences_updated": preferences = try field("preferences", as: API.NotificationPreferences.self)
         case "read_state_updated":

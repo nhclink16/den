@@ -133,7 +133,7 @@ import UIKit
         user = result.0; channels = result.1; categories = result.2; users = result.3
         readStates = result.4; theme.receive(result.5); preferences = result.6
         presence = Set(result.7.onlineUserIds); callStates = result.8; instanceName = result.9.instanceName
-        self.calls?.session.updateNames(Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0.displayName) }))
+        refreshCallNames()
         let visible = Set(channels.map(\.id))
         messages = messages.filter { visible.contains($0.key) }
         if let selectedChannelId, !visible.contains(selectedChannelId) { self.selectedChannelId = nil }
@@ -303,6 +303,8 @@ import UIKit
         callStates = []; presence = []; typing = [:]; selectedChannelId = nil; targetMessageId = nil
         for item in pendingUploads { try? FileManager.default.removeItem(at: item.localURL) }
         pendingUploads = []; hosts = []; grants = []; syncProblem = nil
+        // Never let one account's names survive into the next account's call labels.
+        refreshCallNames()
     }
     func saveCache() {
         guard let user else { return }
@@ -310,6 +312,29 @@ import UIKit
           readStates: readStates, messages: messages.mapValues { Array($0.suffix(100)) }, instanceName: instanceName), origin: origin)
     }
     func userName(_ id: String) -> String { users.first { $0.id == id }?.displayName ?? "Someone" }
+    /// Every name label reads `users` or `user`, so one upsert carries a profile change into
+    /// message authors, DM titles, People, Settings, mentions and initials already on screen.
+    /// The event carries the whole user, so this never refetches: a rename must not discard
+    /// loaded history, an unsent draft, unread counts, or the offline state being displayed.
+    func apply(_ updated: API.User) {
+        if let index = users.firstIndex(where: { $0.id == updated.id }) { users[index] = updated }
+        else { users.append(updated) }
+        if user?.id == updated.id { user = updated }
+        refreshCallNames(); saveCache()
+    }
+    /// A live call captured its title when it was reported. Recompute it from current names
+    /// so a rename does not stay stale in the dock or in CallKit for the length of the call.
+    func refreshCallNames() {
+        calls?.updateNames(Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0.displayName) })) { [weak self] channelId, incomingFrom in
+            self?.callTitle(channelId: channelId, incomingFrom: incomingFrom)
+        }
+    }
+    /// The caller's own name labels a reported incoming call; every other call is labelled by
+    /// its channel. An unknown caller or an unloaded channel keeps the title already reported.
+    func callTitle(channelId: String, incomingFrom: String?) -> String? {
+        if let incomingFrom { return users.first { $0.id == incomingFrom }?.displayName }
+        return channels.first { $0.id == channelId }.map(channelTitle)
+    }
     func report(_ failure: Error) {
         // SwiftUI cancels view-owned URLSession requests on navigation. OpenAPI wraps
         // URLError.cancelled in ClientError; this is not a connectivity failure.

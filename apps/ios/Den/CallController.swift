@@ -20,6 +20,9 @@ import Observation
     @ObservationIgnored var receipts: [UUID: CallControllerReceipt] = [:]
     @ObservationIgnored var terminalInvitations: [String: Date] = [:]
     @ObservationIgnored var audioLease = CallControllerAudioLease()
+    /// Latest known display names. Credentials carry their own snapshot, taken when identity
+    /// was restored, which a profile change arriving during that restore would leave stale.
+    @ObservationIgnored private(set) var names: [String: String] = [:]
 
     init(session: CallSession, api: any CallControllerAPI) {
         self.session = session; self.api = api
@@ -61,6 +64,21 @@ import Observation
         refreshProviderConfiguration()
         do { try await system.request(CXTransaction(action: action)) }
         catch { await finish(context, reason: .failed, notifyServer: false); throw error }
+    }
+
+    /// Display names change mid-call. `title` resolves a context's current name from the
+    /// caller's user id for a reported incoming call, or from its channel otherwise.
+    func updateNames(_ names: [String: String], title: @MainActor (String, String?) -> String?) {
+        self.names = names
+        session.updateNames(names)
+        for context in contexts.values where isLive(context) {
+            let from = context.mode == .incoming ? context.invitation?.fromUserId : nil
+            guard let updated = title(context.channelID, from), !updated.isEmpty, updated != context.title else { continue }
+            context.title = updated
+            if session.callID == context.id { session.retitle(updated) }
+            // Only an incoming call was ever reported with a caller name to correct.
+            if let from { provider.reportCall(with: context.id, updated: callUpdate(name: updated, handle: from)) }
+        }
     }
 
     func requestMute(_ isMuted: Bool) async throws {
@@ -226,10 +244,18 @@ import Observation
     func connectMedia(_ context: CallControllerContext, credentials: CallControllerCredentials) async throws {
         try check(context); guard api.isCurrent(credentials) else { throw CallSession.Failure.ended }
         try await session.join(callID: context.id, channelID: context.channelID, title: context.title,
-            accountID: credentials.user.id, service: credentials.service, names: credentials.names)
+            accountID: credentials.user.id, service: credentials.service, names: joinNames(credentials))
         try check(context); guard api.isCurrent(credentials) else { throw CallSession.Failure.ended }
         context.mediaReady = true
         context.lastKnownOtherDevices = session.otherDevices
+    }
+
+    /// `join` assigns the names it is handed before its first suspension, so a rename that
+    /// arrived while these credentials were being restored would be overwritten by their older
+    /// snapshot. Resolve at join time instead. The credential snapshot still covers a call that
+    /// starts before this controller has ever been told any names.
+    func joinNames(_ credentials: CallControllerCredentials) -> [String: String] {
+        names.isEmpty ? credentials.names : names
     }
 
     func prepareActivation(_ context: CallControllerContext) throws {

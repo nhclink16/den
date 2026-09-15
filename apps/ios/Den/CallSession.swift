@@ -44,7 +44,8 @@ import UIKit
 
     @ObservationIgnored private var room: Room?
     @ObservationIgnored private var accountID = ""
-    @ObservationIgnored private var names: [String: String] = [:]
+    /// Read-only outside this session: the controller resolves the snapshot to install.
+    @ObservationIgnored private(set) var names: [String: String] = [:]
     @ObservationIgnored private var revision = 0
     @ObservationIgnored private var reconcileTask: Task<Void, Error>?
     @ObservationIgnored private var subscriptions: [String: Bool] = [:]
@@ -206,6 +207,13 @@ import UIKit
     func updateNames(_ names: [String: String]) {
         self.names = names
         if let room { refreshSnapshot(room) }
+    }
+
+    /// The dock and the call sheet show the title this call joined with. A peer rename
+    /// replaces it in place; a call that already ended keeps nothing to relabel.
+    func retitle(_ title: String) {
+        guard callID != nil, phase != .ending else { return }
+        self.title = title
     }
 
     /// Await before replacing the call, changing server, signing out, or discarding this store.
