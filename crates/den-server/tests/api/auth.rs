@@ -172,3 +172,58 @@ async fn login_throttles_and_openapi_contains_the_shared_contract() {
     assert!(spec["paths"]["/uploads/{id}"]["patch"].is_object());
     assert!(spec["paths"]["/channels/{id}/messages"]["post"]["requestBody"].is_object());
 }
+
+async fn join(t: &Test, code: &str, username: &str, display: Option<&str>) -> reqwest::Response {
+    let mut body = json!({"username":username,"password":"test-password-123","invite":code});
+    if let Some(display) = display {
+        body["display_name"] = json!(display);
+    }
+    t.req(Method::POST, "/auth/register", "")
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+}
+
+// The charset itself is a pure function with its own unit test in auth.rs. This
+// covers the parts that only show up end to end, and stays under the ten attempts
+// a minute the rate limiter allows one address.
+#[tokio::test]
+async fn usernames_keep_their_case_and_display_names_are_free_text() {
+    let t = Test::new().await;
+    let invite = t
+        .post(
+            "/invites",
+            &t.admin.token,
+            json!({"uses":4,"expires_in_hours":1}),
+        )
+        .await;
+    let code = invite["code"].as_str().unwrap().to_string();
+
+    let andy = join(&t, &code, "Andy", Some("Andy 🎧")).await;
+    assert_eq!(andy.status(), 200);
+    let andy: Session = andy.json().await.unwrap();
+    assert_eq!(andy.user.username, "Andy");
+    assert_eq!(andy.user.display_name, "Andy 🎧");
+
+    // Case cannot be used to impersonate: the column collates NOCASE, so the
+    // lowercase spelling is the same account and registering it again conflicts.
+    assert_eq!(join(&t, &code, "andy", None).await.status(), 409);
+    assert_eq!(
+        t.req(Method::POST, "/auth/login", "")
+            .json(&json!({"username":"ANDY","password":"test-password-123"}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+
+    // A blank display name means the username stands in for one.
+    let plain: Session = join(&t, &code, "bo_bby", Some("   "))
+        .await
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(plain.user.display_name, "bo_bby");
+}

@@ -249,6 +249,10 @@ pub struct Register {
     pub username: String,
     pub password: String,
     pub invite: String,
+    /// What people see. Falls back to the username when absent, so older
+    /// clients that predate the field still register.
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -256,6 +260,8 @@ pub struct Bootstrap {
     pub username: String,
     pub password: String,
     pub bootstrap_token: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

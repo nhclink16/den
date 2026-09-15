@@ -4,8 +4,14 @@
   import { native } from '../lib/native'
   import Mark from './Mark.svelte'
 
+  // Kept as one string so the attribute below and the check beside it cannot drift.
+  // Mirrors `username()` in crates/den-server/src/auth.rs.
+  const USERNAME_PATTERN = '[A-Za-z0-9][A-Za-z0-9_.-]{1,30}[A-Za-z0-9]'
+  const USERNAME_RE = new RegExp(`^${USERNAME_PATTERN}$`)
+
   let mode = $state<'login' | 'register'>('login')
   let username = $state('')
+  let displayName = $state('')
   let password = $state('')
   let invite = $state(new URLSearchParams(location.search).get('invite') || '')
   let error = $state('')
@@ -13,13 +19,16 @@
 
   $effect(() => { if (invite) mode = 'register' })
 
+  const usernameOk = $derived(USERNAME_RE.test(username.trim()))
+  const passwordOk = $derived(password.length >= 12)
+
   async function submit(e: SubmitEvent) {
     e.preventDefault()
     error = ''
     busy = true
     try {
       if (mode === 'login') await store.login(username.trim(), password)
-      else await store.register(username.trim(), password, invite.trim())
+      else await store.register(username.trim(), password, invite.trim(), displayName)
       router.go('/', true)
     } catch (err) {
       // The server returns one 401 string for a dozen unrelated cases. On the login
@@ -40,20 +49,39 @@
     {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{:else if invite}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Open in Den</a>{/if}
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
+    {#if mode === 'register'}
+      <label>
+        <span class="eyebrow">Display name</span>
+        <input class="field" bind:value={displayName} autocomplete="nickname" autocapitalize="words" maxlength="100" placeholder={username.trim() || 'Andy'} aria-describedby="hint-display" />
+      </label>
+      <p class="hint" id="hint-display">What everyone sees. Spaces, emoji, any language. Change it whenever.</p>
+    {/if}
+
     <label>
       <span class="eyebrow">Username</span>
-      <input class="field" bind:value={username} autocomplete="username" autocapitalize="off" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-z0-9_]+" title="Lowercase letters, digits, underscores" />
-    </label>
-    <label>
-      <span class="eyebrow">Password</span>
-      <input class="field" type="password" bind:value={password} autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} />
+      <input class="field" bind:value={username} autocomplete="username" autocapitalize="off" spellcheck="false" required minlength="3" maxlength="32" pattern={USERNAME_PATTERN} title="3-32 letters, digits, dots, hyphens or underscores, starting and ending with a letter or digit" aria-describedby={mode === 'register' ? 'hint-username' : undefined} />
     </label>
     {#if mode === 'register'}
+      <p class="hint" class:done={usernameOk} id="hint-username">
+        <span class="tick" aria-hidden="true">{usernameOk ? '✓' : '·'}</span>
+        3 to 32 letters, digits, dots, hyphens or underscores. Capitals are fine.
+      </p>
+    {/if}
+
+    <label>
+      <span class="eyebrow">Password</span>
+      <input class="field" type="password" bind:value={password} autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} aria-describedby={mode === 'register' ? 'hint-password' : undefined} />
+    </label>
+    {#if mode === 'register'}
+      <p class="hint" class:done={passwordOk} id="hint-password">
+        <span class="tick" aria-hidden="true">{passwordOk ? '✓' : '·'}</span>
+        At least 12 characters. A sentence works.
+      </p>
+
       <label>
         <span class="eyebrow">Invite code</span>
         <input class="field mono" bind:value={invite} autocomplete="off" spellcheck="false" required />
       </label>
-      <p class="faint small">Passwords need at least 12 characters. A sentence works.</p>
     {/if}
 
     <p class="error" role="alert">{error}</p>
@@ -77,6 +105,16 @@
   h1 + p { margin: -6px 0 6px; }
   label { display: flex; flex-direction: column; gap: 6px; }
   .small { font-size: 13px; margin: -4px 0 0; }
+  /* Stated before you type, not after a rejected submit. Satisfied rules recede
+     rather than vanish, so the form does not reflow while you are filling it in. */
+  .hint {
+    font-size: 13px; line-height: 1.4; margin: -8px 0 0;
+    color: var(--ink-2); display: flex; gap: 6px; align-items: baseline;
+    transition: color .12s;
+  }
+  .hint.done { color: var(--ink-3); }
+  .tick { font-variant-numeric: tabular-nums; width: 1em; flex-shrink: 0; text-align: center; }
+  .hint.done .tick { color: var(--accent); }
   .error { color: var(--danger); margin: 0; font-size: 14px; min-height: 1.4em; line-height: 1.4; }
   .btn { justify-content: center; }
 </style>

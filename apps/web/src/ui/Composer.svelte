@@ -2,10 +2,11 @@
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
   import { store } from '../lib/store.svelte'
-  import type { Channel, Message } from '../lib/types'
+  import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
   import Icon from './Icon.svelte'
+  import Avatar from './Avatar.svelte'
   import DictationButton from './DictationButton.svelte'
 
   let { channel, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
@@ -19,6 +20,44 @@
   const commands = $derived(plugins.flatMap((p) => p.slashCommands))
   const matches = $derived(!dismissed && /^\/\S*$/.test(text) ? commands.filter((c) => c.name.startsWith(text.slice(1))) : [])
   function pickCommand(name: string) { text = `/${name} `; dismissed = true; ta.focus() }
+
+  // Mentions. The caret matters, so this cannot key off `text` alone: typing `@a`
+  // in the middle of a sentence should offer people, and moving away should stop.
+  let caret = $state(0)
+  function track() { caret = ta?.selectionStart ?? 0 }
+
+  // Mirrors the `@` rule in mention_names(), crates/den-server/src/activity.rs, so
+  // the list never offers a name the server would not have linked.
+  const mentioning = $derived.by(() => {
+    if (dismissed) return null
+    const m = /(?:^|[^A-Za-z0-9_@])@([A-Za-z0-9_.-]*)$/.exec(text.slice(0, caret))
+    return m ? m[1]! : null
+  })
+
+  const people = $derived.by(() => {
+    const query = mentioning
+    if (query === null) return []
+    const q = query.toLowerCase()
+    const all = [...store.users.values()]
+    const here = channel.kind === 'dm' ? all.filter((u) => channel.member_ids?.includes(u.id)) : all
+    const shown = (u: User) => u.display_name || u.username
+    const starts = (u: User) => u.username.toLowerCase().startsWith(q) || shown(u).toLowerCase().startsWith(q)
+    return here
+      .filter((u) => u.username.toLowerCase().includes(q) || shown(u).toLowerCase().includes(q))
+      .sort((a, b) =>
+        Number(starts(b)) - Number(starts(a)) ||
+        Number(store.online.has(b.id)) - Number(store.online.has(a.id)) ||
+        a.username.localeCompare(b.username))
+      .slice(0, 8)
+  })
+
+  function pickPerson(u: User) {
+    const at = text.slice(0, caret).lastIndexOf('@')
+    const pos = at + u.username.length + 2
+    text = `${text.slice(0, at)}@${u.username} ${text.slice(caret)}`
+    dismissed = true
+    requestAnimationFrame(() => { ta?.focus(); ta?.setSelectionRange(pos, pos); caret = pos; grow() })
+  }
 
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
@@ -45,10 +84,18 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (matches.length) {
+    // Only one of the two popups can be open: a slash command owns the whole box,
+    // a mention needs an `@` before the caret.
+    const open = matches.length || people.length
+    if (open) {
       if (e.key === 'Escape') { e.preventDefault(); dismissed = true; return }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected = (selected + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length; return }
-      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); pickCommand(matches[selected % matches.length]!.name); return }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected = (selected + (e.key === 'ArrowDown' ? 1 : open - 1)) % open; return }
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing) {
+        e.preventDefault()
+        if (matches.length) pickCommand(matches[selected % matches.length]!.name)
+        else pickPerson(people[selected % people.length]!)
+        return
+      }
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
     if (e.key === 'Escape' && replyTo) replyTo = null
@@ -59,7 +106,7 @@
   }
 
   // A send can finish after navigation or call expansion removes this composer.
-  function grow() { if (!ta) return; dismissed = false; selected = 0; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
+  function grow() { if (!ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
 
   async function submit() {
     const channelId = channel.id
@@ -91,6 +138,17 @@
       {/each}
     </div>
   {/if}
+  {#if people.length}
+    <div class="commands people" role="listbox" id="mention-people" aria-label="People">
+      {#each people as u, i}
+        <button id={`mention-${i}`} role="option" aria-selected={i === selected % people.length} class:chosen={i === selected % people.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickPerson(u)}>
+          <Avatar userId={u.id} size={22} />
+          <b>{u.display_name || u.username}</b>
+          <span class="handle">@{u.username}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
   {#if replyTo}
     <div class="reply-bar">
       <Icon name="reply" size={13} />
@@ -117,7 +175,7 @@
   <div class="box" class:uploading>
     <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
-    <textarea bind:this={ta} bind:value={text} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : undefined}></textarea>
+    <textarea bind:this={ta} bind:value={text} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { text = value; requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={text.trim() || pending.some((p) => p.done)} onclick={submit} disabled={uploading || busy} title="Send (Enter)"><Icon name="send" size={16} /></button>
   </div>
@@ -129,6 +187,10 @@
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: 4px; }
   .commands span { color: var(--ink-2); }
   .commands .chosen { background: var(--bg-3); }
+  .people { max-height: 260px; overflow-y: auto; }
+  .people button { align-items: center; gap: 8px; }
+  .people b { font-weight: 600; }
+  .handle { color: var(--ink-3); font-size: 13px; }
   .composer { position: relative; padding: 0 var(--gutter) 14px; }
   .box {
     display: flex; align-items: flex-end; gap: 6px; padding: calc(6px * var(--density)) calc(6px * var(--density)) calc(6px * var(--density)) calc(8px * var(--density));

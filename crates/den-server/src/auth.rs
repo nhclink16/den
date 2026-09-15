@@ -201,16 +201,36 @@ async fn throttle(s: &AppState, addr: SocketAddr) -> Result<()> {
     Ok(())
 }
 pub(crate) fn username(value: &str) -> Result<()> {
-    if !(3..=32).contains(&value.len())
-        || !value
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
-    {
+    // Capitals are allowed because the column collates NOCASE, so `Andy` and `andy`
+    // still cannot both exist and login stays case-insensitive. Dots and hyphens have
+    // to sit between alphanumerics: a trailing one is almost always sentence
+    // punctuation that ran into the name, and a leading one reads as a typo.
+    let bytes = value.as_bytes();
+    let shaped = (3..=32).contains(&bytes.len())
+        && bytes
+            .iter()
+            .all(|&b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
+        && bytes.first().is_some_and(u8::is_ascii_alphanumeric)
+        && bytes.last().is_some_and(u8::is_ascii_alphanumeric);
+    if !shaped {
         return Err(Error::bad(
-            "Username must be 3-32 lowercase letters, digits or underscores",
+            "Username must be 3-32 letters, digits, dots, hyphens or underscores, and start and end with a letter or digit",
         ));
     }
     Ok(())
+}
+
+/// The name people see. Anything non-blank up to 100 bytes, so spaces, emoji and
+/// other scripts all work; the username stays the plain handle used to log in and
+/// to mention. Absent or blank means "same as the username".
+fn display_name(chosen: Option<&str>, username: &str) -> Result<String> {
+    match chosen.map(str::trim) {
+        Some(name) if !name.is_empty() => {
+            crate::name(name)?;
+            Ok(name.to_string())
+        }
+        _ => Ok(username.to_string()),
+    }
 }
 async fn password(value: String) -> Result<String> {
     if !(12..=1024).contains(&value.len()) {
@@ -282,6 +302,7 @@ pub(crate) async fn bootstrap(
     throttle(&s, addr).await?;
     login_origin(&s, &headers)?;
     username(&v.username)?;
+    let display = display_name(v.display_name.as_deref(), &v.username)?;
     let _guard = s.writes.lock().await;
     if sqlx::query_scalar!("SELECT count(*) FROM users")
         .fetch_one(&s.db)
@@ -302,7 +323,7 @@ pub(crate) async fn bootstrap(
         "INSERT INTO users(id,username,display_name,password_hash,role) VALUES(?,?,?,?,'admin')",
         id,
         v.username,
-        v.username,
+        display,
         pass
     )
     .execute(&mut *tx)
@@ -327,6 +348,7 @@ pub(crate) async fn register(
     throttle(&s, addr).await?;
     login_origin(&s, &headers)?;
     username(&v.username)?;
+    let display = display_name(v.display_name.as_deref(), &v.username)?;
     let pass = password(v.password).await?;
     let digest = hash(&v.invite);
     let time = now();
@@ -340,7 +362,7 @@ pub(crate) async fn register(
         "INSERT INTO users(id,username,display_name,password_hash,role) VALUES(?,?,?,?,'member')",
         id,
         v.username,
-        v.username,
+        display,
         pass
     )
     .execute(&mut *tx)
@@ -422,4 +444,39 @@ pub(crate) async fn users(State(s): State<AppState>, _a: Auth) -> Result<Json<Ve
         }
     }
     Ok(Json(users))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn username_allows_case_and_inner_separators_only() {
+        for good in [
+            "Andy",
+            "andy",
+            "an.dy-2",
+            "bo_bby",
+            "a1b",
+            "A".repeat(32).as_str(),
+        ] {
+            assert!(super::username(good).is_ok(), "{good} should be allowed");
+        }
+        for bad in [
+            ".andy",
+            "andy.",
+            "-andy",
+            "andy-",
+            "_andy",
+            "andy_",
+            "an dy",
+            "an@dy",
+            "an/dy",
+            "ab",
+            "andré",
+            "🎧🎧🎧",
+            "",
+        ] {
+            assert!(super::username(bad).is_err(), "{bad} should be rejected");
+        }
+        assert!(super::username(&"a".repeat(33)).is_err());
+    }
 }
