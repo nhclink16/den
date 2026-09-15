@@ -20,6 +20,12 @@
     if (stickToBottom) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
   })
 
+  function mediaReady() {
+    void tick().then(() => {
+      if (stickToBottom && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
+    })
+  }
+
   async function onScroll() {
     const scroller = el
     if (!scroller) return
@@ -58,7 +64,7 @@
     {#if m.id === firstUnread}
       <div class="new"><span>new</span></div>
     {/if}
-    <MessageItem {m} compact={continues(prev, m)} {onreply} />
+    <MessageItem {m} compact={continues(prev, m)} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
 

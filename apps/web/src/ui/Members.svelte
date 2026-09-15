@@ -22,7 +22,7 @@
   }
 </script>
 
-<div class="members">
+<div class="roster">
   <div class="eyebrow head">{onlineCount} here · {members.length} total</div>
   {#each call.origin === store.origin ? call.participants.filter(p => p.music) : [] as dj (dj.id)}
     <div class="member"><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div><details class="member-audio"><summary aria-label={`${dj.name} audio options`}><Icon name="sound" size={14} /><span>In call</span></summary><ParticipantVolume userId={dj.userId} name={dj.name} /></details></div>
@@ -51,7 +51,7 @@
   summary { display: flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; color: var(--ink-2); font-size: 11px; list-style: none; }
   summary::-webkit-details-marker { display: none; }
   .member-audio :global(.volume-control) { width: 100%; padding-inline: 0; }
-  .members { padding: 12px 8px; }
+  .roster { padding: 12px 8px; }
   .head { padding: 4px 10px 10px; }
   .person {
     width: 100%; display: flex; align-items: center; gap: 10px; padding: 5px 10px;
@@ -63,5 +63,5 @@
   .person.off :global(.avatar) { opacity: 0.55; }
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
   .badge { color: var(--lamp); display: grid; }
-  .tiny { font-size: 10px; }
+  .tiny { font-size: 11px; color: var(--ink-2); }
 </style>

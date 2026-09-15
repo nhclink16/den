@@ -70,6 +70,7 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   const radii = { sharp: [2,6], soft: [6,12], round: [10,18] }[t.radius]
   s.setProperty('--r', `${radii[0]}px`); s.setProperty('--r-lg', `${radii[1]}px`)
   s.setProperty('--density', t.density === 'compact' ? '0.8' : '1')
+  s.setProperty('--leading', t.density === 'compact' ? '1.35' : '1.45')
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors.bg)
   applyFavicon(colors)

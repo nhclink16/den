@@ -8,7 +8,7 @@
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
 
-  let { m, compact, onreply }: { m: Message; compact: boolean; onreply: (m: Message) => void } = $props()
+  let { m, compact, onreply, onmediaready }: { m: Message; compact: boolean; onreply: (m: Message) => void; onmediaready?: () => void } = $props()
   let editing = $state(false)
   let draft = $state('')
   const mine = $derived(m.author_id === store.me?.id)
@@ -66,7 +66,7 @@
         {#if Card}<Card {object} />{/if}
       {/each}
       {#if m.attachments?.length}
-        <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} />{/each}</div>
+        <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} {onmediaready} />{/each}</div>
       {/if}
       {#if m.reactions?.length}
         <div class="reactions">
@@ -102,7 +102,7 @@
   .row { display: flex; gap: 12px; }
   .gutter { width: 36px; flex: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; }
   .msg.compact .gutter { height: 22px; }
-  .stamp { font-family: var(--mono); font-size: 10.5px; line-height: 22px; color: var(--ink-3); opacity: 0; }
+  .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; color: var(--ink-2); opacity: 0; }
   .msg:hover .stamp { opacity: 1; }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
@@ -111,7 +111,7 @@
   .time { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   /* Prose ran 120-260 characters per line on a wide window. Attachments,
      code blocks and embeds stay full width. */
-  .text { overflow-wrap: anywhere; max-width: 68ch; }
+  .text { line-height: var(--leading); overflow-wrap: anywhere; max-width: 68ch; }
   .text :global(pre) { max-width: none; }
   .edited { color: var(--ink-3); font-size: 12px; }
   .edit { resize: vertical; margin-top: 2px; }
