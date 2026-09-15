@@ -37,7 +37,7 @@ struct RoomsView: View {
 
     private var roomList: some View {
         List {
-            if store.offline { QuietOfflineChip().listRowBackground(Color.clear) }
+            if store.offline { SyncStatusView(store: store).listRowBackground(Color.clear) }
             let ungrouped = store.channels.filter { $0.categoryId == nil && $0.kind != .dm }
             if !ungrouped.isEmpty { Section("Rooms") { channelRows(ungrouped) } }
             ForEach(store.categories.sorted { $0.position < $1.position }, id: \.id) { category in
@@ -47,19 +47,21 @@ struct RoomsView: View {
             Section {
                 channelRows(store.channels.filter { $0.kind == .dm })
                 Button { newDM = true } label: { Label("New message", systemImage: "square.and.pencil").frame(minHeight: 44) }
+                    .disabled(store.offline)
                     .accessibilityIdentifier("new-dm")
             } header: { Text("Direct messages") }
-            if store.channels.isEmpty && !store.busy {
+            if store.channels.isEmpty && !store.busy && !store.offline {
                 ContentUnavailableView("No rooms yet", systemImage: "number", description: Text("Rooms will appear here when your server adds them."))
                     .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
         .navigationTitle(store.instanceName.isEmpty ? "Den" : store.instanceName)
-        .refreshable { do { try await store.refresh() } catch { store.report(error) } }
+        .refreshable { await store.retrySync() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { newDM = true } label: { Image(systemName: "square.and.pencil") }
+                    .disabled(store.offline)
                     .accessibilityLabel("New direct message")
             }
         }
@@ -126,7 +128,7 @@ private struct NewDMView: View {
                                 dismiss()
                             } catch { store.report(error) }
                         }
-                    }.disabled(selected.isEmpty || opening).accessibilityIdentifier("open-dm")
+                    }.disabled(selected.isEmpty || opening || store.offline).accessibilityIdentifier("open-dm")
                 }
             }
         }

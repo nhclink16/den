@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-# The checked-in snapshot keeps offline and Cloud builds reproducible.
+# Keep the exact server contract separate from the tolerant Swift generation view.
 # An explicit argument can target a local server built from the shared Rust types.
 origin="${1:-https://denchat.app}"
 temporary=$(mktemp)
@@ -13,4 +13,6 @@ spec = json.load(open(sys.argv[1]))
 assert spec['openapi'].startswith('3.')
 assert 'Session' in spec['components']['schemas']
 PY
-cp "$temporary" Packages/DenAPI/Sources/DenAPI/openapi.json
+mkdir -p Packages/DenAPI/Contract
+cp "$temporary" Packages/DenAPI/Contract/openapi.json
+python3 scripts/prepare-client-schema.py

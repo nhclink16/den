@@ -5,7 +5,7 @@ import DenAPI
 typealias API = Components.Schemas
 
 enum DenFailure: Error, LocalizedError, Equatable {
-    case invalidOrigin, keychain(OSStatus), signedOut, offline, server(Int, String), invalidResponse
+    case invalidOrigin, keychain(OSStatus), signedOut, offline, server(Int, String), invalidResponse, updateRequired
     var errorDescription: String? {
         switch self {
         case .invalidOrigin: "Enter an HTTPS server address without a path, username or password."
@@ -14,9 +14,11 @@ enum DenFailure: Error, LocalizedError, Equatable {
         case .offline: "Cannot reach your server. Your cached conversations are still available."
         case .server(_, let message): message
         case .invalidResponse: "The server returned a response Den could not read."
+        case .updateRequired: "This version of Den cannot read your server's response. Update Den, then try again. Your saved conversations and login are still on this device."
         }
     }
     static func present(_ error: Error) -> String {
+        if incompatible(error) { return DenFailure.updateRequired.localizedDescription }
         if let failure = error as? DenFailure { return failure.localizedDescription }
         if let client = error as? ClientError { return present(client.underlyingError) }
         if error is URLError { return DenFailure.offline.localizedDescription }
@@ -31,6 +33,14 @@ enum DenFailure: Error, LocalizedError, Equatable {
         if let client = error as? ClientError { return cancelled(client.underlyingError) }
         return error is CancellationError || (error as? URLError)?.code == .cancelled
     }
+    static func incompatible(_ error: Error) -> Bool {
+        if let client = error as? ClientError { return incompatible(client.underlyingError) }
+        return error is DecodingError || (error as? DenFailure) == .invalidResponse || (error as? DenFailure) == .updateRequired
+    }
+}
+
+enum SyncProblem: Equatable {
+    case networkOffline, incompatibleResponse
 }
 
 enum ServerOrigin {

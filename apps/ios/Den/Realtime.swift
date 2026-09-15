@@ -50,7 +50,8 @@ extension AppStore {
                 } catch {
                     guard !Task.isCancelled, self.generation == expected else { return }
                     if DenFailure.unauthorized(error) { self.report(error); return }
-                    self.offline = true; self.presence = []; self.typing = [:]
+                    self.recordSyncFailure(error)
+                    if self.syncProblem == .incompatibleResponse { return }
                     try? await Task.sleep(for: .seconds(retry))
                     retry = min(retry * 2, 30)
                 }
