@@ -15,9 +15,10 @@
 {/if}
 
 <style>
-  .dock { height: 44px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--bg-3); border-top: 1px solid var(--line); }
+  .dock { min-height: 44px; height: auto; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-3); border-top: 1px solid var(--line); }
+  .dock :global(.controls) { margin-inline-start: auto; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
   .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
-  .room { min-width: 0; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
+  .room { min-width: 5ch; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
   .count { font: 11px var(--mono); color: var(--ink-2); }
   .ptt { gap: 3px; padding-inline: 5px; }
 </style>

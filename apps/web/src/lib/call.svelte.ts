@@ -1,5 +1,5 @@
 import { MicrophoneGain, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints } from './av'
-import { Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
+import { RemoteAudioTrack, Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
@@ -41,8 +41,28 @@ class Call {
   micOn = $state(false)
   cameraOn = $state(false)
   screenOn = $state(false)
+  screenAdding = $state(false)
   shares = new Shares(() => this.room, this.refreshShares.bind(this))
   private refreshShares() { this.refresh() }
+  private levels = $state<Record<string, { volume: number; muted: boolean }>>(this.loadLevels())
+  private loadLevels() {
+    try { const value = JSON.parse(localStorage.getItem('den.call-volume') || '{}'); return value && typeof value === 'object' ? value : {} } catch { return {} }
+  }
+  level(userId: string) {
+    const saved = this.levels[`${this.origin}|${userId}`]
+    return { volume: Number.isFinite(saved?.volume) ? Math.max(0, Math.min(1, saved.volume)) : 1, muted: saved?.muted === true }
+  }
+  volume(userId: string) { const level = this.level(userId); return level.muted ? 0 : level.volume }
+  setVolume(userId: string, volume: number) { this.setLevel(userId, { volume: Math.max(0, Math.min(1, volume)), muted: false }) }
+  muteForMe(userId: string) { this.setLevel(userId, { ...this.level(userId), muted: !this.level(userId).muted }) }
+  private setLevel(userId: string, level: { volume: number; muted: boolean }) {
+    this.levels = { ...this.levels, [`${this.origin}|${userId}`]: level }
+    try { localStorage.setItem('den.call-volume', JSON.stringify(this.levels)) } catch { /* Session controls still work when storage is unavailable. */ }
+    for (const [track, el] of this.audio) if (el.dataset.userId === userId) {
+      el.volume = this.volume(userId)
+      if (track instanceof RemoteAudioTrack) track.setVolume(el.volume)
+    }
+  }
   private generation = 0
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
@@ -141,6 +161,9 @@ class Call {
         // Hear a phone's shared media on the desktop, but never echo our own mic.
         if (accountId(participant.identity) === accountId(room.localParticipant.identity) && track.source === Track.Source.Microphone) return
         const el = track.attach()
+        el.dataset.userId = accountId(participant.identity)
+        el.volume = this.volume(el.dataset.userId)
+        if (track instanceof RemoteAudioTrack) track.setVolume(el.volume)
         this.audio.set(track, el); document.body.append(el)
         el.play().catch(() => { if (!this.outputMuted) this.audioBlocked = true })
       }
@@ -179,7 +202,7 @@ class Call {
     void this.gain.destroy()
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
-    this.micOn = false; this.cameraOn = false; this.screenOn = false
+    this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
     this.outputMuted = false; this.otherDevices = 0
   }
   async leave() {
@@ -241,9 +264,12 @@ class Call {
     try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
   }
   async addScreen() {
+    if (this.screenAdding) return
+    const generation = this.generation
+    this.screenAdding = true
     try { await this.shares.add(); this.refresh() } catch (err) {
       if (!(err instanceof Error && ['NotAllowedError', 'AbortError'].includes(err.name))) this.report(err)
-    }
+    } finally { if (this.generation === generation) this.screenAdding = false }
   }
   async stopScreen(name?: string) {
     try { await this.shares.stop(name); this.refresh() } catch (err) { this.report(err) }

@@ -170,7 +170,7 @@ try {
   await until(async () => await screens(b).count() === 3, 'three shares at cap')
   assert.equal(await a.getByLabel('Share another', { exact: true }).first().isDisabled(), true)
   assert.equal(await a.getByLabel('Share another', { exact: true }).first().getAttribute('title'), 'Up to 3 at once')
-  await grid(a).getByLabel('Stop screen-1', { exact: true }).click()
+  await grid(a).locator('[data-local="true"][data-share-name="screen-1"]').getByRole('button', { name: /^Stop sharing / }).click()
   await until(async () => await screens(b).count() === 2 && await grid(b).locator('[data-share-name="screen-1"]').count() === 0, 'stop one preserves other shares')
   await until(async () => screens(b).locator('video').evaluateAll(vs => vs.length === 2 && vs.every(v => v.videoWidth > 0 && !v.paused)), 'remaining shares play')
   // Mobile uses a fresh local layout, no dragging/resizing or floating window.

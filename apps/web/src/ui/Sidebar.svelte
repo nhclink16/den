@@ -13,7 +13,7 @@
 
   let { narrow = false }: { narrow?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
-  const uncategorized = $derived(store.textChannels.filter((c) => !c.category_id))
+  const uncategorized = $derived(store.textChannels.filter((c) => c.kind !== 'voice' && !c.category_id))
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path) }
 </script>
@@ -60,10 +60,12 @@
       {/if}
     {/snippet}
 
+    {#each store.textChannels.filter(c => c.kind === 'voice').sort((a, b) => a.position - b.position) as c (c.id)}{@render channelRow(c)}{/each}
+
     {#each uncategorized as c (c.id)}{@render channelRow(c)}{/each}
 
     {#each store.categories as cat (cat.id)}
-      {@const chans = store.textChannels.filter((c) => c.category_id === cat.id)}
+      {@const chans = store.textChannels.filter((c) => c.kind !== 'voice' && c.category_id === cat.id)}
       {#if chans.length}
         <div class="cat eyebrow">{cat.name}</div>
         {#each chans as c (c.id)}{@render channelRow(c)}{/each}

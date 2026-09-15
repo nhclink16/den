@@ -1,6 +1,7 @@
+import { shareSource, type ShareSurface } from './share-source'
 import { LocalVideoTrack, Track, type Room, type Participant, type LocalTrack } from 'livekit-client'
 
-export type Share = { name: string; label: string; track?: Track }
+export type Share = { name: string; label: string; surface: ShareSurface; track?: Track }
 // LiveKit 2.15's first-share default is 1080p/15 at 2.5 Mbps. Additional
 // captures get 750 kbps/15; Smooth lifts only the frame-rate cap to 30.
 export class Shares {
@@ -12,7 +13,7 @@ export class Shares {
   list(p: Participant): Share[] {
     return [...p.videoTrackPublications.values()].filter(t => t.source === Track.Source.ScreenShare).map(t => ({
       name: t.trackName, track: t.track,
-      label: (p.attributes[`den.share.${t.trackName}`] || t.trackName || 'Screen').slice(0, 28),
+      ...shareSource(p.attributes[`den.share.${t.trackName}`], p.attributes[`den.share-surface.${t.trackName}`]),
     }))
   }
   clear() { ++this.epoch; this.groups.clear(); this.pending = false; this.next = 1 }
@@ -30,7 +31,8 @@ export class Shares {
       name = `screen-${n}`; this.groups.set(name, tracks)
       const video = tracks.find(t => t.kind === Track.Kind.Video)!
       video.mediaStreamTrack.addEventListener('ended', () => { if (this.room() === room && epoch === this.epoch) void this.stop(name).catch(() => {}) }, { once: true })
-      await room.localParticipant.setAttributes({ [`den.share.${name}`]: video.mediaStreamTrack.label.slice(0, 28) || `Screen ${n}` })
+      const source = shareSource(video.mediaStreamTrack.label, video.mediaStreamTrack.getSettings().displaySurface)
+      await room.localParticipant.setAttributes({ [`den.share.${name}`]: source.label, [`den.share-surface.${name}`]: source.surface })
       for (const track of tracks) {
         if (this.room() !== room || epoch !== this.epoch || !this.groups.has(name) || video.mediaStreamTrack.readyState === 'ended') { tracks.forEach(t => t.stop()); return }
         await room.localParticipant.publishTrack(track, {
@@ -53,7 +55,7 @@ export class Shares {
       if (name && key !== name) continue
       this.groups.delete(key)
       await Promise.all(tracks.map(t => room.localParticipant.unpublishTrack(t)))
-      await room.localParticipant.setAttributes({ [`den.share.${key}`]: '' })
+      await room.localParticipant.setAttributes({ [`den.share.${key}`]: '', [`den.share-surface.${key}`]: '' })
     }
     this.changed()
   }
