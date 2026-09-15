@@ -73,21 +73,35 @@ change Homebrew or require `sudo`.
 
 ## Pull request checks on GitHub Actions
 
-`.github/workflows/ios.yml` runs `DenTests` on `macos-15` for pull requests that
+`.github/workflows/ios.yml` runs `DenTests` on `macos-26` for pull requests that
 touch `apps/ios/**` or the workflow, and for pushes to `main`. It never runs
 `DenUITests`: this job deliberately excludes fixture-backed and permission UI
 testing. That suite runs locally through `ci_scripts/fixture.py` and
 `scripts/test-first-run-dictation.py`; the local and Cloud UI workflows stay
 separate from this check.
 
-That image still defaults to **Xcode 16.4**, which has neither the iOS 26 SDK nor
-a compiler that accepts DenAPI's Swift tools 6.2 manifest, so the job sets
-`DEVELOPER_DIR` to **Xcode 26.3** and pins its newest bundled runtime, **iOS
-26.2**, in the same place. The iPhone model and UDID come from
-`xcrun simctl list devices available` on that runtime rather than from any
-machine's hardcoded device, and a missing Xcode or runtime fails the job with a
-message pointing at the
-[image readme](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)
+The job runs on `macos-26` with `DEVELOPER_DIR` pinned to **Xcode 26.6** and, in
+the same place, that Xcode's **iOS 26.5** runtime, so a later runtime never lands
+under an older compiler. Both are preinstalled, and `macos-26` is a standard
+arm64 runner of the same class as the images the other workflows use, not a
+larger or paid one.
+
+The pin exists for an SDK floor, not a preference. `VoIPPushController` uses
+`PKVoIPPushMetadata`, which PushKit marks `API_AVAILABLE(ios(26.4))`. An
+`@available` check gates *using* a symbol at runtime; it cannot put that symbol
+into an older SDK. The first run took `macos-15` and Xcode 26.3, whose SDK is
+26.2, and failed to compile `VoIPPushController.swift:147`, which could not find
+`PKVoIPPushMetadata`
+([run 35015355633](https://github.com/nhclink16/den/actions/runs/35015355633)).
+Xcode 26.6 ships SDK 26.5, which clears that floor. It is not the only
+preinstalled pairing that would; Xcode 26.4.1 and SDK 26.4 also clear it. Xcode
+26.6 is this image's default and matches the baseline in Local project setup
+above. Raise both pins together if a later API lifts the floor again.
+
+The iPhone model and UDID come from `xcrun simctl list devices available` on the
+pinned runtime rather than from any machine's hardcoded device, and a missing
+Xcode or runtime fails the job with a message pointing at the
+[image readme](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md)
 to repin. Nothing in the job downloads a toolchain, runtime or tool.
 
 Packages resolve once with `-onlyUsePackageVersionsFromResolvedFile` into the
@@ -102,7 +116,11 @@ keeps the simulator's ad-hoc identity and asks for no certificate, profile or
 provisioning update. The run proves this rather than assuming it, printing
 `security find-identity -p codesigning -v` and the built app's `codesign -dvv`,
 and failing unless the signature is `adhoc`. Neither imports certificates nor
-changes a keychain.
+changes a keychain. The first run recorded **0 valid identities** on the runner,
+but it stopped during compilation, before any app was produced or its signature
+checked. That step looks for the
+built executable rather than the `.app` directory alone, because a failed compile
+leaves a partial bundle behind.
 
 `DictationEngineTests` guards its opt-in system permission test on
 `DEN_TEST_DICTATION_PERMISSIONS`, which the job sets to `0` through

@@ -9,23 +9,25 @@ permissions:
   contents: read
 jobs:
   den-tests:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
-      # macos-15 still defaults to Xcode 16.4, which has neither the iOS 26 SDK nor a
-      # compiler that accepts DenAPI's Swift tools 6.2 manifest. 26.3 is the newest
-      # Xcode on the image and 26.2 the newest iOS runtime it ships. Pin the pair so a
-      # later runtime never lands under this older compiler. Nothing here downloads a
-      # toolchain, a runtime or a tool.
-      # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      DEN_SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-2
+      # VoIPPushController uses PKVoIPPushMetadata, which PushKit marks
+      # API_AVAILABLE(ios(26.4)). An @available check gates using a symbol at runtime;
+      # it cannot put one into an older SDK. Xcode 26.3 on macos-15 ships SDK 26.2 and
+      # failed to compile it. Xcode 26.6 here ships SDK 26.5, which clears that floor;
+      # it is this image's default and matches the project's documented 26.6 baseline.
+      # Pin the runtime with it so a later one never lands under an older compiler.
+      # Nothing here downloads a toolchain, a runtime or a tool.
+      # https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      DEN_SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-5
     steps:
       - uses: actions/checkout@v4
       - name: Confirm the selected Xcode
         run: |
           if [ ! -d "$DEVELOPER_DIR" ]; then
-            echo "$DEVELOPER_DIR is gone from the macos-15 image. Repin Xcode and its iOS runtime from the image readme." >&2
+            echo "$DEVELOPER_DIR is gone from the runner image. Repin Xcode and its iOS runtime from the image readme above." >&2
             exit 1
           fi
           xcodebuild -version
@@ -97,7 +99,8 @@ jobs:
         run: |
           security find-identity -p codesigning -v || true
           den_app=build/DerivedData/Build/Products/Debug-iphonesimulator/Den.app
-          if [ ! -d "$den_app" ]; then
+          # A failed compile still leaves the bundle directory, so check the executable.
+          if [ ! -f "$den_app/Den" ]; then
             echo 'No app was built; the test step output has the reason.'
             exit 0
           fi
