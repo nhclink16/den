@@ -103,13 +103,10 @@ impl Test {
         self.state.db.close().await;
         // WAL files can remain after shutdown. Prove readers have released the
         // database by obtaining the same exclusive lock used by offline export.
-        // The wait is generous because the aborted task drops its handles on a
-        // runtime that the rest of the suite is also competing for; five seconds
-        // was enough alone and not enough under a full parallel run.
         let mut db = sqlx::SqliteConnection::connect_with(
             &sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(self.dir.join("den.db"))
-                .busy_timeout(Duration::from_secs(30)),
+                .busy_timeout(Duration::from_secs(5)),
         )
         .await
         .unwrap();

@@ -68,6 +68,6 @@ Defaults: `DEN_BIND=127.0.0.1:7000`, `DEN_DB=data/den.db`, `DEN_UPLOADS=data/upl
 
 Passed locally: formatting, Clippy with warnings denied, five API integration tests, and SQLx metadata verification. `cargo build --workspace && python3 scripts/m1-smoke.py` repeats the acceptance check using disposable data and ffmpeg: two CLI sessions exchange messages, reconnect after restart, upload and decode an 11,894,863-byte 41-second H.264/AAC clip over authenticated HTTP, and post with a bot token.
 
-Builds use committed `.sqlx` metadata. After changing queries, migrate a development database and run `SQLX_OFFLINE=false DATABASE_URL=sqlite://PATH cargo sqlx prepare --workspace -- --all-targets` with sqlx-cli 0.8.6. CI checks metadata against the migrations.
+Builds use committed `.sqlx` metadata. After changing queries, migrate a development database and run `SQLX_OFFLINE=false DATABASE_URL=sqlite://PATH cargo sqlx prepare --workspace -- --all-targets` with sqlx-cli 0.9.0. CI checks metadata against the migrations.
 
 Web UI, agent skill documentation, and Hermes integration remain with their assigned milestones/owners. No M2 work started.

@@ -6,12 +6,24 @@
       {
         "name": "emoji",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reactions",
+            "name": "emoji"
+          }
+        }
       },
       {
         "name": "user_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reactions",
+            "name": "user_id"
+          }
+        }
       }
     ],
     "parameters": {

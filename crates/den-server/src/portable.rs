@@ -3,7 +3,7 @@ mod archive;
 use anyhow::{bail, ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{sqlite::SqliteConnectOptions, Connection, Row, SqliteConnection};
+use sqlx::{sqlite::SqliteConnectOptions, AssertSqlSafe, Connection, Row, SqliteConnection};
 use std::{
     collections::BTreeMap,
     fs,
@@ -286,7 +286,9 @@ pub async fn import(input: &Path, target: &Path, keep: bool) -> Result<()> {
     let mut invalidated = Vec::new();
     if !keep {
         for table in ["sessions", "tokens", "invites", "host_enrollments"] {
-            let count = sqlx::query(&format!("DELETE FROM {table}"))
+            // sqlx 0.9 only accepts `&'static str` as a query; the table name is
+            // interpolated, so the assertion is required. The list above is literal.
+            let count = sqlx::query(AssertSqlSafe(format!("DELETE FROM {table}")))
                 .execute(&state.db)
                 .await?
                 .rows_affected();
