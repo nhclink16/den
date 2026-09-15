@@ -65,7 +65,7 @@
 {/if}
 {#if error}<p role="alert">{error}</p>{/if}
 <style>
-  h2 { font-size: 24px; margin-bottom: 8px; } h3 { margin: 24px 0 12px; font-size: 14px; }
+ h3 { margin: 24px 0 12px; }
   .muted, small, time { color: var(--ink-3); } .muted { margin-bottom: 16px; }
   .record { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; font-size: 13px; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }

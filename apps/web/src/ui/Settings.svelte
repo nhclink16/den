@@ -135,6 +135,7 @@
     </nav>
 
     <div class="pane" class:appearance-pane={section === 'appearance'}>
+      <div class="pane-inner">
       {#if section === 'appearance'}
       <Appearance />
       {:else if section === 'machines' || section === 'access'}
@@ -266,6 +267,7 @@
         <p>Signed in as <b>{store.me?.display_name || store.me?.username}</b> <span class="muted">@{store.me?.username}</span>{#if admin} <span class="faint mono">admin</span>{/if}</p>
         <button class="btn" onclick={logout}>Log out</button>
       {/if}
+      </div>
     </div>
   </div>
 </section>
@@ -284,22 +286,23 @@
   .toc a { padding: 7px 10px; border-radius: var(--r); color: var(--ink-2); }
   .toc a:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
   .toc a.active { background: var(--bg-3); color: var(--ink); font-weight: 700; }
-  .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r); }
+  .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: var(--r); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 13px; }
   .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .pane { overflow-y: auto; padding: 20px 28px 40px; max-width: 680px; }
-  .pane.appearance-pane { max-width: none; width: 100%; }
-  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane.appearance-pane { padding: 20px 16px; } }
-  h2 { font-size: 26px; margin: 0 0 6px; }
+  .pane { overflow-y: auto; padding: 20px 28px 40px; min-width: 0; }
+  .pane-inner { width: 100%; max-width: 760px; margin-inline: auto; }
+  .appearance-pane .pane-inner { max-width: 940px; }
+  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane { padding: 20px 16px; } }
   h3.eyebrow { margin: 22px 0 8px; }
   .muted.small, .faint.small { font-size: 13px; }
   .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
   .callout { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 12px 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); }
-  .inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0 16px; }
+  .inline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 8px 0 16px; }
   .inline .eyebrow { display: block; margin: 0 0 8px; width: 100%; }
   .inline h3 { flex-basis: 100%; }
   .inline .field { width: auto; flex: 1; min-width: 160px; }
+  .inline:has(> label) { align-items: flex-end; }
   .inline label { display: flex; flex-direction: column; }
   .inline label .eyebrow { margin: 0 0 6px; }
   .reveal { display: grid; gap: 10px; padding: 14px; margin: 12px 0; background: var(--lamp-glow); border: 1px solid var(--lamp-dim); border-radius: var(--r-lg); }

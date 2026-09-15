@@ -61,13 +61,13 @@
   .resize::after { content: ''; display: block; width: 36px; height: 2px; margin: 3px auto; border-radius: 2px; background: var(--ink-3); }
   .resize:hover, .resize:focus-visible { background: var(--bg-3); }
   .expanded .device-note { top: 40px; }
-  .device-note { position: absolute; left: 12px; top: 4px; z-index: 1; margin: 0; padding: 4px 8px; max-width: calc(100% - 56px); border-radius: 6px; background: var(--bg); font-size: 12px; color: var(--ink-2); }
+  .device-note { position: absolute; left: 12px; top: 4px; z-index: 1; margin: 0; padding: 4px 8px; max-width: calc(100% - 56px); border-radius: var(--r); background: var(--bg); font-size: 12px; color: var(--ink-2); }
   .call-view { height: 160px; flex: none; position: relative; min-height: 0; background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; overflow-x: auto; scrollbar-width: none; }
   .call-view:not(.expanded) .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }
   .tiles::-webkit-scrollbar { display: none; }
-  .expand { z-index: 3; position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2); background: var(--bg-2); }
+  .expand { z-index: 3; position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); background: var(--bg-2); }
   .expand:hover { color: var(--ink); }
   .expanded { flex: 1; height: auto; }
-  .toolbar { z-index: 3; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); max-width: calc(100% - 16px); }
+  .toolbar { z-index: 3; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); max-width: calc(100% - 16px); }
 </style>

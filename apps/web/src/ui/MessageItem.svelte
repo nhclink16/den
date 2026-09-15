@@ -129,11 +129,11 @@
     background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 2px;
   }
   .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; }
-  .tools button { padding: 5px; border-radius: 4px; color: var(--ink-2); display: grid; }
+  .tools button { padding: 5px; border-radius: var(--r); color: var(--ink-2); display: grid; }
   .tools button:hover { background: var(--bg-3); color: var(--ink); }
   .tools button.danger:hover { color: var(--ember); }
   .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .rx { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); font-size: 13px; }
+  .rx { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: var(--r); border: 1px solid var(--line-strong); background: var(--bg-2); font-size: 13px; }
   .rx:hover { border-color: var(--ink-3); }
   .rx.mine { border-color: var(--lamp-dim); background: var(--lamp-glow); }
   .rx .n { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }

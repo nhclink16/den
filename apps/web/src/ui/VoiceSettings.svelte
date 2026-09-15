@@ -31,7 +31,7 @@
 <DictationSettings />
 
 <style>
-  h2 { font-size: 26px; margin: 0 0 6px; }
+
   fieldset { border: 0; padding: 0; margin: 16px 0; }
   .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }

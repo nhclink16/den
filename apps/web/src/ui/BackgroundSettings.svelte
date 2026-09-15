@@ -125,7 +125,7 @@
 
 <style>
   .bgsec { margin-top: 34px; }
-  .head h3 { font-size: 15px; font-weight: 700; margin: 0 0 3px; }
+  .head h3 { margin: 0 0 3px; }
   .head p { margin: 0 0 14px; font-size: 13px; }
   .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
   .swatch { display: grid; gap: 6px; justify-items: stretch; text-align: start; }

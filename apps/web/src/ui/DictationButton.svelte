@@ -80,7 +80,7 @@
 </dialog>
 
 <style>
-  .dictate { display: grid; padding: 9px; border-radius: 8px; color: var(--ink-3); flex: none; position: relative; }
+  .dictate { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-3); flex: none; position: relative; }
   @media (hover: hover) { .dictate:hover { color: var(--ink); background: var(--bg-2); } }
   .dictate.listening { color: var(--lamp); background: var(--lamp-glow); }
   .dictate.listening::after { content: ''; position: absolute; inset: 0; border: 1px solid var(--lamp); border-radius: inherit; pointer-events: none; }
@@ -88,7 +88,7 @@
     .dictate.listening::after { animation: listen 1.2s ease infinite; }
     @keyframes listen { from { opacity: .5; transform: scale(1); } to { opacity: 0; transform: scale(1.2); } }
   }
-  .notice { position: absolute; bottom: 100%; left: 20px; right: 20px; padding: 6px 8px; border-radius: 6px; background: var(--bg-2); font-size: 12px; }
+  .notice { position: absolute; bottom: 100%; left: 20px; right: 20px; padding: 6px 8px; border-radius: var(--r-lg); background: var(--bg-2); font-size: 12px; }
   .error { color: var(--ember); }
   dialog { max-width: min(360px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px; color: var(--ink); background: var(--bg-2); overscroll-behavior: contain; }
   dialog::backdrop { background: #0006; }

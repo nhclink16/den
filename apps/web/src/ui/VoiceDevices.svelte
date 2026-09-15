@@ -189,7 +189,7 @@
   .intro { font-size: 13px; line-height: 1.5; margin: 0 0 20px; }
   .devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
   section { min-width: 0; }
-  h3 { font-size: 16px; margin: 0 0 12px; }
+  h3 { margin: 0 0 12px; }
   .device { display: grid; gap: 6px; margin: 0 0 14px; font-size: 13px; }
   select { width: 100%; min-width: 0; font: inherit; }
   .slider { display: grid; gap: 6px; font-size: 13px; margin: 16px 0 6px; }
