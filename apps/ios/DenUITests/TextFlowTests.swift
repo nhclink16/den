@@ -237,7 +237,8 @@ final class TextFlowTests: XCTestCase {
         // Each run must actually change appearance, even when a prior interrupted
         // test left this disposable account on the target theme.
         let _: Appearance = try await request("/users/me/appearance", method: "PUT",
-                                             body: ["theme": "den", "mode": "light", "custom_themes": []])
+                                             body: ["light_theme": "den", "dark_theme": "den", "mode": "light", "custom_themes": [],
+                                                    "background": appearanceBackground, "contrast": 110])
         let marker = "iosqa" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
         app.launch()
         XCTAssertTrue(element("login-submit").waitForExistence(timeout: 10))
@@ -333,9 +334,11 @@ final class TextFlowTests: XCTestCase {
         let tide = element("theme-tide")
         XCTAssertTrue(tide.waitForExistence(timeout: 5))
         tide.tap()
-        try await waitForAppearance(theme: "tide", mode: nil)
+        try await waitForAppearance(light: "tide", dark: "den", mode: "light")
         app.buttons["Dark"].tap()
-        try await waitForAppearance(theme: "tide", mode: "dark")
+        try await waitForAppearance(light: "tide", dark: "den", mode: "dark")
+        tide.tap()
+        try await waitForAppearance(light: "tide", dark: "tide", mode: "dark")
         screenshot("m5a-appearance-tide")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let logout = element("account-logout")
@@ -500,14 +503,27 @@ final class TextFlowTests: XCTestCase {
         throw FixtureError.timedOut
     }
 
-    private func waitForAppearance(theme: String, mode: String?) async throws {
+    private func waitForAppearance(light: String, dark: String, mode: String) async throws {
         for _ in 0..<50 {
-            let appearance: Appearance = try await request("/users/me/appearance")
-            if appearance.theme == theme && (mode == nil || appearance.mode == mode) { return }
+            let (data, status) = try await rawRequest("/users/me/appearance")
+            XCTAssertEqual(status, 200)
+            let appearance = try JSONDecoder().decode(Appearance.self, from: data)
+            let value = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            if appearance.lightTheme == light && appearance.darkTheme == dark && appearance.mode == mode {
+                XCTAssertEqual(value["contrast"] as? Int, 110, "Changing theme or mode must preserve the account's contrast setting.")
+                XCTAssertEqual(value["background"] as? NSDictionary, appearanceBackground as NSDictionary,
+                               "Changing theme or mode must not erase a background selected in another client.")
+                return
+            }
             try await Task.sleep(for: .milliseconds(200))
         }
         XCTFail("The server did not save the selected appearance.")
         throw FixtureError.timedOut
+    }
+
+    private var appearanceBackground: [String: Any] {
+        ["source": ["type": "builtin", "name": "aurora"], "blur": 8, "dim": 20,
+         "saturate": 100, "scope": "chat", "fit": "cover"]
     }
 
     private func postMessage(channel: String, content: String, user: Int) async throws -> Message {
@@ -571,5 +587,8 @@ final class TextFlowTests: XCTestCase {
             enum CodingKeys: String, CodingKey { case emoji; case userIds = "user_ids" }
         }
     }
-    private struct Appearance: Decodable { let theme: String; let mode: String }
+    private struct Appearance: Decodable {
+        let lightTheme: String; let darkTheme: String; let mode: String
+        enum CodingKeys: String, CodingKey { case lightTheme = "light_theme", darkTheme = "dark_theme", mode }
+    }
 }

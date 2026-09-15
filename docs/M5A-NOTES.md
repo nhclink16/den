@@ -93,6 +93,84 @@ Evidence: `archive-verification.json`, `export-helper.log`, Aqua runs
 been uploaded; no new TestFlight availability or physical recognition is claimed.
 The canceled phone watcher remains off, and no Xcode Cloud run was started.
 
+### Concurrent appearance-contract integration
+
+Before the dictation push, main advanced to `6893973` with the M10 appearance
+schema. That removed `Appearance.theme`, breaking native compilation; the first
+42-test receipt above predates that integration. Native now resolves `light_theme`
+or `dark_theme` after Mode and edits only the currently displayed half. The
+other half, custom themes, contrast and background values are preserved on save.
+This is compatibility work required by the merged contract, not a claim to have
+implemented the new background editor or contrast rendering on iOS. The portable
+Cloud fixture source bundle was refreshed and its server rebuilt locally.
+
+The new resolution test was deliberately broken by always choosing the light
+family. It failed both dark-mode cases (`appearance-red.xcresult`); the production
+file was restored byte-exact before the final current-main run. The existing
+text UI assertions are retained; their fixture now matches the merged server.
+
+At the integration check, production still advertised the old required `theme`
+field. The new schema/build therefore needs coordination with the M10 deployment;
+Fable was notified. The pre-M10 signed archive remains available for the old
+contract, but neither archive has been distributed as build 2. Xcode's actual
+`DVTDeveloperAccountManagerAppleIDLists` preference contains an empty
+`IDE.Identifiers.Prod` array; its provisioning-team metadata remains cached. Aqua
+can access one development identity, but no distribution identity. The browser
+App Store Connect session remains signed in. No account/credential preference
+was edited or reconstructed, no signing credential was exported, and no extra
+Cloud run or public release was started.
+
+Fable subsequently identified a locked login keychain for non-console sessions:
+`security show-keychain-info` reports `User interaction is not allowed`, while a
+valid development identity and cached profiles remain present. The next signing
+step is to retry after Nicholas unlocks the iMac/login keychain, not to request
+another browser sign-in. Den has not asked for, stored, or reconstructed a keychain
+password. The `No Accounts` export result alone does not establish an account fault.
+
+The first current-main UI run failed because Apple Swift OpenAPI Generator 1.13.1
+skipped `Appearance.background`, whose schema used `oneOf` with a standalone null
+branch. Its strict decoder then rejected even `background: null` during bootstrap.
+The newer profile schema had the same unsupported representation for `User.status`
+and `ProfilePatch.status`. Short branch `ios-background-schema`, merged with a note
+in `5afff96`, derives these object fields from the original shared types and changes
+only their OpenAPI nullability representation to `type: [object, null]`. There is
+no runtime JSON change, duplicated client contract, new migration, or deployment.
+Fable was notified before the merge. The first inline-only annotation was insufficient
+and was replaced before the commit; it is not presented as successful evidence.
+
+All **40 server API tests passed**, including appearance and profile behaviors.
+The native snapshot comes from that actual branch server binary. Its SHA256 is
+`80cd028cf1364d434aceaf6b761d93bbe91ffb7cea8af3b83d0b5732467a978b`.
+Apple generation now reports zero diagnostics and includes the nullable fields.
+The portable fixture was regenerated from the merged Rust source, and the Cloud
+checkout/project/package checks pass. The text UI test now seeds a non-null account
+background and contrast 110, then checks both survive changes to each theme half
+and Mode. Earlier theme/mode expectations were adapted to the new field contract,
+not removed or weakened. `current-main-final.xcresult` is the failed integration
+run; the post-fix result is recorded separately below.
+
+Final integrated iOS 27 result: **43 passed, 0 failed, 1 skipped** in
+`integrated-final.xcresult` (302.4 seconds). All three real text UI tests passed:
+fresh privacy/first PCM 42.485 seconds, full text/session/appearance 164.080 seconds,
+and search/tab navigation 28.893 seconds. The unit permission probe is the one
+skip; the real reset-privacy permission UI test ran and passed. The final generation
+and fixture evidence are `final-schema-diagnostics.yaml`,
+`schema-server-tests-latest.log`, and `ci-post-clone-integrated.log`.
+The linked recording and multiline screenshots were refreshed from this final run
+and visually inspected. They show the compact recording row, no Done toolbar, and
+the full-width draft above its controls.
+
+A new read-only keychain-info check through Aqua succeeded (`aqua-wuv7m27q`, exit 0),
+so distribution export was retried once through that same desktop session. It still
+failed with **No Accounts** and **No signing certificate "iOS Distribution" found**
+(`aqua-wq8tflq7`, exit 70; `export-keychain-retry.log`). This shows that reading
+keychain settings does not prove Xcode can obtain distribution signing credentials.
+There will be no repeated export attempts without a change in signing access.
+The production contract recheck still has the old `theme` field and pre-profile
+User. Current-main distribution must be coordinated with the M10 server rollout;
+the already verified pre-M10 `Den-final.xcarchive` matches the presently live API.
+No upload, server deployment, public release, or Cloud run occurred in this retry.
+
 ### Remote TestFlight delivery, September 14
 
 The first **internal-only TestFlight** upload, **0.3.0 (1)**, succeeded at

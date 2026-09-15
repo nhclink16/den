@@ -5,6 +5,27 @@ import Testing
 @testable import Den
 
 struct SessionAndMessagesTests {
+    @Test @MainActor func splitThemeChoicesFollowTheResolvedModeWithoutChangingTheOtherHalf() throws {
+        let suite = "den-appearance-test-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ThemeStore(origin: URL(string: "https://appearance.test")!, defaults: defaults)
+        var appearance = Components.Schemas.Appearance(customThemes: [], darkTheme: "tide", lightTheme: "paper", mode: .system)
+        store.receive(appearance)
+        #expect(store.resolve(.light).family.id == "paper")
+        #expect(store.resolve(.dark).family.id == "tide")
+        appearance.mode = .light
+        store.receive(appearance)
+        #expect(store.resolve(.dark).family.id == "paper")
+        #expect(store.resolve(.dark).scheme == .light)
+        appearance.mode = .dark
+        store.receive(appearance)
+        #expect(store.resolve(.light).family.id == "tide")
+        #expect(store.resolve(.light).scheme == .dark)
+        #expect(store.appearance.lightTheme == "paper")
+        #expect(store.appearance.darkTheme == "tide")
+    }
+
     @Test func canonicalOriginsShareOneSessionIdentity() throws {
         let cases = [
             ("  HTTPS://DENCHAT.APP:443/\n", "https://denchat.app"),

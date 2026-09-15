@@ -21,13 +21,15 @@ final class ThemeStore {
     }
 
     static var defaultAppearance: Components.Schemas.Appearance {
-        .init(customThemes: [], mode: .system, theme: "den")
+        .init(customThemes: [], darkTheme: "den", lightTheme: "den", mode: .system)
     }
 
     var allFamilies: [Components.Schemas.Theme] { builtins + appearance.customThemes }
 
-    var selectedFamily: Components.Schemas.Theme {
-        allFamilies.first { $0.id == appearance.theme } ?? builtins[0]
+    func selectedFamily(for system: ColorScheme) -> Components.Schemas.Theme {
+        let scheme = preferredColorScheme ?? system
+        let id = scheme == .dark ? appearance.darkTheme : appearance.lightTheme
+        return allFamilies.first { $0.id == id } ?? builtins[0]
     }
 
     /// nil lets the system continue reacting to appearance changes while the app is running.
@@ -40,7 +42,7 @@ final class ThemeStore {
     }
 
     func resolve(_ system: ColorScheme) -> DenTheme {
-        DenTheme(family: selectedFamily, scheme: preferredColorScheme ?? system)
+        DenTheme(family: selectedFamily(for: system), scheme: preferredColorScheme ?? system)
     }
 
     /// Pass the request's origin when receiving an asynchronous response after a server switch.

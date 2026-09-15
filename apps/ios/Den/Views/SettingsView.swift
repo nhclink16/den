@@ -120,13 +120,17 @@ private struct AppearanceView: View {
                     }.pickerStyle(.segmented).disabled(saving).accessibilityIdentifier("appearance-mode")
                     Text("Your theme follows you across Den.").font(theme.bodyFont(.footnote)).foregroundStyle(theme.ink2)
                 }
+                Text((store.theme.preferredColorScheme ?? colorScheme) == .dark ? "Dark theme" : "Light theme")
+                    .font(theme.bodyFont(.headline))
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 155), spacing: 12)], spacing: 16) {
                     ForEach(store.theme.allFamilies, id: \.id) { family in
-                        ThemeCard(family: family, selected: family.id == store.theme.appearance.theme,
+                        ThemeCard(family: family, selected: family.id == store.theme.selectedFamily(for: colorScheme).id,
                                   mode: store.theme.appearance.mode,
                                   custom: !store.theme.builtins.contains { $0.id == family.id }) {
                             var appearance = store.theme.appearance
-                            appearance.theme = family.id
+                            if (store.theme.preferredColorScheme ?? colorScheme) == .dark {
+                                appearance.darkTheme = family.id
+                            } else { appearance.lightTheme = family.id }
                             save(appearance)
                         }.disabled(saving)
                     }
