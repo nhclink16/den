@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,username,display_name,avatar_url,bot as \"bot: bool\",role FROM users ORDER BY id",
+  "query": "SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as \"bot: bool\",role FROM users ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -24,13 +24,33 @@
         "type_info": "Text"
       },
       {
-        "name": "bot: bool",
+        "name": "banner_url",
         "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "bio",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "accent",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "status",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "bot: bool",
+        "ordinal": 8,
         "type_info": "Integer"
       },
       {
         "name": "role",
-        "ordinal": 5,
+        "ordinal": 9,
         "type_info": "Text"
       }
     ],
@@ -42,9 +62,13 @@
       false,
       false,
       true,
+      true,
+      true,
+      true,
+      true,
       false,
       false
     ]
   },
-  "hash": "6f5c5f2dbf2b9511de85e15792285927416c5e15784d40a4c8f87bfc3788fc1b"
+  "hash": "1579aaed513a8cf2c7eb1e55b2a82a6309589d3161a5af9003af9cccf724129a"
 }

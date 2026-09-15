@@ -50,13 +50,22 @@ fn upload_name(name: &str) -> bool {
             "" | "part" | "recording" | "thumb.png" | "thumb.png.part"
         )
 }
+fn profile_name(name: &str) -> bool {
+    name.split_once('/').is_some_and(|(id, file)| {
+        id.parse::<ulid::Ulid>().is_ok()
+            && matches!(file, "avatar" | "avatar.png" | "banner" | "banner.png")
+    })
+}
 fn archive_name(name: &str) -> bool {
     matches!(
         name,
         "den.db" | "manifest.json" | "uploads/" | "uploads/backgrounds/"
     ) || name
-        .strip_prefix("uploads/backgrounds/")
-        .is_some_and(|id| id.parse::<ulid::Ulid>().is_ok())
+        .strip_prefix("uploads/profiles/")
+        .is_some_and(profile_name)
+        || name
+            .strip_prefix("uploads/backgrounds/")
+            .is_some_and(|id| id.parse::<ulid::Ulid>().is_ok())
         || name.strip_prefix("uploads/").is_some_and(upload_name)
 }
 fn private_file(path: &Path) -> Result<fs::File> {
@@ -108,6 +117,37 @@ pub(super) fn pack(
             .file_name()
             .into_string()
             .map_err(|_| anyhow::anyhow!("Non-UTF8 upload filename"))?;
+        if name == "profiles" {
+            ensure!(
+                entry.file_type()?.is_dir(),
+                "Profiles must be a directory, not a symlink"
+            );
+            for user in fs::read_dir(entry.path())? {
+                let user = user?;
+                let id = user
+                    .file_name()
+                    .into_string()
+                    .map_err(|_| anyhow::anyhow!("Non-UTF8 profile filename"))?;
+                if id.parse::<ulid::Ulid>().is_err() {
+                    continue;
+                }
+                ensure!(
+                    user.file_type()?.is_dir(),
+                    "Profile must be a directory, not a symlink"
+                );
+                for file in fs::read_dir(user.path())? {
+                    let file = file?;
+                    let name = format!("{id}/{}", file.file_name().to_string_lossy());
+                    if profile_name(&name) {
+                        ensure!(
+                            file.file_type()?.is_file(),
+                            "Profile image is not a regular file"
+                        );
+                        paths.push((format!("uploads/profiles/{name}"), file.path()));
+                    }
+                }
+            }
+        }
         if name == "backgrounds" {
             ensure!(
                 entry.file_type()?.is_dir(),
@@ -227,6 +267,9 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
             file.size() == expected.size && expected.sha256.len() == 64,
             "Manifest file size or hash is invalid"
         );
+        if name.starts_with("uploads/profiles/") {
+            fs::create_dir_all(target.join(name).parent().unwrap())?;
+        }
         let mut output = private_file(&target.join(name))?;
         let actual = copy_hash(&mut file, &mut output, expected.size)?;
         ensure!(

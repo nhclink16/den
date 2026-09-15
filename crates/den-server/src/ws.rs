@@ -142,7 +142,10 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         | Event::ObjectPresence { channel_id, .. }
         | Event::CallState { channel_id, .. } => Some(channel_id),
         Event::ObjectCursor { .. } => return false, // Checked against socket-local open objects below.
-        Event::SettingsUpdated { .. } | Event::Presence { .. } | Event::Resync { .. } => None,
+        Event::UserUpdated { .. }
+        | Event::SettingsUpdated { .. }
+        | Event::Presence { .. }
+        | Event::Resync { .. } => None,
     };
     if let Some(channel) = channel {
         visible(s, &a.user.id, channel).await.is_ok()

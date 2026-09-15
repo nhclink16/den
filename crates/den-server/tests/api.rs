@@ -84,6 +84,31 @@ impl Test {
             admin,
         }
     }
+    async fn stop_for_export(&mut self) {
+        use sqlx::Connection;
+        self.task.abort();
+        let _ = (&mut self.task).await;
+        self.state.db.close().await;
+        // WAL files can remain after shutdown. Prove readers have released the
+        // database by obtaining the same exclusive lock used by offline export.
+        let mut db = sqlx::SqliteConnection::connect_with(
+            &sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(self.dir.join("den.db"))
+                .busy_timeout(Duration::from_secs(5)),
+        )
+        .await
+        .unwrap();
+        sqlx::query("PRAGMA locking_mode=EXCLUSIVE")
+            .execute(&mut db)
+            .await
+            .unwrap();
+        sqlx::query("BEGIN EXCLUSIVE")
+            .execute(&mut db)
+            .await
+            .unwrap();
+        sqlx::query("COMMIT").execute(&mut db).await.unwrap();
+        db.close().await.unwrap();
+    }
     fn req(&self, method: Method, path: &str, token: &str) -> reqwest::RequestBuilder {
         self.http
             .request(method, format!("{}{path}", self.url))
@@ -457,3 +482,8 @@ mod desktop;
 
 #[path = "api/backgrounds.rs"]
 mod backgrounds;
+
+#[path = "api/profile_images.rs"]
+mod profile_images;
+#[path = "api/profiles.rs"]
+mod profiles;

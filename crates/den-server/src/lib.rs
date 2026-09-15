@@ -16,6 +16,8 @@ mod messages;
 mod objects;
 mod openapi;
 pub mod portable;
+mod profile_images;
+mod profiles;
 mod push;
 mod terminal;
 mod thumbnails;
@@ -256,6 +258,20 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/devices/{id}", delete(devices::remove))
         .route("/users", get(auth::users))
         .route("/users/me", get(auth::me))
+        .route(
+            "/users/me/avatar",
+            axum::routing::put(profile_images::put_avatar).delete(profile_images::delete_avatar),
+        )
+        .route(
+            "/users/me/banner",
+            axum::routing::put(profile_images::put_banner).delete(profile_images::delete_banner),
+        )
+        .route(
+            "/users/{id}/avatar",
+            get(profile_images::get_avatar).put(profile_images::put_bot_avatar),
+        )
+        .route("/users/{id}/banner", get(profile_images::get_banner))
+        .route("/users/me/profile", axum::routing::patch(profiles::patch))
         .route(
             "/users/me/background/image",
             get(backgrounds::get)

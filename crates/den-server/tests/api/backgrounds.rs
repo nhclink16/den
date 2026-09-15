@@ -4,7 +4,7 @@ use super::*;
 async fn backgrounds_are_private_bounded_and_portable() {
     use std::{io::Cursor, process::Command};
     let mut t = Test::new().await;
-    let alice = &t.admin;
+    let alice = t.admin.clone();
     let bob = t.member("background_bob").await;
     let path = "/users/me/background/image";
     assert_eq!(
@@ -227,17 +227,7 @@ async fn backgrounds_are_private_bounded_and_portable() {
     assert_eq!(replacement.status(), 200);
     let replacement = replacement.bytes().await.unwrap();
     // Exercise the real offline CLI, then serve the restored account's file.
-    t.task.abort();
-    let _ = (&mut t.task).await;
-    t.state.db.close().await;
-    // Pool shutdown signals SQLite workers; wait for their final WAL close too.
-    tokio::time::timeout(Duration::from_secs(5), async {
-        while t.dir.join("den.db-wal").exists() {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("SQLite workers did not finish closing");
+    t.stop_for_export().await;
     let archive = t.dir.join("background.zip");
     let output = Command::new(env!("CARGO_BIN_EXE_den-server"))
         .args(["export", archive.to_str().unwrap()])

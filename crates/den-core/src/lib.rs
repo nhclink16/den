@@ -1,3 +1,5 @@
+mod profile;
+pub use profile::*;
 mod appearance;
 pub use appearance::*;
 mod host;
@@ -34,6 +36,10 @@ pub struct User {
     pub username: String,
     pub display_name: String,
     pub avatar_url: Option<String>,
+    pub banner_url: Option<String>,
+    pub bio: Option<String>,
+    pub accent: Option<String>,
+    pub status: Option<Status>,
     /// True when this identity was created for an agent rather than a person.
     pub bot: bool,
     pub role: Role,
@@ -89,6 +95,9 @@ pub struct Message {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    UserUpdated {
+        user: User,
+    },
     AppearanceUpdated {
         user_id: String,
         appearance: Appearance,

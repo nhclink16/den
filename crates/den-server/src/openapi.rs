@@ -10,6 +10,14 @@ use utoipa::OpenApi;
     ),
     paths(
         health,
+        profiles::patch,
+        profile_images::put_avatar,
+        profile_images::put_banner,
+        profile_images::put_bot_avatar,
+        profile_images::get_avatar,
+        profile_images::get_banner,
+        profile_images::delete_avatar,
+        profile_images::delete_banner,
         objects::instance,
         tickets::issue,
         appearance::get_appearance,
@@ -100,6 +108,8 @@ use utoipa::OpenApi;
         ws::connect
     ),
     components(schemas(
+        ProfilePatch,
+        Status,
         Appearance,
         Background,
         BackgroundSource,

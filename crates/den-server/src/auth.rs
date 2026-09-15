@@ -21,6 +21,10 @@ pub(crate) struct DbUser {
     pub username: String,
     pub display_name: String,
     pub avatar_url: Option<String>,
+    pub banner_url: Option<String>,
+    pub bio: Option<String>,
+    pub accent: Option<String>,
+    pub status: Option<String>,
     pub bot: bool,
     pub role: String,
 }
@@ -31,6 +35,13 @@ impl From<DbUser> for User {
             username: v.username,
             display_name: v.display_name,
             avatar_url: v.avatar_url,
+            banner_url: v.banner_url,
+            bio: v.bio,
+            accent: v.accent,
+            status: v
+                .status
+                .and_then(|v| serde_json::from_str::<Status>(&v).ok())
+                .filter(|status| status.expires_at.is_none_or(|at| at > now())),
             bot: v.bot,
             role: if v.role == "admin" {
                 Role::Admin
@@ -41,7 +52,12 @@ impl From<DbUser> for User {
     }
 }
 pub(crate) async fn user(state: &AppState, id: &str) -> Result<User> {
-    Ok(sqlx::query_as!(DbUser, "SELECT id,username,display_name,avatar_url,bot as \"bot: bool\",role FROM users WHERE id=?", id).fetch_one(&state.db).await?.into())
+    let expired = profiles::expire(state, Some(id)).await?;
+    let user: User = sqlx::query_as!(DbUser, r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role FROM users WHERE id=?"#, id).fetch_one(&state.db).await?.into();
+    if !expired.is_empty() {
+        profiles::broadcast(state, &user);
+    }
+    Ok(user)
 }
 #[derive(Clone)]
 pub(crate) struct Auth {
@@ -398,5 +414,12 @@ pub(crate) async fn me(a: Auth) -> Json<User> {
 }
 #[utoipa::path(get,path="/users",responses((status=200,body=Vec<User>)))]
 pub(crate) async fn users(State(s): State<AppState>, _a: Auth) -> Result<Json<Vec<User>>> {
-    Ok(Json(sqlx::query_as!(DbUser,"SELECT id,username,display_name,avatar_url,bot as \"bot: bool\",role FROM users ORDER BY id").fetch_all(&s.db).await?.into_iter().map(Into::into).collect()))
+    let expired = profiles::expire(&s, None).await?;
+    let users: Vec<User> = sqlx::query_as!(DbUser,r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role FROM users ORDER BY id"#).fetch_all(&s.db).await?.into_iter().map(Into::into).collect();
+    for user in &users {
+        if expired.contains(&user.id) {
+            profiles::broadcast(&s, user);
+        }
+    }
+    Ok(Json(users))
 }
