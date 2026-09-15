@@ -8,8 +8,9 @@ const CHUNK = 8 * 1024 * 1024
 
 export type Progress = { sent: number; total: number }
 
-export async function upload(channelId: string, file: File, onProgress: (p: Progress) => void, signal?: AbortSignal): Promise<Upload> {
-  const api = apiFor(activeOrigin())
+export async function upload(channelId: string, file: File, onProgress: (p: Progress) => void, signal?: AbortSignal, origin = activeOrigin()): Promise<Upload> {
+  const api = apiFor(origin)
+  signal?.throwIfAborted()
   let u = await api.post<Upload>('/uploads', {
     channel_id: channelId,
     filename: file.name,
@@ -24,6 +25,7 @@ export async function upload(channelId: string, file: File, onProgress: (p: Prog
       u = await api.patchRaw<Upload>(`/uploads/${u.id}`, file.slice(offset, end), { 'upload-offset': String(offset) })
       offset = u.offset
     } catch (e) {
+      signal?.throwIfAborted()
       // Offset mismatch or a dropped request: ask the server where it is and continue.
       u = await api.get<Upload>(`/uploads/${u.id}`)
       offset = u.offset
@@ -32,6 +34,7 @@ export async function upload(channelId: string, file: File, onProgress: (p: Prog
     }
     onProgress({ sent: offset, total: file.size })
   }
+  signal?.throwIfAborted()
   return api.post<Upload>(`/uploads/${u.id}/complete`)
 }
 
