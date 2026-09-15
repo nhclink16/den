@@ -1,0 +1,18 @@
+{
+  "modal": false,
+  "activeOption": null,
+  "paletteContainsFocus": false,
+  "restored": false,
+  "activeSettings": {
+    "visible": false,
+    "current": null
+  },
+  "drawerFocus": false,
+  "drawerTrapped": false,
+  "drawerClosed": false,
+  "menuRestored": false,
+  "queryWidth": 90.96875,
+  "dmSearch": "Search #Just you",
+  "audioExplanation": "Play call audio",
+  "iterations": "infinite"
+}

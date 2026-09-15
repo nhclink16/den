@@ -88,5 +88,6 @@
   .line { display: flex; align-items: flex-start; gap: 8px; }
   .who { font-weight: 700; flex: none; }
   .text { min-width: 0; overflow-wrap: anywhere; }
+  @media (max-width: 600px) { .head { align-items: flex-start; } .bar { flex-wrap: wrap; } .q { flex: 1 0 100%; width: 100%; } .scope { flex: 1; max-width: none; } }
   .error { color: var(--ember); }
 </style>

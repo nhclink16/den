@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { modal, outsideDialog } from '../lib/modal'
   import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import CallDock from './CallDock.svelte'
@@ -34,7 +35,7 @@
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
     else if (mod && e.key === '\\') { e.preventDefault(); store.saveLayout({ sidebar: !store.layout.sidebar }) }
     else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.saveLayout({ members: !store.layout.members }) }
-    else if (e.key === 'Escape' && palette) palette = false
+
   }
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
@@ -55,14 +56,19 @@
 
 <div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
   {#if showSidebar}
-    {#if narrow}<button class="scrim" aria-label="Close menu" onclick={() => (drawer = false)}></button>{/if}
-    <aside class="sidebar bg-host scope-sidebar"><Sidebar {narrow} /></aside>
+    {#if narrow}
+      <dialog class="drawer" use:modal aria-label="Room list" aria-modal="true" oncancel={(e) => { e.preventDefault(); drawer = false }} onclick={(e) => { if (outsideDialog(e)) drawer = false }}>
+        <aside class="sidebar bg-host scope-sidebar" tabindex="-1" data-initial-focus><Sidebar {narrow} /></aside>
+      </dialog>
+    {:else}
+      <aside class="sidebar bg-host scope-sidebar"><Sidebar {narrow} /></aside>
+    {/if}
   {/if}
 
   <main class="main bg-host scope-chat">
     {#if call.error}<div class="call-status" role="alert"><span>{call.error}</span><button class="btn quiet" onclick={() => (call.error = '')}>Dismiss</button></div>{/if}
     {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
-    {#if call.audioBlocked}<div class="call-status"><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
+    {#if call.audioBlocked}<div class="call-status" role="status"><span>Your browser blocked the call audio.</span><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
     {#if call.channel && router.route.name !== 'channel'}<CallView />{/if}
     {#if !call.channel || !call.expanded || router.route.name === 'channel'}
     {#if router.route.name === 'channel'}
@@ -111,9 +117,7 @@
   .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
 
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
-  .shell.narrow .sidebar {
-    position: fixed; inset: 0 auto 0 0; width: min(var(--sidebar-w), 85vw); z-index: 20;
-    box-shadow: 8px 0 30px var(--scrim);
-  }
-  .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 19; }
+  .drawer { position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0; border: 0; width: min(var(--sidebar-w), 85vw); max-width: none; height: 100%; max-height: none; color: var(--ink); background: var(--bg-2); box-shadow: 8px 0 30px var(--shadow); overscroll-behavior: contain; }
+  .drawer::backdrop { background: var(--scrim); }
+  .drawer .sidebar { height: 100%; }
 </style>

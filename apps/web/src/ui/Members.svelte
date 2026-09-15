@@ -28,7 +28,7 @@
     <div class="member">
     <button class="person" class:off={!store.online.has(u.id)} onclick={() => dm(u.id)} title={u.id === store.me?.id ? 'You' : `Message ${u.display_name || u.username}`}>
       <Avatar userId={u.id} size={28} />
-      <span class="name">{u.display_name || u.username}</span>
+      <span class="name">{u.display_name || u.username}{#if !store.online.has(u.id)}<span class="presence" aria-hidden="true">Offline</span>{/if}</span>
       {#if u.bot}<span class="badge" title="Agent"><Icon name="bot" size={12} /></span>{/if}
       {#if u.role === 'admin'}<span class="faint mono tiny">admin</span>{/if}
     </button>
@@ -55,7 +55,8 @@
     border-radius: var(--r); text-align: left; color: var(--ink);
   }
   .person:hover { background: var(--bg-3); }
-  .person.off { color: var(--ink-3); }
+  .person.off { color: var(--ink-2); }
+  .presence { display: block; font-size: 11px; font-weight: 400; color: var(--ink-2); }
   .person.off :global(.avatar) { opacity: 0.55; }
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
   .badge { color: var(--lamp); display: grid; }

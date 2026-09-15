@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { modal, outsideDialog } from '../lib/modal'
   import { plugins } from '../plugins'
   import { callLayouts } from '../lib/call-layout.svelte'
   import { call } from '../lib/call.svelte'
@@ -26,7 +27,7 @@
       { id: 'a-inbox', label: 'Inbox', hint: 'action', kind: 'action', run: () => router.go('/inbox') },
       ...(q.trim().length > 1 ? [{ id: 'a-search', label: `Search messages for "${q.trim()}"`, hint: 'search', kind: 'action' as const, run: () => router.go(`/find?q=${encodeURIComponent(q.trim())}`) }] : []),
       { id: 'a-settings', label: 'Settings', hint: 'action', kind: 'action', run: () => router.go('/settings') },
-      { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide channel list' : 'Show channel list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
+      { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide room list' : 'Show room list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
       { id: 'a-members', label: store.layout.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.saveLayout({ members: !store.layout.members }) },
       { id: 'a-logout', label: 'Log out', hint: 'action', kind: 'action', run: () => { store.logout(); router.go('/login') } },
     )
@@ -45,24 +46,24 @@
     return items.map((it) => ({ it, s: Math.max(score(it.label, n), it.hint ? score(it.hint, n) - 50 : -1) })).filter((x) => x.s >= 0).sort((a, b) => b.s - a.s).slice(0, 12).map((x) => x.it)
   })
   $effect(() => { void results; cursor = 0 })
-  $effect(() => { input?.focus() })
+  const optionId = (id: string) => `palette-option-${encodeURIComponent(id)}`
+  $effect(() => { if (results[cursor]) document.getElementById(optionId(results[cursor]!.id))?.scrollIntoView({ block: 'nearest' }) })
 
   function pick(it: Item) { if (it.disabled) return; it.run(); onclose() }
   function key(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); cursor = Math.min(cursor + 1, results.length - 1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); cursor = Math.max(cursor - 1, 0) }
     else if (e.key === 'Enter') { e.preventDefault(); const it = results[cursor]; if (it) pick(it) }
-    else if (e.key === 'Escape') onclose()
+
   }
 </script>
 
-<div class="scrim" role="presentation" onclick={onclose}></div>
-<div class="palette" role="dialog" aria-label="Go to">
-  <div class="search"><Icon name="search" /><input bind:this={input} bind:value={q} placeholder="Jump to a room, a person, or an action" onkeydown={key} /></div>
-  <ul>
+<dialog class="palette" use:modal aria-label="Go to" aria-modal="true" oncancel={(e) => { e.preventDefault(); onclose() }} onclick={(e) => { if (outsideDialog(e)) onclose() }}>
+  <div class="search"><Icon name="search" /><input data-initial-focus role="combobox" aria-label="Jump to a room, a person, or an action" aria-autocomplete="list" aria-expanded="true" aria-controls="palette-results" aria-activedescendant={results[cursor] ? optionId(results[cursor]!.id) : undefined} bind:this={input} bind:value={q} placeholder="Jump to a room, a person, or an action" onkeydown={key} /></div>
+  <ul id="palette-results" role="listbox" aria-label="Rooms, people, and actions">
     {#each results as it, i (it.id)}
-      <li>
-        <button disabled={it.disabled} class:active={i === cursor} onmousemove={() => (cursor = i)} onclick={() => pick(it)}>
+      <li role="presentation">
+        <button id={optionId(it.id)} role="option" aria-selected={i === cursor} tabindex="-1" disabled={it.disabled} class:active={i === cursor} onmousemove={() => (cursor = i)} onclick={() => pick(it)}>
           {#if it.kind === 'channel'}<Icon name="hash" />{:else if it.userId}<Avatar instance={it.instance} userId={it.userId} size={18} />{:else}<Icon name="gear" />{/if}
           <span class="label">{it.label}</span>
           {#if it.server}<span class="hint">{it.server}</span>{/if}
@@ -70,16 +71,17 @@
         </button>
       </li>
     {/each}
-    {#if !results.length}<li class="none faint">Nothing matches</li>{/if}
+    {#if !results.length}<li role="presentation" class="none faint">Nothing matches</li>{/if}
   </ul>
-</div>
+</dialog>
 
 <style>
-  .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 30; }
+  .palette::backdrop { background: var(--scrim); }
   .palette {
+    margin: 0; padding: 0; color: var(--ink); overscroll-behavior: contain;
     position: fixed; z-index: 31; top: 12vh; left: 50%; transform: translateX(-50%);
     width: min(560px, calc(100vw - 32px)); background: var(--bg-2); border: 1px solid var(--line);
-    border-radius: var(--r-lg); box-shadow: 0 20px 60px var(--scrim); overflow: hidden;
+    border-radius: var(--r-lg); box-shadow: 0 20px 60px var(--shadow-lg); overflow: hidden;
   }
   .search { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
   .search input { flex: 1; background: none; border: 0; outline: 0; font-size: 16px; color: var(--ink); }
