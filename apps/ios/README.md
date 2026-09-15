@@ -341,7 +341,8 @@ Locally verified on 2026-09-14:
   generated project, shared scheme, workspace, matching package locks, and
   current archive. This is a local invocation, not a Cloud run.
 
-The refreshed bundle contains **189 tracked files / 204,413 bytes**, SHA-256:
+The bundle repackaged on **2026-09-15** contains **189 tracked files / 204,413 bytes**,
+SHA-256:
 
 ```text
 45015a2ecf21e60e45fda0e614f768a62d205a28ed5b793d131e132d15ca4852

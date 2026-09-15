@@ -78,9 +78,11 @@ extension AppStore {
         Task { try? await socket.send(.string(frame)) }
     }
     /// ClientEvent is generated from the shared schema; typing is the only event iOS emits.
-    /// Its variants are inline, so every generated payload type is named by oneOf position,
-    /// and `object_open`/`object_close` are shape-identical. Regeneration could therefore
-    /// renumber them and still compile. A test pins the bytes this produces to the wire tag.
+    /// Its variants are inline, so every payload type is named by its oneOf position rather
+    /// than by its tag. The `channelId:` label and the `.typing` case belong to this payload
+    /// alone, so a plain reorder would fail to compile rather than emit the wrong event. A
+    /// test pins the bytes for what compilation would not catch: a later regeneration, a
+    /// generator or naming-strategy change, or an adaptation of this call that still builds.
     static func typingFrame(channelId: String) -> String? {
         let event = API.ClientEvent.case4(.init(channelId: channelId, _type: .typing))
         guard let data = try? JSONEncoder().encode(event) else { return nil }

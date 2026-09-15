@@ -110,8 +110,9 @@ import Testing
     @Test @MainActor func theOnlyEmittedClientEventIsPinnedToItsWireTagNotItsOneOfPosition() throws {
         let frame = try #require(AppStore.typingFrame(channelId: "room-general"))
         let value = try #require(try JSONSerialization.jsonObject(with: Data(frame.utf8)) as? [String: String])
-        // The generated ClientEvent variants are inline and object_open/object_close are
-        // shape-identical, so a renumbering regeneration can still compile. Pin the bytes.
+        // ClientEvent variants are named by oneOf position, not by tag. Compilation already
+        // rejects a plain reorder; this pins the bytes against a regeneration, a generator
+        // change, or a later adaptation of the call that still builds but emits something else.
         #expect(value == ["type": "typing", "channel_id": "room-general"])
     }
 

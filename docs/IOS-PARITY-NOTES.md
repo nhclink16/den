@@ -21,7 +21,8 @@ a semantic diff rather than by reading the file.
 Nothing the native app calls changed. Every difference is an addition. The semantic diff
 from the contract as committed in `b4a7b1c` to the one saved here: 18 paths added, none
 removed, `/ws` the only changed path; 19 schemas added, none removed; 4 schemas changed,
-each gaining one optional property; 3 `Event` tags added, none removed.
+of which `Bootstrap`, `Register` and `TerminalState` each gain one optional property while
+`Event` gains three variants; no schema's `required` set changed in either direction.
 
 | Difference | Native effect |
 | --- | --- |
@@ -59,9 +60,14 @@ storing the whole user means they need no second event path when they are built.
 `CallControllerContext.title` and `CallSession.title` were snapshots taken when a call was
 reported, so a rename during a DM call stayed stale in the dock, the call sheet and the
 CallKit caller name. `CallController.updateNames(_:title:)` now recomputes the title for
-each live context from current names and reports a `CXCallUpdate` for an incoming call.
-Outgoing calls are left alone: they were never reported with a `localizedCallerName`, and
-giving them one now would be a UI change, not a parity fix.
+**every** live context, incoming and outgoing alike, so `CallControllerContext.title` and
+the `CallSession.title` the dock and call sheet read are refreshed in both directions.
+
+What differs between the two is only the report to CallKit. An incoming call was reported
+with a `localizedCallerName`, so it gets a corrected `CXCallUpdate`. An outgoing call never
+had one — CallKit shows its generic handle — and inventing one now would be new UI rather
+than a parity fix, so that reporting is deliberately unchanged. An outgoing call's native
+title is refreshed; only what CallKit displays for it is left as it was.
 
 `AppStore.refresh()` routes through the same path, so a reconnect corrects a title too.
 
@@ -81,15 +87,21 @@ stays opted out rather than receiving events it would drop. `AppStore.socketURL(
 ticket:)` is the single construction site, used by `connectSocket()` and asserted directly
 in tests. Unknown tags remain a `default: break`.
 
-`sendTyping` emits `API.ClientEvent.case4`, a generator-assigned position, and that
-position is not something to take on trust. All four `ClientEvent` variants are inline
-rather than `$ref`s, so every generated payload type is named by its oneOf position, and
-`object_open` and `object_close` are shape-identical apart from their `type` constant.
-A regeneration that renumbers them could keep compiling. There is no stable generated type
-to switch to, so the construction moved into `AppStore.typingFrame(channelId:)` and a test
-pins the bytes it produces to `{"type":"typing","channel_id":...}`. `typing` is still the
-fourth variant in the live schema; the test is what keeps that true rather than an
-assumption. The receive path does not have this problem: it routes on the wire tag.
+`sendTyping` emits `API.ClientEvent.case4`, a generator-assigned position. All four
+`ClientEvent` variants are inline rather than `$ref`s, so every generated payload type is
+named by its oneOf position and there is no stable generated type to name instead.
+
+That position is weaker than a name, but it is not unguarded today. The call site passes a
+`channelId:` label and a `.typing` case, and both are specific to the typing payload's own
+generated types, so a reorder that moved another variant into position four would generally
+fail to compile rather than silently emit the wrong event. This is not a claim that the
+current call could quietly become `object_open`.
+
+The construction still moved into `AppStore.typingFrame(channelId:)`, with a test pinning
+the bytes it produces to `{"type":"typing","channel_id":...}`. That guards what compilation
+does not: a future regeneration, a naming-strategy or generator change, or a later hand
+adaptation of this call that still type-checks but emits something else. The receive path
+has no equivalent exposure, because it routes on the wire tag.
 
 ## Evidence
 
@@ -107,6 +119,58 @@ report is made and none is faked.
 Not covered, and not claimed: the incoming CallKit system sheet. The `CXCallUpdate`
 reported for an incoming call needs a call actually reported to CallKit, so what the caller
 name looks like on that sheet is device acceptance, not a test result.
+
+### Results
+
+Run on the iOS 27 simulator. The build plugin was confirmed to generate from the schema
+saved here, producing the `MusicQueue` and `SoundPack` types, so the regenerated contract
+is proved to compile the existing native client rather than only to parse.
+
+Every one of the ten tests has both a green run and a red one under a deliberate mutation,
+so none of them is passing vacuously. Each mutation was restored byte-exact afterwards.
+
+| Run | Result | Log |
+| --- | --- | --- |
+| Unmutated | 10 passed, 0 failed, 0 skipped | `/tmp/den-ios-parity-first-green.log` |
+| Store, socket URL and typing mutations | 7 failed, 0 passed, 0 skipped | `/tmp/den-ios-parity-store-negative.log` |
+| Call wiring mutations | 3 failed, 0 passed, 0 skipped | `/tmp/den-ios-parity-calls-negative.log` |
+| Restored full `DenTests` plus both existing text UI tests | 57 passed, 0 failed, 1 skipped | `/tmp/den-ios-parity-full-regression.log` |
+
+The seven and the three are disjoint and cover all ten. The three call mutations each failed
+on the assertion they were aimed at: reverting `connectMedia` to the credential snapshot read
+`Ann` instead of `Annabel` and left `user-bo` absent; dropping the `isLive` gate relabelled an
+ended context; and removing the `clearSession` reset kept the previous account's names and
+defeated the cold-answer fallback.
+
+The connecting-call test reached a genuine `.connecting` state rather than timing out, so its
+result is about the rename rather than about the audio stack.
+
+The restored run includes 55 passing `DenTests` and two passing `DenUITests` against the
+isolated current-main loopback server: `testNativeTextFlowAndSessionRestoration` and
+`testSearchResultRestoresUsableTabNavigation`. They exercise real login, Keychain restoration,
+sending with Return, editing, replies, reactions, deletion, DMs, unread mentions, search,
+light/dark appearance updates and sign-out. The single skip is the opt-in
+`platformPermissionCallbacksResumeOnOwningActor` system-permission integration test, not
+any compatibility or profile test. No existing assertion was weakened.
+
+XCTest screenshots of the conversation, appearance and restored search navigation were
+exported and visually inspected in `/tmp/den-ios-parity-ui-evidence`. These do not show the
+incompatible-response Update Den panel; that panel's appearance remains visually unverified.
+The separate simulator accessibility bridge timed out, but the Xcode UI-test runner worked.
+The incoming CallKit system sheet is still unverified as described above; this run did not
+join a real media room or install a physical-device build.
+
+The result bundle is
+`~/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/result-bundles/test_sim_2026-09-15T19-29-53-922Z_pid20117_f51de558.xcresult`.
+The current live OpenAPI was fetched again and remained byte-identical to the saved raw
+contract. The parent also ran `ci_post_clone.sh` locally: project, package pins, derived
+schema and refreshed fixture archive checks passed. This is not an Xcode Cloud run.
+
+No known contract mismatch remains in the existing native API calls examined here.
+Unknown event tags are ignored; invalid or missing required known response data still
+triggers the deliberate Update Den state from `b4a7b1c`. Already-installed builds retain
+their old decoding behavior. No TestFlight upload was attempted, no certificate was added,
+and Andy's enrollment and the availability of build 0.3.0(1) were left unchanged.
 
 ## Intentionally absent
 
