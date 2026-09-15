@@ -34,6 +34,9 @@ impl Test {
         Self::configured(voice, None).await
     }
     async fn configured(voice: Option<&str>, music: Option<String>) -> Self {
+        Self::with_music(voice, music.map(|r| (r, "ffmpeg".into(), "den-dj".into()))).await
+    }
+    async fn with_music(voice: Option<&str>, music: Option<(String, String, String)>) -> Self {
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -55,8 +58,8 @@ impl Test {
         } else {
             state
         };
-        let state = if let Some(resolver) = music {
-            state.with_music_tools(resolver, "ffmpeg".into(), "den-dj".into())
+        let state = if let Some((resolver, ffmpeg, publisher)) = music {
+            state.with_music_tools(resolver, ffmpeg, publisher)
         } else {
             state
         };
