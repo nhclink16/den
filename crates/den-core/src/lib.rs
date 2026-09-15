@@ -1,3 +1,5 @@
+mod voice;
+pub use voice::*;
 mod profile;
 pub use profile::*;
 mod appearance;
@@ -113,6 +115,10 @@ pub struct Message {
 pub enum Event {
     UserUpdated {
         user: User,
+    },
+    VoicePreferencesUpdated {
+        user_id: String,
+        preferences: VoicePreferences,
     },
     AppearanceUpdated {
         user_id: String,

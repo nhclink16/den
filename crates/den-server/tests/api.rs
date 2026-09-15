@@ -487,3 +487,5 @@ mod backgrounds;
 mod profile_images;
 #[path = "api/profiles.rs"]
 mod profiles;
+#[path = "api/voice_preferences.rs"]
+mod voice_preferences;
