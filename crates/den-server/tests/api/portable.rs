@@ -62,7 +62,7 @@ fn rewrite(input: &std::path::Path, output: &std::path::Path, change: &str) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials() {
-    let t = Test::new().await;
+    let mut t = Test::new().await;
     sqlx::query("UPDATE settings SET instance_name='Portable friends' WHERE id=1")
         .execute(&t.state.db)
         .await
@@ -101,6 +101,17 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     );
     let (mut socket, _) = connect_async(request).await.unwrap();
     tokio::time::sleep(Duration::from_millis(40)).await;
+    t.req(
+        Method::PUT,
+        &format!("/users/me/hosts/{host_id}/recording"),
+        &t.admin.token,
+    )
+    .json(&json!({"enabled":true}))
+    .send()
+    .await
+    .unwrap()
+    .error_for_status()
+    .unwrap();
     let terminal = t
         .post(
             &format!("/hosts/{host_id}/sessions"),
@@ -148,8 +159,7 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     t.post("/hosts/enroll", &t.admin.token, json!({})).await;
     sqlx::query("INSERT INTO grants(id,host_id,grantee_id,capability,created_by,created_at) VALUES(?,?,?,'terminal_control',?,1)").bind(ulid::Ulid::new().to_string()).bind(host_id).bind(&t.admin.user.id).bind(&t.admin.user.id).execute(&t.state.db).await.unwrap();
     drop(socket);
-    t.task.abort();
-    t.state.db.close().await;
+    t.stop_for_export().await;
     fs::write(t.dir.join("uploads/host.toml"), "not archive data").unwrap();
     fs::create_dir(t.dir.join("uploads/.ssh")).unwrap();
     fs::write(t.dir.join("uploads/.ssh/key"), "not archive data").unwrap();
@@ -374,14 +384,13 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn portable_refuses_live_or_invalid_archives_and_migrates_old_schema() {
-    let t = Test::new().await;
+    let mut t = Test::new().await;
     let archive = t.dir.join("backup.zip");
     let running = run(&t, &["export", archive.to_str().unwrap()]);
     assert!(!running.status.success());
     assert!(String::from_utf8_lossy(&running.stderr).contains("stop Den"));
     assert!(!archive.exists());
-    t.task.abort();
-    t.state.db.close().await;
+    t.stop_for_export().await;
     succeeded(run(&t, &["export", archive.to_str().unwrap()]));
     for change in ["newer", "divergent", "traversal", "symlink", "checksum"] {
         let bad = t.dir.join(format!("{change}.zip"));

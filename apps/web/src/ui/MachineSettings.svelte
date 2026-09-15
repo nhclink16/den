@@ -3,7 +3,7 @@
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
-  import type { Host, HostEnrollment, Grant, AccessLog } from '../lib/types'
+  import type { Host, HostEnrollment, Grant, AccessLog, TerminalRecording } from '../lib/types'
   let { section }: { section: string } = $props()
   let machines = $state<Host[]>([])
   let grants = $state<Grant[]>([])
@@ -11,6 +11,7 @@
   let enrollment = $state<HostEnrollment | null>(null)
   let error = $state('')
   let busy = $state(false)
+  let recording = $state<Record<string, boolean>>({})
   let windows = $state(false)
   const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
   const psQuote = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -20,9 +21,16 @@
   const user = (id: string) => store.users.get(id)?.username || id
   const machine = (id: string) => machines.find(h => h.id === id)?.name || id
   async function refresh() {
-    try { [machines, grants, log] = await Promise.all([api.get<Host[]>('/hosts'), api.get<Grant[]>('/grants'), api.get<AccessLog[]>('/access/log')]) } catch (e) { error = (e as Error).message }
+    try { [machines, grants, log] = await Promise.all([api.get<Host[]>('/hosts'), api.get<Grant[]>('/grants'), api.get<AccessLog[]>('/access/log')]); recording = Object.fromEntries(await Promise.all(machines.filter(h => h.owner_id === store.me?.id).map(async h => [h.id, (await api.get<TerminalRecording>(`/users/me/hosts/${h.id}/recording`)).enabled]))) } catch (e) { error = (e as Error).message }
   }
   onMount(() => { refresh(); const timer = setInterval(refresh, 5000); return () => clearInterval(timer) })
+  async function saveRecording(h: Host, enabled: boolean) {
+    if (busy) return
+    busy = true; error = ''
+    try { recording[h.id] = (await api.put<TerminalRecording>(`/users/me/hosts/${h.id}/recording`, { enabled })).enabled }
+    catch (e) { error = (e as Error).message }
+    finally { busy = false }
+  }
   async function add() {
     busy = true; error = ''
     try { enrollment = await api.post<HostEnrollment>('/hosts/enroll', {}) } catch (e) { error = (e as Error).message } finally { busy = false }
@@ -38,8 +46,9 @@
 {#if section === 'machines'}
   <h2 class="display">Machines</h2>
   <p class="muted">Open a terminal on a machine you connect to {store.settings.instance_name}.</p>
+  <p class="muted">Recording is off by default. It saves terminal output for replay in the ended card, in this server's uploads folder. The terminal toggle remembers your choice per machine. Turning it off discards the current session's recording; existing recordings stay available.</p>
   {#each machines as h (h.id)}
-    <div class="row"><span><span class="dot" class:online={h.online}></span>{h.name} <small>{h.online ? 'online' : 'offline'}</small></span><InlineConfirm action="Remove" sentence={`Remove ${h.name}? Its terminals end and it must be enrolled again.`} disabled={busy} confirm={() => remove(h)} /></div>
+    <div class="row"><span><span class="dot" class:online={h.online}></span>{h.name} <small>{h.online ? 'online' : 'offline'}</small></span>{#if h.owner_id === store.me?.id}<label class="record"><input type="checkbox" checked={recording[h.id] || false} aria-disabled={busy} onchange={e => { const enabled = e.currentTarget.checked; e.currentTarget.checked = recording[h.id] || false; void saveRecording(h, enabled) }} /> Record new sessions<span class="sr-only"> on {h.name}</span></label>{/if}<InlineConfirm action="Remove" sentence={`Remove ${h.name}? Its terminals end and it must be enrolled again.`} disabled={busy} confirm={() => remove(h)} /></div>
   {:else}<p class="muted">Add a machine to open your first terminal.</p>{/each}
   <button class="btn lit" disabled={busy} onclick={add}>Add a machine</button>
   {#if enrollment}
@@ -58,6 +67,7 @@
 <style>
   h2 { font-size: 24px; margin-bottom: 8px; } h3 { margin: 24px 0 12px; font-size: 14px; }
   .muted, small, time { color: var(--ink-3); } .muted { margin-bottom: 16px; }
+  .record { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; font-size: 13px; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
   @media (max-width: 600px) { .row { flex-wrap: wrap; gap: 8px; } }
   .row:last-of-type { margin-bottom: 16px; } small { font: 11px var(--mono); margin-left: 8px; }

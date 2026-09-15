@@ -11,6 +11,7 @@
   let sessionId = $state('')
   let error = $state('')
   let direct = $state(false)
+  let recordingBusy = $state(false)
   let focused = $state(false)
   let hint = $state(false)
   let mounted = $state(false)
@@ -54,14 +55,24 @@
     if (!t?.active_controller_id) return
     try {await catalog(); for (const g of terminals.grants.filter(g => g.host_id === t.host_id && g.grantee_id === t.active_controller_id && g.capability === 'terminal_control')) await api.del(`/grants/${g.id}`); await catalog()} catch (e) {error = (e as Error).message}
   }
+  async function toggleRecording() {
+    if (!t || recordingBusy) return
+    recordingBusy = true
+    try { terminals.sessions[t.id] = await api.post<TerminalState>(`/sessions/${t.id}/recording`, { enabled: !t.recording_enabled }); error = '' }
+    catch (e) { error = (e as Error).message }
+    finally { recordingBusy = false }
+  }
   async function end() { if (!t) return; try { await api.del(`/sessions/${t.id}`) } catch (e) { error = (e as Error).message } }
   async function recording(state: TerminalState) {
-    if (!canView || !editor) return
+    if (!canView || !editor || !state.recording_upload_id) return
     replayLoaded = state.recording_upload_id!; stream?.destroy(); stream = undefined; direct = false
     try {
       const response = await fetch(mediaUrl(`/uploads/${state.recording_upload_id}/file`))
       if (!response.ok) throw new Error('Recording access denied.')
       replay = (await response.text()).trim().split('\n').filter(Boolean).map(line => { const [ms, bytes] = JSON.parse(line); return [ms, Uint8Array.from(atob(bytes), c => c.charCodeAt(0))] })
+      // Enabling recording late in a session must not replay the unrecorded wait.
+      const start = replay[0]?.[0] || 0
+      replay = replay.map(([ms, bytes]) => [ms - start, bytes])
       duration = replay.at(-1)?.[0] || 1; seek(0); playing = true
     } catch (e) { error = (e as Error).message }
   }
@@ -93,7 +104,7 @@
       const value = await load(object); await catalog(); if (!value || dead) return
       sessionId = value.id
       const renderer = await import('./renderer'); if (dead) return
-      editor = await renderer.mount(host, value.cols, value.rows, text => { if (controller) stream?.input(text) }); if (dead) {editor.destroy(); return}
+      editor = await renderer.mount(host, value.cols, value.rows, text => { if (controller) stream?.input(text) }, () => controller); if (dead) {editor.destroy(); return}
       editor.term.attachCustomKeyEventHandler(e => {
         if (e.type === 'keydown' && e.key === 'Escape') {
           const now = performance.now()
@@ -126,6 +137,12 @@
   })
 </script>
 <div class="terminal-view" class:compact data-terminal-focus={focused}>
+  {#if t && !t.ended_at}
+    <div class="recording-header">
+      {#if owner}<label title="Remembered for this machine. Turning off discards this session's recording."><input type="checkbox" checked={t.recording_enabled} aria-disabled={recordingBusy} onchange={e => { e.currentTarget.checked = !!t.recording_enabled; void toggleRecording() }} /> Record session</label>
+      {:else if t.recording_enabled}<span>Recording</span>{/if}
+    </div>
+  {/if}
   {#if t && t.active_controller_id && t.active_controller_id !== t.owner_id && !t.ended_at}
     <div class="control-banner" data-testid="terminal-control-banner"><span>{name(t.active_controller_id)} has control</span>{#if owner}<button onclick={() => act(`/sessions/${t.id}/controller`, { user_id: t.owner_id })}>Take back</button><button onclick={revokeControl}>Revoke control</button>{/if}</div>
   {/if}
@@ -135,14 +152,16 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="terminal-screen" bind:this={host} role="group" aria-label={`Terminal on ${object.name}`} onfocusin={focus} onfocusout={() => focused = false} onkeydown={e => e.stopPropagation()} onkeyup={e => e.stopPropagation()} data-testid={compact ? 'terminal-tile-editor' : 'terminal-editor'}></div>
   {#if !canView && t}<div class="access-needed"><p>Ask {name(t.owner_id)} to view this terminal.</p><button class="btn lit" onclick={() => request(false)}>Request access</button><button class="btn quiet" onclick={() => request(true)}>Request control</button></div>{/if}
-  {#if hint}<span class="hint">Esc Esc to leave</span>{/if}
+  {#if hint && !t?.ended_at}<span class="hint">Esc Esc to leave</span>{/if}
   {#if t && !t.ended_at && canView}<div class="view-status">{#if direct}<span class="direct">direct</span>{/if}{#if !controller}<span>View only</span><button onclick={() => request(true)}>Request control</button>{/if}</div>{/if}
-  {#if t?.ended_at}<div class="replay" data-testid="terminal-replay"><span>Session ended</span><button aria-label={playing ? 'Pause replay' : 'Play replay'} onclick={() => {if (time >= duration) seek(0); playing = !playing}}>{playing ? 'Pause' : 'Play'}</button><input aria-label="Replay position" type="range" min="0" max={duration || 1} value={time} oninput={e => seek(+e.currentTarget.value)} /><span>{Math.floor(time / 1000)}s</span>{#if t.recording_capped}<span>Recording stopped at 64 MiB</span>{/if}</div>{/if}
+  {#if t?.ended_at}<div class="replay" data-testid="terminal-replay"><span>Session ended</span>{#if t.recording_upload_id}<button aria-label={playing ? 'Pause replay' : 'Play replay'} onclick={() => {if (time >= duration) seek(0); playing = !playing}}>{playing ? 'Pause' : 'Play'}</button><input aria-label="Replay position" type="range" min="0" max={duration || 1} value={time} oninput={e => seek(+e.currentTarget.value)} /><span>{Math.floor(time / 1000)}s</span>{#if t.recording_capped}<span>Recording stopped at 64 MiB</span>{/if}{:else}<span>No recording</span>{/if}</div>{/if}
   {#if owner && t && !compact && !t.ended_at}<div class="actions"><label>Post card <select aria-label="Post terminal card to" bind:value={shareTo}><option value="">Choose a room</option>{#each store.textChannels.filter(c => c.kind === 'text') as c}<option value={c.id}>#{c.name}</option>{/each}</select></label><button class="btn quiet" disabled={!shareTo} onclick={share}>Post</button><button class="btn quiet" onclick={end}>End session</button></div>{/if}
   {#if error}<div class="status" role="status">{error}<button aria-label="Dismiss terminal message" onclick={() => error = ''}>×</button></div>{/if}
 </div>
 <style>
   .terminal-view { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; padding-top: 44px; }
+  .recording-header { display: flex; align-items: center; min-height: 28px; padding: 0 10px 4px; font-size: 12px; color: var(--ink-2); }
+  .recording-header label { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; }
   .terminal-screen { flex: 1; min-height: 0; min-width: 0; overflow: auto; position: relative; margin: 0 10px 24px; }
   .terminal-screen :global(canvas) { display: block; }
   .control-banner, .control-prompt { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 10px; font-size: 12px; background: var(--bg-2); border-left: 2px solid var(--lamp); flex-shrink: 0; }

@@ -1,11 +1,13 @@
 import { init, Terminal, FitAddon, type GhosttyCell } from 'ghostty-web'
+import { mouseInput } from './mouse'
 const ready = init()
-export async function mount(host: HTMLElement, cols: number, rows: number, input: (text: string) => void) {
+export async function mount(host: HTMLElement, cols: number, rows: number, input: (text: string | Uint8Array) => void, canInput: () => boolean) {
   await Promise.all([ready, document.fonts.load('14px "Den Terminal Mono"')])
   const css = getComputedStyle(host)
   const term = new Terminal({ cols, rows, fontFamily: css.getPropertyValue('--mono').trim(), fontSize: 14, scrollback: 5000, cursorBlink: true, theme: { background: css.getPropertyValue('--bg').trim(), foreground: css.getPropertyValue('--ink').trim(), cursor: css.getPropertyValue('--lamp').trim() } })
   const fit = new FitAddon(); term.loadAddon(fit); term.open(host)
   term.onData(input)
+  const removeMouse = mouseInput(host, term, input, canInput)
   Object.assign(host, { denTerminal: term })
   // ghostty-web 0.4 resolves default colors into cells at open and has no
   // runtime VT palette setter. Recolor those defaults only at the renderer
@@ -43,7 +45,7 @@ export async function mount(host: HTMLElement, cols: number, rows: number, input
     const size = Math.max(3, Math.floor(term.options.fontSize * factor * 10) / 10)
     if (Math.abs(term.options.fontSize - size) > .1) term.options.fontSize = size
   }
-  return { term, fit, redraw, fitScreen, destroy: () => {themeObserver.disconnect(); term.dispose(); delete (host as HTMLElement & { denTerminal?: Terminal }).denTerminal} }
+  return { term, fit, redraw, fitScreen, destroy: () => {removeMouse(); themeObserver.disconnect(); term.dispose(); delete (host as HTMLElement & { denTerminal?: Terminal }).denTerminal} }
 }
 export function screen(term: Terminal) {
   const buffer = term.buffer.active; const lines: string[] = []

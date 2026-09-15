@@ -1,5 +1,6 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
+import { Uploads } from './uploads.svelte'
 import { themes } from './theme.svelte'
 import type { Appearance, VoicePreferences } from './types'
 import { objects } from './objects.svelte'
@@ -24,7 +25,8 @@ const PAGE = 50
 const activeListeners = new Set<(event: Event) => void>()
 
 export class Store {
-  constructor(public origin: string) { this.api = apiFor(origin); this.appearance = cachedAppearance(origin) }
+  constructor(public origin: string) { this.api = apiFor(origin); this.uploads = new Uploads(origin); this.appearance = cachedAppearance(origin) }
+  readonly uploads: Uploads
   readonly api: ReturnType<typeof apiFor>
   appearance = $state<Appearance>(cachedAppearance())
   voice = $state<VoicePreferences>({ microphones: {}, cameras: {} })
@@ -128,6 +130,7 @@ export class Store {
     await this.boot()
   }
   async logout() {
+    this.uploads.clear()
     if (call.origin === this.origin || !native) await call.leave()
     this.generation++
     if (this.active) { call.snapshot([]); objects.active = null; objects.expanded = false; objects.presence = {} }

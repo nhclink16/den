@@ -10,7 +10,7 @@
 </script>
 <button class="terminal-card" onclick={() => openObject(object)} title="Open terminal" data-object-id={object.id}>
   <span class="preview">{#if terminals.previews[id]}<pre>{terminals.previews[id]}</pre>{:else}<span class="glyph">›_</span>{/if}</span>
-  <span class="caption"><span class="title"><span class="eyebrow">terminal</span><span class="name">{object.name}</span>{#if session?.ended_at}<span class="ended">ended · {Math.max(1, Math.round((session.ended_at - session.started_at) / 60))} min ▷</span>{/if}</span>
+  <span class="caption"><span class="title"><span class="eyebrow">terminal</span><span class="name">{object.name}</span>{#if session?.ended_at}<span class="ended">ended · {Math.max(1, Math.round((session.ended_at - session.started_at) / 60))} min{#if session.recording_upload_id} ▷{/if}</span>{/if}</span>
     <span class="people">{#if session?.active_controller_id}<span class="controller"><Avatar userId={session.active_controller_id} size={24} /><i></i></span>{/if}{#each session?.viewer_ids.filter(id => id !== session.active_controller_id) || [] as userId}<Avatar {userId} size={20} />{/each}</span>
   </span>
 </button>

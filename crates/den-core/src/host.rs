@@ -197,6 +197,8 @@ pub struct TerminalState {
     pub started_at: i64,
     #[schema(value_type = Option<String>)]
     pub recording_upload_id: Option<Id>,
+    #[serde(default)]
+    pub recording_enabled: bool,
     pub recording_capped: bool,
     pub control_request_ids: Vec<Id>,
 }
@@ -218,4 +220,9 @@ pub struct DirectToken {
     pub token: String,
     pub url: Option<String>,
     pub expires_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct TerminalRecording {
+    pub enabled: bool,
 }

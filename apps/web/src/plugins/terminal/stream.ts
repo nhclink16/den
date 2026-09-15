@@ -56,8 +56,8 @@ export function subscribe(id: string, sink: Sink) {
   if (stream.sinks.size > 1) store.sendTerminal({ type: 'terminal_open', session_id: id })
   const send = (frame: TerminalFrame) => { if (stream.direct?.readyState === WebSocket.OPEN && stream.mode === 'direct') stream.direct.send(new TextEncoder().encode(JSON.stringify(frame))); else store.sendTerminal(frame) }
   return {
-    input(text: string) {
-      stream.input.push(...new TextEncoder().encode(text))
+    input(text: string | Uint8Array) {
+      stream.input.push(...(typeof text === 'string' ? new TextEncoder().encode(text) : text))
       if (!stream.flush) stream.flush = setTimeout(() => { const bytes = stream.input.splice(0); stream.flush = undefined; for (let i = 0; i < bytes.length; i += 8192) send({ type: 'terminal_input', session_id: id, bytes: bytes.slice(i, i + 8192) }) }, 16)
     },
     resize(cols: number, rows: number) { store.sendTerminal({ type: 'terminal_resize', session_id: id, cols, rows }) },

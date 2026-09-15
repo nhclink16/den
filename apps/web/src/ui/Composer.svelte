@@ -2,18 +2,16 @@
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
   import { store } from '../lib/store.svelte'
-  import type { Channel, Message, Upload } from '../lib/types'
-  import { upload as send, type Progress } from '../lib/upload'
+  import type { Channel, Message } from '../lib/types'
+  import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
   import Icon from './Icon.svelte'
   import DictationButton from './DictationButton.svelte'
 
   let { channel, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
 
-  type Pending = { id: number; file: File; progress: Progress; done?: Upload; error?: string; abort: AbortController }
-  let seq = 0
   let text = $state('')
-  let pending = $state.raw<Pending[]>([])
+  const pending = $derived(store.uploads.forChannel(channel.id))
   let busy = $state(false)
   let error = $state('')
   let dismissed = $state(false)
@@ -24,7 +22,6 @@
 
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
-  const MAX = 1024 ** 3
 
   const placeholder = $derived(channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
@@ -39,22 +36,8 @@
     return () => observer.disconnect()
   })
 
-  // Pending entries are replaced, never mutated, so the keyed list re-renders.
-  function patch(id: number, part: Partial<Pending>) { pending = pending.map((x) => (x.id === id ? { ...x, ...part } : x)) }
-
-  function add(files: File[]) {
-    for (const file of files) {
-      const p: Pending = { id: ++seq, file, progress: { sent: 0, total: file.size }, abort: new AbortController() }
-      if (file.size > MAX) { pending = [...pending, { ...p, error: 'Over the 1 GB limit' }]; continue }
-      pending = [...pending, p]
-      send(channel.id, file, (progress) => patch(p.id, { progress }), p.abort.signal)
-        .then((done) => patch(p.id, { done }))
-        .catch((e) => patch(p.id, { error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' }))
-    }
-    ta?.focus()
-  }
-
-  function removePending(p: Pending) { p.abort.abort(); pending = pending.filter((x) => x.id !== p.id) }
+  function add(files: File[]) { store.uploads.add(channel.id, files); ta?.focus() }
+  function removePending(p: PendingUpload) { store.uploads.remove(channel.id, p) }
 
   function onPaste(e: ClipboardEvent) {
     const files = [...(e.clipboardData?.files || [])]
@@ -79,6 +62,8 @@
   function grow() { if (!ta) return; dismissed = false; selected = 0; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
 
   async function submit() {
+    const channelId = channel.id
+    const queue = store.uploads
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
     if ((!content && !ready.length) || uploading || busy) return
@@ -89,7 +74,7 @@
         await command.run({ channelId: channel.id, args: content.slice(command.name.length + 1).trim(), post: (content) => store.send(channel.id, content) })
       } else await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: ready })
       text = ''; replyTo = null
-      pending = pending.filter((p) => !p.done || !ready.includes(p.done.id))
+      queue.sent(channelId, ready)
       requestAnimationFrame(grow)
     } catch (err) { error = (err as Error).message } finally {
       busy = false

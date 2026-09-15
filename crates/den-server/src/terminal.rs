@@ -143,6 +143,7 @@ pub(crate) async fn open(
         started_at: now(),
         recording_upload_id: None,
         recording_capped: false,
+        recording_enabled: terminal_recording::preference(&s, &host.owner_id, &host.id).await?,
         control_request_ids: vec![],
     };
     let o = create_object(
@@ -341,7 +342,7 @@ pub(crate) async fn output(s: &AppState, id: &str, bytes: Vec<u8>) -> Result<()>
     if t.ended_at.is_some() {
         return Ok(());
     }
-    if !t.recording_capped {
+    if t.recording_enabled && !t.recording_capped {
         let path = s.uploads.join(format!("{id}.recording"));
         let ms = (SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -386,6 +387,9 @@ pub(crate) async fn finish(s: &AppState, id: &str) -> Result<()> {
     t.ended_at = Some(now());
     t.active_controller_id = None;
     t.viewer_ids.clear();
+    if !t.recording_enabled {
+        terminal_recording::discard(s, id).await?;
+    }
     let path = s.uploads.join(format!("{id}.recording"));
     if let Ok(meta) = tokio::fs::metadata(&path).await {
         if meta.len() > 0 {

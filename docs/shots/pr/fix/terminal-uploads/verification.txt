@@ -1,0 +1,96 @@
+Before browser smoke
+Recording toggle count: 0
+Herdr right pane focused after click: false
+Herdr tab click target: { x: 40, y: 0 }
+Default-off ended recording: true
+Pending upload after return: 0
+PASS before capture; scratch /mnt/storage/terminal-smoke-6Du6Gg
+
+
+After browser smoke
+Recording toggle count: 1
+Herdr right pane focused after click: true
+Herdr tab click target: { x: 40, y: 0 }
+Default-off ended recording: false
+Pending upload after return: 1
+PTY received SGR click, drag, release and wheel
+Legacy high-bit mouse coordinate passed
+Recording toggle, replay, remembered preference and scrollback passed
+Removing an in-flight upload prevents completion
+PASS after capture; scratch /mnt/storage/terminal-smoke-siRIfz
+
+
+Server API integration tests
+    Blocking waiting for file lock on build directory
+   Compiling den-server v0.2.1 (/mnt/storage/wt-terminal/crates/den-server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 18s
+     Running tests/api.rs (/mnt/storage/den-terminal-target/debug/deps/api-139dc327252e1a23)
+
+running 41 tests
+test desktop::cookie_ticket_minting_retains_csrf_protection ... ok
+test calls::webhook_rejects_missing_invalid_and_tampered_signatures ... ok
+test desktop::native_tickets_upgrade_once_and_follow_session_revocation ... ok
+test host_enrollment_is_single_use_and_expires ... ok
+test auth::login_throttles_and_openapi_contains_the_shared_contract ... ok
+test ios::alert_and_voip_registrations_are_independent_and_keep_legacy_defaults ... ok
+test chat::channel_crud_dm_privacy_messages_and_cursor_pagination ... ok
+test appearance::split_appearance_migrates_validates_persists_and_stays_private ... ok
+test backgrounds::backgrounds_are_private_bounded_and_portable ... ok
+test ios::openapi_preserves_native_optional_ids_and_query_parameter_locations ... ok
+test calls::multiple_connections_keep_one_user_present_until_the_last_leaves ... ok
+test ios::device_credentials_validate_input_and_logout_or_revocation_removes_only_their_devices ... ok
+test calls::call_token_authorization_and_voice_channel ... ok
+test ios::device_registration_is_scoped_idempotent_and_follows_account_switches ... ok
+test auth::auth_consumes_invites_protects_cookies_and_revokes_credentials ... ok
+test m2_files::upgrading_m1_indexes_existing_messages_and_mentions ... ok
+test ios::concurrent_callers_cannot_replace_a_live_invite_but_expiry_allows_a_new_one ... ok
+test m2_files::spa_fallback_preserves_api_auth_and_missing_asset_errors ... ok
+test ios_calls::media_departure_preserves_sibling_connections_and_ignores_old_room_finish ... ok
+test ios::invitations_require_dm_call_participation_and_only_reach_pending_recipients ... ok
+test m2_live::presence_counts_tabs_and_typing_uses_authenticated_identity_and_membership ... ok
+test m2_live::websocket_targets_notifications_and_read_state_without_dm_leaks ... ok
+test ios_calls::call_answers_are_atomic_per_recipient_and_reconcile_without_exposing_credentials ... ok
+test m2_messages::read_markers_are_monotonic_and_notification_counts_follow_preferences ... ok
+test m2_messages::replies_reactions_and_search_respect_membership_and_message_changes ... ok
+test m2_files::image_thumbnails_decode_to_bounded_png_and_enforce_private_access ... ok
+test objects::instance_name_is_public_bounded_and_admin_only ... ok
+test objects::only_admin_changes_canvas_switch_and_existing_objects_stay_readable ... ok
+test ios_calls::cancel_answer_race_is_linear_and_stale_generations_cannot_change_replacements ... ok
+test profiles::profile_patch_validates_clears_expires_and_broadcasts_to_members ... ok
+test realtime::websocket_filters_dms_marks_reconnect_and_closes_revoked_bot_tokens ... ok
+test terminal_recording::recording_is_opt_in_discardable_remembered_and_private ... ok
+test uploads::upload_deletion_requires_owner_or_admin_and_no_live_references ... ok
+test uploads::upload_resume_survives_uncommitted_bytes_and_serves_authenticated_ranges ... ok
+test terminal_grants_enforce_view_control_revoke_expiry_and_privacy ... ok
+test profile_images::profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives ... ok
+test portable::portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials ... ok
+test ios_calls::abandoned_answer_grace_requires_authoritative_absence_and_preserves_other_connections ... ok
+test portable::portable_refuses_live_or_invalid_archives_and_migrates_old_schema ... ok
+test objects::objects_enforce_access_merge_records_and_cascade ... ok
+test ios_calls::restart_retains_answers_and_expiry_closes_only_pending_ringing ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.27s
+
+
+
+Web type check
+
+> web@0.0.0 check
+> svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json
+
+Loading svelte-check in workspace: /mnt/storage/wt-terminal/apps/web
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+
+Workspace Clippy
+   Compiling clap_derive v4.6.4
+    Checking clap v4.6.6
+    Checking den v0.2.1 (/mnt/storage/wt-terminal/crates/den-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 49s
+
+Production web build
+> node ../../scripts/m9-contrast.mjs && vite build
+✓ built in 1.93s
+(!) Some chunks are larger than 500 kB after minification. Consider:
