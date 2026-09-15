@@ -341,11 +341,18 @@ Locally verified on 2026-09-14:
   generated project, shared scheme, workspace, matching package locks, and
   current archive. This is a local invocation, not a Cloud run.
 
-The refreshed bundle contains **158 tracked files / 162,278 bytes**, SHA-256:
+The refreshed bundle contains **189 tracked files / 204,413 bytes**, SHA-256:
 
 ```text
-bebff84b367df73f1925b061de1bee8e0651738a395670e2b9fa7582d596f6de
+45015a2ecf21e60e45fda0e614f768a62d205a28ed5b793d131e132d15ca4852
 ```
+
+It had been stale since `140f211`: eight commits changed the bundled Rust inputs
+without repackaging it, so the archive predated sound packs, the music queue,
+terminal recording and the host-session release. That affects the Cloud bundled
+fixture path, where `ci_post_clone.sh` fails on archive drift and
+`ci_pre_xcodebuild.sh` builds the fixture server from this archive. Local runs
+that build a server from the working tree were never affected.
 
 The first Cloud run must still prove package-plugin execution, service lifetime
 through XCTest, environment propagation, and both simulator destinations in that
