@@ -56,13 +56,19 @@ fn profile_name(name: &str) -> bool {
             && matches!(file, "avatar" | "avatar.png" | "banner" | "banner.png")
     })
 }
+fn sound_name(name: &str) -> bool {
+    name.split_once('/').is_some_and(|(owner, id)| {
+        (owner == "server" || owner.parse::<ulid::Ulid>().is_ok()) && den_core::sound_id(id)
+    })
+}
 fn archive_name(name: &str) -> bool {
     matches!(
         name,
         "den.db" | "manifest.json" | "uploads/" | "uploads/backgrounds/"
-    ) || name
-        .strip_prefix("uploads/profiles/")
-        .is_some_and(profile_name)
+    ) || name.strip_prefix("uploads/sounds/").is_some_and(sound_name)
+        || name
+            .strip_prefix("uploads/profiles/")
+            .is_some_and(profile_name)
         || name
             .strip_prefix("uploads/backgrounds/")
             .is_some_and(|id| id.parse::<ulid::Ulid>().is_ok())
@@ -117,6 +123,28 @@ pub(super) fn pack(
             .file_name()
             .into_string()
             .map_err(|_| anyhow::anyhow!("Non-UTF8 upload filename"))?;
+        if name == "sounds" {
+            ensure!(entry.file_type()?.is_dir(), "Sounds must be a directory");
+            for owner in fs::read_dir(entry.path())? {
+                let owner = owner?;
+                ensure!(
+                    owner.file_type()?.is_dir(),
+                    "Sound owner must be a directory"
+                );
+                for file in fs::read_dir(owner.path())? {
+                    let file = file?;
+                    let name = format!(
+                        "{}/{}",
+                        owner.file_name().to_string_lossy(),
+                        file.file_name().to_string_lossy()
+                    );
+                    if sound_name(&name) {
+                        ensure!(file.file_type()?.is_file(), "Sound must be a regular file");
+                        paths.push((format!("uploads/sounds/{name}"), file.path()));
+                    }
+                }
+            }
+        }
         if name == "profiles" {
             ensure!(
                 entry.file_type()?.is_dir(),
@@ -267,7 +295,7 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
             file.size() == expected.size && expected.sha256.len() == 64,
             "Manifest file size or hash is invalid"
         );
-        if name.starts_with("uploads/profiles/") {
+        if name.starts_with("uploads/profiles/") || name.starts_with("uploads/sounds/") {
             fs::create_dir_all(target.join(name).parent().unwrap())?;
         }
         let mut output = private_file(&target.join(name))?;

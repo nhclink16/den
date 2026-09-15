@@ -1,5 +1,7 @@
 mod music;
 pub use music::*;
+mod sounds;
+pub use sounds::*;
 mod voice;
 pub use voice::*;
 mod profile;
@@ -117,6 +119,9 @@ pub struct Message {
 pub enum Event {
     MusicQueueUpdated {
         queue: MusicQueue,
+    },
+    SoundsUpdated {
+        user_id: Option<String>,
     },
     UserUpdated {
         user: User,

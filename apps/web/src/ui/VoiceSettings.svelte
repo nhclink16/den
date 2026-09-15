@@ -26,7 +26,7 @@
 {/if}
 <VoiceDevices />
 <label class="switch"><input type="checkbox" checked={call.prefs.cameraOn} onchange={(e) => call.save({ cameraOn: e.currentTarget.checked })} /> Join with camera on</label>
-<label class="switch"><input type="checkbox" checked={call.prefs.sounds} onchange={(e) => call.save({ sounds: e.currentTarget.checked })} /> Play join and leave sounds</label>
+<p class="muted">Choose call tones in <a href="/settings/sounds">Sounds settings</a>.</p>
 
 <DictationSettings />
 

@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "two real LiveKit clients in an isolated room",
+    "own join/leave",
+    "remote join/leave",
+    "published screen share"
+  ],
+  "eventsA": [
+    "call_join",
+    "someone_joined",
+    "screen_share_started",
+    "someone_left",
+    "call_leave"
+  ],
+  "eventsB": [
+    "call_join",
+    "screen_share_started",
+    "call_leave"
+  ]
+}

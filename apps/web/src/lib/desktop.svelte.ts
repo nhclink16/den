@@ -1,3 +1,4 @@
+import { lookingAt } from './notify.svelte'
 import { call } from './call.svelte'
 import { instances } from './store.svelte'
 import { native, invoke, listen } from './native'
@@ -31,7 +32,7 @@ class Desktop {
     const alert = (e: globalThis.Event) => {
       const { origin, alert: a } = (e as CustomEvent<{ origin: string; alert: Extract<Event, { type: 'notification' }> }>).detail
       const s = instances.all.find(s => s.origin === origin), c = s?.channel(a.message.channel_id)
-      if (!s || !c || (s === instances.active && document.hasFocus() && document.visibilityState === 'visible' && router.route.name === 'channel' && router.route.id === c.id)) return
+      if (!s || !c || lookingAt(s, c.id)) return
       const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in #${c.name}`}`
       void invoke('notify', { title, body: a.message.content.slice(0, 140) || 'Sent a file', origin, channel: c.id }).catch(() => {})
     }

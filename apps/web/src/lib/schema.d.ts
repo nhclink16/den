@@ -1053,6 +1053,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/sounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__settings_sounds"];
+        put: operations["put__settings_sounds"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/sounds/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__settings_sounds_files__id_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tokens": {
         parameters: {
             query?: never;
@@ -1146,6 +1178,38 @@ export interface paths {
         delete?: never;
         options?: never;
         head: operations["file_head"];
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{id}/sounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__uploads__id__sounds"];
+        put?: never;
+        post: operations["post__uploads__id__sounds"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{id}/sounds/{sound}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__uploads__id__sounds__sound_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1318,6 +1382,70 @@ export interface paths {
         };
         get: operations["get__users_me_read_state"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/sounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_sounds"];
+        put: operations["put__users_me_sounds"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/sounds/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_sounds_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/sounds/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_sounds_import"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/sounds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_sounds__id_"];
+        put: operations["put__users_me_sounds__id_"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1705,6 +1833,10 @@ export interface components {
             type: "music_queue_updated";
         } | {
             /** @enum {string} */
+            type: "sounds_updated";
+            user_id?: string | null;
+        } | {
+            /** @enum {string} */
             type: "user_updated";
             user: components["schemas"]["User"];
         } | {
@@ -1971,6 +2103,9 @@ export interface components {
             from_user_id: components["schemas"]["String"];
             invitation_id: components["schemas"]["String"];
         };
+        InstallSound: {
+            event?: null | components["schemas"]["SoundEvent"];
+        };
         Instance: {
             icon_url?: string | null;
             instance_name: string;
@@ -2165,6 +2300,10 @@ export interface components {
             duration_minutes?: number | null;
             standing?: boolean;
         };
+        ResolvedSound: {
+            sound: components["schemas"]["SoundRef"];
+            url?: string | null;
+        };
         /** @enum {string} */
         Role: "admin" | "member";
         SaveCategory: {
@@ -2208,6 +2347,53 @@ export interface components {
         };
         ShareTerminal: {
             channel_id: components["schemas"]["String"];
+        };
+        /** @enum {string} */
+        SoundEvent: "message" | "mention" | "dm" | "call_join" | "call_leave" | "someone_joined" | "someone_left" | "screen_share_started" | "terminal_bell" | "upload_complete" | "error";
+        SoundPack: {
+            id: string;
+            name: string;
+            sounds: {
+                [key: string]: components["schemas"]["SoundRef"];
+            };
+        };
+        SoundPreferences: {
+            /** @default [] */
+            custom_packs: components["schemas"]["SoundPack"][];
+            /**
+             * Format: int32
+             * @default 70
+             */
+            master_volume: number;
+            /** @default {} */
+            overrides: {
+                [key: string]: components["schemas"]["SoundRef"];
+            };
+            /** @default null */
+            pack_id: string | null;
+            /** @default {} */
+            volumes: {
+                [key: string]: number;
+            };
+        };
+        SoundRef: {
+            name: string;
+            /** @enum {string} */
+            type: "builtin";
+        } | {
+            id: string;
+            /** @enum {string} */
+            type: "upload";
+        } | {
+            /** @enum {string} */
+            type: "silent";
+        };
+        SoundState: {
+            preferences: components["schemas"]["SoundPreferences"];
+            resolved: {
+                [key: string]: components["schemas"]["ResolvedSound"];
+            };
+            server_pack: components["schemas"]["SoundPack"];
         };
         Status: {
             /** @description Exactly one extended grapheme cluster when set. */
@@ -4855,6 +5041,95 @@ export interface operations {
             };
         };
     };
+    get__settings_sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundPack"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__settings_sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SoundPack"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__settings_sounds_files__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server audio bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__tokens: {
         parameters: {
             query?: never;
@@ -5206,6 +5481,100 @@ export interface operations {
             };
             /** @description Unsatisfiable range */
             416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__uploads__id__sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundPack"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__uploads__id__sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallSound"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__uploads__id__sounds__sound_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sound: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validated attachment audio */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5897,6 +6266,188 @@ export interface operations {
             };
         };
     };
+    get__users_me_sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_sounds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SoundPreferences"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users_me_sounds_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current effective pack as .den-sounds.zip */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_sounds_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/zip": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundState"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users_me_sounds__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audio bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_sounds__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "audio/wav": string;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoundRef"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_voice: {
         parameters: {
             query?: never;
@@ -6102,6 +6653,8 @@ export interface operations {
             query?: {
                 /** @description Opt in to music queue events; omitted for older clients */
                 music?: boolean;
+                /** @description Opt in to sound preference events; omitted for older clients */
+                sounds?: boolean;
             };
             header?: never;
             path?: never;

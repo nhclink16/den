@@ -20,6 +20,7 @@ pub mod portable;
 mod profile_images;
 mod profiles;
 mod push;
+mod sounds;
 mod terminal;
 mod terminal_recording;
 mod thumbnails;
@@ -270,6 +271,26 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/sessions/{id}/write", post(terminal::write))
         .route("/sessions/{id}/direct-token", post(terminal::direct_token))
         .route("/sessions/{id}", delete(terminal::close))
+        .route("/users/me/sounds", get(sounds::get).put(sounds::put))
+        .route(
+            "/users/me/sounds/import",
+            axum::routing::put(sounds::import_pack),
+        )
+        .route("/users/me/sounds/export", get(sounds::export_pack))
+        .route(
+            "/users/me/sounds/{id}",
+            get(sounds::get_file).put(sounds::put_file),
+        )
+        .route(
+            "/settings/sounds",
+            get(sounds::get_server).put(sounds::put_server),
+        )
+        .route("/settings/sounds/files/{id}", get(sounds::server_file))
+        .route(
+            "/uploads/{id}/sounds",
+            get(sounds::preview).post(sounds::install_attachment),
+        )
+        .route("/uploads/{id}/sounds/{sound}", get(sounds::preview_file))
         .route(
             "/settings",
             get(objects::settings).put(objects::save_settings),
@@ -418,7 +439,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             move |req: Request, next: axum::middleware::Next| {
                 let root = settings_web.clone();
                 async move {
-                    let settings = req.uri().path() == "/settings";
+                    let settings = matches!(req.uri().path(), "/settings" | "/settings/sounds");
                     let mut response = if settings
                         && matches!(
                             *req.method(),

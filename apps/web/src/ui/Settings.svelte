@@ -9,13 +9,14 @@
   import Appearance from './Appearance.svelte'
   import MachineSettings from './MachineSettings.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
+  import SoundSettings from './SoundSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import Icon from './Icon.svelte'
 
   let { section = 'appearance', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
+    ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let toc: HTMLElement
@@ -151,13 +152,15 @@
         {/if}
         <label class="switch"><input type="checkbox" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} /> When someone mentions me</label>
         <label class="switch"><input type="checkbox" checked={store.notif.dms} onchange={(e) => store.saveNotif({ dms: e.currentTarget.checked })} /> Direct messages</label>
-        <label class="switch"><input type="checkbox" checked={store.layout.sounds} onchange={(e) => store.saveLayout({ sounds: e.currentTarget.checked })} /> Play a sound</label>
+        <p class="small"><a href="/settings/sounds" onclick={go('sounds')}>Choose notification sounds and volume</a></p>
         <h3 class="eyebrow">Rooms you follow</h3>
         <p class="faint small">Every message in a followed room notifies you. Follow sparingly.</p>
         {#each store.textChannels as c (c.id)}
           <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> #{c.name}</label>
         {/each}
 
+      {:else if section === 'sounds'}
+        <SoundSettings />
       {:else if section === 'voice'}
         <VoiceSettings />
       {:else if section === 'plugins' && admin}

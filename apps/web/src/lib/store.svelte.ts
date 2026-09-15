@@ -1,5 +1,8 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
+import { sounds as playback } from './sounds'
+import { receiveAlert } from './notify.svelte'
+import type { SoundState, SoundPreferences } from './types'
 import { Uploads } from './uploads.svelte'
 import { themes } from './theme.svelte'
 import type { Appearance, VoicePreferences } from './types'
@@ -29,6 +32,9 @@ export class Store {
   readonly uploads: Uploads
   readonly api: ReturnType<typeof apiFor>
   appearance = $state<Appearance>(cachedAppearance())
+  sounds = $state<SoundState | null>(null)
+  async loadSounds() { this.sounds = await this.api.get<SoundState>('/users/me/sounds') }
+  async saveSounds(value: SoundPreferences) { this.sounds = await this.api.put<SoundState>('/users/me/sounds', value) }
   voice = $state<VoicePreferences>({ microphones: {}, cameras: {} })
   private voiceWrites = Promise.resolve()
   private receiveVoice(value: VoicePreferences) {
@@ -154,7 +160,7 @@ export class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
       this.api.get<Category[]>('/categories'),
@@ -165,8 +171,10 @@ export class Store {
       this.api.get<Settings>('/settings'),
       this.api.get<Appearance>('/users/me/appearance'),
       this.api.get<VoicePreferences>('/users/me/voice'),
+      this.api.get<SoundState>('/users/me/sounds'),
     ])
     this.receiveAppearance(appearance)
+    this.sounds = sounds
     this.receiveVoice(voice)
     this.settings = settings
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
@@ -259,11 +267,11 @@ export class Store {
     if (this.ws || this.connecting || !this.me) return
     this.connecting = true
     const generation = this.generation
-    let url = `${this.origin.replace(/^http/, 'ws')}/ws`
+    let url = `${this.origin.replace(/^http/, 'ws')}/ws?sounds=true`
     try {
       if (native) {
         const ticket = await this.api.post<import('./types').WsTicket>('/auth/ws-ticket')
-        url += `?ticket=${encodeURIComponent(ticket.ticket)}`
+        url += `&ticket=${encodeURIComponent(ticket.ticket)}`
       }
       if (generation !== this.generation || !this.me) return
     } catch {
@@ -302,6 +310,7 @@ export class Store {
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
       case 'music_queue_updated': this.receiveMusic(ev.queue); break
+      case 'sounds_updated': void this.loadSounds(); break
       case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break
       case 'appearance_updated': this.receiveAppearance(ev.appearance); break
       case 'settings_updated': this.settings = ev.settings; break
@@ -324,7 +333,7 @@ export class Store {
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'notification_preferences_updated': this.notif = ev.preferences; break
-      case 'notification': this.alerts = [...this.alerts, ev].slice(-100); if (native) window.dispatchEvent(new CustomEvent('den-alert', { detail: { origin: this.origin, alert: ev } })); break
+      case 'notification': receiveAlert(this, ev); this.alerts = [...this.alerts, ev].slice(-100); if (native) window.dispatchEvent(new CustomEvent('den-alert', { detail: { origin: this.origin, alert: ev } })); break
       case 'call_state': this.calls = [...this.calls.filter(c => c.channel_id !== ev.channel_id), ev]; if (this.active) call.receive(ev); if (!this.channel(ev.channel_id)) await this.resync(); break
       case 'presence': {
         const s = new Set(this.online); ev.online ? s.add(ev.user_id) : s.delete(ev.user_id); this.online = s
@@ -393,4 +402,10 @@ export const instances = new Instances()
 export const store = new Proxy({} as Store, {
   get(_target, key: keyof Store) { if (key === 'onEvent') return (fn: (event: Event) => void) => { activeListeners.add(fn); return () => activeListeners.delete(fn) }; const s = instances.active; const value = s[key]; return typeof value === 'function' ? value.bind(s) : value },
   set(_target, key, value) { Reflect.set(instances.active, key, value); return true },
+})
+
+window.addEventListener('den-sound-event', event => {
+  const { origin, sound } = (event as CustomEvent<{ origin: string; sound: import('./types').SoundEvent }>).detail
+  const owner = instances.all.find(s => s.origin === origin)
+  if (owner) void playback.play(sound, owner)
 })

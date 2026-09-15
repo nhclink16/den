@@ -507,3 +507,7 @@ mod voice_preferences;
 #[cfg(unix)]
 #[path = "api/music.rs"]
 mod music;
+#[path = "api/sounds.rs"]
+mod sounds;
+#[path = "api/sounds_ws.rs"]
+mod sounds_ws;
