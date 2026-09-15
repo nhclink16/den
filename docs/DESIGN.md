@@ -29,3 +29,30 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - Push: APNs from the server, key at ~/.config/den/apns.p8 on codexbox; Apple developer account exists since 2026-09-12.
 - Hosting: https://denchat.app on the OVHcloud VPS in US-East Vint Hill, VA, Debian 13. Public IPv4 135.148.120.197. Native Den and LiveKit services, Caddy HTTPS and HAProxy routing for TURN/TLS on rtc.denchat.app:443. Nightly offline exports go to codexbox with 14-day retention and real-server restore drills.
 - Link previews wait until the fetcher is SSRF-safe (deny private ranges, size and time limits).
+
+## WebSocket compatibility
+
+The `/ws` notification stream can gain new event types. Clients must ignore unknown
+types and continue receiving known events on the same connection. Missing or invalid
+fields in a known event remain errors. Rust's `Event::Unknown` is a receive-only
+fallback, excluded from serialization and the generated API schema. `den tail`
+skips it; web and native iOS already dispatch by tag and ignore unrecognized tags.
+`den-host` uses the separate `HostFrame` protocol, which this rule does not change.
+
+Keep the existing `music` and `sounds` query gates. New event types also need gates
+while any supported `/ws` consumer rejects unknown types. Landing the catch-all
+only protects clients built with it; it cannot repair an installed older binary.
+
+New notification types can be ungated, and the existing gates can be removed in a
+separate change, only after a recorded compatibility review establishes all of:
+
+- Every supported `/ws` consumer has been identified, including running agent
+  processes, scheduled jobs, and clients on temporarily offline machines.
+- Each consumer is verified to ignore an unknown event and receive a following
+  known event, or has been upgraded or retired. Rebuilds alone are insufficient;
+  running processes must use the compatible build.
+- Support for incompatible builds has explicitly ended. Supported installers and
+  rollback procedures must not restore them against the newer server.
+
+Until that review is recorded, the gates stay and their legacy-stream tests remain.
+There is no calendar-based removal deadline.

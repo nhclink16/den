@@ -59,7 +59,8 @@ impl Drop for Connected {
         }
     }
 }
-// New event variants must be opt-in while older Rust clients reject unknown tags.
+// Keep existing gates and gate new types until all supported /ws consumers
+// tolerate unknown tags. See docs/DESIGN.md, WebSocket compatibility.
 #[derive(Default, serde::Deserialize)]
 pub(crate) struct Options {
     #[serde(default)]
@@ -98,6 +99,7 @@ async fn event(socket: &mut WebSocket, event: &Event) -> bool {
 }
 async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
     let channel = match v {
+        Event::Unknown => return false, // Receive-only; never broadcast the fallback.
         Event::MusicQueueUpdated { queue } => Some(&queue.room_id),
         Event::TerminalOutput { .. } => return false,
         Event::TerminalState { session } => {

@@ -31,6 +31,38 @@ async fn event(socket: &mut Socket) -> Event {
         }
     }
 }
+
+#[tokio::test]
+async fn receive_only_unknown_events_do_not_close_or_escape_the_stream() {
+    let t = Test::new().await;
+    let mut peer = socket(&t, &t.admin.token).await;
+    assert!(matches!(event(&mut peer).await, Event::Resync { .. }));
+    t.state.events.send(Event::Unknown).unwrap();
+    let after = Event::Presence {
+        user_id: t.admin.user.id.clone(),
+        online: false,
+    };
+    t.state.events.send(after.clone()).unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match peer.next().await.expect("stream stays open").unwrap() {
+                Frame::Text(text) => {
+                    let received: Event = serde_json::from_str(&text).unwrap();
+                    assert_ne!(received, Event::Unknown, "fallback must not be broadcast");
+                    if received == after {
+                        break;
+                    }
+                }
+                Frame::Ping(bytes) => peer.send(Frame::Pong(bytes)).await.unwrap(),
+                Frame::Close(_) => panic!("fallback closed the stream"),
+                _ => {}
+            }
+        }
+    })
+    .await
+    .expect("known event must arrive after the ignored fallback");
+}
+
 #[tokio::test]
 async fn websocket_filters_dms_marks_reconnect_and_closes_revoked_bot_tokens() {
     let t = Test::new().await;

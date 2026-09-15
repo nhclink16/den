@@ -234,6 +234,9 @@ pub enum Event {
     Resync {
         reason: String,
     },
+    /// A future notification this client does not understand. Receive-only: ignore it.
+    #[serde(other, skip_serializing)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]

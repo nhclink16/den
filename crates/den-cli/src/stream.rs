@@ -45,6 +45,9 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                     match socket.read() {
                         Ok(Frame::Text(text)) => {
                             let event: Event = serde_json::from_str(&text)?;
+                            if matches!(event, Event::Unknown) {
+                                continue;
+                            }
                             if let Event::Resync { reason } = &event {
                                 eprintln!("Gap: {reason}. Run den read to refresh; events are not replayed.");
                             }
