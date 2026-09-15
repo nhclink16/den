@@ -2,7 +2,9 @@
 # npm postinstall downloads can fail transiently outside npm's own fetch retries.
 set -euo pipefail
 for attempt in 1 2 3; do
-  if npm ci "$@"; then
+  # Den uses browser WASM/WebGPU, never Node's Linux CUDA providers. Keep every
+  # package's install scripts enabled; only opt out of ONNX's extra download.
+  if ONNXRUNTIME_NODE_INSTALL=skip npm ci "$@"; then
     exit 0
   else
     status=$?

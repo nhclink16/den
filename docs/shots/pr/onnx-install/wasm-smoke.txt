@@ -1,0 +1,6 @@
+Dictation worker ready: wasm
+Speech entered the composer in 3508 ms after listening began.
+Dictation worker ready: wasm
+Dictation worker ready: wasm
+PASS consent, real ASR, caret/partial text, no auto-send or audio upload, Escape/mic release, desktop/mobile layout, offline cached model, punctuation, Remove, denied permission and unsupported browser.
+Cleanup verified: 0 messages, 0 objects/requests, 0 uploads; no new room artifacts.
