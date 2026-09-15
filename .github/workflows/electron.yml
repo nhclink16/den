@@ -1,7 +1,7 @@
 name: Electron desktop
 on:
   pull_request:
-    paths: ['apps/desktop/**', 'apps/web/**', 'deploy/electron-manifest.cjs', '.github/workflows/electron.yml', '.github/workflows/release.yml']
+    paths: ['apps/desktop/**', 'apps/web/**', 'deploy/electron-manifest.cjs', 'scripts/npm-ci.sh', '.github/workflows/electron.yml', '.github/workflows/release.yml']
 permissions:
   contents: read
 jobs:
@@ -24,8 +24,8 @@ jobs:
           node-version: '24'
       - shell: bash
         run: |
-          npm ci --prefix apps/web
-          npm ci --prefix apps/desktop
+          bash scripts/npm-ci.sh --prefix apps/web
+          bash scripts/npm-ci.sh --prefix apps/desktop
           npm --prefix apps/desktop test
           npm --prefix apps/web run check
       - name: Build unsigned review packages

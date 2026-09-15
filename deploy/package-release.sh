@@ -19,7 +19,7 @@ bin="${CARGO_TARGET_DIR:-target}/release"
 cp "$bin/den-host$suffix" "$out/den-host-$platform$suffix"
 cp "$bin/den$suffix" "$out/den-$platform$suffix"
 if [[ $platform = linux-x86_64 ]]; then
-  npm --prefix apps/web ci
+  bash scripts/npm-ci.sh --prefix apps/web
   npm --prefix apps/web run build
   stage=$(mktemp -d "$out/.bundle.XXXXXX")
   trap 'rm -rf "$stage"' EXIT
