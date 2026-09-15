@@ -119,7 +119,7 @@ This caught a notification/playback lock deadlock and stale detached audio eleme
 both were fixed before the final run.
 
 The branch integrates the names/mentions, portrait, desktop QA, orientation layout,
-and navigation changes through PR #10. No conflicts required manual resolution.
+and navigation changes, plus the window-orientation fix in PR #11. No conflicts required manual resolution.
 
 Local checks passed:
 
