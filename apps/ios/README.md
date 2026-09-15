@@ -54,13 +54,27 @@ the exported IPA's signatures passed. The re-signed app has production APNs,
 `get-task-allow: false`, and `beta-reports-active: true`; the export retained
 `testFlightInternalTestingOnly: true`. No Cloud run was started.
 
-App Store Connect's Chrome session is now at the Apple sign-in gate. Processing
-completion, first internal tester setup and installation are **not verified**.
-Xcode's existing account successfully signed and uploaded despite that browser
-gate. Upload emitted nonfatal missing-dSYM warnings for the prebuilt
+**20:56 EDT:** after Nicholas restored browser sign-in, App Store Connect verified
+processing **Complete**, build **Testing**, and the sole tester Nicholas Caron
+**Invited**. The internal group `Nicholas` contains one tester and one build.
+Automatic distribution is off so each later build is added deliberately. No
+external testers or public release were enabled. Physical installation and
+spoken dictation still need Nicholas's check.
+
+The build questionnaire records standard encryption beyond Apple's OS, because
+the shipped LiveKitWebRTC binary includes BoringSSL and libsrtp. France
+distribution was answered No for this Nicholas-only internal build, not as a
+decision about a future public launch. Revisit the answers before widening
+distribution or changing encryption. Do not describe this as an app with no
+encryption or set an Info.plist exemption from the dialog's generic wording.
+[Apple documentation requirements](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption/)
+
+Xcode's existing account successfully signed and uploaded despite the earlier
+browser gate. Upload emitted nonfatal missing-dSYM warnings for the prebuilt
 LiveKitWebRTC and RustLiveKitUniFFI frameworks; Den's own dSYM is present.
 Local receipts and the retained archive/IPA are under
-`/tmp/den-ios-testflight-ada6aa9/`. The phone watcher remains stopped.
+`/tmp/den-ios-testflight-ada6aa9/`, including `testflight-ready.json` for the
+signed-in verification. The phone watcher remains stopped.
 
 TestFlight delivery does not require the iPhone to be connected to the build Mac.
 A local Release archive can be uploaded from the iMac; Nicholas then installs it

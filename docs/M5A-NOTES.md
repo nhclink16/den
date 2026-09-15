@@ -35,11 +35,29 @@ Evidence: `/tmp/den-ios-testflight-ada6aa9/` holds the final
 (distribution export), `aqua-nurjaaoa` (upload), all exit 0. Apple's uploader
 reported **Uploaded package is processing** and **Upload succeeded**.
 
-The browser is at Apple's sign-in gate, so processing completion and Nicholas's
-internal tester access remain unverified. No new phone install, physical spoken
-dictation acceptance or real push delivery is claimed. The canceled phone
-watcher was not restarted. This local route used no Xcode Cloud compute and
-does not require Nicholas's phone near the iMac. Setup notes are in
+At **20:56 EDT**, after Nicholas restored browser sign-in, the actual App Store
+Connect UI showed upload **Complete**, build **Testing**, and Nicholas Caron
+**Invited** after a fresh reload. The new internal group `Nicholas` has exactly
+one tester and build `0.3.0 (1)`. Automatic distribution is off: later releases
+are added deliberately, without automatically exposing every uploaded build.
+No external group or App Store release was created. Receipt:
+`/tmp/den-ios-testflight-ada6aa9/testflight-ready.json`.
+
+The remaining Missing Compliance gate was resolved with the build's actual
+encryption classification: standard algorithms outside Apple's OS. The shipped
+LiveKitWebRTC binary implements DTLS/SRTP cipher selection and includes BoringSSL,
+libsrtp, AES-GCM and SRTP symbols/strings. Den's OS-backed URLSession API traffic
+does not make the complete app OS-encryption-only. France distribution was
+answered No within the authorized Nicholas-only internal testing scope. This
+does not decide future public or French distribution; revisit it if scope changes.
+No exemption flag was added to Info.plist. Apple's table distinguishes bundled
+standard algorithms from OS-only encryption and scopes French documentation to
+French App Store distribution.
+[Apple encryption documentation requirements](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption/)
+
+No new phone install, physical spoken dictation acceptance or real push delivery
+is claimed. The canceled phone watcher was not restarted. This local route used
+no Xcode Cloud compute and does not require Nicholas's phone near the iMac. Setup notes are in
 [the iOS README](../apps/ios/README.md#remote-iteration-with-testflight).
 
 ### Implemented
