@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO threads(id,channel_id,root_message_id,title,created_by) VALUES(?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "096917f2b7562bf08422ace750528ab298f51adb3fdaf90519225710edf524e0"
+}

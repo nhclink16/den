@@ -100,6 +100,7 @@ use utoipa::OpenApi;
         chat::dm,
         messages::messages,
         messages::send,
+        threads::replies,
         messages::edit,
         messages::remove,
         uploads::begin,

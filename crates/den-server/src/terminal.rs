@@ -103,6 +103,12 @@ pub(crate) async fn open(
     Path(id): Path<String>,
     ApiJson(v): ApiJson<OpenTerminal>,
 ) -> Result<Json<Object>> {
+    // Before the default self-DM is created: a refused request must leave nothing.
+    threads::unsupported_context(
+        v.thread_id.as_deref(),
+        v.task_id.as_deref(),
+        v.reply_to.as_deref(),
+    )?;
     let host = hosts::load(&s, &id).await?;
     if !hosts::permitted(&s, &a.user.id, &id, true).await {
         return Err(Error::missing());
@@ -248,6 +254,11 @@ pub(crate) async fn share(
     Path(id): Path<String>,
     ApiJson(v): ApiJson<ShareTerminal>,
 ) -> Result<Json<Object>> {
+    threads::unsupported_context(
+        v.thread_id.as_deref(),
+        v.task_id.as_deref(),
+        v.reply_to.as_deref(),
+    )?;
     let _g = s.writes.lock().await;
     let t = load(&s, &id).await?;
     if !can_view(&s, &a.user.id, &id).await {

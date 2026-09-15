@@ -252,13 +252,20 @@ async fn run(
                         last_seen=Instant::now();
                         let Ok(v)=serde_json::from_str::<ClientEvent>(&text) else {break;};
                         match v {
-                            // thread_id is accepted and discarded until thread routing lands.
-                            ClientEvent::Typing { channel_id, thread_id: _ } => {
+                            ClientEvent::Typing { channel_id, thread_id } => {
                                 if visible(&s,&a.user.id,&channel_id).await.is_err(){break;}
+                                // A thread destination has to be one of this channel's own,
+                                // so a typing ping can never confirm a thread elsewhere.
+                                if let Some(thread)=&thread_id {
+                                    if !threads::in_channel(&s,thread,&channel_id).await {continue;}
+                                }
                                 last_typing.retain(|_,at|at.elapsed()<Duration::from_secs(2));
-                                if last_typing.len()<20 && !last_typing.contains_key(&channel_id) {
-                                    last_typing.insert(channel_id.clone(),Instant::now());
-                                    let _=s.events.send(Event::Typing{channel_id,user_id:a.user.id.clone(),thread_id:None});
+                                // Rate-limit per conversation: typing in a thread must not
+                                // suppress the room's own indicator, or the other way round.
+                                let key=format!("{channel_id}/{}",thread_id.as_deref().unwrap_or_default());
+                                if last_typing.len()<20 && !last_typing.contains_key(&key) {
+                                    last_typing.insert(key,Instant::now());
+                                    let _=s.events.send(Event::Typing{channel_id,user_id:a.user.id.clone(),thread_id});
                                 }
                             }
                             ClientEvent::ObjectOpen { object_id } => {

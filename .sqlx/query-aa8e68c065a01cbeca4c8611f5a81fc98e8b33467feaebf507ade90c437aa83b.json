@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.thread_id as \"thread_id?\",\n                (SELECT t.id FROM threads t WHERE t.root_message_id=m.id) as \"roots?\"\n                FROM messages m WHERE m.id=? AND m.channel_id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "thread_id?",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "name": "roots?",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "aa8e68c065a01cbeca4c8611f5a81fc98e8b33467feaebf507ade90c437aa83b"
+}

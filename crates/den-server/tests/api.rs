@@ -198,6 +198,8 @@ mod ios_calls;
 mod objects;
 #[path = "api/portable.rs"]
 mod portable;
+#[path = "api/thread_conversations.rs"]
+mod thread_conversations;
 #[path = "api/threads.rs"]
 mod threads;
 

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT root_message_id FROM threads WHERE id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "root_message_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "root_message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7fdc35194b2b014cbd884c75ce9b6aafa5da58293d94639ad11851560c79be76"
+}

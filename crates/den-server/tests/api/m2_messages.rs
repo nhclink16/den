@@ -135,28 +135,52 @@ async fn replies_reactions_and_search_respect_membership_and_message_changes() {
     )
     .await;
     assert!(old.is_empty());
+    // Quoting this message opened a conversation on it, so deleting it on its own
+    // would take somebody else's reply with it. Editing it is still the author's.
     assert_eq!(
         t.req(Method::DELETE, &format!("/messages/{mid}"), &alice.token)
             .send()
             .await
             .unwrap()
             .status(),
-        204
+        409
     );
+    let renamed: Vec<Message> = get(
+        &t,
+        &format!("/search/messages?q=renamed&channel_id={cid}"),
+        &bob.token,
+    )
+    .await;
+    assert_eq!(renamed[0].id, mid);
+    // A reply is an ordinary message: its author can still delete it, and the
+    // search index drops it with everything else.
     let reply: Message = get(
         &t,
         &format!("/messages/{}", reply["id"].as_str().unwrap()),
         &bob.token,
     )
     .await;
-    assert!(reply.reply_to.is_none());
+    assert_eq!(reply.reply_to.as_deref(), Some(mid));
+    assert!(reply.thread_id.is_some());
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/messages/{}", reply.id),
+            &bob.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        204
+    );
     let deleted: Vec<Message> = get(
         &t,
-        &format!("/search/messages?q=renamed&channel_id={cid}"),
+        &format!("/search/messages?q=otter&channel_id={cid}"),
         &bob.token,
     )
     .await;
-    assert!(deleted.is_empty());
+    assert!(deleted.iter().all(|m| m.id != reply.id));
 }
 #[tokio::test]
 async fn read_markers_are_monotonic_and_notification_counts_follow_preferences() {
