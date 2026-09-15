@@ -8,7 +8,7 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - Text channels grouped in categories, DMs and group DMs.
 - One persistent voice room ("hangout") plus ad hoc calls from DMs. Webcams and screen share. Docked cam strip so text stays visible in a call.
 - A user can join the same call from multiple devices. Each connection can publish its own camera and screen share, with no per-account device cap. Presence counts people once. Additional devices join with microphone and sound off, and clients suppress their own account's remote microphone audio while allowing its screen-share audio. Leaving one device leaves the others connected.
-- Push-to-talk (Tauri global shortcut) and voice activity, user picks.
+- Push-to-talk (native desktop keyboard hook) and voice activity, user picks.
 - Messages: markdown, replies, reactions, uploads, link previews, mentions, pins, search, typing, presence. Not: threads, forums, stickers, custom emoji.
 - Uploads are the reason this project exists. Default cap 1 GB per file, admin-adjustable, no per-user tier. Video and audio play inline, images get thumbnails. Files live on local disk on the VPS. Uploads are chunked and resumable, finalized atomically, abandoned temp files cleaned. Serving is authenticated and supports HEAD and 206 range responses. No transcoding to start; H.264/AAC MP4 with `playsinline` is the tested path, HLS deferred until a real clip fails. Disk usage shown on the admin settings page, no automatic deletion.
 - Quiet by default: only mentions, DMs, and explicitly subscribed channels notify. Unread inbox view instead of badges everywhere.
@@ -25,7 +25,7 @@ Settled 2026-09-08. Change these by editing this file, not by drifting.
 - IDs are ULIDs, so they sort by creation time. Pagination is by id.
 - Realtime: one WebSocket per client carrying `den_core::Event`, used by both the web client and `den tail`. Heartbeat, reconnect with backoff, and a resync-by-refetch after a gap; no durable event replay. Events are filtered by channel membership. `tail` emits JSON lines and reports gaps.
 - Media: LiveKit self-hosted, pinned version, host networking. Signaling goes through Caddy on `rtc.<domain>`, WebRTC media ports exposed directly, built-in TURN enabled for restrictive networks, with TURN/TLS on 443 of the `rtc` host and its own cert, wired up at deploy time in M2. Server mints room tokens; membership is checked before minting.
-- Client: Svelte 5 + Vite SPA, Tauri 2 shells for Windows, Linux, macOS. iOS is a native SwiftUI app (decided 2026-09-14, no webview shell), built on the iMac.
+- Client: Svelte 5 + Vite SPA, Electron shells for Windows, Linux, macOS. The bundled Chromium engine provides WebRTC on Linux; the Tauri bridge remains compatible during migration. iOS is a native SwiftUI app (decided 2026-09-14, no webview shell), built on the iMac.
 - Push: APNs from the server, key at ~/.config/den/apns.p8 on codexbox; Apple developer account exists since 2026-09-12.
 - Hosting: https://denchat.app on the OVHcloud VPS in US-East Vint Hill, VA, Debian 13. Public IPv4 135.148.120.197. Native Den and LiveKit services, Caddy HTTPS and HAProxy routing for TURN/TLS on rtc.denchat.app:443. Nightly offline exports go to codexbox with 14-day retention and real-server restore drills.
 - Link previews wait until the fetcher is SSRF-safe (deny private ranges, size and time limits).

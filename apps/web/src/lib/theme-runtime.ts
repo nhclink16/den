@@ -1,9 +1,10 @@
+import { isDesktop } from './desktop'
 import type { Appearance, AppearanceBackground, Theme, ThemeColors } from './types'
 import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
 export const defaultAppearance: Appearance = { mode: 'system', light_theme: 'den', dark_theme: 'den', custom_themes: [], contrast: 100 }
-export function appearanceCacheKey(origin?: string) { return (window.__TAURI__ ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
+export function appearanceCacheKey(origin?: string) { return (isDesktop() ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
 export const colorRoles = ['bg','bg2','bg3','line','ink','ink2','ink3','accent','success','danger'] as const
 // Same OKLab matrices and quantization as den-core/theme_color.rs. Keeping a/b
 // fixed while replacing L preserves OKLCH hue/chroma before sRGB gamut clipping.

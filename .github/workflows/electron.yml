@@ -1,0 +1,45 @@
+name: Electron desktop
+on:
+  pull_request:
+    paths: ['apps/desktop/**', 'apps/web/**', 'deploy/electron-manifest.cjs', '.github/workflows/electron.yml', '.github/workflows/release.yml']
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            args: --linux AppImage deb --x64
+          - runner: windows-2022
+            args: --win nsis msi --x64
+          - runner: macos-15
+            args: --mac dmg zip --universal
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - shell: bash
+        run: |
+          npm ci --prefix apps/web
+          npm ci --prefix apps/desktop
+          npm --prefix apps/desktop test
+          npm --prefix apps/web run check
+      - name: Build unsigned review packages
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm --prefix apps/desktop run build -- ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-review-${{ runner.os }}
+          path: |
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.msi
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.deb
+          if-no-files-found: error

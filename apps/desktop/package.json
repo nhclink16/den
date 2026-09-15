@@ -1,13 +1,30 @@
 {
   "name": "den-desktop",
+  "productName": "Den",
   "private": true,
   "version": "0.2.2",
+  "description": "Chat, calls and shared rooms for your people",
+  "author": {
+    "name": "Den contributors",
+    "email": "nhclink16@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "main": "electron/main.cjs",
   "scripts": {
-    "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "dev": "electron .",
+    "build": "npm --prefix ../web run build && electron-builder --publish never",
+    "pack": "npm --prefix ../web run build && electron-builder --dir --publish never",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9",
+    "uiohook-napi": "1.5.5",
+    "@kaito-tokyo/minisign-verify": "0.1.4"
   },
   "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.15.3",
     "@tauri-apps/cli": "2.11.3"
-  }
+  },
+  "homepage": "https://github.com/nhclink16/den"
 }
