@@ -1,0 +1,343 @@
+{
+  "label": "after-full-server",
+  "captured_at": "2026-09-15T22:26:04+00:00",
+  "binary": {
+    "path": "/mnt/storage/den-thread-server-evidence/full-server/den-server",
+    "size_bytes": 287792680,
+    "sha256": "936c9967be6d6c2c1e6e87db841cc4b80e74771387299655508db79c283129c7",
+    "mtime": "2026-09-15T22:25:51+00:00"
+  },
+  "isolation": {
+    "origin": "http://127.0.0.1:17036",
+    "port": 17036,
+    "data_dir": "/tmp/den-thread-check-exp4zt43",
+    "note": "Private loopback port and a temporary directory this script created."
+  },
+  "process": {
+    "starts": [
+      {
+        "pid": 3780900,
+        "started_at": "2026-09-15T22:26:05+00:00"
+      },
+      {
+        "pid": 3780940,
+        "started_at": "2026-09-15T22:26:06+00:00"
+      }
+    ],
+    "restart": {
+      "stop": {
+        "pid": 3780900,
+        "exit_code": 0,
+        "escalated_to_sigkill": false,
+        "pid_still_alive": false,
+        "port_still_listening": false,
+        "stopped_at": "2026-09-15T22:26:06+00:00"
+      },
+      "start": {
+        "pid": 3780940,
+        "started_at": "2026-09-15T22:26:06+00:00"
+      },
+      "same_database": "/tmp/den-thread-check-exp4zt43/den.db"
+    },
+    "final_stop": {
+      "pid": 3780940,
+      "exit_code": 0,
+      "escalated_to_sigkill": false,
+      "pid_still_alive": false,
+      "port_still_listening": false,
+      "stopped_at": "2026-09-15T22:26:06+00:00"
+    }
+  },
+  "out_of_scope": [
+    "object cards",
+    "unread and read-state accounting",
+    "follow"
+  ],
+  "server_health": {
+    "ok": true,
+    "version": "0.2.1"
+  },
+  "identity": {
+    "user_id": "01M2KJTT92RY6KMXR2X6SM1SF9",
+    "channel_id": "01M2KJTT92RY6KMXR2X6SM1SFA",
+    "note": "One authenticated identity. No credentials recorded."
+  },
+  "storage_counts": {
+    "schema_version": 19,
+    "threads": 3,
+    "thread_read_state": 3,
+    "thread_tasks": 2,
+    "messages": 8,
+    "messages_with_thread_id": 5
+  },
+  "checks": [
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "the first reply belongs to a thread",
+      "expected": "a thread id",
+      "observed": "01M2KJTTHHT1CP58KXQS1PK2BP",
+      "passed": true,
+      "request": {
+        "content": "it looks like a flaky test",
+        "reply_to": "01M2KJTTH8W3YYG5BGZKFZXAWW"
+      }
+    },
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "a reply to a reply stays in the same thread",
+      "expected": "01M2KJTTHHT1CP58KXQS1PK2BP",
+      "observed": "01M2KJTTHHT1CP58KXQS1PK2BP",
+      "passed": true,
+      "request": {
+        "content": "same one as yesterday",
+        "reply_to": "01M2KJTTHGF4D3RWHS9A8RKWF3"
+      }
+    },
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "the refetched root carries that thread's summary",
+      "expected": "01M2KJTTHHT1CP58KXQS1PK2BP",
+      "observed": "01M2KJTTHHT1CP58KXQS1PK2BP",
+      "passed": true,
+      "request": {
+        "GET": "/channels/{channel}/messages?limit=50",
+        "message": "<root id>"
+      }
+    },
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "the root itself stays out of the thread",
+      "expected": "a thread exists and the root's own thread_id is null",
+      "observed": {
+        "thread": "01M2KJTTHHT1CP58KXQS1PK2BP",
+        "root_thread_id": null
+      },
+      "passed": true,
+      "request": null
+    },
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "the flat listing returns exactly the three messages",
+      "expected": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW",
+        "01M2KJTTHGF4D3RWHS9A8RKWF3",
+        "01M2KJTTHSJHBV0311YW81271K"
+      ],
+      "observed": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW",
+        "01M2KJTTHGF4D3RWHS9A8RKWF3",
+        "01M2KJTTHSJHBV0311YW81271K"
+      ],
+      "passed": true,
+      "request": {
+        "GET": "/channels/{channel}/messages?limit=50"
+      }
+    },
+    {
+      "scenario": "reply_creates_a_thread",
+      "name": "roots_only returns the root alone",
+      "expected": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW"
+      ],
+      "observed": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW"
+      ],
+      "passed": true,
+      "request": {
+        "GET": "/channels/{channel}/messages?limit=50&roots_only=true"
+      }
+    },
+    {
+      "scenario": "task_grouping",
+      "name": "task A's first message supplies a thread",
+      "expected": "a thread id",
+      "observed": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "passed": true,
+      "request": {
+        "content": "starting job A",
+        "task_id": "smoke-job-a"
+      }
+    },
+    {
+      "scenario": "task_grouping",
+      "name": "task B's first message supplies a thread",
+      "expected": "a thread id",
+      "observed": "01M2KJTTJJDW777B1CBSKP0C8V",
+      "passed": true,
+      "request": {
+        "content": "starting job B",
+        "task_id": "smoke-job-b"
+      }
+    },
+    {
+      "scenario": "task_grouping",
+      "name": "two tasks from one identity get different threads",
+      "expected": "two distinct thread ids",
+      "observed": {
+        "task_a": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+        "task_b": "01M2KJTTJJDW777B1CBSKP0C8V"
+      },
+      "passed": true,
+      "request": null
+    },
+    {
+      "scenario": "task_grouping",
+      "name": "later progress rejoins its own task's thread",
+      "expected": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "observed": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "passed": true,
+      "request": {
+        "content": "job A is halfway",
+        "task_id": "smoke-job-a"
+      }
+    },
+    {
+      "scenario": "restart",
+      "name": "the restarted process serves the identical history",
+      "expected": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW",
+        "01M2KJTTHGF4D3RWHS9A8RKWF3",
+        "01M2KJTTHSJHBV0311YW81271K",
+        "01M2KJTTJAQ6BHXMB7BD3WMG59",
+        "01M2KJTTJJDW777B1CBSKP0C8T",
+        "01M2KJTTJT10CKKRQP22C6B6BK"
+      ],
+      "observed": [
+        "01M2KJTTH8W3YYG5BGZKFZXAWW",
+        "01M2KJTTHGF4D3RWHS9A8RKWF3",
+        "01M2KJTTHSJHBV0311YW81271K",
+        "01M2KJTTJAQ6BHXMB7BD3WMG59",
+        "01M2KJTTJJDW777B1CBSKP0C8T",
+        "01M2KJTTJT10CKKRQP22C6B6BK"
+      ],
+      "passed": true,
+      "request": {
+        "restart": {
+          "stopped_pid": 3780900,
+          "exit_code": 0,
+          "new_pid": 3780940
+        }
+      }
+    },
+    {
+      "scenario": "restart",
+      "name": "the same task ID continues its thread after the restart",
+      "expected": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "observed": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "passed": true,
+      "request": {
+        "content": "job A resumed after a restart",
+        "task_id": "smoke-job-a"
+      }
+    },
+    {
+      "scenario": "resolve_and_reopen",
+      "name": "resolving task A's thread returns 200",
+      "expected": 200,
+      "observed": 200,
+      "passed": true,
+      "request": {
+        "PATCH": "/threads/{task A thread}",
+        "body": {
+          "resolved": true
+        }
+      },
+      "response_body": {
+        "id": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+        "channel_id": "01M2KJTT92RY6KMXR2X6SM1SFA",
+        "root_message_id": "01M2KJTTJAQ6BHXMB7BD3WMG59",
+        "title": "starting job A",
+        "created_by": "01M2KJTT92RY6KMXR2X6SM1SF9",
+        "created_at": "2026-09-15T22:26:06.538Z",
+        "resolved_at": "2026-09-15T22:26:06.891Z",
+        "resolved_by": "01M2KJTT92RY6KMXR2X6SM1SF9",
+        "reply_count": 2,
+        "last_reply_id": "01M2KJTTX2BC75H1RHN4W14MDD",
+        "last_activity_at": "2026-09-15T22:26:06.883Z"
+      }
+    },
+    {
+      "scenario": "resolve_and_reopen",
+      "name": "a delayed post to the resolved task returns 409",
+      "expected": 409,
+      "observed": 409,
+      "passed": true,
+      "request": {
+        "content": "a late agent update for job A",
+        "task_id": "smoke-job-a"
+      },
+      "response_body": {
+        "error": "conflict",
+        "message": "This thread is resolved; reopen it before posting"
+      }
+    },
+    {
+      "scenario": "resolve_and_reopen",
+      "name": "reopening task A's thread returns 200",
+      "expected": 200,
+      "observed": 200,
+      "passed": true,
+      "request": {
+        "PATCH": "/threads/{task A thread}",
+        "body": {
+          "resolved": false
+        }
+      },
+      "response_body": {
+        "id": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+        "channel_id": "01M2KJTT92RY6KMXR2X6SM1SFA",
+        "root_message_id": "01M2KJTTJAQ6BHXMB7BD3WMG59",
+        "title": "starting job A",
+        "created_by": "01M2KJTT92RY6KMXR2X6SM1SF9",
+        "created_at": "2026-09-15T22:26:06.538Z",
+        "resolved_at": null,
+        "resolved_by": null,
+        "reply_count": 2,
+        "last_reply_id": "01M2KJTTX2BC75H1RHN4W14MDD",
+        "last_activity_at": "2026-09-15T22:26:06.883Z"
+      }
+    },
+    {
+      "scenario": "resolve_and_reopen",
+      "name": "a post after reopening returns 200",
+      "expected": 200,
+      "observed": 200,
+      "passed": true,
+      "request": {
+        "content": "job A continues after reopen",
+        "task_id": "smoke-job-a"
+      },
+      "response_body": {
+        "id": "01M2KJTTXNM37XC9RGWM8CJ6XQ",
+        "channel_id": "01M2KJTT92RY6KMXR2X6SM1SFA",
+        "author_id": "01M2KJTT92RY6KMXR2X6SM1SF9",
+        "content": "job A continues after reopen",
+        "reply_to": null,
+        "created_at": "2026-09-15T22:26:06.902Z",
+        "edited_at": null,
+        "attachments": [],
+        "objects": [],
+        "reactions": [],
+        "mention_ids": [],
+        "thread_id": "01M2KJTTJAQ6BHXMB7BD3WMG5A"
+      }
+    },
+    {
+      "scenario": "resolve_and_reopen",
+      "name": "that post is in task A's original thread",
+      "expected": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "observed": "01M2KJTTJAQ6BHXMB7BD3WMG5A",
+      "passed": true,
+      "request": {
+        "content": "job A continues after reopen",
+        "task_id": "smoke-job-a"
+      }
+    }
+  ],
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "blocked": 0
+  }
+}

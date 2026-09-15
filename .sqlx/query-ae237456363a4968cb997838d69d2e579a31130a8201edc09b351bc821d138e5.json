@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE threads SET resolved_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),resolved_by=? WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ae237456363a4968cb997838d69d2e579a31130a8201edc09b351bc821d138e5"
+}

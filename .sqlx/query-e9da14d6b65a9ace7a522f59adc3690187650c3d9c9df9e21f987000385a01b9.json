@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO thread_tasks(user_id,channel_id,task_id,thread_id) VALUES(?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "e9da14d6b65a9ace7a522f59adc3690187650c3d9c9df9e21f987000385a01b9"
+}

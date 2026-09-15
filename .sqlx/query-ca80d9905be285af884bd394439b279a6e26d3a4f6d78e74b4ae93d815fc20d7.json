@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE threads SET resolved_at=NULL,resolved_by=NULL WHERE id=?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ca80d9905be285af884bd394439b279a6e26d3a4f6d78e74b4ae93d815fc20d7"
+}
