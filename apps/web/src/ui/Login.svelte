@@ -6,7 +6,10 @@
 
   // Kept as one string so the attribute below and the check beside it cannot drift.
   // Mirrors `username()` in crates/den-server/src/auth.rs.
-  const USERNAME_PATTERN = '[A-Za-z0-9][A-Za-z0-9_.-]{1,30}[A-Za-z0-9]'
+  // The hyphen is escaped because browsers compile the HTML pattern attribute with the
+  // `v` flag, where an unescaped `-` inside a class is a syntax error and the whole
+  // pattern is discarded, silently disabling client-side validation.
+  const USERNAME_PATTERN = '[A-Za-z0-9][A-Za-z0-9_.\\-]{1,30}[A-Za-z0-9]'
   const USERNAME_RE = new RegExp(`^${USERNAME_PATTERN}$`)
 
   let mode = $state<'login' | 'register'>('login')
