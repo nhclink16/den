@@ -46,13 +46,14 @@ async fn sounds_require_socket_opt_in_and_keep_legacy_streams_usable() {
     let channel = t.general().await;
     let mut legacy = socket(&t, &alice.token, "").await;
     let mut disabled = socket(&t, &alice.token, "?sounds=false").await;
-    let mut owner = socket(&t, &alice.token, "?sounds=true").await;
+    let mut music_only = socket(&t, &alice.token, "?music=true").await;
+    let mut owner = socket(&t, &alice.token, "?sounds=true&music=true").await;
     let mut other = socket(&t, &bob.token, "?sounds=true").await;
     // The web store's native path must preserve both the opt-in and its ticket.
     let ticket: WsTicket =
         serde_json::from_value(t.post("/auth/ws-ticket", &alice.token, json!({})).await).unwrap();
     let (mut native, _) = connect_async(format!(
-        "{}/ws?sounds=true&ticket={}",
+        "{}/ws?sounds=true&music=true&ticket={}",
         t.url.replace("http:", "ws:"),
         ticket.ticket,
     ))
@@ -102,6 +103,7 @@ async fn sounds_require_socket_opt_in_and_keep_legacy_streams_usable() {
             "Legacy clients must never receive sounds_updated"
         );
         assert!(updates_until_message(&mut disabled, id).await.is_empty());
+        assert!(updates_until_message(&mut music_only, id).await.is_empty());
         assert_eq!(updates_until_message(&mut owner, id).await, owner_updates);
         assert_eq!(updates_until_message(&mut native, id).await, owner_updates);
         assert_eq!(updates_until_message(&mut other, id).await, other_updates);
