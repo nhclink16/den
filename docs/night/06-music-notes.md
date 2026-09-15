@@ -98,6 +98,9 @@ socket open during mutations and verifies it receives a subsequent typing event
 without receiving any music events. Existing web and iOS handlers also ignore
 unknown event tags, but compatibility does not depend on that behavior.
 
+Follow-up: teach every typed client to tolerate unknown event variants, then retire
+`?music=true`. Do not grow a separate query flag for each future event type.
+
 ## Verification
 
 The server integration tests cover queue ordering, skip events, member access,
