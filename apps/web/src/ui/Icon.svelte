@@ -1,7 +1,10 @@
 <script lang="ts">
   // A handful of 16px line icons. Stroke inherits color.
-  let { name, size = 16 }: { name: 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off'; size?: number } = $props()
+  let { name, size = 16 }: { name: 'monitor' | 'window' | 'browser' | 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off'; size?: number } = $props()
   const paths: Record<string, string> = {
+    monitor: 'M2 2h12v9H2zM8 11v3M5 14h6',
+    window: 'M2 3h12v10H2zM2 6h12M4 4.5h.01M6 4.5h.01',
+    browser: 'M2 3h5l1 2h6v8H2zM2 7h12',
     pin: 'M6 2h6l-1 5 2 2-1 1-4-1-5 5M6 2l1 4-1 2-3-1z',
     popout: 'M9 2h5v5M14 2L7 9M6 3H2v11h11v-4',
     more: 'M3 8h.01M8 8h.01M13 8h.01',

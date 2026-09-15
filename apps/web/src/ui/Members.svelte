@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { call } from '../lib/call.svelte'
+  import ParticipantVolume from './ParticipantVolume.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Avatar from './Avatar.svelte'
@@ -23,16 +25,29 @@
 <div class="members">
   <div class="eyebrow head">{onlineCount} here · {members.length} total</div>
   {#each members as u (u.id)}
+    <div class="member">
     <button class="person" class:off={!store.online.has(u.id)} onclick={() => dm(u.id)} title={u.id === store.me?.id ? 'You' : `Message ${u.display_name || u.username}`}>
       <Avatar userId={u.id} size={28} />
       <span class="name">{u.display_name || u.username}</span>
       {#if u.bot}<span class="badge" title="Agent"><Icon name="bot" size={12} /></span>{/if}
       {#if u.role === 'admin'}<span class="faint mono tiny">admin</span>{/if}
     </button>
+    {#if call.origin === store.origin && call.participants.some(p => p.userId === u.id && !p.local)}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
+      <details class="member-audio" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
+        <summary aria-label={`${u.display_name || u.username} audio options`}><Icon name={call.volume(u.id) === 0 ? 'sound-off' : 'sound'} size={14} /><span>In call</span></summary>
+        <ParticipantVolume userId={u.id} name={u.display_name || u.username} />
+      </details>
+    {/if}
+    </div>
   {/each}
 </div>
 
 <style>
+  .member-audio { margin: 0 10px 8px 48px; }
+  summary { display: flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; color: var(--ink-2); font-size: 11px; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .member-audio :global(.volume-control) { width: 100%; padding-inline: 0; }
   .members { padding: 12px 8px; }
   .head { padding: 4px 10px 10px; }
   .person {
