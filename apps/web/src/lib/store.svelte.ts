@@ -123,8 +123,9 @@ export class Store {
     setCsrf(s.csrf_token); this.me = s.user
     await this.boot()
   }
-  async register(username: string, password: string, invite: string) {
-    const s = await this.api.post<Session>('/auth/register', { username, password, invite })
+  async register(username: string, password: string, invite: string, displayName?: string) {
+    const display_name = displayName?.trim() || undefined
+    const s = await this.api.post<Session>('/auth/register', { username, password, invite, display_name })
     if (native) { await invoke('session_set', { origin: this.origin, token: s.token }); instances.remember(this) }
     setCsrf(s.csrf_token); this.me = s.user
     await this.boot()

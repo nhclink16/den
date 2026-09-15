@@ -48,6 +48,9 @@ enum Cmd {
         bootstrap_file: PathBuf,
         #[arg(long)]
         password_stdin: bool,
+        /// What people see. Defaults to the username.
+        #[arg(long)]
+        display_name: Option<String>,
     },
     Login {
         username: String,
@@ -60,6 +63,9 @@ enum Cmd {
         invite: String,
         #[arg(long)]
         password_stdin: bool,
+        /// What people see. Defaults to the username.
+        #[arg(long)]
+        display_name: Option<String>,
     },
     Logout,
     Me,
@@ -226,6 +232,7 @@ fn main() -> anyhow::Result<()> {
             username,
             bootstrap_file,
             password_stdin,
+            display_name,
         } => {
             let session: Session = c.send(
                 Method::POST,
@@ -235,6 +242,7 @@ fn main() -> anyhow::Result<()> {
                     password: password(password_stdin)?,
                     bootstrap_token: std::fs::read_to_string(bootstrap_file)
                         .context("Read the bootstrap key on the server machine")?,
+                    display_name,
                 },
             )?;
             print(&session.user)?;
@@ -259,6 +267,7 @@ fn main() -> anyhow::Result<()> {
             username,
             invite,
             password_stdin,
+            display_name,
         } => {
             let session: Session = c.send(
                 Method::POST,
@@ -267,6 +276,7 @@ fn main() -> anyhow::Result<()> {
                     username,
                     password: password(password_stdin)?,
                     invite,
+                    display_name,
                 },
             )?;
             print(&session.user)?;

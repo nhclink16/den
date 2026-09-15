@@ -145,10 +145,17 @@ fn mention_names(content: &str) -> BTreeSet<String> {
                     {
                         continue;
                     }
-                    let name = text[i + 1..]
+                    let mut name = text[i + 1..]
                         .bytes()
-                        .take_while(|b| b.is_ascii_alphanumeric() || *b == b'_')
+                        .take_while(|b| {
+                            b.is_ascii_alphanumeric() || matches!(*b, b'_' | b'.' | b'-')
+                        })
                         .collect::<Vec<_>>();
+                    // "thanks @andy." ends a sentence. A username cannot end in a
+                    // separator, so anything trailing is punctuation, not the name.
+                    while name.last().is_some_and(|b| !b.is_ascii_alphanumeric()) {
+                        name.pop();
+                    }
                     if (3..=32).contains(&name.len()) {
                         names.insert(
                             String::from_utf8(name)

@@ -272,3 +272,21 @@ async fn read_markers_are_monotonic_and_notification_counts_follow_preferences()
     let states: Vec<ChannelReadState> = get(&t, "/users/me/read-state", &bob.token).await;
     assert!(states.iter().all(|s| s.channel_id != private));
 }
+
+#[tokio::test]
+async fn mentions_keep_dots_inside_names_and_drop_punctuation_after_them() {
+    let t = Test::new().await;
+    let a = &t.admin.token;
+    let andy = t.member("an.dy").await;
+    let path = format!("/channels/{}/messages", t.general().await);
+
+    // The dot inside the name belongs to it. The one ending the sentence does not.
+    let sentence = t
+        .post(&path, a, json!({"content":"ping @an.dy. thanks"}))
+        .await;
+    assert_eq!(sentence["mention_ids"], json!([andy.user.id]));
+
+    // A capitalised spelling still finds the same person.
+    let shouted = t.post(&path, a, json!({"content":"@An.Dy again"})).await;
+    assert_eq!(shouted["mention_ids"], json!([andy.user.id]));
+}

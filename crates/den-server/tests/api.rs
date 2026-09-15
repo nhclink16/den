@@ -69,6 +69,7 @@ impl Test {
                 username: "admin".into(),
                 password: "test-password-123".into(),
                 bootstrap_token: key,
+                display_name: None,
             })
             .send()
             .await
