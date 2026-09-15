@@ -26,6 +26,80 @@ fn id(v: &Value) -> String {
     v["id"].as_str().unwrap().to_string()
 }
 
+/// A reply resolves its destination and inserts inside one transaction, while
+/// every authenticated request writes through profile expiry outside the message
+/// write lock. Both have to proceed: a reply must not fail because ordinary reads
+/// were in flight. Real HTTP and real authentication, a short concurrent burst,
+/// no sleeps and no direct SQL.
+#[tokio::test]
+async fn authenticated_reads_do_not_interrupt_thread_replies() {
+    const PAIRS: usize = 32;
+    const READS: usize = 128;
+    let t = Test::new().await;
+    let bob = t.member("bob").await;
+    let channel = t.general().await;
+    let path = format!("/channels/{channel}/messages");
+    let replies = async {
+        for pair in 0..PAIRS {
+            let root = id(&t
+                .post_phase(
+                    "root",
+                    &path,
+                    &t.admin.token,
+                    json!({"content":"why is the build red"}),
+                )
+                .await);
+            let (one, two) = tokio::join!(
+                t.post_phase(
+                    "first-reply-a",
+                    &path,
+                    &t.admin.token,
+                    json!({"content":"a","reply_to":root})
+                ),
+                t.post_phase(
+                    "first-reply-b",
+                    &path,
+                    &bob.token,
+                    json!({"content":"b","reply_to":root})
+                ),
+            );
+            let thread = one["thread_id"].as_str().unwrap();
+            assert_eq!(
+                two["thread_id"].as_str().unwrap(),
+                thread,
+                "pair {pair} split one root across two threads"
+            );
+        }
+    };
+    let admin_reads = async {
+        for _ in 0..READS {
+            let status = t
+                .req(Method::GET, "/users/me", &t.admin.token)
+                .send()
+                .await
+                .unwrap()
+                .status();
+            assert_eq!(status, StatusCode::OK, "GET /users/me");
+        }
+    };
+    let bob_reads = async {
+        for _ in 0..READS {
+            let status = t
+                .req(Method::GET, "/users/me", &bob.token)
+                .send()
+                .await
+                .unwrap()
+                .status();
+            assert_eq!(status, StatusCode::OK, "GET /users/me");
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(15), async {
+        tokio::join!(replies, admin_reads, bob_reads);
+    })
+    .await
+    .expect("replies and authenticated reads did not finish within 15s");
+}
+
 #[tokio::test]
 async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     let t = Test::new().await;
@@ -33,7 +107,8 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     let channel = t.general().await;
     let path = format!("/channels/{channel}/messages");
     let root = id(&t
-        .post(
+        .post_phase(
+            "root",
             &path,
             &t.admin.token,
             json!({"content":"why is the build red"}),
@@ -42,12 +117,18 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     // Two first replies at once. Whichever lands second must join the thread the
     // first one opened rather than starting a second conversation on the same root.
     let (one, two) = tokio::join!(
-        t.post(
+        t.post_phase(
+            "first-reply-a",
             &path,
             &t.admin.token,
             json!({"content":"a","reply_to":root})
         ),
-        t.post(&path, &bob.token, json!({"content":"b","reply_to":root})),
+        t.post_phase(
+            "first-reply-b",
+            &path,
+            &bob.token,
+            json!({"content":"b","reply_to":root})
+        ),
     );
     let thread = one["thread_id"].as_str().unwrap().to_string();
     assert_eq!(two["thread_id"].as_str().unwrap(), thread);
@@ -61,7 +142,8 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     );
     // Replying to a reply stays in the same thread. There is no second level.
     let deep = t
-        .post(
+        .post_phase(
+            "nested-reply",
             &path,
             &bob.token,
             json!({"content":"c","reply_to":id(&one)}),
@@ -102,7 +184,8 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     // An object-only root is named by its own card. The reply that opens the thread
     // has text of its own, and that text must not be allowed to name the root.
     let card = t
-        .post(
+        .post_phase(
+            "canvas-card",
             &format!("/channels/{channel}/objects"),
             &t.admin.token,
             json!({"kind":"canvas","name":"Sprint board","state":{}}),
@@ -110,7 +193,8 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
         .await;
     let card_root = card["message_id"].as_str().unwrap().to_string();
     let card_reply = t
-        .post(
+        .post_phase(
+            "canvas-reply",
             &path,
             &bob.token,
             json!({"content":"moved the last column","reply_to":card_root}),

@@ -93,7 +93,10 @@ pub(crate) async fn send(
     }
     let _guard = s.writes.lock().await;
     let id = s.id();
-    let mut tx = s.db.begin().await?;
+    // Destination validation reads inside this transaction, so reserve the writer
+    // before reading: a deferred transaction that upgrades later can lose that
+    // upgrade to an authentication or profile-expiry write outside s.writes.
+    let mut tx = s.db.begin_with("BEGIN IMMEDIATE").await?;
     let ctx = threads::Context {
         thread_id: v.thread_id.as_deref(),
         task_id: v.task_id.as_deref(),
