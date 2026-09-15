@@ -1,0 +1,17 @@
+{
+  "dj": {
+    "id": "den-dj-01E16CC444F37585B85B379569",
+    "name": "Den DJ",
+    "music": true
+  },
+  "duckedVolume": 0.0879160251028353,
+  "received": [
+    {
+      "bytesReceived": 43555,
+      "totalAudioEnergy": 1.204841523393278,
+      "codec": "audio/opus"
+    }
+  ],
+  "skipAndNaturalAdvance": true,
+  "errors": []
+}

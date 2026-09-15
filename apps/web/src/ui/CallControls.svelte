@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MusicQueueButton from './MusicQueueButton.svelte'
   import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import { callLayouts } from '../lib/call-layout.svelte'
@@ -34,6 +35,7 @@
     </details>
   {/if}
   {#if large}<details class="overflow"><summary aria-label="Call options" title="Call options"><Icon name="more" /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
+  <MusicQueueButton />
   <button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" /></button>
 </div>
 

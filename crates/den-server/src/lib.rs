@@ -13,6 +13,7 @@ mod invitation_state;
 mod invitation_tickets;
 mod invitations;
 mod messages;
+mod music;
 mod objects;
 mod openapi;
 pub mod portable;
@@ -54,6 +55,7 @@ pub struct AppState(pub(crate) Arc<Inner>);
 type ObjectPresenceConnections = HashMap<String, (String, HashMap<String, usize>)>;
 #[doc(hidden)]
 pub struct Inner {
+    pub(crate) music: music::Music,
     pub db: SqlitePool,
     pub(crate) hosts: hosts::Hosts,
     pub livekit: Option<calls::LiveKit>,
@@ -157,7 +159,13 @@ impl AppState {
             }
         }
         let (events, _) = broadcast::channel(256);
+        // Restart leaves the queue intact and paused; never count downtime as playback.
+        sqlx::query("UPDATE music_rooms SET paused=1 WHERE room_id IN (SELECT room_id FROM music_queue WHERE state IN ('playing','loading'))").execute(&db).await?;
+        sqlx::query("UPDATE music_queue SET state='paused' WHERE state IN ('playing','loading')")
+            .execute(&db)
+            .await?;
         let state = Self(Arc::new(Inner {
+            music: music::Music::default(),
             db,
             hosts: hosts::Hosts::default(),
             livekit: None,
@@ -183,6 +191,14 @@ impl AppState {
             .await
             .map_err(|e| anyhow::anyhow!("Mention indexing failed: {}", e.2))?;
         Ok(state)
+    }
+    /// Override the external music executables before starting the server.
+    pub fn with_music_tools(mut self, resolver: String, ffmpeg: String, publisher: String) -> Self {
+        Arc::get_mut(&mut self.0)
+            .expect("configure before sharing")
+            .music
+            .set_tools(resolver, ffmpeg, publisher);
+        self
     }
     pub fn with_livekit(mut self, url: String, key: String, secret: String) -> Self {
         if !url.is_empty() && !key.is_empty() && !secret.is_empty() {
@@ -216,6 +232,16 @@ pub fn router(state: AppState) -> Router {
 pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
     let settings_web = web_dir.clone();
     Router::new()
+        .route("/rooms/{id}/music", get(music::get))
+        .route("/rooms/{id}/music/queue", post(music::add))
+        .route(
+            "/rooms/{id}/music/queue/order",
+            axum::routing::put(music::order),
+        )
+        .route("/rooms/{id}/music/queue/{track_id}", delete(music::remove))
+        .route("/rooms/{id}/music/skip", post(music::skip))
+        .route("/rooms/{id}/music/pause", post(music::pause))
+        .route("/rooms/{id}/music/seek", post(music::seek))
         .route("/instance", get(objects::instance))
         .route("/auth/ws-ticket", post(tickets::issue))
         .route("/hosts", get(hosts::list))

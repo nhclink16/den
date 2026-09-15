@@ -1,3 +1,5 @@
+mod music;
+pub use music::*;
 mod voice;
 pub use voice::*;
 mod profile;
@@ -113,6 +115,9 @@ pub struct Message {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    MusicQueueUpdated {
+        queue: MusicQueue,
+    },
     UserUpdated {
         user: User,
     },

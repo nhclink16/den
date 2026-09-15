@@ -19,7 +19,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
     if let Some(channel) = &channel {
         let _: Channel = c.get(&format!("/channels/{}", id(channel)?))?;
     }
-    let url = format!("{}/ws", c.url.replacen("http", "ws", 1));
+    let url = format!("{}/ws?music=true", c.url.replacen("http", "ws", 1));
     let mut delay = 1;
     loop {
         let mut request = url.as_str().into_client_request()?;
@@ -49,6 +49,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                                 eprintln!("Gap: {reason}. Run den read to refresh; events are not replayed.");
                             }
                             let event_channel = match &event {
+                                Event::MusicQueueUpdated { queue } => Some(&queue.room_id),
                                 Event::MessageCreated(m) | Event::MessageEdited(m) => {
                                     Some(&m.channel_id)
                                 }

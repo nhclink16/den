@@ -31,6 +31,9 @@ impl Test {
         Self::with_voice_at(configured.then_some("ws://127.0.0.1:1")).await
     }
     async fn with_voice_at(voice: Option<&str>) -> Self {
+        Self::configured(voice, None).await
+    }
+    async fn configured(voice: Option<&str>, music: Option<String>) -> Self {
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -49,6 +52,11 @@ impl Test {
                 "test-key".into(),
                 "test-secret-at-least-thirty-two-bytes".into(),
             )
+        } else {
+            state
+        };
+        let state = if let Some(resolver) = music {
+            state.with_music_tools(resolver, "ffmpeg".into(), "den-dj".into())
         } else {
             state
         };
@@ -495,3 +503,7 @@ mod profiles;
 mod terminal_recording;
 #[path = "api/voice_preferences.rs"]
 mod voice_preferences;
+
+#[cfg(unix)]
+#[path = "api/music.rs"]
+mod music;

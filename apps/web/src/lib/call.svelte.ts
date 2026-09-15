@@ -8,15 +8,15 @@ import type { CallState, CallToken, Channel } from './types'
 type Preferences = {
   mode: 'activity' | 'ptt'; pttKey: string; pttLabel: string
   microphone: string; camera: string; speaker: string
-  micOn: boolean; cameraOn: boolean; sounds: boolean
+  micOn: boolean; cameraOn: boolean; sounds: boolean; musicDucking: boolean
 }
 const accountId = (identity: string) => identity.split(':', 1)[0]
-const defaults: Preferences = { mode: 'activity', pttKey: 'Backquote', pttLabel: '`', microphone: '', camera: '', speaker: '', micOn: true, cameraOn: false, sounds: true }
+const defaults: Preferences = { mode: 'activity', pttKey: 'Backquote', pttLabel: '`', microphone: '', camera: '', speaker: '', micOn: true, cameraOn: false, sounds: true, musicDucking: true }
 function load(): Preferences {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem('den.voice') || '{}') } } catch { return defaults }
 }
 export type CallParticipant = {
-  id: string; userId: string; device: string; name: string; local: boolean; speaking: boolean; muted: boolean
+  id: string; userId: string; device: string; name: string; music: boolean; local: boolean; speaking: boolean; muted: boolean
   camera?: Track; screen?: Track; screens: Share[]; quality: ConnectionQuality
 }
 
@@ -59,9 +59,19 @@ class Call {
     this.levels = { ...this.levels, [`${this.origin}|${userId}`]: level }
     try { localStorage.setItem('den.call-volume', JSON.stringify(this.levels)) } catch { /* Session controls still work when storage is unavailable. */ }
     for (const [track, el] of this.audio) if (el.dataset.userId === userId) {
-      el.volume = this.volume(userId)
+      el.volume = this.outputVolume(userId)
       if (track instanceof RemoteAudioTrack) track.setVolume(el.volume)
     }
+  }
+  ducked = $state(false)
+  private duckTimer: ReturnType<typeof setTimeout> | undefined
+  private outputVolume(userId: string) { return this.volume(userId) * (userId === `den-dj-${this.channel?.id}` && this.prefs.musicDucking && this.ducked ? Math.pow(10, -12 / 20) : 1) }
+  private applyAudioLevels() {
+    for (const [track, el] of this.audio) { el.volume = this.outputVolume(el.dataset.userId!); if (track instanceof RemoteAudioTrack) track.setVolume(el.volume) }
+  }
+  private duckMusic(speaking: boolean) {
+    if (speaking) { clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = true; this.applyAudioLevels() }
+    else if (this.ducked && !this.duckTimer) this.duckTimer = setTimeout(() => { this.ducked = false; this.duckTimer = undefined; this.applyAudioLevels() }, 700)
   }
   private generation = 0
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
@@ -85,6 +95,7 @@ class Call {
   save(patch: Partial<Preferences>) {
     this.prefs = { ...this.prefs, ...patch }
     localStorage.setItem('den.voice', JSON.stringify(this.prefs))
+    this.applyAudioLevels()
   }
   receive(state: CallState) { this.states = new Map(this.states).set(state.channel_id, state.participant_ids) }
   snapshot(states: CallState[]) { this.states = new Map(states.map((s) => [s.channel_id, s.participant_ids])) }
@@ -105,7 +116,8 @@ class Call {
       return {
         id: p.identity, userId: accountId(p.identity),
         device: devices.length > 1 ? p === room.localParticipant ? 'This device' : `Device ${devices.indexOf(p) + 1}` : '',
-        name: (this.owner || store).name(accountId(p.identity)), local: p === room.localParticipant,
+        music: p.identity === `den-dj-${this.channel?.id}`,
+        name: p.identity === `den-dj-${this.channel?.id}` ? p.name || `${this.instanceName} DJ` : (this.owner || store).name(accountId(p.identity)), local: p === room.localParticipant,
         speaking: p.isSpeaking, muted: !p.isMicrophoneEnabled,
         camera: p.isCameraEnabled ? p.getTrackPublication(Track.Source.Camera)?.track : undefined,
         screen: p.getTrackPublication(Track.Source.ScreenShare)?.track,
@@ -113,6 +125,7 @@ class Call {
       }
     }
     this.participants = [snapshot(room.localParticipant), ...[...room.remoteParticipants.values()].map(snapshot)]
+    this.duckMusic(this.participants.some(p => !p.music && p.speaking))
     this.micOn = room.localParticipant.isMicrophoneEnabled
     this.cameraOn = room.localParticipant.isCameraEnabled
     this.screenOn = room.localParticipant.isScreenShareEnabled
@@ -162,7 +175,7 @@ class Call {
         if (accountId(participant.identity) === accountId(room.localParticipant.identity) && track.source === Track.Source.Microphone) return
         const el = track.attach()
         el.dataset.userId = accountId(participant.identity)
-        el.volume = this.volume(el.dataset.userId)
+        el.volume = this.outputVolume(el.dataset.userId)
         if (track instanceof RemoteAudioTrack) track.setVolume(el.volume)
         this.audio.set(track, el); document.body.append(el)
         el.play().catch(() => { if (!this.outputMuted) this.audioBlocked = true })
@@ -170,7 +183,7 @@ class Call {
       room.on(RoomEvent.TrackPublished, () => this.subscriptions())
       room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => attachAudio(track, participant))
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
-        track.detach().forEach((el) => el.remove()); this.audio.delete(track)
+        track.detach().forEach((el) => el.remove()); this.audio.get(track)?.remove(); this.audio.delete(track)
       })
       room.on(RoomEvent.AudioPlaybackStatusChanged, () => { this.audioBlocked = !this.outputMuted && !room.canPlaybackAudio })
       room.on(RoomEvent.Reconnecting, () => { this.reconnecting = true; this.setHeld(false) })
@@ -198,6 +211,7 @@ class Call {
     }
   }
   private clear() {
+    clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
     void this.gain.destroy()
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
