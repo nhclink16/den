@@ -77,3 +77,32 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Wallpaper. The runtime sets --bg-image and data-bg-scope; these rules decide where it shows.
+   The layer sits behind content and carries its own blur and scrim so text stays readable. */
+:root[data-bg-scope] .bg-host { position: relative; isolation: isolate; }
+:root[data-bg-scope] .bg-host::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--bg-image);
+  background-size: var(--bg-size, cover);
+  background-repeat: var(--bg-repeat, no-repeat);
+  background-position: center;
+  filter: blur(var(--bg-blur, 0px)) saturate(var(--bg-saturate, 1));
+  transform: scale(1.06); /* hides the soft edge blur leaves behind */
+}
+:root[data-bg-scope] .bg-host::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(var(--bg-scrim, 0, 0, 0), var(--bg-dim, 0));
+}
+/* Only the region the user chose paints it. */
+:root[data-bg-scope='app'] .bg-host:not(.scope-app)::before,
+:root[data-bg-scope='app'] .bg-host:not(.scope-app)::after,
+:root[data-bg-scope='sidebar'] .bg-host:not(.scope-sidebar)::before,
+:root[data-bg-scope='sidebar'] .bg-host:not(.scope-sidebar)::after,
+:root[data-bg-scope='chat'] .bg-host:not(.scope-chat)::before,
+:root[data-bg-scope='chat'] .bg-host:not(.scope-chat)::after { content: none; }
+/* Panels sitting on a wallpaper go translucent so it reads through. */
+:root[data-bg-scope='app'] .sidebar, :root[data-bg-scope='app'] .members {
+  background: color-mix(in srgb, var(--bg2) 82%, transparent);
+  backdrop-filter: blur(8px);
+}

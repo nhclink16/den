@@ -35,7 +35,26 @@ export type AccessRequest = S['AccessRequest']
 export type TerminalState = S['TerminalState']
 export type TerminalFrame = S['TerminalFrame']
 export type DirectToken = S['DirectToken']
-export type Appearance = S['Appearance']
+// Until the M10 server half lands, the generated Appearance still carries the single
+// `theme` field. These shims describe the shape the client targets; delete them and
+// fall back to S['Appearance'] once schema.d.ts is regenerated.
+export type AppearanceBackgroundSource =
+  | { type: 'builtin'; name: string }
+  | { type: 'upload'; id: string }
+export type AppearanceBackground = {
+  source: AppearanceBackgroundSource
+  blur: number
+  dim: number
+  saturate: number
+  scope: 'app' | 'sidebar' | 'chat'
+  fit: 'cover' | 'contain' | 'tile'
+}
+export type Appearance = Omit<S['Appearance'], 'theme'> & {
+  light_theme: string
+  dark_theme: string
+  contrast: number
+  background?: AppearanceBackground | null
+}
 export type Theme = S['Theme']
 export type ThemeColors = S['ThemeColors']
 export type ThemeFonts = S['ThemeFonts']

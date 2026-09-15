@@ -1,7 +1,7 @@
 import { apiFor } from './api'
 import { activeOrigin } from './native'
 import type { Appearance, Theme, ThemeFonts } from './types'
-import { activeTheme, appearanceHalf, deriveHalf, colorRoles, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance } from './theme-runtime'
+import { themeFor, appearanceHalf, deriveHalf, colorRoles, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance } from './theme-runtime'
 export { builtinThemes }
 export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces', 'Commit Mono'])].sort()
 export const validName = (v: string) => [...v].length >= 1 && [...v].length <= 40 && !!v.trim() && /^[\p{L}\p{N} _-]+$/u.test(v)
@@ -33,7 +33,9 @@ class Themes {
   private queue: Promise<unknown> = Promise.resolve()
   private pending = 0
   get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
-  get active() { return this.draft || activeTheme(this.appearance) }
+  get active() { return this.draft || themeFor(this.appearance, this.half) }
+  /** The theme currently assigned to one appearance, ignoring any live draft. */
+  chosen(half: 'light'|'dark') { return themeFor(this.appearance, half) }
   get half() { return appearanceHalf(this.appearance, this.systemLight) }
   constructor() {
     this.apply()
@@ -45,7 +47,7 @@ class Themes {
     try { localStorage.setItem(appearanceCacheKey(), JSON.stringify(a)) } catch { /* cache is optional */ }
     this.apply()
   }
-  apply() { applyTheme(this.active, this.half); void this.loadFonts(this.active.fonts) }
+  apply() { applyTheme(this.active, this.half, this.appearance); void this.loadFonts(this.active.fonts) }
   async loadFonts(fonts: ThemeFonts) {
     const families = [...new Set(Object.values(fonts))].filter(f => f !== 'IBM Plex Mono')
     const url = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;500;600;700`).join('&')}&display=swap`
@@ -86,19 +88,29 @@ class Themes {
     this.queue = result
     return result
   }
-  select(t: Theme) { return this.save({ ...this.appearance, theme: t.id }) }
+  /** Assign a theme to one appearance. Light and dark are independent. */
+  select(t: Theme, half: 'light'|'dark' = this.half) {
+    return this.save({ ...this.appearance, [half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
+  }
+  contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
+  background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
   mode(mode: Appearance['mode']) { return this.save({...this.appearance,mode},true) }
   preview(t: Theme) { this.draft = t; this.apply() }
   reset() { this.draft = null; this.apply() }
   async add(t: Theme) {
     const custom = [...this.appearance.custom_themes, validateTheme(t)]
     if (custom.length > 12 || new TextEncoder().encode(JSON.stringify(custom)).length > 16384) throw Error('Use at most 12 custom themes and 16 KiB total.')
-    const saved = await this.save({ ...this.appearance, custom_themes: custom, theme: t.id })
+    const saved = await this.save({ ...this.appearance, custom_themes: custom, [this.half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
     if (!saved) throw Error(this.error)
   }
   async remove(id: string) {
     const a = this.appearance
-    await this.save({ ...a, custom_themes: a.custom_themes.filter(t => t.id !== id), theme: a.theme === id ? defaultAppearance.theme : a.theme })
+    await this.save({
+      ...a,
+      custom_themes: a.custom_themes.filter(t => t.id !== id),
+      light_theme: a.light_theme === id ? defaultAppearance.light_theme : a.light_theme,
+      dark_theme: a.dark_theme === id ? defaultAppearance.dark_theme : a.dark_theme,
+    })
   }
 }
 export const themes = new Themes()

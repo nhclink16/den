@@ -1,8 +1,8 @@
-import type { Appearance, Theme, ThemeColors } from './types'
+import type { Appearance, AppearanceBackground, Theme, ThemeColors } from './types'
 import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
-export const defaultAppearance: Appearance = { mode: 'system', theme: 'den', custom_themes: [] }
+export const defaultAppearance: Appearance = { mode: 'system', light_theme: 'den', dark_theme: 'den', custom_themes: [], contrast: 100 }
 export function appearanceCacheKey(origin?: string) { return (window.__TAURI__ ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
 export const colorRoles = ['bg','bg2','bg3','line','ink','ink2','ink3','accent','success','danger'] as const
 // Same OKLab matrices and quantization as den-core/theme_color.rs. Keeping a/b
@@ -38,9 +38,14 @@ export function deriveHalf(source: ThemeColors): ThemeColors {
   }
   return out
 }
-export function activeTheme(a: Appearance): Theme { return [...builtinThemes,...a.custom_themes].find(t=>t.id===a.theme) || builtinThemes[0]! }
+/** The theme chosen for one appearance. Light and dark are picked independently. */
+export function themeFor(a: Appearance, half: 'light'|'dark'): Theme {
+  const id = half === 'light' ? a.light_theme : a.dark_theme
+  return [...builtinThemes, ...a.custom_themes].find(t => t.id === id) || builtinThemes[0]!
+}
+export function activeTheme(a: Appearance, systemLight?: boolean): Theme { return themeFor(a, appearanceHalf(a, systemLight)) }
 export function appearanceHalf(a: Appearance, systemLight = matchMedia('(prefers-color-scheme: light)').matches): 'light'|'dark' { return a.mode === 'light' || (a.mode === 'system' && systemLight) ? 'light' : 'dark' }
-export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark') {
+export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearance) {
   const root = document.documentElement, s = root.style, colors=t[half]
   for (const key of colorRoles) s.setProperty(`--${key}`, colors[key])
   s.setProperty('--accent-dim', `color-mix(in srgb, ${colors.accent} 55%, ${colors.bg})`)
@@ -52,13 +57,47 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark') {
   s.setProperty('--density', t.density === 'compact' ? '0.8' : '1')
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors.bg)
+  applyFavicon(colors)
+  applyContrast(colors, a?.contrast ?? 100)
+  applyBackground(a?.background ?? null, half)
+}
+
+/** Contrast pulls the two dimmer ink tones toward or away from the background. */
+function applyContrast(c: ThemeColors, percent: number) {
+  const s = document.documentElement.style
+  const amount = Math.max(80, Math.min(120, percent))
+  if (amount === 100) { s.setProperty('--ink2', c.ink2); s.setProperty('--ink3', c.ink3); s.setProperty('--line', c.line); return }
+  const mix = (from: string, toward: string, pct: number) => `color-mix(in srgb, ${from} ${100 - pct}%, ${toward})`
+  const d = Math.abs(amount - 100) * 0.55
+  const toward = amount > 100 ? c.ink : c.bg
+  s.setProperty('--ink2', mix(c.ink2, toward, d))
+  s.setProperty('--ink3', mix(c.ink3, toward, d))
+  s.setProperty('--line', mix(c.line, amount > 100 ? c.ink3 : c.bg, d))
+}
+
+/** The tab icon is the Den mark drawn in the active theme, so a Den tab looks like your Den. */
+export function applyFavicon(c: ThemeColors) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">`
+    + `<rect width="64" height="64" rx="14" fill="${c.bg}"/>`
+    + `<path fill="${c.ink}" fill-rule="evenodd" d="M44 4h12v52H30C16 56 8 48 8 36s9-22 22-22c6 0 10 2 14 5V4ZM22 56V36a10 10 0 0 1 20 0v20H22Z"/>`
+    + `<path fill="${c.accent}" d="M26 56V36a6 6 0 0 1 12 0v20H26Z"/></svg>`
+  let link = document.querySelector<HTMLLinkElement>('link#den-favicon')
+  if (!link) {
+    link = document.createElement('link')
+    link.id = 'den-favicon'; link.rel = 'icon'; link.type = 'image/svg+xml'
+    document.head.append(link)
+  }
+  link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 export function cachedAppearance(origin?: string): Appearance {
   try {
     const a = JSON.parse(localStorage.getItem(appearanceCacheKey(origin)) || 'null')
     if (a && ['light','dark','system'].includes(a.mode) && Array.isArray(a.custom_themes)) {
-      if (!a.theme) {
-        a.theme=a.dark_theme || a.light_theme || 'den'; if(a.theme==='den-light') a.theme='den'
+      if (a.theme && !a.dark_theme) { a.dark_theme = a.theme; a.light_theme = a.theme }
+      a.light_theme = a.light_theme === 'den-light' ? 'den' : (a.light_theme || 'den')
+      a.dark_theme = a.dark_theme === 'den-light' ? 'den' : (a.dark_theme || 'den')
+      a.contrast = typeof a.contrast === 'number' ? a.contrast : 100
+      if (false) {
         a.custom_themes=a.custom_themes.map((t: Theme & { appearance?: 'light'|'dark'; colors?: ThemeColors }) => {
           if(!t.colors || !t.appearance) return t
           const {colors,appearance,...rest}=t
@@ -74,3 +113,48 @@ export function cachedAppearance(origin?: string): Appearance {
 export function firstPaint() {
   try { const a=cachedAppearance(); applyTheme(activeTheme(a),appearanceHalf(a)) } catch { applyTheme(builtinThemes[0]!) }
 }
+
+export const builtinBackgrounds = ['aurora','dunes','harbor','ember-sky','slate-mist','grain'] as const
+export type BuiltinBackground = typeof builtinBackgrounds[number]
+
+/** Presets are painted from the active palette, so they suit every theme and ship no assets. */
+export function builtinBackgroundImage(name: string, c: ThemeColors): string {
+  const a = c.accent, bg = c.bg, bg2 = c.bg2, bg3 = c.bg3
+  switch (name) {
+    case 'aurora': return `radial-gradient(120% 90% at 12% 0%, ${a} 0%, transparent 45%), radial-gradient(90% 70% at 92% 8%, ${bg3} 0%, transparent 55%), radial-gradient(120% 120% at 50% 110%, ${a} 0%, transparent 40%), linear-gradient(160deg, ${bg2}, ${bg})`
+    case 'dunes': return `linear-gradient(175deg, ${bg2} 0%, ${bg} 38%, ${bg3} 60%, ${bg} 100%), radial-gradient(140% 60% at 70% 100%, ${a} 0%, transparent 55%)`
+    case 'harbor': return `linear-gradient(180deg, ${bg3} 0%, ${bg} 55%), radial-gradient(80% 50% at 50% 0%, ${a} 0%, transparent 60%)`
+    case 'ember-sky': return `radial-gradient(130% 80% at 50% 120%, ${a} 0%, transparent 52%), linear-gradient(180deg, ${bg} 0%, ${bg2} 100%)`
+    case 'slate-mist': return `linear-gradient(115deg, ${bg2} 0%, ${bg} 45%, ${bg3} 100%)`
+    case 'grain': {
+      const noise = `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3"/><feColorMatrix type="saturate" values="0"/></filter><rect width="140" height="140" filter="url(%23n)" opacity="0.5"/></svg>`
+      return `url("data:image/svg+xml,${noise.replace(/"/g, "'").replace(/#/g, '%23')}"), linear-gradient(160deg, ${bg2}, ${bg})`
+    }
+    default: return 'none'
+  }
+}
+
+/** Paints the wallpaper layer. Scope decides which region shows it; app.css does the rest. */
+export function applyBackground(b: AppearanceBackground | null | undefined, half: 'light'|'dark', colors?: ThemeColors) {
+  const root = document.documentElement, s = root.style
+  if (!b || !b.source) { delete root.dataset.bgScope; s.removeProperty('--bg-image'); return }
+  const c = colors || { bg: s.getPropertyValue('--bg'), bg2: s.getPropertyValue('--bg2'), bg3: s.getPropertyValue('--bg3'), accent: s.getPropertyValue('--accent') } as ThemeColors
+  const image = b.source.type === 'builtin'
+    ? builtinBackgroundImage(b.source.name, c)
+    : `url("${backgroundImageUrl()}")`
+  if (image === 'none') { delete root.dataset.bgScope; s.removeProperty('--bg-image'); return }
+  root.dataset.bgScope = b.scope
+  s.setProperty('--bg-image', image)
+  s.setProperty('--bg-blur', `${Math.max(0, Math.min(40, b.blur))}px`)
+  s.setProperty('--bg-dim', String(Math.max(0, Math.min(80, b.dim)) / 100))
+  s.setProperty('--bg-saturate', String(Math.max(50, Math.min(150, b.saturate)) / 100))
+  s.setProperty('--bg-size', b.fit === 'tile' ? 'auto' : b.fit)
+  s.setProperty('--bg-repeat', b.fit === 'tile' ? 'repeat' : 'no-repeat')
+  // Photographs need the scrim to match the appearance, not the other way round.
+  s.setProperty('--bg-scrim', half === 'light' ? '255,255,255' : '0,0,0')
+}
+
+/** Cache-busted so a replaced image shows immediately. */
+let backgroundVersion = 0
+export function bumpBackground() { backgroundVersion++ }
+export function backgroundImageUrl() { return `/users/me/background/image?v=${backgroundVersion}` }

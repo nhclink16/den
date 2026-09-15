@@ -44,6 +44,7 @@ export const apiFor = (origin: string) => ({
   put: <T>(path: string, body?: unknown) => call<T>(origin, 'PUT', path, body),
   patch: <T>(path: string, body?: unknown) => call<T>(origin, 'PATCH', path, body),
   patchRaw: <T>(path: string, raw: BodyInit, headers: Record<string, string>) => call<T>(origin, 'PATCH', path, undefined, raw, { 'content-type': 'application/octet-stream', ...headers }),
+  putRaw: <T>(path: string, raw: BodyInit, headers: Record<string, string>) => call<T>(origin, 'PUT', path, undefined, raw, { 'content-type': 'application/octet-stream', ...headers }),
   del: <T>(path: string, body?: unknown) => call<T>(origin, 'DELETE', path, body),
 })
 export const api = new Proxy({} as ReturnType<typeof apiFor>, {
