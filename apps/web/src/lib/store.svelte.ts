@@ -271,7 +271,7 @@ export class Store {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
-      case 'appearance_updated': this.receiveAppearance(ev.appearance as unknown as Appearance); break
+      case 'appearance_updated': this.receiveAppearance(ev.appearance); break
       case 'settings_updated': this.settings = ev.settings; break
       case 'object_presence': if (this.active) objects.presence = { ...objects.presence, [ev.id]: ev.user_ids }; break
       case 'resync': if (this.ready) await this.resync(); break

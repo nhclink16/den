@@ -3,13 +3,12 @@
   import { builtinBackgrounds, builtinBackgroundImage, bumpBackground, backgroundImageUrl } from '../lib/theme-runtime'
   import { apiFor } from '../lib/api'
   import { activeOrigin } from '../lib/native'
-  import type { AppearanceBackground } from '../lib/types'
+  import type { AppearanceBackground, BackgroundBuiltin, BackgroundImage } from '../lib/types'
   import SettingRow from './SettingRow.svelte'
 
   let fileInput: HTMLInputElement
   let busy = $state(false)
   let error = $state('')
-  let uploadedAt = $state(0)
 
   const bg = $derived(themes.appearance.background ?? null)
   const own = $derived(bg?.source.type === 'upload')
@@ -24,8 +23,8 @@
     if (!bg) return
     themes.background({ ...bg, ...patch })
   }
-  function pickBuiltin(name: string) {
-    themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name } } as AppearanceBackground)
+  function pickBuiltin(name: BackgroundBuiltin) {
+    themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name } })
   }
   function clear() { themes.background(null) }
 
@@ -37,10 +36,10 @@
     if (file.size > 8 * 1024 * 1024) { error = 'Images must be at most 8 MB.'; return }
     busy = true
     try {
-      await apiFor(activeOrigin()).putRaw('/users/me/background/image', file, { 'content-type': file.type || 'application/octet-stream' })
+      // The id is the server's content hash, so a replaced image changes it and busts caches.
+      const saved = await apiFor(activeOrigin()).putRaw<BackgroundImage>('/users/me/background/image', file, { 'content-type': file.type || 'application/octet-stream' })
       bumpBackground()
-      uploadedAt = Date.now()
-      themes.background({ ...(bg ?? defaults), source: { type: 'upload', id: String(uploadedAt) } } as AppearanceBackground)
+      themes.background({ ...(bg ?? defaults), source: { type: 'upload', id: saved.id } })
     } catch (err) {
       error = (err as Error).message || "That image couldn't be saved."
     } finally { busy = false }
