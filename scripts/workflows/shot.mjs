@@ -61,13 +61,24 @@ try {
       const reachable = cs.pointerEvents !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05
       if (!reachable) { hiddenSmall++; continue }
       const label = (el.textContent || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '?').trim().slice(0, 24)
-      tiny.push(`${label} — ${Math.round(r.width)}x${Math.round(r.height)}`)
+      // The hit area may be a padded wrapper, not the control itself.
+      const pr = el.parentElement ? el.parentElement.getBoundingClientRect() : r
+      const wrap = (pr.height > r.height + 4 || pr.width > r.width + 4)
+        ? ` (hit area ${Math.round(pr.width)}x${Math.round(pr.height)})` : ''
+      tiny.push(`${label} — ${Math.round(r.width)}x${Math.round(r.height)}${wrap}`)
     }
-    // Horizontal scroll is only worth reporting with its magnitude: a 12px drag with
-    // nothing visibly past the edge is a different claim from a clipped element.
+    // Prove scrollability by scrolling, rather than inferring it from scrollWidth.
+    // body{overflow-x:hidden} does not stop the html element panning, and a reviewer
+    // reading the CSS alone will reason its way to the wrong answer.
+    const startX = window.scrollX
+    window.scrollTo(9999, window.scrollY)
+    const reachedX = window.scrollX
+    window.scrollTo(startX, window.scrollY)
     const overshoot = doc.scrollWidth - doc.clientWidth
     return {
       horizontalOverflowPx: overshoot > 2 ? overshoot : 0,
+      userCanActuallyPanSideways: reachedX > startX,
+      panDistancePx: reachedX - startX,
       anyElementPastViewportEdge: overflowing.length > 0,
       overflowingElements: overflowing,
       subMinimumTapTargets: tiny.slice(0, 10),
