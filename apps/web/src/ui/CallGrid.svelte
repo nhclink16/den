@@ -10,19 +10,25 @@
   import CallLayoutTile from './CallLayoutTile.svelte'
   type Tile = TileSpec & { participant?: CallParticipant; share?: Share; object?: ObjectSummary }
   let mobile = $state(window.innerWidth < 900), width = $state(0), height = $state(0)
-  // A rotated monitor is not a phone: it keeps dragging and Custom layouts, but it
-  // wants the same stacked bands, because tiles across a narrow axis end up tiny.
+  // Two different questions, and conflating them swapped people's layouts. How to
+  // arrange tiles depends on the room the grid actually has, so it follows the
+  // container. Which saved layout to load is a property of the window, so it follows
+  // the window: hiding the member list makes the grid wider, and that must not count
+  // as a rotation and hand you the other orientation's arrangement.
+  let windowPortrait = $state(matchMedia('(orientation: portrait)').matches)
   const portrait = $derived(height > width && width > 0)
   const stacked = $derived(mobile || portrait)
   let scroll: HTMLDivElement, canvas: HTMLDivElement
   let preview = $state<Record<string, Cell> | null>(null), dragging = $state('')
   let cancelDrag: (() => void) | undefined
-  // Orientation is read outside untrack so a rotation reloads that shape's layout.
-  $effect(() => { const id = call.channel?.id, shape = portrait; if (id) untrack(() => callLayouts.open(id, mobile, shape)) })
+  // Orientation is read outside untrack so a real rotation reloads that shape's layout.
+  $effect(() => { const id = call.channel?.id, shape = windowPortrait; if (id) untrack(() => callLayouts.open(id, mobile, shape)) })
   onMount(() => {
     const mq = matchMedia('(max-width: 899px)'), update = () => { mobile = mq.matches; cancelDrag?.() }
+    const turn = matchMedia('(orientation: portrait)'), rotate = () => { windowPortrait = turn.matches; cancelDrag?.() }
     mq.addEventListener('change', update)
-    return () => { mq.removeEventListener('change', update); cancelDrag?.() }
+    turn.addEventListener('change', rotate)
+    return () => { mq.removeEventListener('change', update); turn.removeEventListener('change', rotate); cancelDrag?.() }
   })
   const tiles = $derived.by<Tile[]>(() => {
     const slots = participantSlots(call.participants.map(p => p.id), callLayouts.value.tiles)
