@@ -51,7 +51,12 @@ fn upload_name(name: &str) -> bool {
         )
 }
 fn archive_name(name: &str) -> bool {
-    matches!(name, "den.db" | "manifest.json" | "uploads/")
+    matches!(
+        name,
+        "den.db" | "manifest.json" | "uploads/" | "uploads/backgrounds/"
+    ) || name
+        .strip_prefix("uploads/backgrounds/")
+        .is_some_and(|id| id.parse::<ulid::Ulid>().is_ok())
         || name.strip_prefix("uploads/").is_some_and(upload_name)
 }
 fn private_file(path: &Path) -> Result<fs::File> {
@@ -103,6 +108,26 @@ pub(super) fn pack(
             .file_name()
             .into_string()
             .map_err(|_| anyhow::anyhow!("Non-UTF8 upload filename"))?;
+        if name == "backgrounds" {
+            ensure!(
+                entry.file_type()?.is_dir(),
+                "Backgrounds must be a directory, not a symlink"
+            );
+            for background in fs::read_dir(entry.path())? {
+                let background = background?;
+                let id = background
+                    .file_name()
+                    .into_string()
+                    .map_err(|_| anyhow::anyhow!("Non-UTF8 background filename"))?;
+                if id.parse::<ulid::Ulid>().is_ok() {
+                    ensure!(
+                        background.file_type()?.is_file(),
+                        "Background is not a regular file"
+                    );
+                    paths.push((format!("uploads/backgrounds/{id}"), background.path()));
+                }
+            }
+        }
         // Only Den's flat upload names are data. Never traverse .ssh or copy host.toml/.env.
         if upload_name(&name) {
             ensure!(entry.file_type()?.is_file(), "Upload is not a regular file");
@@ -160,7 +185,7 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
             "Symlinks and special files are forbidden"
         );
         ensure!(
-            file.is_dir() == (name == "uploads/"),
+            file.is_dir() == matches!(name, "uploads/" | "uploads/backgrounds/"),
             "Invalid archive directory"
         );
         ensure!(
@@ -181,6 +206,7 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
     validate_schema(&manifest)?;
     names.remove("manifest.json");
     names.remove("uploads/");
+    names.remove("uploads/backgrounds/");
     ensure!(
         names == manifest.files.keys().cloned().collect() && names.contains("den.db"),
         "Manifest file list does not match ZIP"
@@ -194,6 +220,7 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
         "Not enough disk space for import and migrations"
     );
     fs::create_dir(target.join("uploads"))?;
+    fs::create_dir(target.join("uploads/backgrounds"))?;
     for (name, expected) in &manifest.files {
         let mut file = zip.by_name(name)?;
         ensure!(

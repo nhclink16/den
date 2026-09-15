@@ -6,7 +6,7 @@ use utoipa::OpenApi;
     info(
         title = "Den API",
         version = "0.1.0",
-        description = "M3 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs."
+        description = "M3 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. Entity IDs are ULIDs; background image IDs are opaque SHA-256 content IDs."
     ),
     paths(
         health,
@@ -14,6 +14,9 @@ use utoipa::OpenApi;
         tickets::issue,
         appearance::get_appearance,
         appearance::put_appearance,
+        backgrounds::put,
+        backgrounds::get,
+        backgrounds::remove,
         hosts::list,
         hosts::enroll,
         hosts::login,
@@ -98,6 +101,12 @@ use utoipa::OpenApi;
     ),
     components(schemas(
         Appearance,
+        Background,
+        BackgroundSource,
+        BackgroundBuiltin,
+        BackgroundScope,
+        BackgroundFit,
+        BackgroundImage,
         Theme,
         ThemeColors,
         ThemeFonts,

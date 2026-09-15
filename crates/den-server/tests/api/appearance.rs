@@ -1,7 +1,7 @@
 use super::*;
 
 #[tokio::test]
-async fn appearance_validates_persists_and_stays_private() {
+async fn split_appearance_migrates_validates_persists_and_stays_private() {
     let t = Test::new().await;
     let alice = t.member("appearance_alice").await;
     let bob = t.member("appearance_bob").await;
@@ -25,11 +25,43 @@ async fn appearance_validates_persists_and_stays_private() {
     theme.dark.accent = "#abcdef".into();
     let mut value = json!(Appearance {
         mode: AppearanceMode::Dark,
-        theme: theme.id.clone(),
-        custom_themes: vec![theme],
+        light_theme: "paper".into(),
+        dark_theme: theme.id.clone(),
+        custom_themes: vec![theme.clone()],
+        ..Appearance::default()
     });
+    // An existing paired preference migrates both choices and preserves custom colors.
+    sqlx::query("INSERT INTO user_appearance VALUES(?,?)")
+        .bind(&alice.user.id)
+        .bind(json!({"mode":"dark","theme":theme.id,"custom_themes":[theme]}).to_string())
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO user_appearance VALUES(?,?)")
+        .bind(&bob.user.id)
+        .bind(json!({"mode":"system","custom_themes":[]}).to_string())
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    sqlx::raw_sql(include_str!("../../migrations/0013_split_theme_choice.sql"))
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    let migrated: Appearance = t
+        .req(Method::GET, path, &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(migrated.light_theme, theme.id);
+    assert_eq!(migrated.dark_theme, theme.id);
+    assert_eq!(migrated.custom_themes, vec![theme]);
+    assert_eq!(migrated.contrast, 100);
+    assert_eq!(migrated.background, None);
     let mut sockets = vec![];
-    for session in [&alice, &bob] {
+    for session in [&alice, &alice, &bob] {
         let mut request = format!("{}/ws", t.url.replace("http:", "ws:"))
             .into_client_request()
             .unwrap();
@@ -61,21 +93,24 @@ async fn appearance_validates_persists_and_stays_private() {
             .status(),
         200
     );
-    tokio::time::timeout(Duration::from_secs(2), async {
-        while let Some(Ok(frame)) = sockets[0].next().await {
-            if let Frame::Text(text) = frame {
-                let event: Value = serde_json::from_str(&text).unwrap();
-                if event["type"] == "appearance_updated" {
-                    assert_eq!(event["appearance"], value);
-                    break;
+    for socket in &mut sockets[..2] {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while let Some(Ok(frame)) = socket.next().await {
+                if let Frame::Text(text) = frame {
+                    let event: Value = serde_json::from_str(&text).unwrap();
+                    if event["type"] == "appearance_updated" {
+                        assert_eq!(event["appearance"], value);
+                        return;
+                    }
                 }
             }
-        }
-    })
-    .await
-    .unwrap();
+            panic!("Owner WebSocket closed before appearance_updated");
+        })
+        .await
+        .unwrap();
+    }
     let leaked = tokio::time::timeout(Duration::from_millis(200), async {
-        while let Some(Ok(frame)) = sockets[1].next().await {
+        while let Some(Ok(frame)) = sockets[2].next().await {
             if let Frame::Text(text) = frame {
                 if serde_json::from_str::<Value>(&text).unwrap()["type"] == "appearance_updated" {
                     return true;
@@ -133,8 +168,8 @@ async fn appearance_validates_persists_and_stays_private() {
         );
     }
     for bad in [
-        json!({"mode":"system","theme":"den-light","custom_themes":[]}),
-        json!({"mode":"dark","theme":"missing","custom_themes":[]}),
+        json!({"mode":"system","light_theme":"den-light","dark_theme":"den","custom_themes":[]}),
+        json!({"mode":"dark","light_theme":"den","dark_theme":"missing","custom_themes":[]}),
     ] {
         assert_eq!(
             t.req(Method::PUT, path, &alice.token)

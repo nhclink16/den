@@ -2,6 +2,7 @@ mod access;
 mod activity;
 mod appearance;
 mod auth;
+mod backgrounds;
 mod calls;
 mod chat;
 mod credentials;
@@ -256,6 +257,12 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/users", get(auth::users))
         .route("/users/me", get(auth::me))
         .route(
+            "/users/me/background/image",
+            get(backgrounds::get)
+                .put(backgrounds::put)
+                .delete(backgrounds::remove),
+        )
+        .route(
             "/users/me/appearance",
             get(appearance::get_appearance).put(appearance::put_appearance),
         )
@@ -346,10 +353,10 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024))
         .layer(axum::middleware::map_response(
             |mut response: Response| async move {
-                response.headers_mut().insert(
-                    axum::http::header::CACHE_CONTROL,
-                    "no-store".parse().unwrap(),
-                );
+                response
+                    .headers_mut()
+                    .entry(axum::http::header::CACHE_CONTROL)
+                    .or_insert_with(|| "no-store".parse().unwrap());
                 response
             },
         ))

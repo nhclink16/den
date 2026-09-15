@@ -454,3 +454,6 @@ mod appearance;
 
 #[path = "api/desktop.rs"]
 mod desktop;
+
+#[path = "api/backgrounds.rs"]
+mod backgrounds;

@@ -18,26 +18,8 @@ pub(crate) async fn generate(s: &AppState, row: &Upload) -> Result<bool> {
         let output = dest.clone();
         let built = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
             let _permit = _permit;
-            let mut reader = image::ImageReader::open(source)?.with_guessed_format()?;
-            let mut limits = image::Limits::default();
-            limits.max_image_width = Some(8192);
-            limits.max_image_height = Some(8192);
-            limits.max_alloc = Some(64 * 1024 * 1024);
-            reader.limits(limits);
-            use image::ImageDecoder;
-            let mut decoder = reader.into_decoder()?;
-            let (width, height) = decoder.dimensions();
-            anyhow::ensure!(
-                u64::from(width) * u64::from(height) <= 16_000_000,
-                "Image exceeds thumbnail pixel limit"
-            );
-            let orientation = decoder.orientation()?;
-            let mut decoded = image::DynamicImage::from_decoder(decoder)?;
-            decoded.apply_orientation(orientation);
-            anyhow::ensure!(
-                u64::from(decoded.width()) * u64::from(decoded.height()) <= 16_000_000,
-                "Image exceeds thumbnail pixel limit"
-            );
+            let reader = image::ImageReader::open(source)?.with_guessed_format()?;
+            let decoded = decode(reader)?;
             let thumbnail = decoded.thumbnail(512, 512);
             let temp = output.with_extension("png.part");
             thumbnail.save_with_format(&temp, image::ImageFormat::Png)?;
@@ -82,4 +64,30 @@ pub(crate) async fn serve(
         .headers_mut()
         .insert("x-content-type-options", "nosniff".parse().unwrap());
     Ok(response)
+}
+
+// Shared by thumbnails and account backgrounds, including the decode allocation cap.
+pub(crate) fn decode<R: std::io::BufRead + std::io::Seek>(
+    mut reader: image::ImageReader<R>,
+) -> anyhow::Result<image::DynamicImage> {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(64 * 1024 * 1024);
+    reader.limits(limits);
+    use image::ImageDecoder;
+    let mut decoder = reader.into_decoder()?;
+    let (width, height) = decoder.dimensions();
+    anyhow::ensure!(
+        u64::from(width) * u64::from(height) <= 16_000_000,
+        "Image exceeds pixel limit"
+    );
+    let orientation = decoder.orientation()?;
+    let mut decoded = image::DynamicImage::from_decoder(decoder)?;
+    decoded.apply_orientation(orientation);
+    anyhow::ensure!(
+        u64::from(decoded.width()) * u64::from(decoded.height()) <= 16_000_000,
+        "Image exceeds pixel limit"
+    );
+    Ok(decoded)
 }

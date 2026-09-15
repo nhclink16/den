@@ -1,33 +1,59 @@
 use crate::{auth::Auth, *};
 
-#[utoipa::path(get,path="/users/me/appearance",responses((status=200,body=Appearance)))]
-pub(crate) async fn get_appearance(State(s): State<AppState>, a: Auth) -> Result<Json<Appearance>> {
+pub(crate) async fn load(s: &AppState, user: &str) -> Result<Appearance> {
     let value: Option<String> =
         sqlx::query_scalar("SELECT appearance FROM user_appearance WHERE user_id=?")
-            .bind(&a.user.id)
+            .bind(user)
             .fetch_optional(&s.db)
             .await?;
-    Ok(Json(match value {
-        Some(v) => serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance"))?,
-        None => Appearance::default(),
-    }))
+    match value {
+        Some(v) => serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance")),
+        None => Ok(Appearance::default()),
+    }
 }
-#[utoipa::path(put,path="/users/me/appearance",request_body=Appearance,responses((status=200,body=Appearance)))]
+
+fn response(value: Appearance, missing: bool) -> Response {
+    let mut response = Json(value).into_response();
+    if missing {
+        response
+            .headers_mut()
+            .insert("x-den-background-status", "missing".parse().unwrap());
+    }
+    response
+}
+
+#[utoipa::path(get,path="/users/me/appearance",responses((status=200,body=Appearance,
+    description="Missing upload resolves to background:null and X-Den-Background-Status: missing")))]
+pub(crate) async fn get_appearance(State(s): State<AppState>, a: Auth) -> Result<Response> {
+    let _guard = s.writes.lock().await;
+    let mut value = load(&s, &a.user.id).await?;
+    let missing = backgrounds::resolve(&s, &a.user.id, &mut value).await?;
+    Ok(response(value, missing))
+}
+#[utoipa::path(put,path="/users/me/appearance",request_body=Appearance,responses((status=200,body=Appearance,
+    description="Returns clamped values; missing upload resolves to background:null and X-Den-Background-Status: missing")))]
 pub(crate) async fn put_appearance(
     State(s): State<AppState>,
     a: Auth,
-    ApiJson(v): ApiJson<Appearance>,
-) -> Result<Json<Appearance>> {
+    ApiJson(mut v): ApiJson<Appearance>,
+) -> Result<Response> {
     v.validate().map_err(Error::bad)?;
     let _guard = s.writes.lock().await;
-    let json = serde_json::to_string(&v).map_err(|_| Error::bad("Invalid appearance"))?;
+    let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;
+    save(&s, &a.user.id, &v).await?;
+    Ok(response(v, missing))
+}
+
+// Call with the write lock held so file replacement and appearance events agree.
+pub(crate) async fn save(s: &AppState, user: &str, value: &Appearance) -> Result<()> {
+    let json = serde_json::to_string(value).map_err(|_| Error::bad("Invalid appearance"))?;
     sqlx::query("INSERT INTO user_appearance(user_id,appearance) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET appearance=excluded.appearance")
-        .bind(&a.user.id).bind(json).execute(&s.db).await?;
+        .bind(user).bind(json).execute(&s.db).await?;
     let _ = s.events.send(Event::AppearanceUpdated {
-        user_id: a.user.id,
-        appearance: v.clone(),
+        user_id: user.into(),
+        appearance: value.clone(),
     });
-    Ok(Json(v))
+    Ok(())
 }
 
 // Complete 0008 before opening HTTP. This is deliberately repeatable after a
@@ -103,6 +129,10 @@ mod tests {
             .execute(&db)
             .await
             .unwrap();
+        sqlx::raw_sql(include_str!("../migrations/0013_split_theme_choice.sql"))
+            .execute(&db)
+            .await
+            .unwrap();
         // This models a restart after SQL committed and before completion began.
         complete_theme_pairs(&db).await.unwrap();
         let rows: Vec<(String, String)> =
@@ -113,7 +143,7 @@ mod tests {
         for (id, raw) in &rows {
             let a: Appearance = serde_json::from_str(raw).unwrap();
             a.validate().unwrap();
-            assert_eq!(a.theme, if id == "a" { "custom" } else { "den" });
+            assert_eq!(a.light_theme, if id == "a" { "custom" } else { "den" });
             assert_eq!(a.custom_themes[0].dark, tide.dark);
             assert_eq!(
                 a.custom_themes[0].light,

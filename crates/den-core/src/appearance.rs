@@ -65,14 +65,26 @@ pub struct Theme {
 #[serde(deny_unknown_fields)]
 pub struct Appearance {
     pub mode: AppearanceMode,
-    pub theme: String,
+    pub light_theme: String,
+    pub dark_theme: String,
+    #[serde(default)]
+    pub background: Option<Background>,
+    #[serde(
+        default = "default_contrast",
+        deserialize_with = "clamped::<_, 80, 120>"
+    )]
+    #[schema(minimum = 80, maximum = 120, default = 100)]
+    pub contrast: u8,
     pub custom_themes: Vec<Theme>,
 }
 impl Default for Appearance {
     fn default() -> Self {
         Self {
             mode: AppearanceMode::System,
-            theme: "den".into(),
+            light_theme: "den".into(),
+            dark_theme: "den".into(),
+            background: None,
+            contrast: 100,
             custom_themes: vec![],
         }
     }
@@ -135,9 +147,80 @@ impl Appearance {
             }
             themes.push(t.clone());
         }
-        if !themes.iter().any(|t| t.id == self.theme) {
+        if [&self.light_theme, &self.dark_theme]
+            .into_iter()
+            .any(|id| !themes.iter().any(|t| &t.id == id))
+        {
             return Err("Select an existing theme family");
         }
         Ok(())
     }
+}
+
+fn default_contrast() -> u8 {
+    100
+}
+
+// Accept out-of-range JSON integers, then store only the bounded value.
+fn clamped<'de, D: serde::Deserializer<'de>, const MIN: u8, const MAX: u8>(
+    deserializer: D,
+) -> Result<u8, D::Error> {
+    let value = i64::deserialize(deserializer)?;
+    Ok(value.clamp(i64::from(MIN), i64::from(MAX)) as u8)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum BackgroundBuiltin {
+    Aurora,
+    Dunes,
+    Harbor,
+    EmberSky,
+    SlateMist,
+    Grain,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum BackgroundSource {
+    Builtin { name: BackgroundBuiltin },
+    Upload { id: String },
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundScope {
+    App,
+    Sidebar,
+    Chat,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundFit {
+    Cover,
+    Contain,
+    Tile,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Background {
+    pub source: BackgroundSource,
+    #[serde(deserialize_with = "clamped::<_, 0, 40>")]
+    #[schema(minimum = 0, maximum = 40)]
+    pub blur: u8,
+    #[serde(deserialize_with = "clamped::<_, 0, 80>")]
+    #[schema(minimum = 0, maximum = 80)]
+    pub dim: u8,
+    #[serde(deserialize_with = "clamped::<_, 50, 150>")]
+    #[schema(minimum = 50, maximum = 150)]
+    pub saturate: u8,
+    pub scope: BackgroundScope,
+    pub fit: BackgroundFit,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct BackgroundImage {
+    /// Opaque SHA-256 content ID. Changes when the image bytes change.
+    pub id: String,
+    pub content_type: String,
+    pub size: u64,
+    pub width: u32,
+    pub height: u32,
 }
