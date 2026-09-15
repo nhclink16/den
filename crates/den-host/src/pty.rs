@@ -235,8 +235,9 @@ impl Sessions {
             })
             .unwrap_or_default()
     }
-    pub fn drain(&self) -> Vec<HostFrame> {
+    pub fn drain(&mut self) -> Vec<HostFrame> {
         let mut frames = Vec::new();
+        let mut exited = Vec::new();
         for (id, p) in &self.sessions {
             let bytes = p.source.drain();
             if !bytes.is_empty() {
@@ -253,8 +254,15 @@ impl Sessions {
                         code,
                     });
                     f.reported = true;
+                    exited.push(id.clone());
                 }
             }
+        }
+        // A naturally exited shell no longer needs its PTY. Releasing the
+        // entry here frees active-terminal capacity; retaining the card or
+        // recording is the server's job, not a live slot.
+        for id in exited {
+            self.sessions.remove(&id);
         }
         frames
     }
