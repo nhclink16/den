@@ -83,6 +83,7 @@
   }
   .search { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
   .search input { flex: 1; background: none; border: 0; outline: 0; font-size: 16px; color: var(--ink); }
+  .search:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
   ul { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow-y: auto; }
   li button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r); text-align: left; color: var(--ink-2); }
   li button.active { background: var(--bg-3); color: var(--ink); }

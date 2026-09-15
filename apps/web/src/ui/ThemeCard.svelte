@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Theme } from '../lib/types'
   import ThemePreview from './ThemePreview.svelte'
+  import InlineConfirm from './InlineConfirm.svelte'
 
   let { theme, lightChosen, darkChosen, dimmed, onpick, oncustomise, onremove }: {
     theme: Theme
@@ -54,9 +55,7 @@
         </button>
       {/if}
       {#if onremove}
-        <button class="tool danger" title={`Delete ${theme.name}`} aria-label={`Delete ${theme.name}`} onclick={onremove}>
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.4 4.4h9.2M6.4 4.4V2.8h3.2v1.6M5 4.4l.5 8.4h5l.5-8.4" /></svg>
-        </button>
+        <InlineConfirm action="Delete" sentence={`Delete the ${theme.name} theme? This cannot be undone.`} confirm={async () => onremove()} />
       {/if}
     </span>
   </div>
@@ -90,6 +89,5 @@
   .card:hover .tools, .card:focus-within .tools { opacity: 1; }
   .tool { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r); color: var(--ink3); }
   .tool:hover { background: var(--bg3); color: var(--ink); }
-  .tool.danger:hover { color: var(--danger); }
   @media (max-width: 650px) { .tools { opacity: 1; } }
 </style>

@@ -20,7 +20,15 @@ SERVER = BUILD / "den-server"
 
 def main():
     keep = os.environ.get("DEN_SMOKE_KEEP") == "1"
-    scratch = nullcontext(tempfile.mkdtemp(prefix="den-m1-", dir="/mnt/storage")) if keep else tempfile.TemporaryDirectory(prefix="den-m1-", dir="/mnt/storage")
+    # codexbox keeps build scratch off its small system disk, but CI runners have no
+    # /mnt/storage, so fall back to the platform default rather than crashing.
+    big = "/mnt/storage"
+    scratch_dir = big if os.path.isdir(big) else None
+    scratch = (
+        nullcontext(tempfile.mkdtemp(prefix="den-m1-", dir=scratch_dir))
+        if keep
+        else tempfile.TemporaryDirectory(prefix="den-m1-", dir=scratch_dir)
+    )
     with scratch as tmp:
         tmp = Path(tmp)
         with socket.socket() as probe:

@@ -32,14 +32,25 @@
   .overflow > div { position: absolute; bottom: 46px; right: 0; padding: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg-2); }
   .overflow > div button { width: max-content; padding: 0 12px; font: 11px var(--mono); }
   .controls .another { width: 20px; height: 20px; margin-right: 2px; color: var(--lamp); border: 1px solid var(--line); }
-  .controls { display: flex; align-items: center; gap: 0; flex: none; }
+  .controls { display: flex; align-items: center; gap: 4px; flex: none; }
   button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--ink); }
-  button:hover { background: var(--bg-3); }
+  /* bg-3 is the dock's own background, so that hover was invisible. A surface-relative
+     tint reads on the dock and on the expanded toolbar alike. */
+  button:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
   button:disabled { opacity: .5; cursor: default; }
+  /* A 28px square is below every touch-target guideline. Grow the hit box on touch
+     without growing the visual, so the dock keeps its proportions. */
+  @media (pointer: coarse) {
+    .controls { gap: 8px; }
+    button { position: relative; }
+    button::after { content: ''; position: absolute; inset: -8px; }
+  }
   .muted { color: var(--ink-3); }
   .sharing { color: var(--lamp); }
   .leave { color: var(--ink-2); }
-  .leave:hover { color: var(--ember); }
+  /* Leave sits apart from the toggles so it is not fumbled mid-call. */
+  .leave { margin-inline-start: 6px; }
+  .leave:hover { color: var(--ember); background: color-mix(in srgb, var(--danger) 16%, transparent); }
   .ptt { width: auto; padding: 0 6px; white-space: nowrap; font: 11px var(--mono); color: var(--ink-2); background: var(--bg); touch-action: none; }
   .ptt.held { color: var(--lamp); background: var(--lamp-glow); }
   .large { gap: 4px; }

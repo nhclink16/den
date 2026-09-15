@@ -21,7 +21,7 @@
 <nav class="side" class:mac={desktop.platform === 'macos'}>
   <div class="brand">
     {#if native}<ServerSwitcher />{:else}<a href="/" class="display wordmark" onclick={go('/')}><Mark size={22} /><span title={store.settings.instance_name}>{store.settings.instance_name}</span></a>{/if}
-    <span class="conn" class:off={!store.connected} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
+    <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
     {#if !narrow}<SidebarToggle hide />{/if}
   </div>
 
@@ -30,6 +30,9 @@
     {#if inboxCount}<span class="count">{inboxCount}</span>{/if}
   </a>
 
+  {#if !store.connected}
+    <p class="offline" role="status">You're offline. Den is trying to reconnect.</p>
+  {/if}
   <div class="scroll">
     {#snippet channelRow(c: import('../lib/types').Channel)}
       {@const u = store.unread(c.id)}
@@ -91,8 +94,18 @@
   .wordmark { font-size: 22px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }
   .wordmark:hover { text-decoration: none; color: var(--lamp); }
   .conn { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); margin-top: 2px; }
-  .conn.off { background: var(--ember); animation: blink 1s infinite alternate; }
-  @keyframes blink { to { opacity: 0.3; } }
+  .conn.off { background: var(--danger); }
+  /* A blink that reaches 0.3 opacity reads as broken rendering; and the global
+     reduced-motion reset only shortens the duration, so guard the rule itself. */
+  @media (prefers-reduced-motion: no-preference) {
+    .conn.off { animation: blink 1.4s infinite alternate; }
+  }
+  @keyframes blink { to { opacity: 0.62; } }
+  .offline {
+    margin: 0 10px 6px; padding: 7px 10px; border-radius: var(--r);
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
+    color: var(--ink); font-size: 12.5px; line-height: 1.35;
+  }
   .scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
   .cat { padding: 14px 10px 4px; user-select: none; }
   .row {

@@ -16,7 +16,7 @@
       "line": "#3a3429",
       "ink": "#ece5d8",
       "ink2": "#a89f8f",
-      "ink3": "#6f6759",
+      "ink3": "#908675",
       "accent": "#e8a44a",
       "success": "#8da874",
       "danger": "#d2623e"
@@ -28,8 +28,8 @@
       "line": "#d3cabb",
       "ink": "#26221c",
       "ink2": "#5e564a",
-      "ink3": "#8a8173",
-      "accent": "#c77d1f",
+      "ink3": "#6b645a",
+      "accent": "#965f17",
       "success": "#5f7f4a",
       "danger": "#b8462a"
     }
@@ -51,7 +51,7 @@
       "line": "#2f3a2f",
       "ink": "#e4ead9",
       "ink2": "#a3ad98",
-      "ink3": "#6c7566",
+      "ink3": "#808a79",
       "accent": "#9ccf6f",
       "success": "#7fbf8a",
       "danger": "#d9694f"
@@ -63,8 +63,8 @@
       "line": "#cdd6c3",
       "ink": "#1f261d",
       "ink2": "#55604f",
-      "ink3": "#7f8a78",
-      "accent": "#4f8a2a",
+      "ink3": "#636c5e",
+      "accent": "#467a25",
       "success": "#3f8a4a",
       "danger": "#c2552f"
     }
@@ -86,7 +86,7 @@
       "line": "#27353c",
       "ink": "#dfe8ec",
       "ink2": "#98a9b1",
-      "ink3": "#63737b",
+      "ink3": "#768891",
       "accent": "#5fd3c6",
       "success": "#7fd39a",
       "danger": "#e26d5c"
@@ -98,8 +98,8 @@
       "line": "#c6d4d8",
       "ink": "#15252b",
       "ink2": "#4d6068",
-      "ink3": "#7a8b92",
-      "accent": "#1e8f85",
+      "ink3": "#5d6c72",
+      "accent": "#1a7a71",
       "success": "#2f8f5b",
       "danger": "#d0533f"
     }
@@ -121,7 +121,7 @@
       "line": "#3a2b2b",
       "ink": "#f0e4e0",
       "ink2": "#b09c97",
-      "ink3": "#7a6864",
+      "ink3": "#927e7a",
       "accent": "#f4845f",
       "success": "#8fc48a",
       "danger": "#ff4d6d"
@@ -133,8 +133,8 @@
       "line": "#dcc9c4",
       "ink": "#2a1c19",
       "ink2": "#6a544f",
-      "ink3": "#957f79",
-      "accent": "#d9552c",
+      "ink3": "#7a6661",
+      "accent": "#bf4722",
       "success": "#4f8f4a",
       "danger": "#c8284a"
     }
@@ -156,7 +156,7 @@
       "line": "#302a40",
       "ink": "#ebe6f5",
       "ink2": "#a89fbd",
-      "ink3": "#726985",
+      "ink3": "#877e99",
       "accent": "#b48cff",
       "success": "#8fd39a",
       "danger": "#ff6b8a"
@@ -168,7 +168,7 @@
       "line": "#d2cbe4",
       "ink": "#1f1a2e",
       "ink2": "#5b5470",
-      "ink3": "#857d9a",
+      "ink3": "#6e6683",
       "accent": "#6d4de0",
       "success": "#3f8f5a",
       "danger": "#d0405f"
@@ -191,7 +191,7 @@
       "line": "#393937",
       "ink": "#eeeeea",
       "ink2": "#a6a6a0",
-      "ink3": "#6f6f69",
+      "ink3": "#898982",
       "accent": "#6f95ff",
       "success": "#5fbf85",
       "danger": "#f0655c"
@@ -203,8 +203,8 @@
       "line": "#dad9d1",
       "ink": "#1f1f1d",
       "ink2": "#5c5c57",
-      "ink3": "#8b8b84",
-      "accent": "#2f6fed",
+      "ink3": "#6c6c66",
+      "accent": "#2669ec",
       "success": "#2f8f5b",
       "danger": "#d6453d"
     }
@@ -226,7 +226,7 @@
       "line": "#2a2c31",
       "ink": "#e6e7ea",
       "ink2": "#9a9ca3",
-      "ink3": "#64666d",
+      "ink3": "#7f828a",
       "accent": "#8b93ff",
       "success": "#6fcf97",
       "danger": "#f26b6b"
@@ -238,7 +238,7 @@
       "line": "#d3d7de",
       "ink": "#16171b",
       "ink2": "#565a63",
-      "ink3": "#868a93",
+      "ink3": "#686c74",
       "accent": "#4f57e6",
       "success": "#2e9a62",
       "danger": "#d84545"
@@ -261,7 +261,7 @@
       "line": "#262626",
       "ink": "#d0d0d0",
       "ink2": "#8a8a8a",
-      "ink3": "#555555",
+      "ink3": "#797979",
       "accent": "#33ff66",
       "success": "#5fd38d",
       "danger": "#ff5555"
@@ -273,8 +273,8 @@
       "line": "#cfcfcf",
       "ink": "#111111",
       "ink2": "#555555",
-      "ink3": "#8a8a8a",
-      "accent": "#0a8f2f",
+      "ink3": "#707070",
+      "accent": "#09852c",
       "success": "#1f8a4c",
       "danger": "#d11a1a"
     }

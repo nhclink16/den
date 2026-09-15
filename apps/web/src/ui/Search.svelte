@@ -76,7 +76,7 @@
   .iconbtn { padding: 6px; }
   .bar { flex: 1; display: flex; gap: 8px; min-width: 0; }
   .q { flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; outline: 0; }
-  .q:focus { border-color: var(--lamp); }
+  .q:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .scope { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; color: var(--ink-2); max-width: 160px; }
   .scroll { flex: 1; overflow-y: auto; padding: 12px 16px 24px; }
   .empty { padding: 50px 20px; text-align: center; display: grid; gap: 6px; }

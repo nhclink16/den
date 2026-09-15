@@ -3,11 +3,15 @@
 /* Den tokens. One idea: the room is dim, and only what is live is lit. */
 :root {
   --bg-2: var(--bg2); --bg-3: var(--bg3); --ink-2: var(--ink2); --ink-3: var(--ink3);
+  --gutter: 20px;
   --lamp: var(--accent); --lamp-dim: var(--accent-dim); --lamp-glow: var(--accent-glow);
   --moss: var(--success); --ember: var(--danger);
   --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
-  --scrim: color-mix(in srgb, var(--ink) 45%, transparent);
-  --shadow: color-mix(in srgb, var(--ink) 30%, transparent);
+  /* A scrim darkens whatever is behind it, in either appearance. Deriving it from
+     --ink made it a 45% white wash in every dark theme, brightening the app instead. */
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow: rgba(0, 0, 0, 0.34);
+  --shadow-lg: rgba(0, 0, 0, 0.46);
   --hover: color-mix(in srgb, var(--ink) 3%, transparent);
   --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
   --sidebar-w: 248px;
@@ -58,7 +62,9 @@ pre code { background: none; padding: 0; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.lit { background: var(--lamp); color: var(--bg); border-color: var(--lamp); font-weight: 700; }
 .btn.lit:hover { filter: brightness(1.06); }
-.btn.danger { color: var(--ember); }
+/* Declared after .btn.quiet so a quiet destructive button still reads as destructive. */
+.btn.danger, .btn.quiet.danger { color: var(--danger); }
+.btn.danger:hover, .btn.quiet.danger:hover { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .btn.quiet { background: none; border-color: transparent; color: var(--ink-2); }
 .btn.quiet:hover { color: var(--ink); background: var(--bg-3); }
 .field {
@@ -106,3 +112,22 @@ kbd {
   background: color-mix(in srgb, var(--bg2) 82%, transparent);
   backdrop-filter: blur(8px);
 }
+
+/* One focus treatment for every text field. Three of them used to zero the outline
+   and put back a border too faint to see. :where() keeps specificity at zero so a
+   component can still opt out deliberately. A borderless input inside a shell that
+   draws its own ring suppresses this one, so nothing shows two rings. */
+:where(input, textarea, select, .input-shell):focus-visible,
+:where(.input-shell):focus-within {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Safari zooms the page when a focused field is under 16px and never zooms back. */
+@media (pointer: coarse) {
+  input, textarea, select { font-size: 16px; }
+}
+
+/* Shells that manage their own focus ring: keep the inner field quiet. */
+:where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }

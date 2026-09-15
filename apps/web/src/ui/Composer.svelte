@@ -144,7 +144,7 @@
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: 4px; }
   .commands span { color: var(--ink-2); }
   .commands .chosen { background: var(--bg-3); }
-  .composer { position: relative; padding: 0 16px 14px; }
+  .composer { position: relative; padding: 0 var(--gutter) 14px; }
   .box {
     display: flex; align-items: flex-end; gap: 6px; padding: calc(6px * var(--density)) calc(6px * var(--density)) calc(6px * var(--density)) calc(8px * var(--density));
     background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--r-lg);
