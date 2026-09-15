@@ -56,3 +56,22 @@ separate change, only after a recorded compatibility review establishes all of:
 
 Until that review is recorded, the gates stay and their legacy-stream tests remain.
 There is no calendar-based removal deadline.
+
+## Terminal host reconciliation
+
+`den-host` sends `Hello.session_ids` from its actual retained PTYs on connect and
+every five seconds. The server reads its session state successfully before sending
+`Close` for reported sessions that are no longer active on that host. A failed
+read disconnects for retry; it never supplies an empty authoritative inventory.
+
+The initial handshake completes before the host becomes available for new terminal
+opens. Server sessions missing from that initial inventory become ended. Retained
+sessions receive an output-window reset and resize, without recreating shells.
+Later inventories only close unauthorized extras: absence alone cannot end a
+server session because an inventory can cross a newly issued `Open` in transit.
+
+An omitted or null `session_ids` identifies a legacy host and retains its old
+session replay behavior. An explicit empty list means the host has no retained
+PTYs. Both server and host need this update for reconciliation protection; older
+servers ignore the added field. PTYs still survive network outages while their
+host process runs, and reconcile when connectivity returns.

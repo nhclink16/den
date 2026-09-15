@@ -44,6 +44,9 @@ pub enum HostFrame {
     },
     Hello {
         direct_url: Option<String>,
+        /// Retained PTYs. None identifies a legacy host, not an empty inventory.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_ids: Option<Vec<Id>>,
     },
     Replay {
         session_id: Id,

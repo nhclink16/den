@@ -64,36 +64,46 @@ async fn ws(
             .await
             .unwrap();
         let mut out = String::new();
+        let mut inventories = 0;
         while let Some(Ok(Message::Binary(b))) = socket.recv().await {
-            if let HostFrame::Output { session_id, bytes } = serde_json::from_slice(&b).unwrap() {
-                out.push_str(&String::from_utf8_lossy(&bytes));
-                socket
-                    .send(Message::Binary(
-                        serde_json::to_vec(&HostFrame::Ack {
-                            session_id,
-                            bytes: bytes.len(),
-                        })
-                        .unwrap()
-                        .into(),
-                    ))
-                    .await
-                    .unwrap();
-                if out.contains(if n == 0 {
-                    "SOCKET_OK"
-                } else {
-                    "SOCKET_PERSIST"
-                }) {
-                    if n > 0 {
-                        s.done.send(()).await.unwrap();
-                    }
-                    break;
+            match serde_json::from_slice(&b).unwrap() {
+                HostFrame::Hello { session_ids, .. } => {
+                    let expected = if n == 0 && inventories == 0 {
+                        vec![]
+                    } else {
+                        vec!["session".to_string()]
+                    };
+                    assert_eq!(session_ids, Some(expected));
+                    inventories += 1;
                 }
+                HostFrame::Output { session_id, bytes } => {
+                    out.push_str(&String::from_utf8_lossy(&bytes));
+                    socket
+                        .send(Message::Binary(
+                            serde_json::to_vec(&HostFrame::Ack {
+                                session_id,
+                                bytes: bytes.len(),
+                            })
+                            .unwrap()
+                            .into(),
+                        ))
+                        .await
+                        .unwrap();
+                }
+                other => panic!("unexpected frame: {other:?}"),
+            }
+            if n == 0 && out.contains("SOCKET_OK") && inventories >= 1 {
+                break;
+            }
+            if n > 0 && out.contains("SOCKET_PERSIST") && inventories >= 2 {
+                s.done.send(()).await.unwrap();
+                break;
             }
         }
     })
 }
 #[tokio::test]
-async fn binary_login_mode_and_reconnect_keep_the_shell() {
+async fn binary_login_reconnect_and_periodic_inventory_keep_the_shell() {
     let dir = std::env::temp_dir().join(format!("den-host-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -100,6 +100,14 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
             .unwrap(),
     );
     let (mut socket, _) = connect_async(request).await.unwrap();
+    socket
+        .send(Frame::Binary(
+            serde_json::to_vec(&json!({"type":"hello","direct_url":null}))
+                .unwrap()
+                .into(),
+        ))
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(40)).await;
     t.req(
         Method::PUT,

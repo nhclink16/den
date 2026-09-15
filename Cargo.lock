@@ -625,6 +625,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "den-core",
+ "den-host",
  "fs2",
  "futures-util",
  "image",

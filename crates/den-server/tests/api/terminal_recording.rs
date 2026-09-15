@@ -17,6 +17,14 @@ async fn recording_is_opt_in_discardable_remembered_and_private() {
             .unwrap(),
     );
     let (mut socket, _) = connect_async(request).await.unwrap();
+    socket
+        .send(Frame::Binary(
+            serde_json::to_vec(&json!({"type":"hello","direct_url":null}))
+                .unwrap()
+                .into(),
+        ))
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(40)).await;
     let terminal = t
         .post(
