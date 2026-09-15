@@ -171,6 +171,18 @@ User. Current-main distribution must be coordinated with the M10 server rollout;
 the already verified pre-M10 `Den-final.xcarchive` matches the presently live API.
 No upload, server deployment, public release, or Cloud run occurred in this retry.
 
+The final current-main **0.3.0 (2)** Release archive also succeeded through Aqua
+(`aqua-ze0q4wv0`, exit 0). `Den-integrated.xcarchive` contains the verified source
+in `140f211`; `Archive-integrated.xcresult` and
+`archive-integrated-verification.json` record the result. Deep/strict code-signature
+verification passed and the app privacy manifest equals source. This is a normal
+development-signed archive pending distribution re-signing, not a TestFlight IPA.
+The earlier `Den-current-main.xcarchive` still has the broken nullable schema and
+must not be distributed. The disposable local native fixture was stopped with its
+identity-checking cleanup command after all tests passed; the simulator app was
+stopped and the merged schema worktree removed. Test products, archives and logs
+remain in the evidence directories. The phone watcher remains off.
+
 ### Remote TestFlight delivery, September 14
 
 The first **internal-only TestFlight** upload, **0.3.0 (1)**, succeeded at
