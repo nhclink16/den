@@ -230,9 +230,27 @@ impl Pipeline {
         anyhow::ensure!(ready.trim() == "READY", "publisher did not start");
         Ok(pipe)
     }
+    // Both children and the transfer between them own the outcome together.
+    // Waiting for the publisher first hid a decoder that died early: den-dj
+    // outlives a stream that never carried an Opus header, so the track stayed
+    // Playing forever instead of failing over to the next one.
     async fn finished(&mut self) -> anyhow::Result<()> {
-        anyhow::ensure!(self.dj.wait().await?.success(), "publisher failed");
-        anyhow::ensure!(self.ffmpeg.wait().await?.success(), "decoder failed");
+        let Self { ffmpeg, dj, copy } = self;
+        tokio::try_join!(
+            async {
+                anyhow::ensure!(ffmpeg.wait().await?.success(), "decoder failed");
+                Ok(())
+            },
+            async {
+                anyhow::ensure!(dj.wait().await?.success(), "publisher failed");
+                Ok(())
+            },
+            async {
+                // A publisher given nothing to publish never finishes writing.
+                anyhow::ensure!(copy.await?? > 0, "no audio reached the publisher");
+                Ok(())
+            }
+        )?;
         Ok(())
     }
 }
@@ -361,5 +379,184 @@ pub(super) async fn run(weak: Weak<Inner>, room: String, mut changed: watch::Rec
                 return;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    /// Shell stand-ins for ffmpeg and den-dj, so the real supervisor drives real
+    /// subprocesses. They imitate the two behaviours that matter: a decoder that
+    /// dies without producing audio, and a publisher that stays alive after its
+    /// stream ends, which is what den-dj does when no Opus header ever arrives.
+    /// Fixtures that wait `exec` so the pipeline kills the waiting process itself
+    /// rather than stranding it behind a dead shell.
+    struct Fixtures(std::path::PathBuf);
+    impl Drop for Fixtures {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    impl Fixtures {
+        fn new() -> Self {
+            let dir = std::env::temp_dir().join(format!("den-pipeline-{}", ulid::Ulid::new()));
+            std::fs::create_dir_all(&dir).expect("fixture directory");
+            Self(dir)
+        }
+        fn at(&self, name: &str) -> String {
+            self.0.join(name).to_string_lossy().into()
+        }
+        fn script(&self, name: &str, body: &str) -> String {
+            let path = self.0.join(name);
+            std::fs::write(&path, format!("#!/bin/sh\n{body}")).expect("fixture script");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))
+                .expect("fixture permissions");
+            path.to_string_lossy().into()
+        }
+    }
+    async fn start(tools: &Tools) -> Pipeline {
+        let source = Source {
+            url: "https://audio.googlevideo.com/test".into(),
+            title: "Test song".into(),
+            duration: 120.,
+            thumbnail: None,
+        };
+        Pipeline::start(tools, &source, 0., "ws://127.0.0.1:1", "test-token")
+            .await
+            .expect("pipeline start")
+    }
+    async fn wait_for(what: &str, mut done: impl FnMut() -> bool) {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !done() {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("timed out waiting for {what}"));
+    }
+    /// Cleanup evidence reads procfs, so it is only checked on Linux, where Den
+    /// is served from. A process that has vanished or become a zombie was
+    /// terminated; whether it has been reaped yet is the runtime's business.
+    #[cfg(target_os = "linux")]
+    async fn wait_gone(what: &str, pid: u32) {
+        wait_for(&format!("the {what} to be killed"), || {
+            !std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+                stat.rsplit_once(')')
+                    .and_then(|(_, rest)| rest.split_whitespace().next())
+                    .is_some_and(|state| state != "Z")
+            })
+        })
+        .await;
+    }
+    #[cfg(not(target_os = "linux"))]
+    async fn wait_gone(_what: &str, _pid: u32) {}
+
+    #[tokio::test]
+    async fn a_decoder_that_stops_early_does_not_wait_on_a_live_publisher() {
+        // The same header-less stream is reached two ways: a decoder that fails,
+        // and one that believes it succeeded without producing any audio. Either
+        // way the publisher can never finish writing, so neither may be waited on.
+        // Both are recorded before asserting, so a failure names both cases.
+        let mut outcomes = vec![];
+        for exit in [1, 0] {
+            let fixtures = Fixtures::new();
+            let tools = Tools {
+                resolver: "true".into(),
+                ffmpeg: fixtures.script("ffmpeg", &format!("exit {exit}\n")),
+                publisher: fixtures.script(
+                    "den-dj",
+                    &format!(
+                        "printf 'READY\\n'\ncat > {}\nexec sleep 600\n",
+                        fixtures.at("stream")
+                    ),
+                ),
+            };
+            let mut pipe = start(&tools).await;
+            let (decoder, publisher) = (
+                pipe.ffmpeg.id().expect("decoder pid"),
+                pipe.dj.id().expect("publisher pid"),
+            );
+            outcomes.push((
+                exit,
+                match tokio::time::timeout(Duration::from_secs(5), pipe.finished()).await {
+                    Ok(Err(_)) => "failed the track",
+                    Ok(Ok(())) => "finished the track as a success",
+                    Err(_) => "was still waiting for the publisher after 5s",
+                },
+            ));
+            drop(pipe);
+            wait_gone("decoder", decoder).await;
+            wait_gone("publisher", publisher).await;
+        }
+        assert_eq!(
+            outcomes,
+            [(1, "failed the track"), (0, "failed the track")],
+            "a decoder that stops without audio must end the track"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_finished_decoder_lets_the_publisher_drain_before_the_track_ends() {
+        let fixtures = Fixtures::new();
+        let tools = Tools {
+            resolver: "true".into(),
+            ffmpeg: fixtures.script("ffmpeg", "printf 'OggS-fixture-audio'\n"),
+            publisher: fixtures.script(
+                "den-dj",
+                &format!(
+                    "printf 'READY\\n'\ncat > {stream}\nwhile [ ! -e {release} ]; do sleep 0.02; done\n: > {drained}\n",
+                    stream = fixtures.at("stream"),
+                    release = fixtures.at("release"),
+                    drained = fixtures.at("drained"),
+                ),
+            ),
+        };
+        let mut pipe = start(&tools).await;
+        let mut finished = std::pin::pin!(pipe.finished());
+        // The publisher holds the track open until this test releases it, so the
+        // still-playing assertion is a barrier rather than a race with a sleep.
+        wait_for("the decoder's audio to reach the publisher", || {
+            std::fs::read_to_string(fixtures.at("stream")).is_ok_and(|s| s == "OggS-fixture-audio")
+        })
+        .await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), &mut finished)
+                .await
+                .is_err(),
+            "the track is still playing while the publisher drains"
+        );
+        std::fs::write(fixtures.at("release"), "").expect("release the publisher");
+        tokio::time::timeout(Duration::from_secs(5), finished)
+            .await
+            .expect("publisher drain finishes the track")
+            .expect("a drained track succeeds");
+        assert!(std::path::Path::new(&fixtures.at("drained")).exists());
+    }
+
+    #[tokio::test]
+    async fn a_failing_publisher_does_not_wait_on_its_decoder() {
+        let fixtures = Fixtures::new();
+        let tools = Tools {
+            resolver: "true".into(),
+            ffmpeg: fixtures.script("ffmpeg", "printf 'OggS'\nexec sleep 600\n"),
+            publisher: fixtures.script("den-dj", "printf 'READY\\n'\nexit 3\n"),
+        };
+        let mut pipe = start(&tools).await;
+        let (decoder, publisher) = (
+            pipe.ffmpeg.id().expect("decoder pid"),
+            pipe.dj.id().expect("publisher pid"),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(5), pipe.finished())
+            .await
+            .expect("playback must report the publisher failure, not wait for the decoder");
+        assert!(
+            result.is_err(),
+            "a failed publisher is not a finished track"
+        );
+        drop(pipe);
+        wait_gone("decoder", decoder).await;
+        wait_gone("publisher", publisher).await;
     }
 }

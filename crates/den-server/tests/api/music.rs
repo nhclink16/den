@@ -252,3 +252,84 @@ async fn failed_resolution_keeps_the_remaining_queue() {
     assert_eq!(q.queue[1].title, "Test song");
     assert!(q.paused);
 }
+/// Decoder and publisher stand-ins, one playback attempt each. The first
+/// track's decoder dies without producing audio; the publisher imitates den-dj,
+/// which stays alive after an empty stream ends because the LiveKit SDK never
+/// saw an Opus header and so never completes the write.
+struct Tools(PathBuf);
+impl Tools {
+    fn new() -> Self {
+        let dir = std::env::temp_dir().join(format!("den-pipeline-{}", ulid::Ulid::new()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let this = Self(dir);
+        this.script(
+            "ffmpeg",
+            &format!(
+                "n=$(cat {c} 2>/dev/null || echo 0)\necho $((n+1)) > {c}\nif [ \"$n\" = 0 ]; then exit 1; fi\nprintf 'OggS-fixture-audio'\n",
+                c = this.0.join("tracks").display()
+            ),
+        );
+        this.script(
+            "den-dj",
+            &format!(
+                "printf 'READY\\n'\nout={d}/stream-$$\ncat > $out\nif [ ! -s $out ]; then exec sleep 600; fi\n",
+                d = this.0.display()
+            ),
+        );
+        this
+    }
+    fn script(&self, name: &str, body: &str) {
+        let path = self.0.join(name);
+        std::fs::write(&path, format!("#!/bin/sh\n{body}")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    fn tool(&self, name: &str) -> String {
+        self.0.join(name).to_string_lossy().into()
+    }
+}
+impl Drop for Tools {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+#[tokio::test]
+async fn a_failed_first_track_advances_to_the_next_one() {
+    let resolver = Resolver::new();
+    let tools = Tools::new();
+    let t = Test::with_music(
+        Some("ws://127.0.0.1:1"),
+        Some((
+            resolver.0.to_string_lossy().into(),
+            tools.tool("ffmpeg"),
+            tools.tool("den-dj"),
+        )),
+    )
+    .await;
+    let path = format!("/rooms/{}/music", room(&t).await);
+    for id in ["aaaaaaaaaaa", "bbbbbbbbbbb"] {
+        t.post(
+            &format!("{path}/queue"),
+            &t.admin.token,
+            json!({"url":format!("https://youtu.be/{id}")}),
+        )
+        .await;
+    }
+    // Nothing skips, pauses or seeks: the worker has to notice the failure itself
+    // and the second track has to play to completion to leave the queue.
+    let q = tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            let q = queue(&t, &path).await;
+            if q.queue.len() == 1 && q.queue[0].state == MusicTrackState::Failed {
+                break q;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("the failed track must not stay playing and the next must advance");
+    assert_eq!(
+        q.queue[0].url,
+        "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+    );
+    assert_eq!(q.queue[0].title, "Could not load this track");
+}
