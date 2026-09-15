@@ -29,6 +29,15 @@ that audio with ffmpeg screen frames. Silent timestamp gaps are filled during
 muxing. Its companion `browser-proof.json` records eleven playback starts and
 checks that every gap is at least one second after the previous sound ends.
 
+## Build and regression checks
+
+`cargo test --workspace` passed, including 46 API integration tests. Workspace
+formatting and Clippy with warnings denied passed. The web build and Svelte
+check passed (one existing unused-style warning in Login). The CLI smoke test
+passed messaging, reconnect after restart, media upload/range/decode, and agent
+token revocation. Both GitHub Actions workflows passed before the final evidence
+refresh.
+
 ## Reproduce the browser checks
 
 Use a disposable instance at `127.0.0.1:7018`, with
@@ -38,14 +47,19 @@ provided through `DEN_PASSWORD`; no credentials are stored in the scripts.
 They create disposable rooms and replace the test account’s sound preferences.
 
 ```sh
+SOUNDS_CAPTURE_BEFORE=1 node scripts/sounds-browser.mjs
+# Restart the isolated Vite server to clear its hot-reload module cache.
 node scripts/sounds-browser.mjs
 node scripts/sounds-sharing-smoke.mjs
 node scripts/sounds-call-smoke.mjs
 ```
 
-The first script temporarily reads the original Settings files from commit
+With `SOUNDS_CAPTURE_BEFORE=1`, the first script temporarily reads the original
+Settings files from commit
 `d05e41a` (override with `SOUNDS_BASE`) to take the before image, then restores the
-working files in a `finally` block. Run it only in the isolated worktree.
+working files in a `finally` block. Restart Vite between captures: swapping
+historical components can leave duplicate hot-reload store modules. Run it only
+in the isolated worktree.
 
 ## Limits of verification
 

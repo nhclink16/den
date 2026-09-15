@@ -20,7 +20,7 @@ await context.addInitScript(() => {
 })
 const page=await context.newPage(),errors=[]
 page.on('response', async r => { if(r.status() >= 400) console.log('HTTP',r.status(),r.url(),(await r.text()).slice(0,200)) })
-page.on('pageerror',e=>errors.push(e.message))
+page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)})
 await page.goto('http://localhost:5182')
 await page.getByLabel('Username',{exact:true}).fill('nicholas');await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Come in'}).click()
 await page.locator('a[title="Settings"]').click()
@@ -31,10 +31,12 @@ await api('/users/me/sounds','PUT',{})
 // Same account, viewport and theme; capture the previous settings controls from the base commit.
 const files=['apps/web/src/ui/Settings.svelte','apps/web/src/ui/VoiceSettings.svelte']
 const originals=await Promise.all(files.map(f=>readFile(root+f)))
-try{
+if (process.env.SOUNDS_CAPTURE_BEFORE === '1') { try{
  for(const f of files)await writeFile(root+f,execFileSync('git',['show',`${process.env.SOUNDS_BASE || "d05e41a"}:${f}`],{cwd:root}))
  await page.waitForTimeout(1200);await page.goto('http://localhost:5182/settings/voice');await page.getByText('Play join and leave sounds',{exact:true}).waitFor();await page.screenshot({path:out+'before.png'})
 }finally{for(let i=0;i<files.length;i++)await writeFile(root+files[i],originals[i])}
+await browser.close();console.log('Before captured. Restart the isolated Vite server before capturing after.');process.exit(0)
+}
 await page.waitForTimeout(1000);await page.goto('http://localhost:5182/settings/sounds');await page.getByRole('button',{name:'Test all',exact:true}).waitFor()
 const requests=[];page.on('request',r=>{if(/\/sounds\/.*\.wav|\/sounds\/files\//.test(r.url()))requests.push(r.url())})
 assert.equal(requests.length,0)
