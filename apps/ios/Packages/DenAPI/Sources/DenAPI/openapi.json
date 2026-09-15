@@ -4576,14 +4576,48 @@
         ],
         "properties": {
           "background": {
-            "oneOf": [
-              {
-                "type": "null"
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "source",
+              "blur",
+              "dim",
+              "saturate",
+              "scope",
+              "fit"
+            ],
+            "properties": {
+              "blur": {
+                "type": "integer",
+                "format": "int32",
+                "maximum": 40,
+                "minimum": 0
               },
-              {
-                "$ref": "#/components/schemas/Background"
+              "dim": {
+                "type": "integer",
+                "format": "int32",
+                "maximum": 80,
+                "minimum": 0
+              },
+              "fit": {
+                "$ref": "#/components/schemas/BackgroundFit"
+              },
+              "saturate": {
+                "type": "integer",
+                "format": "int32",
+                "maximum": 150,
+                "minimum": 50
+              },
+              "scope": {
+                "$ref": "#/components/schemas/BackgroundScope"
+              },
+              "source": {
+                "$ref": "#/components/schemas/BackgroundSource"
               }
-            ]
+            },
+            "additionalProperties": false
           },
           "contrast": {
             "type": "integer",
@@ -6896,14 +6930,35 @@
             ]
           },
           "status": {
-            "oneOf": [
-              {
-                "type": "null"
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "emoji": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Exactly one extended grapheme cluster when set."
               },
-              {
-                "$ref": "#/components/schemas/Status"
+              "expires_at": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Unix timestamp in seconds; expired statuses are served as absent."
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 60
               }
-            ]
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -7669,14 +7724,35 @@
             "$ref": "#/components/schemas/Role"
           },
           "status": {
-            "oneOf": [
-              {
-                "type": "null"
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "emoji": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Exactly one extended grapheme cluster when set."
               },
-              {
-                "$ref": "#/components/schemas/Status"
+              "expires_at": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Unix timestamp in seconds; expired statuses are served as absent."
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 60
               }
-            ]
+            },
+            "additionalProperties": false
           },
           "username": {
             "type": "string"

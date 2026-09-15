@@ -43,6 +43,6 @@ pub struct ProfilePatch {
         deserialize_with = "present",
         skip_serializing_if = "Option::is_none"
     )]
-    #[schema(value_type = Option<Status>)]
+    #[schema(schema_with = crate::nullable_object_schema::<Status>)]
     pub status: Option<Option<Status>>,
 }

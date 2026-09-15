@@ -12,6 +12,21 @@ pub use ios::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+// Apple's Swift generator rejects a standalone null branch in oneOf. Keep the
+// derived object fields, but express nullability as an OpenAPI 3.1 type array.
+fn nullable_object_schema<T: utoipa::PartialSchema>() -> utoipa::openapi::schema::Object {
+    use utoipa::openapi::{
+        schema::{Schema, SchemaType, Type},
+        RefOr,
+    };
+
+    let RefOr::T(Schema::Object(mut schema)) = T::schema() else {
+        unreachable!("nullable_object_schema requires a derived object schema");
+    };
+    schema.schema_type = SchemaType::Array(vec![Type::Object, Type::Null]);
+    schema
+}
+
 /// Opaque identifier used for every entity. Sortable by creation time.
 pub type Id = String;
 
@@ -39,6 +54,7 @@ pub struct User {
     pub banner_url: Option<String>,
     pub bio: Option<String>,
     pub accent: Option<String>,
+    #[schema(schema_with = nullable_object_schema::<Status>)]
     pub status: Option<Status>,
     /// True when this identity was created for an agent rather than a person.
     pub bot: bool,
