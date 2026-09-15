@@ -119,16 +119,41 @@ export type BuiltinBackground = typeof builtinBackgrounds[number]
 
 /** Presets are painted from the active palette, so they suit every theme and ship no assets. */
 export function builtinBackgroundImage(name: string, c: ThemeColors): string {
-  const a = c.accent, bg = c.bg, bg2 = c.bg2, bg3 = c.bg3
+  // Mixing the accent with ink keeps presets readable in pale palettes, where
+  // bg, bg2 and bg3 are too close together to make a visible gradient alone.
+  const a = c.accent
+  const deep = `color-mix(in srgb, ${a} 55%, ${c.ink})`
+  const soft = `color-mix(in srgb, ${a} 28%, ${c.bg})`
+  const cool = `color-mix(in srgb, ${c.success} 45%, ${c.ink})`
+  const warm = `color-mix(in srgb, ${c.danger} 40%, ${a})`
+  const haze = `color-mix(in srgb, ${c.ink} 22%, ${c.bg2})`
   switch (name) {
-    case 'aurora': return `radial-gradient(120% 90% at 12% 0%, ${a} 0%, transparent 45%), radial-gradient(90% 70% at 92% 8%, ${bg3} 0%, transparent 55%), radial-gradient(120% 120% at 50% 110%, ${a} 0%, transparent 40%), linear-gradient(160deg, ${bg2}, ${bg})`
-    case 'dunes': return `linear-gradient(175deg, ${bg2} 0%, ${bg} 38%, ${bg3} 60%, ${bg} 100%), radial-gradient(140% 60% at 70% 100%, ${a} 0%, transparent 55%)`
-    case 'harbor': return `linear-gradient(180deg, ${bg3} 0%, ${bg} 55%), radial-gradient(80% 50% at 50% 0%, ${a} 0%, transparent 60%)`
-    case 'ember-sky': return `radial-gradient(130% 80% at 50% 120%, ${a} 0%, transparent 52%), linear-gradient(180deg, ${bg} 0%, ${bg2} 100%)`
-    case 'slate-mist': return `linear-gradient(115deg, ${bg2} 0%, ${bg} 45%, ${bg3} 100%)`
+    case 'aurora':
+      return `radial-gradient(90% 70% at 8% -10%, ${deep} 0%, transparent 55%),`
+        + ` radial-gradient(75% 60% at 95% 5%, ${cool} 0%, transparent 60%),`
+        + ` radial-gradient(110% 80% at 45% 115%, ${warm} 0%, transparent 55%),`
+        + ` linear-gradient(155deg, ${c.bg2}, ${c.bg})`
+    case 'dunes':
+      return `linear-gradient(178deg, transparent 0%, transparent 42%, ${soft} 43%, ${soft} 58%, transparent 59%),`
+        + ` radial-gradient(150% 70% at 60% 118%, ${deep} 0%, transparent 58%),`
+        + ` linear-gradient(180deg, ${haze} 0%, ${c.bg} 55%)`
+    case 'harbor':
+      return `radial-gradient(85% 55% at 50% -15%, ${deep} 0%, transparent 62%),`
+        + ` linear-gradient(180deg, ${haze} 0%, ${c.bg} 48%, ${c.bg2} 100%)`
+    case 'ember-sky':
+      return `radial-gradient(120% 75% at 50% 125%, ${warm} 0%, transparent 55%),`
+        + ` radial-gradient(70% 45% at 20% 100%, ${deep} 0%, transparent 60%),`
+        + ` linear-gradient(180deg, ${c.bg} 0%, ${haze} 100%)`
+    case 'slate-mist':
+      return `linear-gradient(115deg, ${haze} 0%, ${c.bg} 40%, ${soft} 78%, ${haze} 100%)`
     case 'grain': {
-      const noise = `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3"/><feColorMatrix type="saturate" values="0"/></filter><rect width="140" height="140" filter="url(%23n)" opacity="0.5"/></svg>`
-      return `url("data:image/svg+xml,${noise.replace(/"/g, "'").replace(/#/g, '%23')}"), linear-gradient(160deg, ${bg2}, ${bg})`
+      const noise = `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'>`
+        + `<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/>`
+        + `<feColorMatrix type='saturate' values='0'/></filter>`
+        + `<rect width='160' height='160' filter='url(%23n)' opacity='0.42'/></svg>`
+      return `url("data:image/svg+xml,${encodeURIComponent(noise).replace(/%25/g, '%')}"),`
+        + ` radial-gradient(120% 90% at 30% 0%, ${soft} 0%, transparent 60%),`
+        + ` linear-gradient(160deg, ${haze}, ${c.bg})`
     }
     default: return 'none'
   }
