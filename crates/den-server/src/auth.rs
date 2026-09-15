@@ -450,12 +450,30 @@ pub(crate) async fn users(State(s): State<AppState>, _a: Auth) -> Result<Json<Ve
 mod tests {
     #[test]
     fn username_allows_case_and_inner_separators_only() {
-        for good in ["Andy", "andy", "an.dy-2", "bo_bby", "a1b", "A".repeat(32).as_str()] {
+        for good in [
+            "Andy",
+            "andy",
+            "an.dy-2",
+            "bo_bby",
+            "a1b",
+            "A".repeat(32).as_str(),
+        ] {
             assert!(super::username(good).is_ok(), "{good} should be allowed");
         }
         for bad in [
-            ".andy", "andy.", "-andy", "andy-", "_andy", "andy_", "an dy", "an@dy", "an/dy", "ab",
-            "andré", "🎧🎧🎧", "",
+            ".andy",
+            "andy.",
+            "-andy",
+            "andy-",
+            "_andy",
+            "andy_",
+            "an dy",
+            "an@dy",
+            "an/dy",
+            "ab",
+            "andré",
+            "🎧🎧🎧",
+            "",
         ] {
             assert!(super::username(bad).is_err(), "{bad} should be rejected");
         }
