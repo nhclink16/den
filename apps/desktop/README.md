@@ -86,3 +86,49 @@ at CDP port 19226 and verifies two-way RTP and decoded media against a browser p
 `node scripts/electron-native-smoke.mjs` checks the real native bridge, multi-server
 UI, Inbox, palette, saved sessions, and ticket sockets. Both require private test
 credentials and servers. See `docs/ELECTRON-NOTES.md` for real-machine results.
+
+### Vertical monitor checklist
+
+Run this against the installed desktop package before accepting call-layout changes.
+Use an isolated test account and keep the same room, theme, zoom, and visible
+sidebars for the comparison.
+
+- [ ] Join a live call with two active cameras and at least one published screen
+  share. Confirm all three videos decode and advance; placeholder tiles do not count.
+- [ ] Expand the call and select Auto. At a 1900 × 1100 client size, verify that
+  the share spans the available call width and the cameras sit side by side.
+- [ ] Resize the native window to 1100 × 1900 without leaving the call. Auto
+  should stack the share and both cameras full width, center the group vertically,
+  keep controls reachable, and avoid overlap or a cluster in the top third.
+- [ ] Return to 1900 × 1100. Verify the original tile geometry returns and all
+  video streams continue. Capture both orientations and a silent transition video.
+- [ ] Repeat with a saved Custom layout. Positions must survive the round trip.
+  Custom does not automatically stack; select Auto to recover a full-width layout.
+  Record the active preset when investigating unused space.
+- [ ] During attended hardware QA, move the window between real landscape and
+  portrait monitors and repeat at each monitor's display scaling. A virtual X11
+  resize proves native window response, but does not cover mixed-DPI monitor changes.
+
+The Linux automation is `scripts/electron-portrait-smoke.mjs`. It runs a second
+Chromium participant, publishes a screen-share track, and checks native X11 resizing,
+video frame progress, tile bounds, Custom persistence, and recovery to Auto. Its
+camera and display inputs are generated; Den and LiveKit carry the real tracks.
+It requires `xdotool`, Chromium, Playwright, an X11 window manager, and a display
+large enough for both window sizes. Optional recording also requires ffmpeg and
+at least a 1940 × 1960 display.
+
+Start the packaged AppImage with its own signed-in profile, CDP port 19230, and
+`--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`. Point its native
+session at the private Den server on 17010 with LiveKit configured. The credential
+file must contain the private `media_peer` user's password as `password`.
+
+```sh
+DISPLAY=:101 DEN_RECORD=1 \
+DEN_SMOKE_CREDENTIALS=/path/to/private-credentials.json \
+node scripts/electron-portrait-smoke.mjs
+```
+
+`DEN_ELECTRON_CDP`, `DEN_ELECTRON_WINDOW`, `DEN_SMOKE_URL`, and `DEN_SMOKE_SHOTS`
+override the desktop endpoint, X11 window ID, private server, and output directory.
+Use a dedicated display with only the test Electron window and its browser peer.
+See [portrait acceptance](../../docs/DESKTOP-PORTRAIT-QA.md) for measured results.
