@@ -90,9 +90,14 @@ const FINDING_SCHEMA = {
   required: ['surface', 'viewport', 'findings'],
 }
 
+// Verification spawns reviewers per candidate, so a full sweep can be ~100 agents.
+// args.limit takes the first N surfaces for a cheaper validating pass.
+const CHOSEN = args?.limit ? SURFACES.slice(0, args.limit) : SURFACES
+log(`auditing ${CHOSEN.length} of ${SURFACES.length} surfaces on ${MODEL}`)
+
 phase('Capture')
 const captured = await parallel(
-  SURFACES.map((s, i) => () => {
+  CHOSEN.map((s, i) => () => {
     const out = `${cfg.outDir}/${String(i).padStart(2, '0')}-${s.path.replace(/\//g, '_')}-${s.w}x${s.h}-${s.scheme}.png`
     return agent(
       `Audit one Den surface visually.
@@ -101,6 +106,10 @@ Run exactly this, from the repository root, then read the PNG it writes:
 
   mkdir -p ${cfg.outDir}
   node scripts/workflows/shot.mjs --url ${cfg.baseUrl} --path "${s.path}" --out "${out}" --w ${s.w} --h ${s.h} --scheme ${s.scheme} --user ${cfg.user} --password '${cfg.password}'
+
+If you need any scratch file of your own, write it under ${cfg.outDir} and nowhere else.
+Do not create files inside the repository, not even temporarily: other agents share this
+checkout and stray files end up in commits.
 
 It prints one JSON line with objective facts: whether the page scrolls horizontally, which
 elements overflow, which tap targets are under 32px, and any console errors. Treat those as
@@ -120,15 +129,40 @@ If the capture fails, set captureOk false and explain rather than inventing find
 const candidates = captured
   .filter(Boolean)
   .flatMap((r) => (r.findings || []).map((f) => ({ ...f, surface: r.surface, viewport: r.viewport })))
-log(`${candidates.length} candidate defects across ${SURFACES.length} surfaces`)
+log(`${candidates.length} candidate defects across ${CHOSEN.length} surfaces`)
 
 phase('Verify')
+// Hand-rolled rather than using verify(): that helper takes no model option, so it falls back
+// to the tier default (glm-5.3 here) and silently ignores the pin above. Two skeptics each,
+// written out so both actually run on the chosen model.
+const SKEPTIC_SCHEMA = {
+  type: 'object',
+  properties: { real: { type: 'boolean' }, reason: { type: 'string' } },
+  required: ['real', 'reason'],
+}
+const skeptic = (f, lens) =>
+  agent(
+    `A reviewer claims the following is a visual defect in Den. Your job is to REJECT it unless it clearly holds up.
+
+Claim: ${JSON.stringify(f, null, 2)}
+
+Judge it through this lens: ${lens}
+
+Reject if it is a matter of taste, if it is consistent with the rest of the application, if the
+stated evidence does not actually demonstrate it, or if you are simply unsure. Accept only if a
+real user would notice it and consider it wrong. Answer real=false to reject.`,
+    { label: `skeptic`, phase: 'Verify', schema: SKEPTIC_SCHEMA, model: MODEL, thinking: 'high' },
+  )
+
 const judged = await parallel(
   candidates.map((f) => () =>
-    verify(f, {
-      reviewers: 2,
-      lens: 'Is this a real, visible defect that a user would notice, or is it taste, or unsupported by the evidence? Default to rejecting it if you are unsure.',
-    }).then((v) => ({ ...f, real: v.real, votes: v.realCount })),
+    Promise.all([
+      skeptic(f, 'Would a real user notice this and consider it wrong, or is it designer taste?'),
+      skeptic(f, 'Does the cited evidence actually demonstrate the problem, or is it merely asserted?'),
+    ]).then((votes) => {
+      const yes = votes.filter((v) => v && v.real).length
+      return { ...f, real: yes >= 2, votes: yes, reasons: votes.map((v) => v && v.reason).filter(Boolean) }
+    }),
   ),
 )
 const confirmed = judged.filter(Boolean).filter((f) => f.real)
@@ -140,7 +174,7 @@ return await agent(
 
 ${JSON.stringify(confirmed, null, 2)}
 
-Coverage attempted: ${SURFACES.map((s) => `${s.path}@${s.w}x${s.h}/${s.scheme}`).join(', ')}
+Coverage attempted: ${CHOSEN.map((s) => `${s.path}@${s.w}x${s.h}/${s.scheme}`).join(', ')}
 Surfaces whose capture failed: ${captured.filter((r) => r && r.captureOk === false).map((r) => r.surface).join(', ') || 'none'}
 
 Group by surface, order by severity, and merge duplicates that are really one defect appearing

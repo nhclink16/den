@@ -45,17 +45,33 @@ try {
   const facts = await page.evaluate(() => {
     const doc = document.documentElement
     const overflowing = [...document.querySelectorAll('*')]
-      .filter((el) => el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible')
+      .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1)
       .slice(0, 8)
       .map((el) => `${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ')[0]}`)
-    const tiny = [...document.querySelectorAll('button, a, input, [role=button]')]
-      .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.width < 32 || r.height < 32) })
-      .slice(0, 10)
-      .map((el) => `${el.tagName.toLowerCase()}:${(el.textContent || el.getAttribute('aria-label') || '?').trim().slice(0, 24)}`)
+    // Only count things a finger could actually hit. Message hover-tools sit in the DOM
+    // at opacity 0 with pointer-events none; counting them made this list 87% noise and
+    // taught reviewers to distrust the whole evidence block.
+    const tiny = []
+    let hiddenSmall = 0
+    for (const el of document.querySelectorAll('button, a, input, [role=button]')) {
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) continue
+      if (r.width >= 32 && r.height >= 32) continue
+      const cs = getComputedStyle(el)
+      const reachable = cs.pointerEvents !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05
+      if (!reachable) { hiddenSmall++; continue }
+      const label = (el.textContent || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '?').trim().slice(0, 24)
+      tiny.push(`${label} — ${Math.round(r.width)}x${Math.round(r.height)}`)
+    }
+    // Horizontal scroll is only worth reporting with its magnitude: a 12px drag with
+    // nothing visibly past the edge is a different claim from a clipped element.
+    const overshoot = doc.scrollWidth - doc.clientWidth
     return {
-      documentScrollsHorizontally: doc.scrollWidth > doc.clientWidth + 2,
+      horizontalOverflowPx: overshoot > 2 ? overshoot : 0,
+      anyElementPastViewportEdge: overflowing.length > 0,
       overflowingElements: overflowing,
-      subMinimumTapTargets: tiny,
+      subMinimumTapTargets: tiny.slice(0, 10),
+      smallButUnreachableIgnored: hiddenSmall,
     }
   })
   console.log(JSON.stringify({ ok: true, path: target, viewport: `${width}x${height}`, scheme, screenshot: out, problems, ...facts }))
