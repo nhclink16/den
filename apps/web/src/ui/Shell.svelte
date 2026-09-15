@@ -53,13 +53,13 @@
 
 <svelte:window onkeydown={key} />
 
-<div class="shell" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
+<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
   {#if showSidebar}
     {#if narrow}<button class="scrim" aria-label="Close menu" onclick={() => (drawer = false)}></button>{/if}
-    <aside class="sidebar"><Sidebar {narrow} /></aside>
+    <aside class="sidebar bg-host scope-sidebar"><Sidebar {narrow} /></aside>
   {/if}
 
-  <main class="main">
+  <main class="main bg-host scope-chat">
     {#if call.error}<div class="call-status" role="alert"><span>{call.error}</span><button class="btn quiet" onclick={() => (call.error = '')}>Dismiss</button></div>{/if}
     {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
     {#if call.audioBlocked}<div class="call-status"><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}

@@ -59,7 +59,7 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colors.bg)
   applyFavicon(colors)
   applyContrast(colors, a?.contrast ?? 100)
-  applyBackground(a?.background ?? null, half)
+  applyBackground(a?.background ?? null, half, colors)
 }
 
 /** Contrast pulls the two dimmer ink tones toward or away from the background. */
@@ -163,7 +163,12 @@ export function builtinBackgroundImage(name: string, c: ThemeColors): string {
 export function applyBackground(b: AppearanceBackground | null | undefined, half: 'light'|'dark', colors?: ThemeColors) {
   const root = document.documentElement, s = root.style
   if (!b || !b.source) { delete root.dataset.bgScope; s.removeProperty('--bg-image'); return }
-  const c = colors || { bg: s.getPropertyValue('--bg'), bg2: s.getPropertyValue('--bg2'), bg3: s.getPropertyValue('--bg3'), accent: s.getPropertyValue('--accent') } as ThemeColors
+  // Presets mix every role, so a partial palette would emit `undefined` into a
+  // color-mix() and invalidate the whole background-image.
+  const c = colors || (colorRoles.reduce((acc, role) => {
+    acc[role] = s.getPropertyValue(`--${role}`).trim()
+    return acc
+  }, {} as Record<string, string>) as unknown as ThemeColors)
   const image = b.source.type === 'builtin'
     ? builtinBackgroundImage(b.source.name, c)
     : `url("${backgroundImageUrl()}")`
