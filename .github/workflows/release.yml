@@ -53,8 +53,8 @@ jobs:
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      CSC_LINK: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
-      CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+      CSC_LINK: ${{ matrix.platform == 'darwin' && secrets.APPLE_CERTIFICATE || '' }}
+      CSC_KEY_PASSWORD: ${{ matrix.platform == 'darwin' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
       WIN_CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE }}
       WIN_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
