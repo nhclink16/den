@@ -42,6 +42,6 @@
   .quality i { width: 3px; border-radius: 1px; background: var(--ink-3); opacity: .25; }
   .quality .lit { background: var(--ink-2); opacity: 1; }
   .quality.poor .lit { background: var(--ember); }
-  .sent { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font: 10px var(--mono); color: var(--ink-2); }
+  .sent { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font: 11px var(--mono); color: var(--ink-2); }
   .limited { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 </style>

@@ -1,0 +1,17 @@
+{
+  "loadingHeight": 0,
+  "loadedHeight": 384,
+  "bottomGap": 137,
+  "readingScrollDelta": 0,
+  "density": {
+    "comfortable": "21.75px",
+    "compact": "21.75px"
+  },
+  "membersLayers": 2,
+  "timestamp": "10.5px",
+  "mobileImageRight": 370,
+  "qualityLabel": {
+    "text": "1080p · 30",
+    "size": "10px"
+  }
+}
