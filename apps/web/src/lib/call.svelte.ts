@@ -41,6 +41,7 @@ class Call {
   micOn = $state(false)
   cameraOn = $state(false)
   screenOn = $state(false)
+  screenAdding = $state(false)
   shares = new Shares(() => this.room, this.refreshShares.bind(this))
   private refreshShares() { this.refresh() }
   private levels = $state<Record<string, { volume: number; muted: boolean }>>(this.loadLevels())
@@ -201,7 +202,7 @@ class Call {
     void this.gain.destroy()
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
-    this.micOn = false; this.cameraOn = false; this.screenOn = false
+    this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
     this.outputMuted = false; this.otherDevices = 0
   }
   async leave() {
@@ -263,9 +264,12 @@ class Call {
     try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
   }
   async addScreen() {
+    if (this.screenAdding) return
+    const generation = this.generation
+    this.screenAdding = true
     try { await this.shares.add(); this.refresh() } catch (err) {
       if (!(err instanceof Error && ['NotAllowedError', 'AbortError'].includes(err.name))) this.report(err)
-    }
+    } finally { if (this.generation === generation) this.screenAdding = false }
   }
   async stopScreen(name?: string) {
     try { await this.shares.stop(name); this.refresh() } catch (err) { this.report(err) }

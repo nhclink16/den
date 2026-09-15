@@ -95,3 +95,15 @@ passes web build, zero-error/zero-warning type checks, all five unit tests, and
 the full streams browser smoke. `07-dock-integration-before.png` and
 `07-dock-integration-after.png` show the spacing overlap and the wrapped dock at
 the same 1440x900 viewport with the integrated light theme.
+
+The final pull also included PR #3 (`c926ebb`). Its capture preferences and camera
+mirroring are preserved; the only textual conflict was the LiveKit import list.
+The combined browser smoke exposed a publication timing issue: Share another
+could appear enabled before the first share's paired audio finished publishing.
+It now stays disabled during publication. The regression check holds that audio
+publication open, fails on the old behavior, then passes with the fix. Both the
+streams and M7c smoke suites pass against a server built from the combined tree.
+
+Added web CI because the existing Rust workflow skips web-only commits. It runs
+web type checks, the five source-name/layout tests, and the production build.
+The browser smoke remains a local integration check against real LiveKit.

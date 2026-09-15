@@ -75,7 +75,21 @@ try {
   assert((await voice.boundingBox()).y<(await general.boundingBox()).y,'voice above text')
  }else{await shot(a,'01-volume-tile');await shot(a,'01-volume-member')}
  await shot(a,'05-sidebar')
- await a.getByLabel('Share screen',{exact:true}).first().click();await a.getByLabel('Share another',{exact:true}).first().click()
+ if(phase==='after')await a.evaluate(async()=>{
+  const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/call.svelte.ts').name
+  const {call}=await import(url),p=call.room.localParticipant,publish=p.publishTrack.bind(p)
+  // Hold the paired audio publication after video appears, reproducing a slow
+  // publish without replacing capture or the real LiveKit publication.
+  const gate=new Promise(resolve=>{window.__releaseShareAudio=resolve})
+  p.publishTrack=async(track,options)=>{if(options?.name?.endsWith('-audio'))await gate;return publish(track,options)}
+ })
+ await a.getByLabel('Share screen',{exact:true}).first().click()
+ if(phase==='after'){
+  await a.getByLabel('Share another',{exact:true}).first().waitFor()
+  assert(await a.getByLabel('Share another',{exact:true}).first().isDisabled(),'another share waits for paired publication')
+  await a.evaluate(()=>window.__releaseShareAudio())
+ }
+ await a.getByLabel('Share another',{exact:true}).first().click()
  await wait(async()=>await screens(a).count()===3,'three shares')
  await wait(async()=>await a.locator('video').evaluateAll(es=>es.every(e=>e.videoWidth>0)),'decoded videos')
  if(phase==='after'){assert(await a.getByTestId('call-dock').evaluate(dock=>{const outer=dock.getBoundingClientRect();return [...dock.querySelectorAll('.room,.controls > button,.controls > details > summary')].every(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.x>=outer.x&&r.right<=outer.right})}), 'room name and all dock controls fit with multiple shares');await a.getByLabel('Your shares',{exact:true}).first().click();await a.locator('.shares [popover]').first().waitFor({state:'visible'});const box=await a.locator('.shares [popover]').first().boundingBox();assert(box.x>=0&&box.x+box.width<=1440,'dock share menu fits viewport')}
