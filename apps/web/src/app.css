@@ -4,6 +4,7 @@
 :root {
   --bg-2: var(--bg2); --bg-3: var(--bg3); --ink-2: var(--ink2); --ink-3: var(--ink3);
   --gutter: 20px;
+  --control-height: 42px;
   --lamp: var(--accent); --lamp-dim: var(--accent-dim); --lamp-glow: var(--accent-glow);
   --moss: var(--success); --ember: var(--danger);
   --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
@@ -53,12 +54,13 @@ pre code { background: none; padding: 0; }
   color: var(--ink-3);
 }
 .btn {
+  min-height: var(--control-height);
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; border-radius: var(--r);
-  background: var(--bg-3); color: var(--ink); border: 1px solid var(--line);
+  padding: 9px 12px; border-radius: var(--r);
+  background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-strong);
   white-space: nowrap;
 }
-.btn:hover { border-color: var(--ink-3); }
+.btn:hover { border-color: var(--ink-2); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.lit { background: var(--lamp); color: var(--bg); border-color: var(--lamp); font-weight: 700; }
 .btn.lit:hover { filter: brightness(1.06); }
@@ -68,8 +70,9 @@ pre code { background: none; padding: 0; }
 .btn.quiet { background: none; border-color: transparent; color: var(--ink-2); }
 .btn.quiet:hover { color: var(--ink); background: var(--bg-3); }
 .field {
+  min-height: var(--control-height);
   width: 100%; padding: 9px 11px; border-radius: var(--r);
-  background: var(--bg); border: 1px solid var(--line); color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line-strong); color: var(--ink);
 }
 .field:focus { outline: none; border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
 .muted { color: var(--ink-2); }
@@ -131,3 +134,7 @@ kbd {
 
 /* Shells that manage their own focus ring: keep the inner field quiet. */
 :where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
+
+/* One heading treatment across sibling settings pages. */
+.settings h2 { font-family: var(--display); font-size: 26px; font-weight: 600; margin: 0 0 6px; }
+.settings h3, .settings legend.eyebrow { font: 600 11px/1.45 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }

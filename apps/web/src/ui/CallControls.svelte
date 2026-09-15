@@ -41,7 +41,7 @@
   .overflow { position: relative; }
   summary { width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; list-style: none; }
   summary::-webkit-details-marker { display: none; }
-  .overflow > div { position: absolute; bottom: 46px; right: 0; padding: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg-2); }
+  .overflow > div { position: absolute; bottom: 46px; right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); }
   .overflow > div button { width: max-content; padding: 0 12px; font: 11px var(--mono); }
   .shares { flex: none; }
   .shares summary { width: 24px; height: 28px; }
@@ -51,7 +51,7 @@
   .stop-label { color: var(--ember); }
   .controls .another { width: 20px; height: 20px; margin-right: 2px; color: var(--lamp); border: 1px solid var(--line); }
   .controls { display: flex; align-items: center; gap: 4px; flex: none; }
-  button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--ink); }
+  button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r); color: var(--ink); }
   /* bg-3 is the dock's own background, so that hover was invisible. A surface-relative
      tint reads on the dock and on the expanded toolbar alike. */
   button:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }

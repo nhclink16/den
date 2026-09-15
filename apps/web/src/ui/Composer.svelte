@@ -183,8 +183,8 @@
 
 <style>
   .error { color: var(--ember); }
-  .commands { position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px; z-index: 6; }
-  .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: 4px; }
+  .commands { position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px; z-index: 6; }
+  .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
   .commands .chosen { background: var(--bg-3); }
   .people { max-height: 260px; overflow-y: auto; }
@@ -203,7 +203,7 @@
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
   textarea::placeholder { color: var(--ink-3); }
-  .attach, .sendbtn { display: grid; padding: 9px; border-radius: 8px; color: var(--ink-3); flex: none; }
+  .attach, .sendbtn { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-3); flex: none; }
   .attach:hover { color: var(--ink); background: var(--bg-2); }
   .sendbtn.ready { color: var(--lamp); }
   .sendbtn:disabled { opacity: 0.4; }
@@ -214,11 +214,11 @@
   }
   .pending { flex-wrap: wrap; gap: 6px; }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .x { display: grid; padding: 3px; border-radius: 4px; color: var(--ink-3); }
+  .x { display: grid; padding: 3px; border-radius: var(--r); color: var(--ink-3); }
   .x:hover { color: var(--ink); background: var(--bg-3); }
   .chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px 5px 6px;
-    background: var(--bg-3); border-radius: 999px; max-width: 100%;
+    background: var(--bg-3); border-radius: var(--r); max-width: 100%;
   }
   .chip.err { color: var(--ember); }
   .ring {

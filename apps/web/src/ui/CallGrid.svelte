@@ -113,7 +113,7 @@
 </div>
 
 <style>
-  .presets { position: absolute; top: 10px; left: 16px; display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; z-index: 2; overflow: hidden; background: var(--bg-2); }
+  .presets { position: absolute; top: 10px; left: 16px; display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r); z-index: 2; overflow: hidden; background: var(--bg-2); }
   .presets button, .presets span { padding: 5px 10px; font: 11px var(--mono); color: var(--ink-3); }
   .presets button[aria-pressed="true"] { color: var(--ink); background: var(--bg-3); }
   .presets button:hover { color: var(--ink); }

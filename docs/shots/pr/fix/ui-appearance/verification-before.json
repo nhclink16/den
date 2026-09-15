@@ -1,0 +1,95 @@
+{
+  "appearanceHeading": "30px",
+  "badge": {
+    "ink": "rgb(244, 239, 230)",
+    "background": "rgb(51, 255, 102)"
+  },
+  "themesTop": 1191.5625,
+  "machineHeading": "24px",
+  "formHeights": [
+    41.75,
+    37.75
+  ],
+  "contrast": [
+    {
+      "theme": "den",
+      "half": "light",
+      "minimum": 1.1787594084122464
+    },
+    {
+      "theme": "den",
+      "half": "dark",
+      "minimum": 1.1888570992562393
+    },
+    {
+      "theme": "moss",
+      "half": "light",
+      "minimum": 1.1731727860425043
+    },
+    {
+      "theme": "moss",
+      "half": "dark",
+      "minimum": 1.2136867107989067
+    },
+    {
+      "theme": "tide",
+      "half": "light",
+      "minimum": 1.1842075608005793
+    },
+    {
+      "theme": "tide",
+      "half": "dark",
+      "minimum": 1.2069870279083281
+    },
+    {
+      "theme": "ember",
+      "half": "light",
+      "minimum": 1.2128814606034009
+    },
+    {
+      "theme": "ember",
+      "half": "dark",
+      "minimum": 1.1730311901940502
+    },
+    {
+      "theme": "iris",
+      "half": "light",
+      "minimum": 1.2030182949163948
+    },
+    {
+      "theme": "iris",
+      "half": "dark",
+      "minimum": 1.1699553690559648
+    },
+    {
+      "theme": "paper",
+      "half": "light",
+      "minimum": 1.1529451136529918
+    },
+    {
+      "theme": "paper",
+      "half": "dark",
+      "minimum": 1.225700243833525
+    },
+    {
+      "theme": "slate",
+      "half": "light",
+      "minimum": 1.1647090457645395
+    },
+    {
+      "theme": "slate",
+      "half": "dark",
+      "minimum": 1.1648635447895481
+    },
+    {
+      "theme": "terminal",
+      "half": "light",
+      "minimum": 1.2715172408564892
+    },
+    {
+      "theme": "terminal",
+      "half": "dark",
+      "minimum": 1.2173324260492469
+    }
+  ]
+}

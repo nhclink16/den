@@ -1,0 +1,99 @@
+{
+  "appearanceHeading": "26px",
+  "badge": {
+    "ink": "rgb(0, 0, 0)",
+    "background": "rgb(51, 255, 102)"
+  },
+  "previewFonts": {
+    "body": "\"JetBrains Mono\", sans-serif",
+    "mono": "\"JetBrains Mono\", monospace"
+  },
+  "themesTop": 434.359375,
+  "machineHeading": "26px",
+  "formHeights": [
+    42,
+    42
+  ],
+  "contrast": [
+    {
+      "theme": "den",
+      "half": "light",
+      "minimum": 3.0806847790763303
+    },
+    {
+      "theme": "den",
+      "half": "dark",
+      "minimum": 3.1242143262431576
+    },
+    {
+      "theme": "moss",
+      "half": "light",
+      "minimum": 3.000662504199727
+    },
+    {
+      "theme": "moss",
+      "half": "dark",
+      "minimum": 3.0714205128215863
+    },
+    {
+      "theme": "tide",
+      "half": "light",
+      "minimum": 3.047328365272819
+    },
+    {
+      "theme": "tide",
+      "half": "dark",
+      "minimum": 3.0215284335662496
+    },
+    {
+      "theme": "ember",
+      "half": "light",
+      "minimum": 3.0298900484250315
+    },
+    {
+      "theme": "ember",
+      "half": "dark",
+      "minimum": 3.046301720127773
+    },
+    {
+      "theme": "iris",
+      "half": "light",
+      "minimum": 3.11547037286533
+    },
+    {
+      "theme": "iris",
+      "half": "dark",
+      "minimum": 3.026442890973104
+    },
+    {
+      "theme": "paper",
+      "half": "light",
+      "minimum": 3.0176857000188666
+    },
+    {
+      "theme": "paper",
+      "half": "dark",
+      "minimum": 3.113748338391734
+    },
+    {
+      "theme": "slate",
+      "half": "light",
+      "minimum": 3.0743947709243553
+    },
+    {
+      "theme": "slate",
+      "half": "dark",
+      "minimum": 3.133490308713272
+    },
+    {
+      "theme": "terminal",
+      "half": "light",
+      "minimum": 3.0524759904176135
+    },
+    {
+      "theme": "terminal",
+      "half": "dark",
+      "minimum": 3.066419155274369
+    }
+  ]
+}

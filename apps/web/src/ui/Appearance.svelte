@@ -21,6 +21,18 @@
   const appearance = $derived(themes.appearance)
   const lightTheme = $derived(themeFor(appearance, 'light'))
   const darkTheme = $derived(themeFor(appearance, 'dark'))
+  const roleLabels = {
+    bg: ['Page background', 'The main conversation surface.'],
+    bg2: ['Panel background', 'Sidebar and settings panels.'],
+    bg3: ['Raised background', 'Controls, chips, and raised surfaces.'],
+    line: ['Dividers', 'Hairline separators between panels.'],
+    ink: ['Text', 'Messages and primary labels.'],
+    ink2: ['Secondary text', 'Descriptions and supporting labels.'],
+    ink3: ['Faint text', 'Timestamps and hints.'],
+    accent: ['Accent', 'Links, mentions, and selected controls.'],
+    success: ['Success', 'Successful actions and positive status.'],
+    danger: ['Danger', 'Errors and destructive actions.'],
+  } as const
   const fontRoles: (keyof ThemeFonts)[] = ['display', 'body', 'mono']
   const isCustom = (t: Theme) => appearance.custom_themes.some(c => c.id === t.id)
 
@@ -79,9 +91,9 @@
     fileInput.value = ''
   }
 
-  // Captions render in each theme's own display face, so load them all up front.
+  // Preview the actual heading, body, and monospace faces for every theme.
   $effect(() => {
-    const families = [...new Set(themes.all.map(t => t.fonts.display))]
+    const families = [...new Set(themes.all.flatMap(t => Object.values(t.fonts)))]
     const link = document.createElement('link')
     link.rel = 'stylesheet'
     link.href = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;600`).join('&')}&display=swap`
@@ -105,12 +117,12 @@
         <button class="scheme" class:chosen={appearance.mode === s.id} aria-pressed={appearance.mode === s.id} onclick={() => themes.mode(s.id)}>
           <span class="scheme-art">
             {#if s.id === 'system'}
-              <span class="split-light"><ThemePreview colors={lightTheme.light} display={lightTheme.fonts.display} /></span>
-              <span class="split-dark"><ThemePreview colors={darkTheme.dark} display={darkTheme.fonts.display} /></span>
+              <span class="split-light"><ThemePreview colors={lightTheme.light} fonts={lightTheme.fonts} /></span>
+              <span class="split-dark"><ThemePreview colors={darkTheme.dark} fonts={darkTheme.fonts} /></span>
             {:else if s.id === 'light'}
-              <ThemePreview colors={lightTheme.light} display={lightTheme.fonts.display} />
+              <ThemePreview colors={lightTheme.light} fonts={lightTheme.fonts} />
             {:else}
-              <ThemePreview colors={darkTheme.dark} display={darkTheme.fonts.display} />
+              <ThemePreview colors={darkTheme.dark} fonts={darkTheme.fonts} />
             {/if}
           </span>
           <span class="scheme-text"><b>{s.label}</b><small>{s.hint}</small></span>
@@ -164,7 +176,7 @@
               <button aria-pressed={editingHalf === half} onclick={() => (editingHalf = half as Half)}>{half === 'light' ? 'Light' : 'Dark'}</button>
             {/each}
           </div>
-          <div class="editor-preview"><ThemePreview colors={active[editingHalf]} display={active.fonts.display} /></div>
+          <div class="editor-preview"><ThemePreview colors={active[editingHalf]} fonts={active.fonts} /></div>
           {#if active[editingHalf].generated}
             <p class="hint muted">Generated from the {editingHalf === 'light' ? 'dark' : 'light'} half. Adjust to taste.</p>
           {/if}
@@ -175,11 +187,12 @@
 
         <div class="roles">
           {#each colorRoles as role (role)}
-            <div class="color-row">
-              <label for={`hex-${role}`}>{role}</label>
-              <input type="color" aria-label={`${role} color`} value={active[editingHalf][role]} oninput={e => color(role, e.currentTarget.value)} />
-              <input id={`hex-${role}`} class="field mono" aria-label={`${role} hex`} value={active[editingHalf][role]} maxlength="7" pattern="#[0-9a-fA-F]{'{'}6{'}'}" oninput={e => color(role, e.currentTarget.value)} />
-            </div>
+            <SettingRow label={roleLabels[role][0]} hint={roleLabels[role][1]}>
+              {#snippet control()}
+                <input type="color" aria-label={`${roleLabels[role][0]} color`} value={active[editingHalf][role]} oninput={e => color(role, e.currentTarget.value)} />
+                <input class="field mono" aria-label={`${roleLabels[role][0]} hex`} value={active[editingHalf][role]} maxlength="7" pattern="#[0-9a-fA-F]{'{'}6{'}'}" oninput={e => color(role, e.currentTarget.value)} />
+              {/snippet}
+            </SettingRow>
           {/each}
         </div>
       </div>
@@ -260,11 +273,10 @@
 </div>
 
 <style>
-  .appearance { max-width: 940px; padding-bottom: 48px; }
-  .intro h2 { font-size: 30px; margin: 0; }
+  .appearance { padding-bottom: 48px; }
   .intro p { margin: 6px 0 0; }
   section { margin-top: 34px; }
-  h3 { font-size: 15px; font-weight: 700; margin: 0 0 3px; }
+  h3 { margin: 0 0 3px; }
   .small { font-size: 13px; margin: 0; }
   .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
   .head-actions { display: flex; gap: 8px; }
@@ -290,10 +302,9 @@
   .editor-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 24px; align-items: start; }
   .editor-side { display: grid; gap: 10px; }
   .editor-preview { aspect-ratio: 8 / 5; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-  .roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 8px 18px; }
-  .color-row { display: grid; grid-template-columns: 1fr 34px 92px; align-items: center; gap: 8px; font-size: 13px; }
-  .color-row label { text-transform: capitalize; color: var(--ink2); }
-  .color-row input[type=color] { width: 34px; height: 32px; padding: 2px; border: 1px solid var(--line); background: var(--bg); border-radius: var(--r); }
+  .roles { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .roles :global(.field) { width: 100px; min-width: 0; }
+  .roles input[type=color] { width: 34px; height: 32px; padding: 2px; border: 1px solid var(--line); background: var(--bg); border-radius: var(--r); }
   .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
   .save-name { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .save-name label { display: grid; gap: 6px; font-size: 13px; }
@@ -319,6 +330,10 @@
 
   @media (max-width: 900px) { .editor-body { grid-template-columns: 1fr; } .editor-side { max-width: 260px; } }
   @media (max-width: 650px) {
+    .schemes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .scheme { padding: 6px; gap: 6px; min-width: 0; }
+    .scheme-art { aspect-ratio: 16 / 9; max-height: 90px; }
+    .scheme-text small { font-size: 11px; }
     .theme-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     select.field, .custom-font { width: 100%; min-width: 0; }
     input[type=range] { width: 100%; }

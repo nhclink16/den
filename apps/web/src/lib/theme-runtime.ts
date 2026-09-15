@@ -46,9 +46,23 @@ export function themeFor(a: Appearance, half: 'light'|'dark'): Theme {
 }
 export function activeTheme(a: Appearance, systemLight?: boolean): Theme { return themeFor(a, appearanceHalf(a, systemLight)) }
 export function appearanceHalf(a: Appearance, systemLight = matchMedia('(prefers-color-scheme: light)').matches): 'light'|'dark' { return a.mode === 'light' || (a.mode === 'system' && systemLight) ? 'light' : 'dark' }
+/** Controls need a stronger edge than the hairline used between panels. */
+export function controlBorder(colors: ThemeColors): string {
+  const surfaces = [colors.bg, colors.bg2, colors.bg3]
+  const start = lab(colors.line)[0]!
+  const direction = lab(colors.ink)[0]! > start ? 1 : -1
+  for (let step = 0; step <= 100; step++) {
+    const color = withLightness(colors.line, start + direction * step / 100)
+    if (surfaces.every(bg => contrast(color, bg) >= 3)) return color
+  }
+  // Unusual custom palettes may span both extremes; use the more visible edge.
+  const minimum = (color: string) => Math.min(...surfaces.map(bg => contrast(color, bg)))
+  return minimum('#000000') > minimum('#ffffff') ? '#000000' : '#ffffff'
+}
 export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearance) {
   const root = document.documentElement, s = root.style, colors=t[half]
   for (const key of colorRoles) s.setProperty(`--${key}`, colors[key])
+  s.setProperty('--line-strong', controlBorder(colors))
   s.setProperty('--accent-dim', `color-mix(in srgb, ${colors.accent} 55%, ${colors.bg})`)
   s.setProperty('--accent-glow', `color-mix(in srgb, ${colors.accent} 18%, transparent)`)
   s.setProperty('--selection', 'var(--accent-dim)'); s.setProperty('--mention-bg', 'var(--accent-glow)')

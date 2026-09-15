@@ -1,0 +1,62 @@
+{
+  "sharp": [
+    {
+      "label": "Unmute microphone",
+      "radius": "2px"
+    },
+    {
+      "label": "Mute sound on this device",
+      "radius": "2px"
+    },
+    {
+      "label": "Turn camera on",
+      "radius": "2px"
+    },
+    {
+      "label": "Share screen",
+      "radius": "2px"
+    },
+    {
+      "label": "Leave call",
+      "radius": "2px"
+    },
+    {
+      "label": null,
+      "radius": "2px"
+    },
+    {
+      "label": null,
+      "radius": "2px"
+    }
+  ],
+  "round": [
+    {
+      "label": "Unmute microphone",
+      "radius": "10px"
+    },
+    {
+      "label": "Mute sound on this device",
+      "radius": "10px"
+    },
+    {
+      "label": "Turn camera on",
+      "radius": "10px"
+    },
+    {
+      "label": "Share screen",
+      "radius": "10px"
+    },
+    {
+      "label": "Leave call",
+      "radius": "10px"
+    },
+    {
+      "label": null,
+      "radius": "10px"
+    },
+    {
+      "label": null,
+      "radius": "10px"
+    }
+  ]
+}

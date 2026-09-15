@@ -25,13 +25,13 @@
         class="half"
         class:chosen={chosen(half)}
         class:dim={dimmed === (half === 'light' ? 'dark' : 'light')}
-        style={`--ring:${theme[half].accent}`}
+        style={`--ring:${theme[half].accent};--ring-ink:${theme[half].bg}`}
         aria-pressed={chosen(half)}
         title={`Use ${theme.name} for ${half}`}
         aria-label={`Use ${theme.name} for ${half} appearance`}
         onclick={() => onpick(half)}
       >
-        <ThemePreview colors={theme[half]} display={theme.fonts.display} />
+        <ThemePreview colors={theme[half]} fonts={theme.fonts} />
         <span class="badge" aria-hidden="true">
           {#if half === 'light'}
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
@@ -80,7 +80,7 @@
   .badge {
     position: absolute; right: 4px; bottom: 4px; display: none;
     width: 17px; height: 17px; border-radius: 50%; place-items: center;
-    background: var(--ring); color: var(--bg);
+    background: var(--ring); color: var(--ring-ink);
   }
   .half.chosen .badge { display: grid; }
   .caption { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 2px 6px; min-height: 34px; }
