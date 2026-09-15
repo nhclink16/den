@@ -4,6 +4,7 @@
     "audition does not change preferences",
     "partial pack preserves silenced DM",
     "single sound installs to selected event",
+    "upload completion and failed write trigger sounds",
     "focused followed room silent",
     "away followed room sounds without notification permission",
     "reduced motion peak one sound",

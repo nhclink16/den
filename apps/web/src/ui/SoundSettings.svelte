@@ -20,16 +20,20 @@
       change(p); await owner.saveSounds(p); status = 'Saved to your account.'
     })
   }
-  function label(ref?: SoundRef) {
+  function label(ref: SoundRef | undefined, event: SoundEvent) {
     if (!ref) return 'Den'
-    return ref.type === 'silent' ? 'Silent' : ref.type === 'builtin' ? `Den · ${soundEvents.find(e => e.id === ref.name)?.name || ref.name}` : `Custom · ${ref.id.slice(0, 8)}`
+    if (ref.type === 'silent') return 'Silent'
+    if (ref.type === 'builtin') return `Den · ${soundEvents.find(e => e.id === ref.name)?.name || ref.name}`
+    const pack = [...(prefs?.custom_packs || []), ...(value ? [value.server_pack] : [])].find(p => { const sound = p.sounds[event]; return sound?.type === 'upload' && sound.id === ref.id })
+    return pack?.name || ref.id.replace(/-[0-9a-f]{8}$/, '').slice(0, 36)
   }
   async function replace(event: SoundEvent, input: HTMLInputElement) {
     const file = input.files?.[0]; if (!file) return
     await action(async () => {
       if (file.size > 512 * 1024) throw Error('Choose a file of 512 KiB or less.')
       const type = file.name.toLowerCase().endsWith('.wav') ? 'audio/wav' : file.name.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : file.type
-      const ref = await owner.api.putRaw<SoundRef>(`/users/me/sounds/${crypto.randomUUID()}`, file, { 'content-type': type })
+      const id = `${file.name.replace(/[^a-zA-Z0-9._-]/g, '-').replace(/^[^a-zA-Z0-9]+/, '').slice(0, 48) || 'sound'}-${crypto.randomUUID().slice(0, 8)}`
+      const ref = await owner.api.putRaw<SoundRef>(`/users/me/sounds/${id}`, file, { 'content-type': type })
       await owner.saveSounds({ ...owner.sounds!.preferences, overrides: { ...owner.sounds!.preferences.overrides, [event]: ref } })
       status = `${soundEvents.find(e => e.id === event)!.name} replaced.`
     }); input.value = ''
@@ -88,7 +92,7 @@
       {@const current = value.resolved[event.id]}
       {@const silent = current?.sound.type === 'silent'}
       <section class="event" class:playing={playing === event.id} aria-label={event.name}>
-        <div class="event-heading"><h3>{event.name}</h3><span class="current">{label(current?.sound)}</span></div>
+        <div class="event-heading"><h3>{event.name}</h3><span class="current">{label(current?.sound, event.id)}</span></div>
         <p class="muted small">{event.description}</p>
         <div class="event-actions">
           <button class="btn" aria-label={`Play ${event.name}`} disabled={silent || busy || testing} onclick={() => sounds.play(event.id, owner)}>Play</button>

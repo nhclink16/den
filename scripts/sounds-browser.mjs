@@ -11,9 +11,9 @@ const browser = await chromium.launch({executablePath:'/usr/bin/chromium',headle
 const context = await browser.newContext({viewport:{width:1440,height:1100}})
 await context.addInitScript(() => {
   const Native = window.AudioContext
-  window.AudioContext = class extends Native { constructor(...args) { super(...args); window.__audio = this; this.capture = this.createMediaStreamDestination() } }
+  window.AudioContext = class extends Native { constructor(...args) { super(...args); this.capture = this.createMediaStreamDestination() } }
   const connect = AudioNode.prototype.connect
-  AudioNode.prototype.connect = function (destination,...args) { if(destination instanceof AudioDestinationNode) connect.call(this,this.context.capture); return connect.call(this,destination,...args) }
+  AudioNode.prototype.connect = function (destination,...args) { if(destination instanceof AudioDestinationNode) { window.__playbackContext=this.context; connect.call(this,this.context.capture) } return connect.call(this,destination,...args) }
   window.__starts=[]
   const start=AudioBufferSourceNode.prototype.start
   AudioBufferSourceNode.prototype.start=function(...args){window.__starts.push({time:performance.now(),duration:this.buffer.duration}); return start.apply(this,args)}
@@ -51,8 +51,9 @@ await page.getByRole('button',{name:'Use selected pack for this server',exact:tr
 assert.equal((await api('/users/me/sounds')).server_pack.name,'Night chimes')
 await page.getByRole('button',{name:'Reset server to Den',exact:true}).click();await page.getByText('Server uses Den sounds.',{exact:true}).waitFor()
 await api('/users/me/sounds','PUT',{});await page.reload();await page.getByRole('button',{name:'Test all',exact:true}).waitFor()
-await page.getByRole('heading',{name:'Sounds',exact:true}).click()
-await page.evaluate(()=>{window.__starts=[];window.__chunks=[];window.__recorder=new MediaRecorder(window.__audio.capture.stream);window.__recorder.ondataavailable=e=>window.__chunks.push(e.data);window.__recorder.start()})
+await page.getByRole('button',{name:'Play Message',exact:true}).click()
+await page.waitForFunction(()=>!!window.__playbackContext);await page.waitForTimeout(300)
+await page.evaluate(()=>{window.__starts=[];window.__chunks=[];window.__recorder=new MediaRecorder(window.__playbackContext.capture.stream);window.__recorder.ondataavailable=e=>window.__chunks.push(e.data);window.__recorder.start()})
 const ffmpeg=spawn('ffmpeg',['-y','-loglevel','error','-f','image2pipe','-framerate','8','-i','pipe:0','-c:v','libx264','-preset','fast','-pix_fmt','yuv420p',out+'test-screen.mp4'])
 const began=Date.now();let frames=0,finished=false
 await page.getByRole('button',{name:'Test all',exact:true}).click()

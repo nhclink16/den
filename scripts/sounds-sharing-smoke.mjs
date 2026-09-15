@@ -24,8 +24,10 @@ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(
 await page.goto('http://localhost:5182');await page.getByLabel('Username',{exact:true}).fill('nicholas');await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Come in'}).click();await page.locator('a[title="Settings"]').waitFor()
 const api=async(path,method='GET',body)=>page.evaluate(async({path,method,body})=>{const res=await fetch(path,{method,headers:{'content-type':'application/json','x-csrf-token':localStorage.getItem('den.csrf')},body:body===undefined?undefined:JSON.stringify(body)});if(!res.ok)throw Error(`${res.status} ${await res.text()}`);return res.json()},{path,method,body})
 await api('/users/me/sounds','PUT',{overrides:{dm:{type:'silent'}}})
+
 const channel=await api('/channels','POST',{name:'sounds-'+Date.now(),category_id:null,position:100})
 await page.goto('http://localhost:5182/c/'+channel.id);await page.locator('textarea').waitFor()
+await page.evaluate(async()=>{ const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/sounds.ts').name;const {sounds}=await import(url);window.__events=[];const play=sounds.play.bind(sounds);sounds.play=async(event,owner)=>{window.__events.push(event);return play(event,owner)} })
 await page.locator('input[type=file]').setInputFiles(bundle)
 await page.waitForFunction(()=>document.querySelector('.pending')?.textContent?.includes('100') || !!document.querySelector('.pending .ready'),null,{timeout:1000}).catch(()=>{})
 await page.locator('textarea').fill('A partial pack, shared in the usual way.');await page.waitForTimeout(2500);await page.locator('textarea').press('Enter')
@@ -37,6 +39,9 @@ await card.getByRole('button',{name:'Add to my sounds'}).click();await card.getB
 await page.locator('input[type=file]').setInputFiles(root+'apps/web/public/sounds/upload_complete.wav');await page.waitForTimeout(2500);await page.locator('textarea').fill('A single sound for the designer.');await page.locator('textarea').press('Enter')
 const single=page.getByRole('article',{name:'Sound',exact:true});await single.getByRole('button',{name:'Use for…',exact:true}).waitFor();await single.getByRole('combobox').selectOption('upload_complete');await single.getByRole('button',{name:'Use for…',exact:true}).click();await single.getByRole('status').waitFor();assert.equal((await api('/users/me/sounds')).resolved.upload_complete.sound.type,'upload')
 await page.screenshot({path:out+'sharing.png'})
+assert((await page.evaluate(()=>window.__events)).includes('upload_complete'))
+await page.evaluate(async()=>{const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/api.ts').name;const {api}=await import(url);await api.put('/users/me/sounds',{master_volume:200}).catch(()=>{})})
+await page.waitForFunction(()=>window.__events.includes('error'))
 await api('/users/me/notification-preferences','PUT',{mentions:true,dms:true,subscribed_channel_ids:[channel.id]})
 const login=await fetch('http://127.0.0.1:7018/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'av_observer',password:password})}).then(r=>r.json())
 async function message(){const r=await fetch(`http://127.0.0.1:7018/channels/${channel.id}/messages`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${login.token}`},body:JSON.stringify({content:'A followed-room notification '+Date.now()})});assert.equal(r.status,200)}
@@ -53,5 +58,5 @@ await page.evaluate(async()=>{
 assert.equal(await page.evaluate(()=>window.__peak),1,'Reduced motion must not overlap')
 await page.setViewportSize({width:390,height:844});await page.screenshot({path:out+'mobile.png'});assert(await page.evaluate(()=>{const pane=document.querySelector('.settings');return pane.scrollWidth<=pane.clientWidth && pane.getBoundingClientRect().right<=innerWidth}))
 assert.equal(errors.length,0,errors.join('\n'))
-await writeFile(out+'sharing-proof.json',JSON.stringify({checks:['normal channel ZIP upload renders named poster card','audition does not change preferences','partial pack preserves silenced DM','single sound installs to selected event','focused followed room silent','away followed room sounds without notification permission','reduced motion peak one sound','390px settings container has no horizontal overflow'],errors},null,2))
+await writeFile(out+'sharing-proof.json',JSON.stringify({checks:['normal channel ZIP upload renders named poster card','audition does not change preferences','partial pack preserves silenced DM','single sound installs to selected event','upload completion and failed write trigger sounds','focused followed room silent','away followed room sounds without notification permission','reduced motion peak one sound','390px settings container has no horizontal overflow'],errors},null,2))
 await browser.close();await rm(scratch,{recursive:true});console.log('Sharing, notifications and reduced motion passed')
