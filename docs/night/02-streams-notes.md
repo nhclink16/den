@@ -81,3 +81,11 @@ withholds.
 The inherited wallpaper scales its background layer to 106%, which contributes
 12 hidden pixels to the mobile root scroll width. The actual shell, call strip,
 resizer, menus and dock fit the viewport; those bounds are checked separately.
+
+## Merge integration
+
+The UI review lane increases call-button spacing. Combined with the new shares
+menu, that clipped Leave and squeezed out the room name in the sidebar. The dock
+now wraps when needed, retaining the room label and every button. The streams
+smoke checks all dock control bounds with multiple shares active. The combined
+UI preview passes the full streams smoke, including mobile.
