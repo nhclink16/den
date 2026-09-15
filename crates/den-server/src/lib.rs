@@ -23,6 +23,7 @@ mod terminal;
 mod thumbnails;
 mod tickets;
 mod uploads;
+mod voice_preferences;
 mod web;
 mod ws;
 
@@ -277,6 +278,10 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             get(backgrounds::get)
                 .put(backgrounds::put)
                 .delete(backgrounds::remove),
+        )
+        .route(
+            "/users/me/voice",
+            get(voice_preferences::get).put(voice_preferences::put),
         )
         .route(
             "/users/me/appearance",

@@ -132,7 +132,8 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
             }
             Some(&state.channel_id)
         }
-        Event::AppearanceUpdated { user_id, .. }
+        Event::VoicePreferencesUpdated { user_id, .. }
+        | Event::AppearanceUpdated { user_id, .. }
         | Event::NotificationPreferencesUpdated { user_id, .. } => return user_id == &a.user.id,
         Event::MessageCreated(m) | Event::MessageEdited(m) => Some(&m.channel_id),
         Event::MessageDeleted { channel_id, .. }
