@@ -96,3 +96,93 @@ fn real_pty_input_resize_reattach_and_backpressure() {
     })
     .unwrap();
 }
+
+#[test]
+#[cfg(unix)]
+fn naturally_exited_sessions_release_capacity() {
+    let mut s = Sessions::default();
+    for i in 0..16 {
+        let id = format!("exit-{i}");
+        s.handle(HostFrame::Open {
+            session_id: id.clone(),
+            cols: 80,
+            rows: 24,
+            shell: Some("/bin/sh".into()),
+        })
+        .unwrap();
+        s.handle(HostFrame::Input {
+            session_id: id.clone(),
+            bytes: b"exit\n".to_vec(),
+        })
+        .unwrap();
+        let start = Instant::now();
+        let mut exited = false;
+        while start.elapsed() < Duration::from_secs(5) {
+            for f in s.drain() {
+                match f {
+                    HostFrame::Output {
+                        session_id, bytes, ..
+                    } => {
+                        let n = bytes.len();
+                        s.handle(HostFrame::Ack {
+                            session_id,
+                            bytes: n,
+                        })
+                        .unwrap();
+                    }
+                    HostFrame::Exited { session_id, .. } if session_id == id => {
+                        exited = true;
+                    }
+                    _ => {}
+                }
+            }
+            if exited {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(16));
+        }
+        assert!(exited, "session {id} never exited");
+        // Production natural exit never sends Close; the slot must free anyway.
+    }
+    s.handle(HostFrame::Open {
+        session_id: "exit-16".into(),
+        cols: 80,
+        rows: 24,
+        shell: Some("/bin/sh".into()),
+    })
+    .unwrap();
+    s.handle(HostFrame::Input {
+        session_id: "exit-16".into(),
+        bytes: b"echo DEN_REUSE_OK\n".to_vec(),
+    })
+    .unwrap();
+    let mut out = String::new();
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(5) {
+        for f in s.drain() {
+            if let HostFrame::Output {
+                session_id, bytes, ..
+            } = f
+            {
+                out.push_str(&String::from_utf8_lossy(&bytes));
+                s.handle(HostFrame::Ack {
+                    session_id,
+                    bytes: bytes.len(),
+                })
+                .unwrap();
+            }
+        }
+        if out.contains("DEN_REUSE_OK") {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(16));
+    }
+    assert!(
+        out.contains("DEN_REUSE_OK"),
+        "17th session unusable: {out:?}"
+    );
+    s.handle(HostFrame::Close {
+        session_id: "exit-16".into(),
+    })
+    .unwrap();
+}
