@@ -101,6 +101,7 @@ use utoipa::OpenApi;
         messages::messages,
         messages::send,
         threads::replies,
+        threads::update,
         messages::edit,
         messages::remove,
         uploads::begin,

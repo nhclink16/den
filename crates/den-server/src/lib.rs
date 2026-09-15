@@ -369,6 +369,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             "/channels/{id}/messages",
             get(messages::messages).post(messages::send),
         )
+        .route("/threads/{id}", axum::routing::patch(threads::update))
         .route("/threads/{id}/messages", get(threads::replies))
         .route(
             "/messages/{id}",
