@@ -159,34 +159,50 @@ async fn main() -> Result<()> {
                 if let Ok(mut socket) = connected {
                     eprintln!("Connected as {}", cfg.name);
                     delay = 1;
-                    let _ = socket
-                        .send(&HostFrame::Hello {
-                            direct_url: direct_url.clone(),
-                        })
-                        .await;
-                    let mut tick = tokio::time::interval(Duration::from_millis(16));
-                    let mut status = tokio::time::interval(Duration::from_secs(5));
-                    loop {
-                        tokio::select! {
-                            _ = tokio::signal::ctrl_c() => return Ok(()),
-                            _ = status.tick() => { private_write(&dir.join("host-status.json"), &serde_json::to_vec(&serde_json::json!({"connected":true,"at":epoch()}))?)?; }
-                            frame = socket.receive() => match frame {
-                                Ok(Some(HostFrame::Replay{session_id,connection_id})) => {
-                                    let bytes=sessions.lock().await.history(&session_id);
-                                    if socket.send(&HostFrame::Scrollback{session_id:session_id.clone(),connection_id,bytes}).await.is_err(){break;}
-                                    if let Some((cols,rows))=sessions.lock().await.dimensions(&session_id){let _=output.send(HostFrame::Resize{session_id:session_id.clone(),cols,rows});}
-                                    let _=sessions.lock().await.refresh(&session_id);
+                    let hello = HostFrame::Hello {
+                        direct_url: direct_url.clone(),
+                        session_ids: Some(sessions.lock().await.ids()),
+                    };
+                    'connected: {
+                        if !matches!(
+                            tokio::time::timeout(Duration::from_secs(5), socket.send(&hello)).await,
+                            Ok(Ok(()))
+                        ) {
+                            break 'connected;
+                        }
+                        let mut tick = tokio::time::interval(Duration::from_millis(16));
+                        let mut status = tokio::time::interval(Duration::from_secs(5));
+                        let mut inventory = tokio::time::interval_at(
+                            tokio::time::Instant::now() + Duration::from_secs(5),
+                            Duration::from_secs(5),
+                        );
+                        inventory.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                        loop {
+                            tokio::select! {
+                                _ = tokio::signal::ctrl_c() => return Ok(()),
+                                _ = inventory.tick() => {
+                                    let frame = HostFrame::Hello { direct_url: direct_url.clone(), session_ids: Some(sessions.lock().await.ids()) };
+                                    if !matches!(tokio::time::timeout(Duration::from_secs(5), socket.send(&frame)).await, Ok(Ok(()))) { break; }
                                 }
-                                Ok(Some(frame)) => {
-                                    if matches!(frame,HostFrame::Resize{..}) {let _=output.send(frame.clone());}
-                                    if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }
-                                }, _ => break
-                            },
-                            Some(frame) = inputs.recv() => { let _=sessions.lock().await.handle(frame); },
-                            _ = tick.tick() => {
-                                let mut failed = false;
-                                for frame in sessions.lock().await.drain() { let _=output.send(frame.clone()); if !matches!(tokio::time::timeout(Duration::from_secs(5), socket.send(&frame)).await, Ok(Ok(()))) { failed=true; break; } }
-                                if failed {break;}
+                                _ = status.tick() => { private_write(&dir.join("host-status.json"), &serde_json::to_vec(&serde_json::json!({"connected":true,"at":epoch()}))?)?; }
+                                frame = socket.receive() => match frame {
+                                    Ok(Some(HostFrame::Replay{session_id,connection_id})) => {
+                                        let bytes=sessions.lock().await.history(&session_id);
+                                        if socket.send(&HostFrame::Scrollback{session_id:session_id.clone(),connection_id,bytes}).await.is_err(){break;}
+                                        if let Some((cols,rows))=sessions.lock().await.dimensions(&session_id){let _=output.send(HostFrame::Resize{session_id:session_id.clone(),cols,rows});}
+                                        let _=sessions.lock().await.refresh(&session_id);
+                                    }
+                                    Ok(Some(frame)) => {
+                                        if matches!(frame,HostFrame::Resize{..}) {let _=output.send(frame.clone());}
+                                        if let Err(e) = sessions.lock().await.handle(frame) { eprintln!("PTY operation failed: {e}"); }
+                                    }, _ => break
+                                },
+                                Some(frame) = inputs.recv() => { let _=sessions.lock().await.handle(frame); },
+                                _ = tick.tick() => {
+                                    let mut failed = false;
+                                    for frame in sessions.lock().await.drain() { let _=output.send(frame.clone()); if !matches!(tokio::time::timeout(Duration::from_secs(5), socket.send(&frame)).await, Ok(Ok(()))) { failed=true; break; } }
+                                    if failed {break;}
+                                }
                             }
                         }
                     }

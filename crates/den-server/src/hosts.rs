@@ -3,18 +3,24 @@ use crate::{
     *,
 };
 use axum::{
-    extract::{
-        ws::{Message as Frame, WebSocket, WebSocketUpgrade},
-        Path,
-    },
+    extract::{ws::WebSocketUpgrade, Path},
     http::HeaderMap,
 };
 use sqlx::Row;
 use tokio::sync::mpsc;
 
+#[path = "hosts_connection.rs"]
+mod connection;
+
+pub(crate) struct Connection {
+    id: String,
+    tx: mpsc::Sender<HostFrame>,
+    ready: bool,
+}
+
 #[derive(Default)]
 pub(crate) struct Hosts {
-    pub connections: Mutex<HashMap<String, (String, mpsc::Sender<HostFrame>)>>,
+    pub connections: Mutex<HashMap<String, Connection>>,
     pub direct_tokens: Mutex<HashMap<String, (String, String, i64)>>,
     pub viewers: Mutex<HashMap<(String, String), std::collections::HashSet<String>>>,
 }
@@ -27,7 +33,13 @@ pub(crate) async fn load(s: &AppState, id: &str) -> Result<Host> {
         id: r.try_get("id")?,
         owner_id: r.try_get("owner_id")?,
         name: r.try_get("name")?,
-        online: s.hosts.connections.lock().await.contains_key(id),
+        online: s
+            .hosts
+            .connections
+            .lock()
+            .await
+            .get(id)
+            .is_some_and(|c| c.ready),
         last_seen: r.try_get("last_seen")?,
         direct_url: r.try_get("direct_url")?,
     })
@@ -174,107 +186,18 @@ pub(crate) async fn connect(
     let h = authenticate(&s, &headers).await?;
     Ok(ws
         .max_message_size(2 * 1024 * 1024)
-        .on_upgrade(move |ws| run(s, h, ws)))
+        .on_upgrade(move |ws| connection::run(s, h, ws)))
 }
 pub(crate) async fn send(s: &AppState, id: &str, frame: HostFrame) -> Result<()> {
     let connections = s.hosts.connections.lock().await;
-    let (_, tx) = connections
+    let connection = connections
         .get(id)
+        .filter(|c| c.ready)
         .ok_or_else(|| Error::conflict("Machine is offline"))?;
-    tx.try_send(frame)
+    connection
+        .tx
+        .try_send(frame)
         .map_err(|_| Error::conflict("Machine is busy; retry"))
-}
-async fn run(s: AppState, host: Host, mut ws: WebSocket) {
-    let connection = s.id();
-    let (tx, mut rx) = mpsc::channel(128);
-    s.hosts
-        .connections
-        .lock()
-        .await
-        .insert(host.id.clone(), (connection.clone(), tx));
-    let _ = sqlx::query("UPDATE hosts SET online=1,last_seen=? WHERE id=?")
-        .bind(now())
-        .bind(&host.id)
-        .execute(&s.db)
-        .await;
-    if let Ok(ids) =
-        sqlx::query_scalar::<_, String>("SELECT id FROM terminal_sessions WHERE host_id=?")
-            .bind(&host.id)
-            .fetch_all(&s.db)
-            .await
-    {
-        for id in ids {
-            if let Ok(t) = terminal::load(&s, &id).await {
-                if t.ended_at.is_none() {
-                    let _ = send(
-                        &s,
-                        &host.id,
-                        HostFrame::Open {
-                            session_id: id,
-                            cols: t.cols,
-                            rows: t.rows,
-                            shell: None,
-                        },
-                    )
-                    .await;
-                }
-            }
-        }
-    }
-    let mut tick = tokio::time::interval(Duration::from_millis(500));
-    let mut seen = Instant::now();
-    loop {
-        tokio::select! {
-            _=tick.tick()=>{
-                let current=s.hosts.connections.lock().await.get(&host.id).map(|(c,_)|c.clone());
-                if current.as_deref()!=Some(&connection) || seen.elapsed()>Duration::from_secs(45){break;}
-                if ws.send(Frame::Ping(vec![].into())).await.is_err(){break;}
-            }
-            frame=rx.recv()=>{let Some(frame)=frame else{break;};let bytes=serde_json::to_vec(&frame).unwrap();if !matches!(tokio::time::timeout(Duration::from_secs(2),ws.send(Frame::Binary(bytes.into()))).await,Ok(Ok(()))){break;}}
-            incoming=ws.recv()=>{
-                match incoming {
-                    Some(Ok(Frame::Pong(_)|Frame::Ping(_)))=>seen=Instant::now(),
-                    Some(Ok(Frame::Binary(b)))=>{
-                        seen=Instant::now();let Ok(frame)=serde_json::from_slice::<HostFrame>(&b) else{break;};
-                        match frame {
-                            HostFrame::Hello{direct_url}=>{
-                                let direct_url=direct_url.filter(|url|valid_direct_url(url));
-                                let _=sqlx::query("UPDATE hosts SET direct_url=? WHERE id=?").bind(direct_url).bind(&host.id).execute(&s.db).await;
-                            }
-                            HostFrame::Output{session_id,bytes}=>{
-                                if !terminal::on_host(&s,&session_id,&host.id).await {break;}
-                                let n=bytes.len();
-                                if terminal::output(&s,&session_id,bytes).await.is_err(){break;}
-                                if send(&s,&host.id,HostFrame::Ack{session_id,bytes:n}).await.is_err(){break;}
-                            }
-                            HostFrame::Scrollback{session_id,connection_id,bytes}=>{
-                                if !terminal::on_host(&s,&session_id,&host.id).await{break;}
-                                let _=s.events.send(Event::TerminalOutput{session_id,bytes,connection_id:Some(connection_id)});
-                            }
-                            HostFrame::Exited{session_id,..}=>{
-                                if !terminal::on_host(&s,&session_id,&host.id).await{break;}
-                                let _g=s.writes.lock().await;let _=terminal::finish(&s,&session_id).await;
-                            }
-                            _=>break,
-                        }
-                    }
-                    _=>break,
-                }
-            }
-        }
-    }
-    let mut connections = s.hosts.connections.lock().await;
-    if connections
-        .get(&host.id)
-        .is_some_and(|(c, _)| c == &connection)
-    {
-        connections.remove(&host.id);
-        let _ = sqlx::query("UPDATE hosts SET online=0,last_seen=? WHERE id=?")
-            .bind(now())
-            .bind(&host.id)
-            .execute(&s.db)
-            .await;
-    }
 }
 fn valid_direct_url(url: &str) -> bool {
     let Ok(uri) = url.parse::<axum::http::Uri>() else {

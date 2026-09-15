@@ -51,6 +51,10 @@ pub struct Sessions {
     sessions: HashMap<String, Pty>,
 }
 impl Sessions {
+    pub fn ids(&self) -> Vec<String> {
+        self.sessions.keys().cloned().collect()
+    }
+
     pub fn handle(&mut self, frame: HostFrame) -> Result<()> {
         match frame {
             HostFrame::Open {

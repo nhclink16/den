@@ -247,6 +247,14 @@ async fn terminal_grants_enforce_view_control_revoke_expiry_and_privacy() {
             .unwrap(),
     );
     let (mut socket, _) = connect_async(req).await.unwrap();
+    socket
+        .send(Frame::Binary(
+            serde_json::to_vec(&json!({"type":"hello","direct_url":null}))
+                .unwrap()
+                .into(),
+        ))
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(30)).await;
     let o = t
         .post(
@@ -511,3 +519,7 @@ mod music;
 mod sounds;
 #[path = "api/sounds_ws.rs"]
 mod sounds_ws;
+
+#[cfg(unix)]
+#[path = "api/terminal_reconciliation.rs"]
+mod terminal_reconciliation;
