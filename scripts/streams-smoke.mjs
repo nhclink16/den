@@ -47,6 +47,7 @@ try {
  await wait(async()=>await a.getByTestId('call-tile').count()===2,'two people')
  await b.getByLabel('Share screen',{exact:true}).first().click()
  await wait(async()=>await screens(a).count()===1,'remote share')
+ await wait(async()=>await screens(a).locator('video').count()===1 && await a.locator('video').evaluateAll(es=>es.every(e=>e.videoWidth>0)), 'remote frames before screenshots')
  await a.bringToFront()
  const member=a.locator('.member-audio'), remote=screens(a).filter({has:a.locator('[aria-label="Bob audio options"]')})
  const audio=()=>a.locator('audio').evaluateAll(es=>es.map(e=>({volume:e.volume,paused:e.paused,id:e.dataset.userId})))
