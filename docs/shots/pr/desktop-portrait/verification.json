@@ -1,0 +1,675 @@
+{
+  "nativeWindowResized": true,
+  "generatedCameraAndDisplayInput": true,
+  "connections": [
+    {
+      "connection": "connected",
+      "ice": "connected"
+    },
+    {
+      "connection": "connected",
+      "ice": "connected"
+    }
+  ],
+  "errors": [],
+  "results": [
+    {
+      "name": "landscape",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "preset": "Auto\nEven\nFocus",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 44,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 62,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 59,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "portrait",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "preset": "Auto\nEven\nFocus",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 398.640625,
+        "width": 600,
+        "height": 1119.71875
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 398.640625,
+            "width": 600,
+            "height": 453.0625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 84,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 859.703125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 116,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 12,
+            "w": 12,
+            "h": 5
+          },
+          "rect": {
+            "x": 264,
+            "y": 1189.03125,
+            "width": 600,
+            "height": 321.328125
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 112,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "landscape-return",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "preset": "Auto\nEven\nFocus",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 134,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 182,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 178,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-half-width",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 696,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 175,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 235,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 616,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 232,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-portrait",
+      "viewport": [
+        1100,
+        1900
+      ],
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 600,
+        "height": 1717
+      },
+      "canvas": {
+        "x": 264,
+        "y": 629.171875,
+        "width": 600,
+        "height": 658.65625
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 629.171875,
+            "width": 296,
+            "height": 453.0625
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 186,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 1090.234375,
+            "width": 144,
+            "height": 189.59375
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 251,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 416,
+            "y": 1090.234375,
+            "width": 144,
+            "height": 189.59375
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 247,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "custom-landscape-return",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "preset": "Auto\nEven\nFocus\nCustom",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 6,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 696,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 197,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 266,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 3,
+            "row": 7,
+            "w": 3,
+            "h": 3
+          },
+          "rect": {
+            "x": 616,
+            "y": 740.296875,
+            "width": 344,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 262,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "auto-restored",
+      "viewport": [
+        1900,
+        1100
+      ],
+      "preset": "Auto\nEven\nFocus",
+      "scroll": {
+        "x": 264,
+        "y": 100,
+        "width": 1400,
+        "height": 917
+      },
+      "canvas": {
+        "x": 264,
+        "y": 104,
+        "width": 1400,
+        "height": 909
+      },
+      "tiles": [
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:screen:screen-1",
+          "kind": "screen",
+          "cell": {
+            "col": 0,
+            "row": 0,
+            "w": 12,
+            "h": 7
+          },
+          "rect": {
+            "x": 264,
+            "y": 104,
+            "width": 1400,
+            "height": 628.296875
+          },
+          "video": [
+            {
+              "width": 960,
+              "height": 540,
+              "frames": 209,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZJWMHWEM97B2VEWZGCWY:01M2HQJA282MS2TZ518EFNRJDT:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 0,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 264,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 1280,
+              "height": 720,
+              "frames": 281,
+              "readyState": 4
+            }
+          ]
+        },
+        {
+          "key": "01M2HGZR4NQ37B4WVFT5HXWJ3M:01M2HQJANS1DB9R20EMC0HFSHD:cam",
+          "kind": "cam",
+          "cell": {
+            "col": 6,
+            "row": 7,
+            "w": 6,
+            "h": 3
+          },
+          "rect": {
+            "x": 968,
+            "y": 740.296875,
+            "width": 696,
+            "height": 264.6875
+          },
+          "video": [
+            {
+              "width": 320,
+              "height": 180,
+              "frames": 277,
+              "readyState": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
