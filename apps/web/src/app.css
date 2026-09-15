@@ -22,6 +22,11 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+/* The wallpaper layer is inset:0 but scaled 1.06 to hide the soft edge blur leaves,
+   so it reaches ~3% past each side and the document could be panned sideways by that
+   much on narrow screens. `clip` kills the pan without creating a scroll container,
+   which `hidden` would, and without clipping descendants that need to escape. */
+html { overflow-x: clip; }
 body {
   background: var(--bg);
   color: var(--ink);
