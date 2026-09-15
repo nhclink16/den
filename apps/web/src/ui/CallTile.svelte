@@ -21,6 +21,8 @@
 <div class="tile" class:screen class:speaking={participant.speaking} data-testid={screen ? 'screen-tile' : 'call-tile'} data-share-name={share?.name} data-local={participant.local} data-user-id={participant.userId} data-connection-id={participant.id}>
   {#if track}
     <video bind:this={video} class:mirror={participant.local && !screen && call.cameraSettings.mirror} autoplay playsinline muted aria-label={`${participant.name} ${screen ? 'screen' : 'camera'}`}></video>
+  {:else if participant.music}
+    <Icon name="music" size={32} />
   {:else}
     <Avatar userId={participant.userId} size={44} />
   {/if}

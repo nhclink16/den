@@ -239,7 +239,11 @@ fn user_id(identity: &str) -> &str {
 fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
     let mut ids = participants
         .into_iter()
-        .flat_map(|p| p.keys().map(|id| user_id(id).to_owned()))
+        .flat_map(|p| {
+            p.keys()
+                .filter(|id| !id.starts_with("den-dj-"))
+                .map(|id| user_id(id).to_owned())
+        })
         .collect::<Vec<_>>();
     ids.sort();
     ids.dedup();

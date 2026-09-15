@@ -1,6 +1,7 @@
 mod canvas;
 mod client;
 mod hosts;
+mod music;
 mod stream;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -32,6 +33,8 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Cmd {
+    /// Add music to a voice room, skip, or inspect its shared queue.
+    Music(music::Music),
     Health,
     #[command(subcommand)]
     Host(hosts::HostCmd),
@@ -223,6 +226,7 @@ fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     let mut c = Client::new(args.url, args.token, args.config)?;
     match args.cmd {
+        Cmd::Music(args) => music::run(&c, args)?,
         Cmd::Canvas(cmd) => canvas::run(&c, cmd)?,
         Cmd::Host(cmd) => hosts::host(&c, cmd)?,
         Cmd::Access(cmd) => hosts::access(&c, cmd)?,

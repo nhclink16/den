@@ -24,6 +24,9 @@
 
 <div class="members">
   <div class="eyebrow head">{onlineCount} here · {members.length} total</div>
+  {#each call.origin === store.origin ? call.participants.filter(p => p.music) : [] as dj (dj.id)}
+    <div class="member"><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div><details class="member-audio"><summary aria-label={`${dj.name} audio options`}><Icon name="sound" size={14} /><span>In call</span></summary><ParticipantVolume userId={dj.userId} name={dj.name} /></details></div>
+  {/each}
   {#each members as u (u.id)}
     <div class="member">
     <button class="person" class:off={!store.online.has(u.id)} onclick={() => dm(u.id)} title={u.id === store.me?.id ? 'You' : `Message ${u.display_name || u.username}`}>

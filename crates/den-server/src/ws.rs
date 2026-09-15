@@ -59,12 +59,22 @@ impl Drop for Connected {
         }
     }
 }
-#[utoipa::path(get,path="/ws",responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
-pub(crate) async fn connect(State(s): State<AppState>, a: Auth, ws: WebSocketUpgrade) -> Response {
+#[derive(Default, serde::Deserialize)]
+pub(crate) struct Options {
+    #[serde(default)]
+    music: bool,
+}
+#[utoipa::path(get,path="/ws",params(("music"=Option<bool>,Query,description="Opt in to music queue events; omitted for older clients")),responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
+pub(crate) async fn connect(
+    State(s): State<AppState>,
+    a: Auth,
+    axum::extract::Query(options): axum::extract::Query<Options>,
+    ws: WebSocketUpgrade,
+) -> Response {
     let rx = s.events.subscribe();
     ws.max_message_size(128 * 1024)
         .max_frame_size(128 * 1024)
-        .on_upgrade(move |socket| run(s, a, socket, rx))
+        .on_upgrade(move |socket| run(s, a, socket, rx, options.music))
 }
 async fn event(socket: &mut WebSocket, event: &Event) -> bool {
     let Ok(json) = serde_json::to_string(event) else {
@@ -85,6 +95,7 @@ async fn event(socket: &mut WebSocket, event: &Event) -> bool {
 }
 async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
     let channel = match v {
+        Event::MusicQueueUpdated { queue } => Some(&queue.room_id),
         Event::TerminalOutput { .. } => return false,
         Event::TerminalState { session } => {
             return terminal::can_view(s, &a.user.id, &session.id).await
@@ -154,7 +165,13 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         true
     }
 }
-async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Receiver<Event>) {
+async fn run(
+    s: AppState,
+    a: Auth,
+    mut socket: WebSocket,
+    mut rx: broadcast::Receiver<Event>,
+    music: bool,
+) {
     if !a.valid(&s).await {
         return;
     }
@@ -248,6 +265,8 @@ async fn run(s: AppState, a: Auth, mut socket: WebSocket, mut rx: broadcast::Rec
                 if !a.valid(&s).await {break;}
                 match incoming {
                     Ok(v)=>{
+                        // Old typed clients cannot decode new variants. Only opted-in sockets receive music.
+                        if matches!(&v, Event::MusicQueueUpdated { .. }) && !music { continue; }
                         let permitted = if let Event::TerminalOutput{session_id,connection_id,..} = &v {
                             terminals.contains(session_id) && connection_id.as_ref().is_none_or(|id|id==&connection) && terminal::can_view(&s,&a.user.id,session_id).await
                         } else if let Event::ObjectCursor { id, user_id, .. } = &v {

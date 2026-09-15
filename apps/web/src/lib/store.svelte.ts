@@ -10,7 +10,7 @@ import { apiFor, setCsrf } from './api'
 import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
-import type { CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
+import type { MusicQueue, CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
 
 const PREFS_KEY = 'den.layout'
 
@@ -43,6 +43,14 @@ export class Store {
     this.voiceWrites = write.catch(() => {})
     return write
   }
+  musicReceivedAt = new Map<string, number>()
+  music = $state<Map<string, MusicQueue>>(new Map())
+  receiveMusic(q: MusicQueue) {
+    const current = this.music.get(q.room_id)
+    if (current && (q.revision < current.revision || q.revision === current.revision && q.updated_at < current.updated_at)) return
+    this.musicReceivedAt.set(q.room_id, Date.now()); this.music = new Map(this.music).set(q.room_id, q)
+  }
+  async loadMusic(room: string) { this.receiveMusic(await this.api.get<MusicQueue>(`/rooms/${room}/music`)) }
   calls = $state<CallState[]>([])
   private connecting = false
   private generation = 0
@@ -170,6 +178,7 @@ export class Store {
     this.online = new Set(presence.online_user_ids)
     this.calls = calls
     if (this.active) call.snapshot(calls)
+    await Promise.all([...this.music.keys()].filter(id => channels.some(c => c.id === id)).map(id => this.loadMusic(id)))
     // Refresh the tail of channels we already had open so the view is current after a gap.
     await Promise.all([...this.messages.keys()].filter((id) => channels.some((c) => c.id === id)).map((id) => this.loadLatest(id)))
   }
@@ -262,6 +271,7 @@ export class Store {
       this.backoff = Math.min(this.backoff * 2, 15_000)
       return
     } finally { this.connecting = false }
+    url += `${url.includes('?') ? '&' : '?'}music=true`
     const ws = new WebSocket(url)
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
@@ -291,6 +301,7 @@ export class Store {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
+      case 'music_queue_updated': this.receiveMusic(ev.queue); break
       case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break
       case 'appearance_updated': this.receiveAppearance(ev.appearance); break
       case 'settings_updated': this.settings = ev.settings; break

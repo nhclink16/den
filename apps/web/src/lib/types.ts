@@ -51,3 +51,6 @@ export type Instance = S['Instance']
 export type VoicePreferences = S['VoicePreferences']
 export type MicrophoneSettings = S['MicrophoneSettings']
 export type CameraSettings = S['CameraSettings']
+
+export type MusicQueue = S['MusicQueue']
+export type MusicTrack = S['MusicTrack']

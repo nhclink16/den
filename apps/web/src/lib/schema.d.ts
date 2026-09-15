@@ -797,6 +797,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{id}/music": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__rooms__id__music"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__rooms__id__music_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__rooms__id__music_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/queue/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__rooms__id__music_queue_order"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/queue/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete__rooms__id__music_queue__track_id_"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/seek": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__rooms__id__music_seek"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/music/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__rooms__id__music_skip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search/messages": {
         parameters: {
             query?: never;
@@ -1312,12 +1424,25 @@ export interface components {
             standing: boolean;
             status: string;
         };
+        AddMusic: {
+            url: string;
+        };
         ApiError: {
             error: string;
             message: string;
         };
         Appearance: {
-            background?: null | components["schemas"]["Background"];
+            background?: {
+                /** Format: int32 */
+                blur: number;
+                /** Format: int32 */
+                dim: number;
+                fit: components["schemas"]["BackgroundFit"];
+                /** Format: int32 */
+                saturate: number;
+                scope: components["schemas"]["BackgroundScope"];
+                source: components["schemas"]["BackgroundSource"];
+            } | null;
             /**
              * Format: int32
              * @default 100
@@ -1574,6 +1699,10 @@ export interface components {
         };
         /** @description Every event pushed over the WebSocket stream. The CLI's `tail` prints these. */
         Event: {
+            queue: components["schemas"]["MusicQueue"];
+            /** @enum {string} */
+            type: "music_queue_updated";
+        } | {
             /** @enum {string} */
             type: "user_updated";
             user: components["schemas"]["User"];
@@ -1895,6 +2024,37 @@ export interface components {
             /** @default true */
             noise_suppression: boolean;
         };
+        MusicQueue: {
+            /** @description Stable LiveKit participant identity; use the regular participant volume control. */
+            participant_id: string;
+            paused: boolean;
+            /** Format: double */
+            position_seconds: number;
+            queue: components["schemas"]["MusicTrack"][];
+            /** Format: int64 */
+            revision: number;
+            room_id: string;
+            /**
+             * Format: int64
+             * @description Server time for the progress position, in Unix milliseconds.
+             */
+            updated_at: number;
+        };
+        MusicTrack: {
+            added_by: string;
+            /** Format: double */
+            duration?: number | null;
+            id: string;
+            /** Format: int64 */
+            position: number;
+            room_id: string;
+            state: components["schemas"]["MusicTrackState"];
+            thumbnail?: string | null;
+            title: string;
+            url: string;
+        };
+        /** @enum {string} */
+        MusicTrackState: "queued" | "loading" | "playing" | "paused" | "failed";
         NotificationPreferences: {
             dms: boolean;
             mentions: boolean;
@@ -1944,6 +2104,12 @@ export interface components {
             /** Format: int32 */
             rows?: number | null;
         };
+        OrderMusic: {
+            ids: string[];
+        };
+        PauseMusic: {
+            paused: boolean;
+        };
         PresenceState: {
             objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
@@ -1952,7 +2118,16 @@ export interface components {
             accent?: string | null;
             bio?: string | null;
             display_name?: string | null;
-            status?: null | components["schemas"]["Status"];
+            status?: {
+                /** @description Exactly one extended grapheme cluster when set. */
+                emoji?: string | null;
+                /**
+                 * Format: int64
+                 * @description Unix timestamp in seconds; expired statuses are served as absent.
+                 */
+                expires_at?: number | null;
+                text?: string | null;
+            } | null;
         };
         Reaction: {
             emoji: string;
@@ -2003,6 +2178,10 @@ export interface components {
             /** Format: int32 */
             limit?: number | null;
             q: string;
+        };
+        SeekMusic: {
+            /** Format: double */
+            position_seconds: number;
         };
         Session: {
             csrf_token: string;
@@ -2156,7 +2335,16 @@ export interface components {
             display_name: string;
             id: components["schemas"]["String"];
             role: components["schemas"]["Role"];
-            status?: null | components["schemas"]["Status"];
+            status?: {
+                /** @description Exactly one extended grapheme cluster when set. */
+                emoji?: string | null;
+                /**
+                 * Format: int64
+                 * @description Unix timestamp in seconds; expired statuses are served as absent.
+                 */
+                expires_at?: number | null;
+                text?: string | null;
+            } | null;
             username: string;
         };
         /** @description PUT merges device entries, preserving other devices on the account. */
@@ -4106,6 +4294,233 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__rooms__id__music: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__music_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PauseMusic"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__music_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddMusic"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__rooms__id__music_queue_order: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderMusic"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__rooms__id__music_queue__track_id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                track_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__music_seek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeekMusic"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__music_skip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicQueue"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
