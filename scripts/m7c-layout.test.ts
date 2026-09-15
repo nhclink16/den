@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bounds, overlaps, pack, participantSlots, presetCells, type TileSpec } from '../apps/web/src/lib/call-layout.ts'
+import { bounds, overlaps, pack, participantSlots, presetCells, readLayout, storageKey, type TileSpec } from '../apps/web/src/lib/call-layout.ts'
 const tiles: TileSpec[] = [{key:'a:screen',kind:'screen'},{key:'b:screen',kind:'screen'},...['a','b','c'].map(key=>({key:key+':cam',kind:'cam' as const}))]
 test('shares receive equal large slots and packing reserves a manual drop without overlap', () => {
   const auto=presetCells(tiles,'Auto',{})
@@ -60,4 +60,40 @@ test('a portrait container stacks tiles instead of spreading them across the nar
   for (const cells of [wide, tall])
     for (const [i, a] of Object.values(cells).entries())
       for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a as never, b as never))
+})
+
+// Andy's screenshot turned out to be a Custom layout, not a preset, so the portrait
+// work in #7 never touched his case: a tile that was a comfortable half of a wide
+// window became a sliver of a tall one and stayed that way. Layouts are now stored
+// per orientation, so rotating loads the one built for that shape and rotating back
+// returns the original untouched.
+test('custom layouts are kept per orientation and landscape keeps the original key', () => {
+  const store = new Map<string, string>()
+  ;(globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  }
+
+  // Landscape must keep the key it already used, or everyone loses their layout.
+  assert.equal(storageKey('room-1'), 'den.call-layout:room-1')
+  assert.notEqual(storageKey('room-1', true), storageKey('room-1'))
+
+  const wide = { preset: 'Custom' as const, tiles: { 'a:cam': { col: 0, row: 0, w: 6, h: 7, pinned: false } } }
+  store.set(storageKey('room-1'), JSON.stringify(wide))
+
+  // The landscape arrangement survives.
+  assert.equal(readLayout('room-1', false).preset, 'Custom')
+  assert.equal(readLayout('room-1', false).tiles['a:cam'].w, 6)
+
+  // Portrait has nothing saved yet, so it starts from a preset rather than
+  // inheriting a half-width tile that would be a sliver on a tall screen.
+  assert.equal(readLayout('room-1', false, true).preset, 'Auto')
+  assert.deepEqual(readLayout('room-1', false, true).tiles, {})
+
+  // Saving in portrait must not disturb landscape.
+  const tall = { preset: 'Custom' as const, tiles: { 'a:cam': { col: 0, row: 0, w: 12, h: 5, pinned: false } } }
+  store.set(storageKey('room-1', true), JSON.stringify(tall))
+  assert.equal(readLayout('room-1', false, true).tiles['a:cam'].w, 12)
+  assert.equal(readLayout('room-1', false).tiles['a:cam'].w, 6)
 })

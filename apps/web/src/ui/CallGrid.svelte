@@ -10,10 +10,15 @@
   import CallLayoutTile from './CallLayoutTile.svelte'
   type Tile = TileSpec & { participant?: CallParticipant; share?: Share; object?: ObjectSummary }
   let mobile = $state(window.innerWidth < 900), width = $state(0), height = $state(0)
+  // A rotated monitor is not a phone: it keeps dragging and Custom layouts, but it
+  // wants the same stacked bands, because tiles across a narrow axis end up tiny.
+  const portrait = $derived(height > width && width > 0)
+  const stacked = $derived(mobile || portrait)
   let scroll: HTMLDivElement, canvas: HTMLDivElement
   let preview = $state<Record<string, Cell> | null>(null), dragging = $state('')
   let cancelDrag: (() => void) | undefined
-  $effect(() => { const id = call.channel?.id; if (id) untrack(() => callLayouts.open(id, mobile)) })
+  // Orientation is read outside untrack so a rotation reloads that shape's layout.
+  $effect(() => { const id = call.channel?.id, shape = portrait; if (id) untrack(() => callLayouts.open(id, mobile, shape)) })
   onMount(() => {
     const mq = matchMedia('(max-width: 899px)'), update = () => { mobile = mq.matches; cancelDrag?.() }
     mq.addEventListener('change', update)
@@ -29,10 +34,6 @@
     return out
   })
   const preset = $derived(mobile && callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
-  // A rotated monitor is not a phone: it keeps dragging and Custom layouts, but it
-  // wants the same stacked bands, because tiles across a narrow axis end up tiny.
-  const portrait = $derived(height > width && width > 0)
-  const stacked = $derived(mobile || portrait)
   const cells = $derived(preview || (preset === 'Custom' ? pack(tiles, callLayouts.value.tiles) : presetCells(tiles, preset, callLayouts.value.tiles, stacked)))
   const rows = $derived(Math.max(1, ...Object.values(cells).map(c => c.row + c.h)))
   const stepX = $derived((width + 8) / 12)
