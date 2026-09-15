@@ -143,6 +143,9 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
             }
             Some(&state.channel_id)
         }
+        Event::SoundsUpdated { user_id } => {
+            return user_id.as_ref().is_none_or(|id| id == &a.user.id)
+        }
         Event::VoicePreferencesUpdated { user_id, .. }
         | Event::AppearanceUpdated { user_id, .. }
         | Event::NotificationPreferencesUpdated { user_id, .. } => return user_id == &a.user.id,
