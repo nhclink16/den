@@ -68,8 +68,8 @@ jobs:
       - name: Install web and desktop dependencies
         shell: bash
         run: |
-          npm ci --prefix apps/web
-          npm ci --prefix apps/desktop
+          bash scripts/npm-ci.sh --prefix apps/web
+          bash scripts/npm-ci.sh --prefix apps/desktop
       - name: Check desktop and web
         shell: bash
         run: |

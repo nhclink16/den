@@ -1,9 +1,9 @@
 name: Web client
 on:
   push:
-    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
   pull_request:
-    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
 jobs:
   check-web:
     runs-on: ubuntu-latest
@@ -14,7 +14,7 @@ jobs:
           node-version: '22.22.0'
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - run: npm ci --prefix apps/web
+      - run: bash scripts/npm-ci.sh --prefix apps/web
       - run: npm --prefix apps/web run check
       - run: node --experimental-strip-types --test scripts/streams-source.test.ts scripts/m7c-layout.test.ts scripts/mentions.test.ts
       - run: npm --prefix apps/web run build
