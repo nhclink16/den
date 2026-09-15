@@ -12,6 +12,8 @@ mod host;
 pub use host::*;
 mod ios;
 pub use ios::*;
+mod threads;
+pub use threads::*;
 // Shared API types. The server serializes these, the CLI and the web client
 // deserialize them. Keep this crate free of framework dependencies.
 
@@ -111,6 +113,14 @@ pub struct Message {
     pub reactions: Vec<Reaction>,
     #[serde(default)]
     pub mention_ids: Vec<Id>,
+    /// Set on replies. Roots and main-conversation messages leave it absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    pub thread_id: Option<Id>,
+    /// Set on a message that roots a thread, so a client can place it without a lookup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(schema_with = nullable_object_schema::<ThreadSummary>)]
+    pub thread: Option<ThreadSummary>,
 }
 
 /// Every event pushed over the WebSocket stream. The CLI's `tail` prints these.
@@ -179,6 +189,9 @@ pub enum Event {
     Typing {
         channel_id: Id,
         user_id: Id,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schema(value_type = Option<String>)]
+        thread_id: Option<Id>,
     },
     CallState {
         channel_id: Id,
@@ -233,6 +246,16 @@ pub enum Event {
     /// Reconnect or lag requires refetching channel state, presence, and calls. No replay is promised.
     Resync {
         reason: String,
+    },
+    /// Shared thread metadata. Authorized by the parent channel, like any other
+    /// channel event. New variants go here, last, so no existing variant moves.
+    ThreadUpdated {
+        thread: ThreadSummary,
+    },
+    /// One user's own thread position. Never delivered to anybody else.
+    ThreadReadStateUpdated {
+        user_id: Id,
+        state: ThreadReadState,
     },
     /// A future notification this client does not understand. Receive-only: ignore it.
     #[serde(other, skip_serializing)]
@@ -366,6 +389,14 @@ pub struct CreateMessage {
     pub reply_to: Option<Id>,
     #[serde(default)]
     pub upload_ids: Vec<Id>,
+    /// Explicit thread destination. Absent is not by itself a main-conversation
+    /// send: reply_to or task_id may still place the message in a thread.
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub thread_id: Option<Id>,
+    /// Opaque job identity supplied by a runner, scoped to this author and channel.
+    #[serde(default)]
+    pub task_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -383,6 +414,8 @@ pub struct MessageQuery {
     #[param(value_type = Option<String>)]
     pub after: Option<Id>,
     pub limit: Option<u32>,
+    /// True returns the main conversation only. Absent or false is the legacy flat list.
+    pub roots_only: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -418,6 +451,10 @@ pub struct SetReaction {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MarkRead {
     pub message_id: Id,
+    /// Legacy false marks the flat conversation through this message. New clients
+    /// send true for the main timeline and read threads at the thread endpoint.
+    #[serde(default)]
+    pub roots_only: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct ChannelReadState {
@@ -480,6 +517,9 @@ pub enum ClientEvent {
     },
     Typing {
         channel_id: Id,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schema(value_type = Option<String>)]
+        thread_id: Option<Id>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -529,6 +569,14 @@ pub struct CreateObject {
     pub name: String,
     #[serde(default)]
     pub state: std::collections::BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub thread_id: Option<Id>,
+    #[serde(default)]
+    pub task_id: Option<String>,
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub reply_to: Option<Id>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ObjectPatch {

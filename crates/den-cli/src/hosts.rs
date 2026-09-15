@@ -110,6 +110,9 @@ pub fn terminal(c: &Client, cmd: TerminalCmd) -> anyhow::Result<()> {
                 channel_id: room.map(|r| c.resolve_channel(&r)).transpose()?,
                 cols: None,
                 rows: None,
+                thread_id: None,
+                task_id: None,
+                reply_to: None,
             },
         )?)?,
         TerminalCmd::Write { session, text } => {

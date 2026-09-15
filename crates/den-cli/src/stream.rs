@@ -60,6 +60,10 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                                 | Event::ObjectPatched { channel_id, .. }
                                 | Event::ObjectPresence { channel_id, .. }
                                 | Event::Typing { channel_id, .. } => Some(channel_id),
+                                Event::ThreadUpdated { thread } => Some(&thread.channel_id),
+                                Event::ThreadReadStateUpdated { state, .. } => {
+                                    Some(&state.channel_id)
+                                }
                                 _ => None,
                             };
                             if channel.is_none()
