@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
@@ -17,6 +18,17 @@
     ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
+  let toc: HTMLElement
+  $effect(() => {
+    void section; void narrow
+    tick().then(() => {
+      const active = toc?.querySelector<HTMLElement>('[aria-current]')
+      if (!active || !matchMedia('(max-width: 650px)').matches) return
+      const link = active.getBoundingClientRect(), strip = toc.getBoundingClientRect()
+      // Scroll this strip only; scrollIntoView can also shift the whole settings page.
+      toc.scrollTo({ left: toc.scrollLeft + link.left - strip.left - (toc.clientWidth - link.width) / 2 })
+    })
+  })
   let q = $state('')
   const visible = $derived(sections.filter(([, l]) => !q || l.toLowerCase().includes(q.toLowerCase())))
   const go = (s: string) => (e: MouseEvent) => { e.preventDefault(); router.go(`/settings/${s}`) }
@@ -115,10 +127,10 @@
   </header>
 
   <div class="body">
-    <nav class="toc">
+    <nav class="toc" bind:this={toc} aria-label="Settings sections">
       <div class="search"><Icon name="search" size={14} /><input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" /></div>
       {#each visible as [id, label] (id)}
-        <a href="/settings/{id}" class:active={section === id} onclick={go(id)}>{label}</a>
+        <a href="/settings/{id}" class:active={section === id} aria-current={section === id ? 'page' : undefined} onclick={go(id)}>{label}</a>
       {/each}
     </nav>
 
@@ -277,7 +289,7 @@
   .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .pane { overflow-y: auto; padding: 20px 28px 40px; max-width: 680px; }
   .pane.appearance-pane { max-width: none; width: 100%; }
-  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px; gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane.appearance-pane { padding: 20px 16px; } }
+  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane.appearance-pane { padding: 20px 16px; } }
   h2 { font-size: 26px; margin: 0 0 6px; }
   h3.eyebrow { margin: 22px 0 8px; }
   .muted.small, .faint.small { font-size: 13px; }

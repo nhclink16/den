@@ -25,7 +25,7 @@
     {#if !narrow}<SidebarToggle hide />{/if}
   </div>
 
-  <a href="/inbox" class="row inbox" class:active={router.route.name === 'inbox'} class:lit={inboxCount > 0} onclick={go('/inbox')}>
+  <a href="/inbox" class="row inbox" class:active={router.route.name === 'inbox'} aria-current={router.route.name === 'inbox' ? 'page' : undefined} class:lit={inboxCount > 0} onclick={go('/inbox')}>
     <Icon name="inbox" /> <span>Inbox</span>
     {#if inboxCount}<span class="count">{inboxCount}</span>{/if}
   </a>
@@ -47,7 +47,7 @@
           {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
         </button>
       {:else}
-      <a href="/c/{c.id}" class="row" class:active={active(c.id)} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
+      <a href="/c/{c.id}" class="row" class:active={active(c.id)} aria-current={active(c.id) ? 'page' : undefined} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
         {#if c.kind === 'dm'}
           {@const other = (c.member_ids || []).find((id) => id !== store.me?.id) || store.me?.id || ''}
           <Avatar userId={other} size={20} />
@@ -85,7 +85,7 @@
     {#if store.me}
       <Avatar userId={store.me.id} size={28} />
       <span class="name">{store.me.display_name || store.me.username}</span>
-      <a href="/settings" class="gear" class:active={router.route.name === 'settings'} title="Settings" onclick={go('/settings')}><Icon name="gear" /></a>
+      <a href="/settings" class="gear" class:active={router.route.name === 'settings'} aria-current={router.route.name === 'settings' ? 'page' : undefined} title="Settings" onclick={go('/settings')}><Icon name="gear" /></a>
     {/if}
   </div>
 </nav>

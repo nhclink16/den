@@ -48,7 +48,7 @@
     <h1 class="display">{store.title(channel)}</h1>
     <span class="spacer"></span>
     {#if isDm}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
-    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder={narrow ? 'Search' : `Search #${store.title(channel)}`} aria-label="Search this room" /></form>
+    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder={narrow ? 'Search' : isDm ? `Search ${store.title(channel)}` : `Search #${channel.name}`} aria-label={isDm ? 'Search this conversation' : 'Search this room'} /></form>
     {#if !narrow}
       <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}

@@ -11,9 +11,10 @@
   {#if user?.avatar_url}
     <img src={mediaUrl(user.avatar_url, instance.origin)} alt="" />
   {:else}
-    <span class="initial">{label.slice(0, 1).toUpperCase()}</span>
+    <span class="initial" aria-hidden="true">{label.slice(0, 1).toUpperCase()}</span>
   {/if}
-  {#if online}<span class="dot" aria-label="online"></span>{/if}
+  <span class="sr-only" role="img" aria-label={online ? 'Online' : 'Offline'}></span>
+  {#if online}<span class="dot" aria-hidden="true"></span>{/if}
 </span>
 
 <style>

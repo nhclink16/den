@@ -1,0 +1,18 @@
+{
+  "modal": true,
+  "activeOption": "palette-option-http%3A%2F%2Flocalhost%3A5183011CC803CDFC6362615FA21B39",
+  "paletteContainsFocus": true,
+  "restored": true,
+  "activeSettings": {
+    "visible": true,
+    "current": "page"
+  },
+  "drawerFocus": true,
+  "drawerTrapped": true,
+  "drawerClosed": true,
+  "menuRestored": true,
+  "queryWidth": 290,
+  "dmSearch": "Search Just you",
+  "audioExplanation": "Your browser blocked the call audio.\nPlay call audio",
+  "iterations": "1"
+}
