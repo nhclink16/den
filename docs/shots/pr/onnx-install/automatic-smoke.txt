@@ -1,0 +1,3 @@
+Speech entered the composer in 4183 ms after listening began.
+PASS consent, real ASR, caret/partial text, no auto-send or audio upload, Escape/mic release, desktop/mobile layout, offline cached model, punctuation, Remove, denied permission and unsupported browser.
+Cleanup verified: 0 messages, 0 objects/requests, 0 uploads; no new room artifacts.

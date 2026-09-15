@@ -1,0 +1,37 @@
+{
+  "onnxruntimeNode": "1.24.3",
+  "transformers": "4.2.0",
+  "extraDownloadsByDefault": {
+    "linux/x64": [
+      "cuda12"
+    ],
+    "win32/x64": [],
+    "darwin/arm64": []
+  },
+  "installerOptOut": "ONNXRUNTIME_NODE_INSTALL=skip",
+  "defaultInstallerWithCdnDenied": "failed at api.nuget.org",
+  "freshInstallWithCdnDenied": "passed",
+  "sharedHelperWithCdnDenied": "passed",
+  "blockedRequestsDuringSkippedInstalls": 0,
+  "cudaProviderPresent": false,
+  "otherInstallScriptsObserved": [
+    "sharp",
+    "core-js",
+    "protobufjs"
+  ],
+  "productionBuild": "passed",
+  "webCheck": "0 errors, 1 pre-existing warning",
+  "browserWasm": {
+    "backend": "wasm",
+    "firstComposerTextMs": 3508,
+    "offlineInference": "passed"
+  },
+  "browserAutomatic": {
+    "firstComposerTextMs": 4183,
+    "offlineInference": "passed"
+  },
+  "initialAutomaticModelLoad": "timed out once; subsequent full unmodified smoke passed",
+  "speechFixture": "public-domain JFK audio via Chromium fake microphone",
+  "mockedTranscription": false,
+  "newRoomArtifactsAfterCleanup": 0
+}
