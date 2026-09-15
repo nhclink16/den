@@ -44,6 +44,24 @@ Human-scale. One integration test for pack storage and precedence (user over ser
 ## Deliverable
 Branch `feat/sounds`. PR titled "Sound packs: per-server defaults, per-user overrides". Before and after of Settings, and a short screen capture with audio of Test all playing a pack. Post `[astra-sounds] PR open` to fable.
 
-## Two decisions Nicholas should confirm in the morning
-1. The event list above. Eleven feels right; more becomes a chore to design for.
-2. Whether a server admin should be able to *force* a pack, overriding user choice, for a joke or a theme night. I have assumed no: the user always wins. Say so if you want an admin override.
+## Confirmed by Nicholas, 2026-09-15
+The eleven events above are right. Two additions, both from him:
+
+**Admins set the server pack.** Already in this brief as the server default. It stands: an admin
+changes the instance's sounds, and that is what a new member hears. A user's own choice still wins
+over the server's. He asked for "the more room for customization the better", and a forced pack is
+the one place where more room for the admin means less for the user, so the user keeps the override.
+
+**Sounds are shareable in chat.** This is the part to get right, because it is how Andy will actually
+hand his work around. A pack or a single sound posted to a channel renders as a card, not a file
+attachment: the pack's name, how many events it covers, a play button that auditions it in place, and
+an **Add to my sounds** button that installs it without a download-then-upload round trip. Posting is
+just sending the `.den-sounds.zip` this brief already specifies, so the card is a renderer over an
+attachment whose type Den recognises, not a new upload path. A single sound posts the same way and
+offers **Use for...** with the event list.
+
+Rules for the card: auditioning never installs anything; installing a pack does not silence events the
+pack leaves out, it layers over the current choice; and the card says plainly who posted it. Treat an
+imported pack as untrusted input — validate every file decodes and fits the 512 KiB and 5 second caps
+before it is written, exactly as the upload endpoint does, because a zip is an easier place to hide a
+malformed file than a file picker is.
