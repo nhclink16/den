@@ -54,3 +54,8 @@ export type CameraSettings = S['CameraSettings']
 
 export type MusicQueue = S['MusicQueue']
 export type MusicTrack = S['MusicTrack']
+export type SoundEvent = S['SoundEvent']
+export type SoundRef = S['SoundRef']
+export type SoundPack = S['SoundPack']
+export type SoundPreferences = S['SoundPreferences']
+export type SoundState = S['SoundState']

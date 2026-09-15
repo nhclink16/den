@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sounds } from '../../lib/sounds'
   import { mediaUrl } from '../../lib/native'
   import { onMount } from 'svelte'
   import { api } from '../../lib/api'
@@ -114,6 +115,7 @@
         // ghostty-web 0.4.0 returns true when the custom handler consumes a key.
         return false
       })
+      editor.term.onBell(() => { if (!value.ended_at) void sounds.play('terminal_bell', store) })
       const bytes = (bytes: Uint8Array) => editor?.term.write(bytes, () => {
         if (!previewTimer) previewTimer = setTimeout(() => {previewTimer = undefined; if (editor) {terminals.previews[sessionId] = renderer.screen(editor.term); editor.redraw()}}, 100)
       })

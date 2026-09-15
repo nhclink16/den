@@ -1,3 +1,4 @@
+import { sounds } from './sounds'
 import { MicrophoneGain, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints } from './av'
 import { RemoteAudioTrack, Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
 import { store, instances, type Store } from './store.svelte'
@@ -101,6 +102,7 @@ class Call {
   snapshot(states: CallState[]) { this.states = new Map(states.map((s) => [s.channel_id, s.participant_ids])) }
   ids(id: string) { return this.states.get(id) || [] }
   report(err: unknown) {
+    if (!(err instanceof HttpError)) void sounds.play('error', this.owner || store)
     if (err instanceof HttpError && err.status === 503) this.error = "Voice isn't set up on this server yet."
     else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = `Allow microphone access in your browser’s site settings.`
     else this.error = err instanceof Error ? err.message : 'The call could not connect. Try again.'
@@ -131,19 +133,7 @@ class Call {
     this.screenOn = room.localParticipant.isScreenShareEnabled
   }
   private sound(join: boolean) {
-    if (!this.prefs.sounds || this.outputMuted) return
-    try {
-      const ctx = new AudioContext()
-      void ctx.resume()
-      for (const [i, frequency] of (join ? [440, 554] : [554, 440]).entries()) {
-        const osc = ctx.createOscillator(), gain = ctx.createGain(), at = ctx.currentTime + i * 0.08
-        osc.frequency.value = frequency; osc.type = 'sine'
-        gain.gain.setValueAtTime(0, at); gain.gain.linearRampToValueAtTime(0.045, at + 0.008)
-        gain.gain.linearRampToValueAtTime(0, at + 0.08)
-        osc.connect(gain); gain.connect(ctx.destination); osc.start(at); osc.stop(at + 0.08)
-      }
-      setTimeout(() => void ctx.close(), 250)
-    } catch { /* sounds are optional */ }
+    if (!this.outputMuted) void sounds.play(join ? 'call_join' : 'call_leave', this.owner || store)
   }
   async join(channel: Channel) {
     if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
@@ -169,6 +159,11 @@ class Call {
         RoomEvent.TrackUnsubscribed, RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.LocalTrackPublished,
         RoomEvent.LocalTrackUnpublished, RoomEvent.ActiveSpeakersChanged, RoomEvent.TrackPublished, RoomEvent.TrackUnpublished,
         RoomEvent.ParticipantNameChanged, RoomEvent.ParticipantAttributesChanged, RoomEvent.ConnectionQualityChanged]) room.on(event, this.refresh)
+      room.on(RoomEvent.ParticipantConnected, p => { if (accountId(p.identity) !== owner.me?.id && !this.outputMuted) void sounds.play('someone_joined', owner) })
+      room.on(RoomEvent.ParticipantDisconnected, p => { if (accountId(p.identity) !== owner.me?.id && !this.outputMuted) void sounds.play('someone_left', owner) })
+      const shareSound = (pub: { source: Track.Source }) => { if (pub.source === Track.Source.ScreenShare && !this.outputMuted) void sounds.play('screen_share_started', owner) }
+      room.on(RoomEvent.TrackPublished, shareSound)
+      room.on(RoomEvent.LocalTrackPublished, shareSound)
       const attachAudio = (track: RemoteTrack, participant: Participant) => {
         if (track.kind !== Track.Kind.Audio || this.outputMuted || this.audio.has(track)) return
         // Hear a phone's shared media on the desktop, but never echo our own mic.

@@ -31,6 +31,7 @@ async function call<T>(origin: string, method: string, path: string, body?: unkn
   if (!res.ok) {
     let err: ApiError = { error: 'http', message: res.statusText }
     try { err = await res.json() } catch { /* not json */ }
+    if (method !== 'GET' && method !== 'HEAD') window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin, sound: 'error' } }))
     throw new HttpError(res.status, err.error, err.message)
   }
   if (res.status === 204) return undefined as T
@@ -50,3 +51,15 @@ export const apiFor = (origin: string) => ({
 export const api = new Proxy({} as ReturnType<typeof apiFor>, {
   get: (_target, key: keyof ReturnType<typeof apiFor>) => apiFor(activeOrigin())[key],
 })
+
+/** Binary account media uses the same authenticated native bridge as JSON requests. */
+export async function fetchBytes(origin: string, path: string): Promise<ArrayBuffer> {
+  if (native) {
+    const response = await invoke<{ status: number; body: number[] }>('api_request', { origin, method: 'GET', path, body: null, headers: {} })
+    if (response.status !== 200) throw Error('Sound unavailable')
+    return new Uint8Array(response.body).buffer
+  }
+  const response = await fetch(path, { credentials: 'same-origin' })
+  if (!response.ok) throw Error('Sound unavailable')
+  return response.arrayBuffer()
+}

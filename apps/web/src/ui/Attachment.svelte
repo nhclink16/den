@@ -3,14 +3,17 @@
   import type { Upload } from '../lib/types'
   import { fileUrl } from '../lib/upload'
   import { bytes } from '../lib/time'
+  import SoundCard from './SoundCard.svelte'
   import Icon from './Icon.svelte'
 
-  let { upload, onmediaready }: { upload: Upload; onmediaready?: () => void } = $props()
+  let { upload, author = 'a member', onmediaready }: { upload: Upload; author?: string; onmediaready?: () => void } = $props()
   const url = $derived(fileUrl(upload.id))
   const kind = $derived(upload.content_type.startsWith('video/') ? 'video' : upload.content_type.startsWith('image/') ? 'image' : upload.content_type.startsWith('audio/') ? 'audio' : 'file')
 </script>
 
-{#if kind === 'video'}
+{#if upload.filename.endsWith('.den-sounds.zip') || ['audio/ogg', 'audio/mpeg', 'audio/wav'].includes(upload.content_type)}
+  <SoundCard {upload} {author} />
+{:else if kind === 'video'}
   <!-- svelte-ignore a11y_media_has_caption -->
   <video class="media" src={url} controls preload="metadata" playsinline></video>
 {:else if kind === 'image'}

@@ -1,0 +1,58 @@
+{
+  "checks": [
+    "no initial audio preload",
+    "silence survives reload",
+    "replace WAV",
+    "save named pack",
+    "admin sets server pack",
+    "eleven Test all sounds, one-second gaps",
+    "screen recording includes actual WebAudio output"
+  ],
+  "starts": [
+    {
+      "time": 1220.4000000357628,
+      "duration": 0.08
+    },
+    {
+      "time": 2848.900000035763,
+      "duration": 0.16
+    },
+    {
+      "time": 4011.100000023842,
+      "duration": 0.16
+    },
+    {
+      "time": 5390.700000047684,
+      "duration": 0.16
+    },
+    {
+      "time": 6692.200000047684,
+      "duration": 0.16
+    },
+    {
+      "time": 7872.800000011921,
+      "duration": 0.08
+    },
+    {
+      "time": 9006.100000023842,
+      "duration": 0.08
+    },
+    {
+      "time": 10272.600000023842,
+      "duration": 0.16
+    },
+    {
+      "time": 11489.300000011921,
+      "duration": 0.08
+    },
+    {
+      "time": 12585.600000023842,
+      "duration": 0.24
+    },
+    {
+      "time": 13864.600000023842,
+      "duration": 0.16
+    }
+  ],
+  "errors": []
+}

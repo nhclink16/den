@@ -1,25 +1,23 @@
 // The server decides what deserves an alert (mentions, DMs, followed rooms) and sends a
 // `notification` event. We only decide whether you're already looking at it.
 import { native } from './native'
+import { sounds } from './sounds'
+import type { Event } from './types'
+import type { Store } from './store.svelte'
 import { store } from './store.svelte'
 import { router } from './router.svelte'
 
-let handled = 0
-
+export function lookingAt(source: Store, channelId: string) {
+  return source.active && document.hasFocus() && document.visibilityState === 'visible' && router.route.name === 'channel' && router.route.id === channelId
+}
+export function receiveAlert(source: Store, alert: Extract<Event, { type: 'notification' }>) {
+  const c = source.channel(alert.message.channel_id)
+  if (!c || lookingAt(source, c.id)) return
+  void sounds.play(alert.reason === 'subscribed_channel' ? 'message' : alert.reason, source)
+  if (!native) fire(alert.message.author_id, c.kind === 'dm' ? '' : ` in #${c.name}`, alert.message.content, c.id)
+}
 export const notify = {
-  attach() {
-    if (native) return
-    $effect(() => {
-      const fresh = store.alerts.slice(handled)
-      handled = store.alerts.length
-      for (const a of fresh) {
-        const c = store.channel(a.message.channel_id)
-        if (!c) continue
-        const looking = document.visibilityState === 'visible' && router.route.name === 'channel' && router.route.id === c.id
-        if (!looking) fire(a.message.author_id, c.kind === 'dm' ? '' : ` in #${c.name}`, a.message.content, c.id)
-      }
-    })
-  },
+  attach() {},
   async ask() {
     if (native) return true
     if (!('Notification' in window)) return false
@@ -29,6 +27,6 @@ export const notify = {
 
 function fire(authorId: string, where: string, body: string, channelId: string) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
-  const n = new Notification(`${store.settings.instance_name}: ${store.name(authorId)}${where}`, { body: body.slice(0, 140) || 'sent a file', tag: channelId, silent: !store.layout.sounds })
+  const n = new Notification(`${store.settings.instance_name}: ${store.name(authorId)}${where}`, { body: body.slice(0, 140) || 'sent a file', tag: channelId, silent: true })
   n.onclick = () => { window.focus(); router.go(`/c/${channelId}`); n.close() }
 }

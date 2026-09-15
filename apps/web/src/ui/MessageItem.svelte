@@ -66,7 +66,7 @@
         {#if Card}<Card {object} />{/if}
       {/each}
       {#if m.attachments?.length}
-        <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} {onmediaready} />{/each}</div>
+        <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} author={store.name(m.author_id)} {onmediaready} />{/each}</div>
       {/if}
       {#if m.reactions?.length}
         <div class="reactions">

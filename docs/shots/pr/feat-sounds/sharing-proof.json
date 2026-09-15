@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "normal channel ZIP upload renders named poster card",
+    "audition does not change preferences",
+    "partial pack preserves silenced DM",
+    "single sound installs to selected event",
+    "focused followed room silent",
+    "away followed room sounds without notification permission",
+    "reduced motion peak one sound",
+    "390px settings container has no horizontal overflow"
+  ],
+  "errors": []
+}

@@ -26,7 +26,7 @@ export class Uploads {
       this.replace(channel, [...this.forChannel(channel), p])
       if (p.error) continue
       void upload(channel, file, progress => this.patch(channel, p.id, { progress }), p.abort.signal, this.origin)
-        .then(done => this.patch(channel, p.id, { done }))
+        .then(done => { this.patch(channel, p.id, { done }); window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin: this.origin, sound: 'upload_complete' } })) })
         .catch(e => this.patch(channel, p.id, { error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' }))
     }
   }
