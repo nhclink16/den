@@ -8,6 +8,40 @@ Nicholas's iPhone. This replaces the disposable signing probe. **M5a is not yet
 fully accepted:** closed-app APNs delivery still needs the server key, and the
 remaining device checks below are separate from simulator results.
 
+### Remote TestFlight delivery, September 14
+
+The first **internal-only TestFlight** upload, **0.3.0 (1)**, succeeded at
+20:32 EDT. It contains the `ada6aa9` AnalyzerInput/first-permission dictation
+repair and a first-party privacy manifest for Den's own UserDefaults storage
+(`CA92.1`). XcodeGen adds that manifest to the app Resources phase. No data-use
+label, core/server contract, Cloud workflow or public App Store submission was
+changed. The separate missing framework dSYMs reported during upload are
+nonfatal; Den's own dSYM is included.
+
+Verification used the actual Release archive and exported IPA, not just source
+settings: archive/export succeeded, the bundled manifest equals source,
+`codesign --verify --deep --strict` passed, bundle/version is
+`app.denchat.ios` / `0.3.0 (1)`, and re-signed entitlements have production APNs,
+beta reports and no debugger attachment. The exported options retain
+`testFlightInternalTestingOnly: true`. `ci_post_clone.sh` passed the generated
+project, shared scheme, package-pin and fixture-source checks. This resource-only
+packaging change adds no test; it does not replace the dictation regression
+results below.
+
+Evidence: `/tmp/den-ios-testflight-ada6aa9/` holds the final
+`Den-privacy.xcarchive`, `Archive-privacy.xcresult`, `export/Den.ipa`,
+`archive-privacy-verification.json`, `export-verification.json`, and
+`upload-helper.log`. Aqua runs: `aqua-7i8j0fqy` (archive), `aqua-p8c1ty2o`
+(distribution export), `aqua-nurjaaoa` (upload), all exit 0. Apple's uploader
+reported **Uploaded package is processing** and **Upload succeeded**.
+
+The browser is at Apple's sign-in gate, so processing completion and Nicholas's
+internal tester access remain unverified. No new phone install, physical spoken
+dictation acceptance or real push delivery is claimed. The canceled phone
+watcher was not restarted. This local route used no Xcode Cloud compute and
+does not require Nicholas's phone near the iMac. Setup notes are in
+[the iOS README](../apps/ios/README.md#remote-iteration-with-testflight).
+
 ### Implemented
 
 - Generated public Swift client from the exact server OpenAPI; canonical per-origin

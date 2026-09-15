@@ -45,6 +45,43 @@ The XcodeGen installer downloads the
 its pinned SHA-256, and unpacks into a temporary tools directory. It does not
 change Homebrew or require `sudo`.
 
+## Remote iteration with TestFlight
+
+**September 14, 20:32 EDT:** the first local upload of **0.3.0 (1)** succeeded
+and Apple reported the package processing. It includes the dictation repair in
+`ada6aa9` plus the app privacy manifest below. Archive, distribution export and
+the exported IPA's signatures passed. The re-signed app has production APNs,
+`get-task-allow: false`, and `beta-reports-active: true`; the export retained
+`testFlightInternalTestingOnly: true`. No Cloud run was started.
+
+App Store Connect's Chrome session is now at the Apple sign-in gate. Processing
+completion, first internal tester setup and installation are **not verified**.
+Xcode's existing account successfully signed and uploaded despite that browser
+gate. Upload emitted nonfatal missing-dSYM warnings for the prebuilt
+LiveKitWebRTC and RustLiveKitUniFFI frameworks; Den's own dSYM is present.
+Local receipts and the retained archive/IPA are under
+`/tmp/den-ios-testflight-ada6aa9/`. The phone watcher remains stopped.
+
+TestFlight delivery does not require the iPhone to be connected to the build Mac.
+A local Release archive can be uploaded from the iMac; Nicholas then installs it
+through TestFlight on his own internet connection. This path does not start an
+Xcode Cloud run. Direct Xcode installs and physical-device debugging remain a
+separate workflow.
+
+Keep this lane's exports **internal TestFlight only**. The installed Xcode's
+`-exportArchive` options are `method: app-store-connect`, automatic signing,
+team `UH434K44A3`, and `testFlightInternalTestingOnly: true`. Use `destination:
+export` for a local distribution-signing check and `destination: upload` for
+delivery. This is not an App Store submission or an external-beta invitation.
+Do not treat a successful archive/export/upload as proof that Apple finished
+processing the build or that Nicholas can install it.
+
+The app bundles `Den/PrivacyInfo.xcprivacy` with the UserDefaults reason
+`CA92.1`: Den reads and writes its own preferences, server URL and installation
+identifier. Dependency manifests do not replace the app's own declaration.
+This declaration does not answer App Store Connect's separate data-collection
+questions. [Apple required API reasons](https://developer.apple.com/documentation/bundleresources/app-privacy-configuration/nsprivacyaccessedapitypes/nsprivacyaccessedapitypereasons)
+
 ## Xcode Cloud preparation
 
 **Prepared, not Cloud-verified.** No remote workflow or Cloud run was created by
