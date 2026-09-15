@@ -204,10 +204,14 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     );
     for table in ["sessions", "tokens", "invites", "host_enrollments"] {
         assert_eq!(
-            sqlx::query_scalar::<_, i64>(&format!("SELECT count(*) FROM {table}"))
-                .fetch_one(&pool)
-                .await
-                .unwrap(),
+            // sqlx 0.9 only accepts `&'static str`; the table name is interpolated
+            // from the literal list above, so the assertion is required.
+            sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(format!(
+                "SELECT count(*) FROM {table}"
+            )))
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
             0
         );
     }

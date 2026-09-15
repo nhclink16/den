@@ -18,7 +18,7 @@ jobs:
       - run: cargo build --workspace
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python3 scripts/m1-smoke.py
-      - run: cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features sqlite,rustls
+      - run: cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features sqlite,rustls
       - name: Check SQLx metadata against migrations
         env:
           DATABASE_URL: sqlite://target/schema.db

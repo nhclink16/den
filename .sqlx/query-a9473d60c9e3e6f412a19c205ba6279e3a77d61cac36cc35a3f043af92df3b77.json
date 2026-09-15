@@ -6,42 +6,85 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "channel_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "channel_id"
+          }
+        }
       },
       {
         "name": "filename",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "filename"
+          }
+        }
       },
       {
         "name": "content_type",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "content_type"
+          }
+        }
       },
       {
         "name": "size",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "size"
+          }
+        }
       },
       {
         "name": "offset",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "offset"
+          }
+        }
       },
       {
         "name": "complete: bool",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "complete"
+          }
+        }
       },
       {
         "name": "thumbnail_url?: String",
         "ordinal": 7,
-        "type_info": "Null"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -55,7 +98,7 @@
       false,
       false,
       false,
-      null
+      true
     ]
   },
   "hash": "a9473d60c9e3e6f412a19c205ba6279e3a77d61cac36cc35a3f043af92df3b77"

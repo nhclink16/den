@@ -6,7 +6,13 @@
       {
         "name": "channel_id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "channel_subscriptions",
+            "name": "channel_id"
+          }
+        }
       }
     ],
     "parameters": {
