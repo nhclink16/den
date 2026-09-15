@@ -18,9 +18,9 @@ the same private Den server, and its renderer had no `RTCPeerConnection`.
 The comparison uses `#general`, the light Den theme, and a 1200 by 800 client
 viewport. Tests used generated Chromium microphone/camera devices. Codexbox has
 no camera device, so this is transport and playback-state evidence, not a physical
-webcam or human listening acceptance. At the recorded sample, Electron had decoded
-13 remote frames with audio energy 0.1173; the peer had decoded 15 frames with audio
-energy 0.1162. See the JSON for bytes sent/received and renderer isolation.
+webcam or human listening acceptance. The final call was repeated after rebasing on main. See the JSON for decoded
+frames, audio energy, bytes sent/received, and renderer isolation. An ordinary
+launch without generated devices returned `NotFoundError` for microphone capture.
 
 The shared server on port 7000 has no voice configuration and was left untouched.
 Two private Den processes on 17010 and 17011 use their own databases and uploads
@@ -42,6 +42,12 @@ LiveKit at 127.0.0.1:7880, with credentials loaded from
 | Native notifications | Implementation present; OS click not yet accepted | Real native toast captured; click focused Electron, selected Electron lab, and opened the correct room | Not verified while locked |
 | Tray | Real XFCE menu captured with Open Den, mute, deafen and Quit | Den icon verified in the native overflow; menu interaction not yet accepted | Not verified while locked |
 | Signed update | Valid signature accepted; changed manifest and wrong signing key rejected | Same verifier covered by tests | Same verifier; actual self-update also requires a signed Mac app |
+
+A cold AppImage restart restored both remembered origins and the signed-in UI.
+[Cold-start result](shots/pr/desktop-electron/linux-cold-restore.json). A real PNG
+upload, authenticated native image decode, and 206 byte-range response passed in
+the rebuilt AppImage after allowing `den-media:` in the connection policy.
+[Media result](shots/pr/desktop-electron/linux-upload.json).
 
 Linux native results: [JSON](shots/pr/desktop-electron/linux-native.json),
 [Inbox](shots/pr/desktop-electron/linux-inbox.png),

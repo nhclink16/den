@@ -41,7 +41,7 @@ async function start() {
     const target = fs.existsSync(file) && fs.statSync(file).isFile() ? file : path.join(webRoot, 'index.html')
     const r = await net.fetch(pathToFileURL(target).href)
     const headers = new Headers(r.headers)
-    headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob: den-media: https:; media-src 'self' blob: den-media:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'")
+    headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' den-media: https: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob: den-media: https:; media-src 'self' blob: den-media:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'")
     return new Response(r.body, { status: r.status, headers })
   })
   protocol.handle('den-media', req => media(store, req))

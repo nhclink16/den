@@ -21,7 +21,7 @@ const context = await peerBrowser.newContext({ viewport: { width: 1200, height: 
 await context.addInitScript(trackPeers)
 const peer = await context.newPage()
 const until = async (test, label) => { for(let n=0;n<150;n++) { if(await test()) return; await new Promise(r=>setTimeout(r,200)) }; throw Error(`Timed out: ${label}`) }
-const join = async p => { await p.locator('nav.side').getByRole('button', { name: 'Join hangout', exact: true }).click(); await p.getByTestId('call-dock').waitFor({ timeout: 30000 }); await until(async () => await p.getByRole('button', { name: 'Turn camera on', exact: true }).isEnabled(), 'call connected'); await p.getByRole('button', { name: 'Turn camera on', exact: true }).click() }
+const join = async p => { await p.locator('nav.side').getByRole('button', { name: 'Join hangout', exact: true }).click(); await p.getByTestId('call-dock').waitFor({ timeout: 30000 }); await until(async () => await p.getByRole('button', { name: /^Turn camera (on|off)$/ }).isEnabled(), 'call connected'); const cameraOn = p.getByRole('button', { name: 'Turn camera on', exact: true }); if (await cameraOn.count()) await cameraOn.click() }
 const stats = p => p.evaluate(async () => (await Promise.all(window.__denTestPeers.map(pc => pc.getStats()))).flatMap(r => [...r.values()].filter(s => ['inbound-rtp', 'outbound-rtp'].includes(s.type)).map(s => ({ type: s.type, kind: s.kind, bytesReceived: s.bytesReceived, bytesSent: s.bytesSent, framesDecoded: s.framesDecoded, totalAudioEnergy: s.totalAudioEnergy }))))
 try {
   await peer.goto(base)

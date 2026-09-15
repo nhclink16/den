@@ -3,100 +3,100 @@
     {
       "type": "outbound-rtp",
       "kind": "audio",
-      "bytesSent": 4409
+      "bytesSent": 4781
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 15161
+      "bytesSent": 71143
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 15389
+      "bytesSent": 27235
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 83089
+      "bytesSent": 90546
     },
     {
       "type": "outbound-rtp",
       "kind": "audio",
-      "bytesSent": 4409
+      "bytesSent": 4781
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 15161
+      "bytesSent": 71143
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 15389
+      "bytesSent": 27235
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 83089
+      "bytesSent": 90546
     },
     {
       "type": "inbound-rtp",
       "kind": "audio",
-      "bytesReceived": 2574,
-      "totalAudioEnergy": 0.11730303576630433
+      "bytesReceived": 3525,
+      "totalAudioEnergy": 0.11733114006581169
     },
     {
       "type": "inbound-rtp",
       "kind": "video",
-      "bytesReceived": 4735,
-      "framesDecoded": 13
+      "bytesReceived": 5392,
+      "framesDecoded": 14
     },
     {
       "type": "inbound-rtp",
       "kind": "audio",
-      "bytesReceived": 2574,
-      "totalAudioEnergy": 0.11730303576630433
+      "bytesReceived": 3525,
+      "totalAudioEnergy": 0.11733114006581169
     },
     {
       "type": "inbound-rtp",
       "kind": "video",
-      "bytesReceived": 4735,
-      "framesDecoded": 13
+      "bytesReceived": 5392,
+      "framesDecoded": 14
     }
   ],
   "peer": [
     {
       "type": "outbound-rtp",
       "kind": "audio",
-      "bytesSent": 2740
+      "bytesSent": 3807
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 53291
+      "bytesSent": 12009
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 11271
+      "bytesSent": 19992
     },
     {
       "type": "outbound-rtp",
       "kind": "video",
-      "bytesSent": 15726
+      "bytesSent": 49640
     },
     {
       "type": "inbound-rtp",
       "kind": "audio",
-      "bytesReceived": 2457,
-      "totalAudioEnergy": 0.11624885683770554
+      "bytesReceived": 2627,
+      "totalAudioEnergy": 0.22732005985465178
     },
     {
       "type": "inbound-rtp",
       "kind": "video",
-      "bytesReceived": 6457,
-      "framesDecoded": 15
+      "bytesReceived": 8374,
+      "framesDecoded": 18
     }
   ],
   "audioElements": [

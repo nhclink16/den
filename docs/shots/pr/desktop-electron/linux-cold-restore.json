@@ -1,0 +1,11 @@
+{
+  "origins": [
+    "http://127.0.0.1:17010",
+    "http://127.0.0.1:17011"
+  ],
+  "microphone": {
+    "error": "NotFoundError",
+    "message": "Requested device not found"
+  },
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Den/0.2.2 Chrome/152.0.7977.78 Electron/44.3.0 Safari/537.36"
+}
