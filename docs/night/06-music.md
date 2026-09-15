@@ -87,18 +87,14 @@ actually deleted.
 
 ---
 
-## Decisions for Nicholas
+## Answered by Nicholas, 2026-09-15
 
-❓ **Q2 — server-side DJ, or synced players?** Everything in Part A assumes the server plays the
-audio and publishes it into the call, like a music bot. The alternative is every client playing its
-own YouTube embed in sync, which costs the VPS nothing and shows video, but drifts, breaks on ads,
-and cannot work on the phone.
-➡️ Server-side. It is the only one that matches "a proper music bot" and the only one that works on iOS.
+**Q2, server-side DJ: yes.** The server plays the audio and joins the call as a
+participant. Build Part A on that.
 
-❓ **Q3 — does music live inside the call?** If the DJ is a call participant, you have to be in the
-voice room to hear it. The alternative is a separate player anyone can listen to without joining.
-➡️ Inside the call. That is where the five of you already are, and it keeps one audio path instead of two.
+**Q3, music lives inside the call: yes.** You have to be in the voice room to hear it.
+One audio path, not two.
 
-❓ **Q4 — will you register a Spotify developer app?** Part B's live now-playing needs one. It is
-free and takes a few minutes, but it is an account you have to create and a secret Den has to hold.
-➡️ Worth it. Without it the Jam card is just a link with nicer styling.
+**Q4, Spotify developer app: yes, but he is registering it tomorrow.** So **Part B is
+blocked** until the credentials exist. Do not start it. Part A has no such dependency
+and is the whole of this brief's work for now.
