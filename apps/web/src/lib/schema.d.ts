@@ -1181,6 +1181,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/voice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_voice"];
+        put: operations["put__users_me_voice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{id}/avatar": {
         parameters: {
             query?: never;
@@ -1368,6 +1384,34 @@ export interface components {
             url: string;
         };
         /** @enum {string} */
+        CameraResolution: "auto" | "720p" | "1080p";
+        CameraSettings: {
+            /**
+             * Format: double
+             * @default null
+             */
+            brightness: number | null;
+            /**
+             * Format: double
+             * @default null
+             */
+            contrast: number | null;
+            /**
+             * Format: int32
+             * @default 30
+             */
+            frame_rate: number;
+            /** @default true */
+            mirror: boolean;
+            /** @default auto */
+            resolution: components["schemas"]["CameraResolution"];
+            /**
+             * Format: double
+             * @default null
+             */
+            saturation: number | null;
+        };
+        /** @enum {string} */
         Capability: "terminal_view" | "terminal_control";
         Category: {
             id: components["schemas"]["String"];
@@ -1501,6 +1545,11 @@ export interface components {
             /** @enum {string} */
             type: "user_updated";
             user: components["schemas"]["User"];
+        } | {
+            preferences: components["schemas"]["VoicePreferences"];
+            /** @enum {string} */
+            type: "voice_preferences_updated";
+            user_id: string;
         } | {
             appearance: components["schemas"]["Appearance"];
             /** @enum {string} */
@@ -1801,6 +1850,19 @@ export interface components {
             /** Format: int32 */
             limit?: number | null;
         };
+        MicrophoneSettings: {
+            /** @default true */
+            auto_gain_control: boolean;
+            /** @default true */
+            echo_cancellation: boolean;
+            /**
+             * Format: double
+             * @default 1
+             */
+            gain: number;
+            /** @default true */
+            noise_suppression: boolean;
+        };
         NotificationPreferences: {
             dms: boolean;
             mentions: boolean;
@@ -2060,6 +2122,17 @@ export interface components {
             role: components["schemas"]["Role"];
             status?: null | components["schemas"]["Status"];
             username: string;
+        };
+        /** @description PUT merges device entries, preserving other devices on the account. */
+        VoicePreferences: {
+            /** @default {} */
+            cameras: {
+                [key: string]: components["schemas"]["CameraSettings"];
+            };
+            /** @default {} */
+            microphones: {
+                [key: string]: components["schemas"]["MicrophoneSettings"];
+            };
         };
         /** @description A short-lived, single-use credential for a native client's WebSocket upgrade. */
         WsTicket: {
@@ -5256,6 +5329,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelReadState"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users_me_voice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoicePreferences"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_voice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoicePreferences"];
+            };
+        };
+        responses: {
+            /** @description Merges device entries with saved preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoicePreferences"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */

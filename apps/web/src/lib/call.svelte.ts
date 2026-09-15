@@ -1,4 +1,5 @@
-import { Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality } from 'livekit-client'
+import { MicrophoneGain, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints } from './av'
+import { Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
@@ -45,6 +46,21 @@ class Call {
   private generation = 0
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
+  private avQueue = Promise.resolve()
+  gain = new MicrophoneGain((id) => (this.owner || store).voice.microphones[id] || defaultMicrophone)
+  get cameraTrack() { return this.room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track?.mediaStreamTrack }
+  get cameraSettings() { return (this.owner || store).voice.cameras[deviceId(this.cameraTrack)] || defaultCamera }
+  applyAV() {
+    const room = this.room
+    const update = this.avQueue.then(async () => {
+      if (!room || this.room !== room) return
+      await this.gain.update()
+      const track = this.cameraTrack
+      if (track?.readyState === 'live') await track.applyConstraints(cameraConstraints(this.cameraSettings, track))
+    })
+    this.avQueue = update.catch((err) => this.report(err))
+    return this.avQueue
+  }
 
   save(patch: Partial<Preferences>) {
     this.prefs = { ...this.prefs, ...patch }
@@ -106,7 +122,7 @@ class Call {
     const prefs = this.prefs
     const room = new Room({
       adaptiveStream: true, dynacast: true,
-      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, deviceId: prefs.microphone || undefined },
+      audioCaptureDefaults: { ...microphoneConstraints(owner.voice.microphones[prefs.microphone || 'default'] || defaultMicrophone), deviceId: prefs.microphone || undefined },
       videoCaptureDefaults: { deviceId: prefs.camera || undefined },
       audioOutput: { deviceId: prefs.speaker || 'default' },
     })
@@ -135,7 +151,7 @@ class Call {
       })
       room.on(RoomEvent.AudioPlaybackStatusChanged, () => { this.audioBlocked = !this.outputMuted && !room.canPlaybackAudio })
       room.on(RoomEvent.Reconnecting, () => { this.reconnecting = true; this.setHeld(false) })
-      room.on(RoomEvent.Reconnected, () => { this.reconnecting = false; this.refresh() })
+      room.on(RoomEvent.Reconnected, () => { this.reconnecting = false; void this.applyAV(); this.refresh() })
       room.on(RoomEvent.Disconnected, () => {
         if (this.room === room) { const quiet = this.outputMuted; this.clear(); if (!quiet) this.sound(false) }
       })
@@ -146,9 +162,10 @@ class Call {
       }
       this.subscriptions()
       if (!this.outputMuted) await room.startAudio()
-      await room.localParticipant.setMicrophoneEnabled(prefs.mode === 'activity' && this.prefs.micOn)
+      await this.enableMicrophone(room, prefs.mode === 'activity' && this.prefs.micOn)
       if (generation !== this.generation) { await room.disconnect(); return }
       if (prefs.cameraOn) await room.localParticipant.setCameraEnabled(true)
+      await this.applyAV()
       this.refresh(); this.sound(true)
     } catch (err) {
       await room.disconnect()
@@ -159,6 +176,7 @@ class Call {
   }
   private clear() {
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
+    void this.gain.destroy()
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false
@@ -191,11 +209,22 @@ class Call {
       this.audio.clear(); this.audioBlocked = false
     } else await this.startAudio()
   }
+  private async enableMicrophone(room: Room, enabled: boolean) {
+    if (enabled && !room.localParticipant.getTrackPublication(Track.Source.Microphone)) {
+      const [track] = await room.localParticipant.createTracks({ audio: true })
+      try {
+        await (track as LocalAudioTrack).setProcessor(this.gain)
+        if (this.room !== room) { track.stop(); return }
+        await room.localParticipant.publishTrack(track)
+      } catch (err) { track.stop(); throw err }
+    }
+    await room.localParticipant.setMicrophoneEnabled(enabled)
+  }
   private applyMic() {
     const room = this.room
     this.micQueue = this.micQueue.then(async () => {
       if (!room || this.room !== room) return
-      await room.localParticipant.setMicrophoneEnabled(this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
+      await this.enableMicrophone(room, this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
       this.refresh()
     }).catch((err) => this.report(err))
     return this.micQueue
@@ -209,7 +238,7 @@ class Call {
   async toggleCamera() {
     const room = this.room
     if (!room) return
-    try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
+    try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
   }
   async addScreen() {
     try { await this.shares.add(); this.refresh() } catch (err) {
@@ -225,7 +254,17 @@ class Call {
   }
   async device(kind: MediaDeviceKind, id: string) {
     try {
-      if (this.room) await this.room.switchActiveDevice(kind, id || 'default')
+      if (this.room && kind === 'audioinput') {
+        const preferences = (this.owner || store).voice.microphones[id || 'default'] || defaultMicrophone
+        const options = { ...microphoneConstraints(preferences), deviceId: id || 'default' }
+        const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+        // Device changes reacquire capture. Start with that device's processing
+        // constraints, since browsers can reject changing them after capture.
+        if (track) await track.restartTrack(options)
+        this.room.options.audioCaptureDefaults = { ...this.room.options.audioCaptureDefaults, ...options }
+      } else if (this.room) await this.room.switchActiveDevice(kind, id || 'default')
+      await this.applyAV()
+      this.refresh()
       this.save(kind === 'audioinput' ? { microphone: id } : kind === 'videoinput' ? { camera: id } : { speaker: id })
     } catch (err) { this.report(err) }
   }

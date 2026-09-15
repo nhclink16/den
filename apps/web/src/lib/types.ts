@@ -46,3 +46,7 @@ export type ThemeFonts = S['ThemeFonts']
 
 export type WsTicket = S['WsTicket']
 export type Instance = S['Instance']
+
+export type VoicePreferences = S['VoicePreferences']
+export type MicrophoneSettings = S['MicrophoneSettings']
+export type CameraSettings = S['CameraSettings']

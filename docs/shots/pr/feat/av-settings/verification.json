@@ -1,0 +1,33 @@
+{
+  "microphoneProcessing": {
+    "Echo cancellation": "synthetic device rejected live change; UI reported and reverted",
+    "Noise suppression": "synthetic device rejected live change; UI reported and reverted",
+    "Auto gain": "synthetic device rejected live change; UI reported and reverted"
+  },
+  "zeroGainRms": 0,
+  "doubleGainRms": 0.017663536100376267,
+  "resolutionContinuity": {
+    "sameParticipant": true,
+    "sameTrack": true,
+    "samePublication": true,
+    "settings": {
+      "width": 1920,
+      "height": 1080,
+      "frameRate": 30
+    }
+  },
+  "remoteMedia": [
+    {
+      "kind": "audio",
+      "bytesReceived": 58131,
+      "totalAudioEnergy": 0.0031141183653354046
+    },
+    {
+      "kind": "video",
+      "bytesReceived": 85466,
+      "framesDecoded": 133
+    }
+  ],
+  "browserErrors": [],
+  "passed": true
+}

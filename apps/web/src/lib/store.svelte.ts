@@ -1,7 +1,7 @@
 // All client state in one place, Svelte 5 runes. The server is the truth; this is a cache
 // that the WebSocket keeps warm and a resync throws away.
 import { themes } from './theme.svelte'
-import type { Appearance } from './types'
+import type { Appearance, VoicePreferences } from './types'
 import { objects } from './objects.svelte'
 import type { ClientEvent, TerminalFrame, Settings } from './types'
 import { call } from './call.svelte'
@@ -27,6 +27,20 @@ export class Store {
   constructor(public origin: string) { this.api = apiFor(origin); this.appearance = cachedAppearance(origin) }
   readonly api: ReturnType<typeof apiFor>
   appearance = $state<Appearance>(cachedAppearance())
+  voice = $state<VoicePreferences>({ microphones: {}, cameras: {} })
+  private voiceWrites = Promise.resolve()
+  private receiveVoice(value: VoicePreferences) {
+    this.voice = value
+    if (call.owner === this) void call.applyAV()
+  }
+  async saveVoice(patch: VoicePreferences) {
+    // Serialize writes from this browser; the server merges entries from other devices.
+    const write = this.voiceWrites.then(async () => {
+      this.receiveVoice(await this.api.put<VoicePreferences>('/users/me/voice', patch))
+    })
+    this.voiceWrites = write.catch(() => {})
+    return write
+  }
   calls = $state<CallState[]>([])
   private connecting = false
   private generation = 0
@@ -128,7 +142,7 @@ export class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence, calls, settings, appearance] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
       this.api.get<Category[]>('/categories'),
@@ -138,8 +152,10 @@ export class Store {
       this.api.get<CallState[]>('/calls'),
       this.api.get<Settings>('/settings'),
       this.api.get<Appearance>('/users/me/appearance'),
+      this.api.get<VoicePreferences>('/users/me/voice'),
     ])
     this.receiveAppearance(appearance)
+    this.receiveVoice(voice)
     this.settings = settings
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
@@ -271,6 +287,7 @@ export class Store {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
+      case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break
       case 'appearance_updated': this.receiveAppearance(ev.appearance); break
       case 'settings_updated': this.settings = ev.settings; break
       case 'object_presence': if (this.active) objects.presence = { ...objects.presence, [ev.id]: ev.user_ids }; break
