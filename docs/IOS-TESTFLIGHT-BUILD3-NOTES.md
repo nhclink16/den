@@ -51,10 +51,12 @@ distribution** for this build. Upload emitted the same nonfatal missing-dSYM
 warnings for the prebuilt LiveKitWebRTC and RustLiveKitUniFFI frameworks; Den's
 own dSYM is present.
 
-**Physical acceptance is pending.** Nicholas has been asked to install build 3
-from TestFlight, sign out and back into denchat.app, and verify that both Rooms
-and the New message people list populate. Successful upload and group assignment
-are not being counted as that result.
+**Physical TestFlight acceptance passed, reported by Nicholas.** He was asked to
+update to build 3 in TestFlight, sign out and back into denchat.app, and confirm
+that both Rooms and the New message people list populate. He replied **"looks
+good to me"** to that exact check. This is user-reported acceptance of the
+uploaded build, not an agent-observed phone session or a direct development
+install. Andy's own installation has not been observed.
 
 Local archive, IPA, commands, signing receipts, and upload logs are retained under
 `/tmp/den-ios-testflight-build3-5152c5e/`; `release.json` records each stage. This
