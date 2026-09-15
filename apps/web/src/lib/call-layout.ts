@@ -37,7 +37,10 @@ export function participantSlots(ids: string[], saved: Record<string, Cell>): Re
   }
   return result
 }
-export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, mobile = false): Record<string, Cell> {
+// `stacked` means the container is taller than it is wide: a phone, or a desktop
+// monitor rotated into portrait. Both want fewer tiles across and taller rows.
+export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, stacked = false): Record<string, Cell> {
+  const mobile = stacked
   const cells: Record<string, Cell> = {}
   let row = 0
   function band(items: TileSpec[], across: number, height?: number) {
@@ -57,7 +60,10 @@ export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<str
   } else {
     band(tiles.filter(t => t.kind === 'screen'), mobile ? 1 : 3, mobile ? 7 : undefined)
     band(tiles.filter(t => t.kind === 'canvas' || t.kind === 'terminal'), mobile ? 1 : 3, mobile ? 7 : undefined)
-    band(tiles.filter(t => t.kind === 'cam'), mobile ? 2 : 4, mobile ? 5 : 3)
+    // Two cams side by side across a narrow axis leaves each tile far taller than
+    // the 16:9 inside it. Stacked and full width they stay close to their own shape.
+    const cams = tiles.filter(t => t.kind === 'cam')
+    band(cams, mobile ? (cams.length <= 2 ? 1 : 2) : 4, mobile ? 5 : 3)
   }
   return cells
 }

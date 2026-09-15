@@ -29,11 +29,19 @@
     return out
   })
   const preset = $derived(mobile && callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
-  const cells = $derived(preview || (preset === 'Custom' ? pack(tiles, callLayouts.value.tiles) : presetCells(tiles, preset, callLayouts.value.tiles, mobile)))
+  // A rotated monitor is not a phone: it keeps dragging and Custom layouts, but it
+  // wants the same stacked bands, because tiles across a narrow axis end up tiny.
+  const portrait = $derived(height > width && width > 0)
+  const stacked = $derived(mobile || portrait)
+  const cells = $derived(preview || (preset === 'Custom' ? pack(tiles, callLayouts.value.tiles) : presetCells(tiles, preset, callLayouts.value.tiles, stacked)))
   const rows = $derived(Math.max(1, ...Object.values(cells).map(c => c.row + c.h)))
   const stepX = $derived((width + 8) / 12)
   // Keep preset rows within the viewport when practical; custom layouts can scroll.
-  const stepY = $derived(mobile ? Math.max(24, stepX) : Math.max(24, Math.min(stepX * .8, (height - 8) / rows)))
+  // The ceiling is a ratio of the column width so a tile keeps a sane shape. Portrait
+  // gets a taller ceiling: bounding rows by width alone left most of a tall screen
+  // empty, which is what a vertical monitor looked like before. Anything still left
+  // over is split above and below by the canvas margins rather than all falling below.
+  const stepY = $derived(mobile ? Math.max(24, stepX) : Math.max(24, Math.min(stepX * (portrait ? 1.3 : .8), (height - 8) / rows)))
   function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(tiles, value, callLayouts.value.tiles, mobile)) }
   function reset() { cancelDrag?.(); callLayouts.reset() }
   function pin(key: string) {
@@ -85,7 +93,7 @@
 </div>
 <div class="grid-scroll" bind:this={scroll} bind:clientHeight={height}>
   <div class="grid-canvas" class:dragging={!!dragging} bind:this={canvas} bind:clientWidth={width}
-    style={`--step-x:${stepX}px;--step-y:${stepY}px;height:${Math.max(height, rows * stepY)}px`}>
+    style={`--step-x:${stepX}px;--step-y:${stepY}px;height:${rows * stepY}px`}>
     {#each tiles as tile (tile.key)}
       <CallLayoutTile tileKey={tile.key} cell={cells[tile.key]!} participant={tile.participant} share={tile.share} object={tile.object} {mobile}
         onpin={() => pin(tile.key)} onmove={(dx, dy, resize) => move(tile.key, dx, dy, resize)} onreset={reset} ondrag={(e, resize) => drag(tile.key, e, resize)} />
@@ -102,8 +110,10 @@
   .presets button, .presets span { padding: 5px 10px; font: 11px var(--mono); color: var(--ink-3); }
   .presets button[aria-pressed="true"] { color: var(--ink); background: var(--bg-3); }
   .presets button:hover { color: var(--ink); }
-  .grid-scroll { position: absolute; inset: 48px 16px 82px; overflow: auto; scrollbar-width: thin; }
-  .grid-canvas { position: relative; width: 100%; }
+  .grid-scroll { position: absolute; inset: 48px 16px 82px; overflow: auto; scrollbar-width: thin; display: flex; }
+  /* Auto margins centre the rows when they are shorter than the viewport and
+     collapse to nothing when they overflow, which keeps the top row reachable. */
+  .grid-canvas { position: relative; width: 100%; flex: none; margin-block: auto; }
   .dragging { background-image: linear-gradient(to right, var(--grid-guide) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-guide) 1px, transparent 1px); background-size: var(--step-x) var(--step-y); }
   .dragging :global(.layout-tile) { opacity: .8; }
   .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-lg); background: var(--grid-guide); }
