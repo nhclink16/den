@@ -8,6 +8,91 @@ Nicholas's iPhone. This replaces the disposable signing probe. **M5a is not yet
 fully accepted:** closed-app APNs delivery still needs the server key, and the
 remaining device checks below are separate from simulator results.
 
+### Dictation UX revision, September 14
+
+Nicholas confirmed that build 1 no longer crashes, then supplied a recording
+showing the extra Done toolbar, pulsing mic, cramped multiline draft, and text
+being replaced after pauses. The recording's audio track is silent; the visible
+transcribed complaints and UI were the acceptance reference. His newer request
+to follow T3 Code supersedes the original streaming/pulsing UX in the brief.
+
+- Record first into an app-private mono Int16 CAF file; transcribe the completed
+  file on-device after Finish. Insert the complete result once, never send it.
+  Preserve the selected caret/draft ownership, reject late results after Cancel,
+  and delete temporary audio on finish, failure or cancellation. The local legacy
+  fallback also reads a completed file and still requires on-device recognition.
+- Replace the mic with Cancel, a real input-level waveform and elapsed time, and
+  a checkmark. Preparation/transcription stay in that same row. No pulsing mic,
+  extra listening line, or keyboard Done toolbar. Motion respects Reduce Motion.
+- Keep the existing keyboard and editor mounted; the draft is read-only during
+  recording. Expanded/multiline text occupies the full width above the controls.
+  The input still supports Return to send, Shift-Return for a newline, and outside
+  taps to dismiss the keyboard. Interactive scrolling remains enabled.
+- Recording is capped at five minutes; transcription has a 60-second deadline.
+  Real background, navigation and call preparation cancel. The permission sheet's
+  inactive state does not cancel preparation. Only microphone permission is asked.
+  Den still uses installed Apple assets only and is hidden during calls.
+
+This is a native implementation of the interaction in T3 Code commit
+[`5ea6439`](https://github.com/pingdotgg/t3code/tree/5ea6439816470288d3f2b6b43635fea41fbbb101/apps/mobile/src/features/voice-input),
+not a React Native port. It omits T3's one-off 3D row flip; there is no ornamental
+transition. Context7 and the installed iPhoneOS 26.5 SDK were used for the
+completed-file SpeechAnalyzer and AVAudioFile APIs. No dependency was added.
+
+Verification so far: all **39 native tests passed**, with the separate opt-in
+permission test skipped; the real fresh-permission path is exercised by UI tests.
+The recorded-file test checks every one of 240,000 samples, including a three-second
+silent interval, meter behavior and file removal. Its first failure exposed a
+bad test assumption: AVAudioFile returned 239,616 frames and the last 384 on the
+next read. The test now loops over valid frameLength values and still checks all
+samples byte-for-byte. It does not weaken the expected audio content.
+
+Deliberately dropping file writes failed that test's length/sample assertions.
+Deliberately allowing edits during recording failed the UI test with the changed
+draft. Both production files were restored byte-exact, with a receipt retained.
+An initial method-only Swift Testing selector executed zero tests and is excluded
+from the evidence; the suite-level negative run caught the intended failure.
+
+Actual Apple spoken-file recognition could not be validated here: the iOS 27
+simulator reports the analyzer unavailable. A separate signed local Mac probe
+reports supported but uninstalled speech assets; Apple's test-only installation
+request failed with `Foundation._GenericObjCError.nilError`. No model download
+code was added to Den. The unexecutable spoken-file test is retained only in the
+private evidence directory, not presented as passing coverage or committed as an
+untested test. Nicholas's next TestFlight check must include speaking across a
+pause and tapping Finish; simulator PCM/UI proof is not physical recognition proof.
+
+Evidence is under `/tmp/den-ios-dictation-ux/`: `unit-final.xcresult`,
+`ui-green-1/first-run.xcresult`, `ui-readonly-red/first-run.xcresult`,
+`file-write-red-suite.xcresult`, `mutations-restored.json`, and the visual captures.
+A full text-flow run caught a real dismissal gap after removing Done: an
+interactive scroll gesture did not reliably hide the custom editor keyboard.
+The outside-tap target now covers the whole timeline, including its blank area.
+The test uses that visible tap and retains its keyboard-hidden, tab-hittable and
+tab-selected assertions. The initial failed run is `ui-final/first-run.xcresult`.
+File transcription also finalizes through the explicit last sample time returned
+by `analyzeSequence(from:)`, following Apple's completed-file API contract; it
+does not wait for a future live stream to close.
+
+Final iOS 27 run: **42 passed, 0 failed, 1 skipped**, including all three real
+text UI tests and a new privacy reset. `all-final.xcresult` is authoritative.
+The skipped opt-in unit permission test is covered by the fresh system-prompt UI
+flow. Visual captures: [recording](shots/dictation-ios-recording.png) and
+[multiline draft](shots/dictation-ios-multiline.png). The project/scheme/package-pin
+and portable fixture checks passed via `ci_post_clone.sh`.
+
+The signed Release archive is **0.3.0 (2)** in `Den-final.xcarchive`;
+`Archive-final.xcresult` passed and its signature/privacy manifest were verified.
+An earlier preview archive predates the final keyboard/finalization changes and
+is not the delivery artifact. Distribution export then failed with **No Accounts**
+and **No signing certificate "iOS Distribution" found**, through the same Aqua
+helper/options that successfully uploaded build 1. App Store Connect's browser
+session is still signed in, but that does not prove Xcode's account credentials.
+Evidence: `archive-verification.json`, `export-helper.log`, Aqua runs
+`aqua-vih01q7y` (archive) and `aqua-om6xsmej` (failed export). Build 2 has not yet
+been uploaded; no new TestFlight availability or physical recognition is claimed.
+The canceled phone watcher remains off, and no Xcode Cloud run was started.
+
 ### Remote TestFlight delivery, September 14
 
 The first **internal-only TestFlight** upload, **0.3.0 (1)**, succeeded at

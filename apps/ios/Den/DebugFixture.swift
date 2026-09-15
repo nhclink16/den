@@ -34,10 +34,13 @@ enum DebugFixture {
 }
 
 /// A deterministic source, not a recognizer or permission mock. Never opens hardware.
-/// Text is emitted only after the production tap copy and converter accept a PCM frame.
+/// Writes through the production tap copy, converter and temporary recording file.
+/// Text is emitted only when the user finishes the recording.
 @MainActor private final class PCMFrameSession: DictationSessionDriver {
     private let onTranscript: @MainActor (String) -> Void
-    private var delivery: Task<Void, Never>?
+    private var recording: DictationRecording?
+    var audioLevel: Double { recording?.audioLevel ?? 0 }
+    var recordingDuration: TimeInterval { recording?.duration ?? 0 }
     init(onTranscript: @escaping @MainActor (String) -> Void) { self.onTranscript = onTranscript }
     func prepare() async throws {}
     func startCapture() throws {
@@ -46,29 +49,32 @@ enum DebugFixture {
                                                channels: 1, interleaved: false),
               let compatibleFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000,
                                                channels: 1, interleaved: false),
-              let source = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: 2048) else {
+              let source = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: 4800) else {
             throw DictationAudioError.unavailable
         }
-        source.frameLength = 2048
+        source.frameLength = 4800
         for buffer in UnsafeMutableAudioBufferListPointer(source.mutableAudioBufferList) {
             if let bytes = buffer.mData { memset(bytes, 0, Int(buffer.mDataByteSize)) }
         }
         let outputFormat = try DictationAudioConverter.analyzerFormat(preferred: sourceFormat,
                                                                      compatibleFormats: [compatibleFormat])
-        guard let frame = DictationAudioCapture.copiedInput(source),
-              let converted = try DictationAudioConverter(outputFormat: outputFormat).convert(frame.buffer) else {
-            throw DictationAudioError.conversion
-        }
-        let input = AnalyzerInput(buffer: converted)
-        guard input.buffer.frameLength > 0 else { throw DictationAudioError.conversion }
-        delivery = Task { [weak self] in
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            self?.onTranscript("local dictation sample")
-        }
+        guard let frame = DictationAudioCapture.copiedInput(source) else { throw DictationAudioError.conversion }
+        let recording = try DictationRecording(format: outputFormat)
+        self.recording = recording
+        try recording.append(frame.buffer)
     }
-    func stopCapture() { delivery?.cancel(); delivery = nil }
-    func finish() async {}
-    func cancel() -> Task<Void, Never> { stopCapture(); return Task {} }
+    func stopCapture() { recording?.close() }
+    func finish() async {
+        guard let recording, recording.duration > 0,
+              let file = try? recording.openForReading(), file.length > 0,
+              file.processingFormat.commonFormat == .pcmFormatInt16,
+              file.processingFormat.channelCount == 1 else { return }
+        onTranscript("local dictation sample")
+        recording.remove(); self.recording = nil
+    }
+    func cancel() -> Task<Void, Never> {
+        stopCapture(); recording?.remove(); recording = nil
+        return Task {}
+    }
 }
 #endif

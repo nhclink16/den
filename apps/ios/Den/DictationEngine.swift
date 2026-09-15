@@ -47,11 +47,11 @@ extension DictationController.Dependencies {
     }
 
     /// Both guards are mandatory: the request flag alone is not honored on unsupported devices.
-    static func legacyRequest(supportsOnDeviceRecognition: Bool, punctuation: Bool) throws -> SFSpeechAudioBufferRecognitionRequest {
+    static func legacyRequest(url: URL, supportsOnDeviceRecognition: Bool, punctuation: Bool) throws -> SFSpeechURLRecognitionRequest {
         guard supportsOnDeviceRecognition else { throw DictationAudioError.unavailable }
-        let request = SFSpeechAudioBufferRecognitionRequest()
+        let request = SFSpeechURLRecognitionRequest(url: url)
         request.requiresOnDeviceRecognition = true
-        request.shouldReportPartialResults = true
+        request.shouldReportPartialResults = false
         request.addsPunctuation = punctuation
         request.taskHint = .dictation
         return request
@@ -66,16 +66,15 @@ extension DictationController.Dependencies {
     private let capture = DictationAudioCapture()
     private var cancelled = false
     private var finishing = false
-    private var analyzer: SpeechAnalyzer?
+    private var fileTranscription: DictationFileTranscription?
     private var transcriber: SpeechTranscriber?
-    private var input: AsyncStream<AnalyzerInput>.Continuation?
-    private var converter: DictationAudioConverter?
-    private var resultsTask: Task<Void, Never>?
+    private var recording: DictationRecording?
     private var audioTask: Task<Void, Never>?
     private var recognizer: SFSpeechRecognizer?
-    private var legacyRequest: SFSpeechAudioBufferRecognitionRequest?
     private var legacyTask: SFSpeechRecognitionTask?
-    private var transcript = DictationTranscript()
+    private var legacyResult: CheckedContinuation<String, Error>?
+    var audioLevel: Double { recording?.audioLevel ?? 0 }
+    var recordingDuration: TimeInterval { recording?.duration ?? 0 }
 
     init(language: DictationController.Language, punctuation: Bool,
          onTranscript: @escaping @MainActor (String) -> Void, onEnd: @escaping @MainActor (Bool) -> Void) {
@@ -85,89 +84,51 @@ extension DictationController.Dependencies {
 
     func prepare() async throws {
         if language.analyzer {
-            do { try await prepareAnalyzer(); return }
-            catch {
-                guard !cancelled, !Task.isCancelled else { throw CancellationError() }
-                resultsTask?.cancel()
-                await analyzer?.cancelAndFinishNow()
-                analyzer = nil; transcriber = nil; input?.finish(); input = nil
-                resultsTask?.cancel(); resultsTask = nil
+            do {
+                let module = try await Self.installedTranscriber(locale: Locale(identifier: language.id))
+                try check()
+                let preferred = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module])
+                let compatible = await module.availableCompatibleAudioFormats
+                try check()
+                let format = try DictationAudioConverter.analyzerFormat(preferred: preferred, compatibleFormats: compatible)
+                recording = try DictationRecording(format: format)
+                transcriber = module
+                return
+            } catch {
+                try check()
                 guard language.legacy else { throw error }
             }
         }
-        try prepareLegacy()
-    }
-
-    private func prepareAnalyzer() async throws {
-        guard SpeechTranscriber.isAvailable else { throw DictationAudioError.unavailable }
-        let module = SpeechTranscriber(locale: Locale(identifier: language.id), transcriptionOptions: [],
-                                       reportingOptions: [.volatileResults], attributeOptions: [])
-        // Inspect installed assets only. Never reserve, install or download a model here.
-        guard await AssetInventory.status(forModules: [module]) == .installed else { throw DictationAudioError.unavailable }
-        try check()
-        let preferred = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module])
-        try check()
-        let compatibleFormats = await module.availableCompatibleAudioFormats
-        try check()
-        let format = try DictationAudioConverter.analyzerFormat(preferred: preferred, compatibleFormats: compatibleFormats)
-        try check()
-        let analyzer = SpeechAnalyzer(modules: [module], options: .init(priority: .userInitiated, modelRetention: .whileInUse))
-        self.analyzer = analyzer; transcriber = module
-        converter = DictationAudioConverter(outputFormat: format)
-        let pair = AsyncStream<AnalyzerInput>.makeStream(bufferingPolicy: .bufferingOldest(32))
-        input = pair.continuation
-        try await analyzer.prepareToAnalyze(in: format)
-        try check()
-        resultsTask = Task { [weak self] in
-            do {
-                for try await result in module.results {
-                    guard let self, !self.cancelled, !Task.isCancelled else { return }
-                    let full = self.transcript.analyzer(text: String(result.text.characters), start: result.range.start.seconds,
-                                                       end: CMTimeRangeGetEnd(result.range).seconds, isFinal: result.isFinal)
-                    self.onTranscript(full)
-                }
-            } catch { if let self, !self.cancelled, !Task.isCancelled { self.onEnd(true) } }
-        }
-        try await analyzer.start(inputSequence: pair.stream)
-        try check()
-    }
-
-    private func prepareLegacy() throws {
-        try check()
+        // The fallback also records first and only reads the completed file. It never
+        // requests legacy permission or starts recognition while the user is speaking.
         guard language.legacy, SFSpeechRecognizer.authorizationStatus() == .authorized,
               let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.id)),
-              recognizer.supportsOnDeviceRecognition, recognizer.isAvailable else { throw DictationAudioError.unavailable }
-        let request = try DictationPlatform.legacyRequest(supportsOnDeviceRecognition: recognizer.supportsOnDeviceRecognition, punctuation: punctuation)
-        self.recognizer = recognizer; legacyRequest = request
-        legacyTask = recognizer.recognitionTask(with: request) { @Sendable [weak self] result, error in
-            // Extract Sendable values before leaving the framework callback's queue.
-            let text = result.map { DictationTranscript.legacy($0.bestTranscription.formattedString) }
-            let final = result?.isFinal ?? false
-            let failed = error != nil
-            Task { @MainActor [weak self] in
-                guard let self, !self.cancelled else { return }
-                if let text { self.onTranscript(text) }
-                if final || failed { self.onEnd(failed && !final) }
-            }
-        }
+              recognizer.supportsOnDeviceRecognition, recognizer.isAvailable,
+              let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000,
+                                         channels: 1, interleaved: false) else { throw DictationAudioError.unavailable }
+        self.recognizer = recognizer
+        recording = try DictationRecording(format: format)
+    }
+
+    static func installedTranscriber(locale: Locale) async throws -> SpeechTranscriber {
+        guard SpeechTranscriber.isAvailable else { throw DictationAudioError.unavailable }
+        let module = SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [], attributeOptions: [])
+        // Inspect installed assets only. Never reserve, install or download a model here.
+        guard await AssetInventory.status(forModules: [module]) == .installed else { throw DictationAudioError.unavailable }
+        return module
     }
 
     func startCapture() throws {
         try check()
+        guard recording != nil else { throw DictationAudioError.unavailable }
         let stream = try capture.start { [weak self] in self?.onEnd(true) }
         audioTask = Task { [weak self] in
             do {
                 for try await frame in stream {
-                    guard let self, !self.cancelled, !Task.isCancelled else { return }
-                    if let request = self.legacyRequest { request.append(frame.buffer) }
-                    else if let converter = self.converter, let buffer = try converter.convert(frame.buffer) {
-                        guard let input = self.input else { throw DictationAudioError.unavailable }
-                        if case .dropped = input.yield(AnalyzerInput(buffer: buffer)) { throw DictationAudioError.overflow }
-                    }
+                    guard let self else { return }
+                    try self.check()
+                    try self.recording?.append(frame.buffer)
                 }
-                guard let self else { return }
-                self.input?.finish()
-                if self.finishing { self.legacyRequest?.endAudio() }
             } catch { if let self, !self.cancelled, !Task.isCancelled { self.onEnd(true) } }
         }
     }
@@ -175,34 +136,111 @@ extension DictationController.Dependencies {
     func stopCapture() { capture.stop() }
 
     func finish() async {
-        guard !cancelled else { return }
+        guard !cancelled, !finishing else { return }
         finishing = true
-        await audioTask?.value
-        input?.finish(); legacyRequest?.endAudio()
-        if let analyzer {
-            try? await analyzer.finalizeAndFinishThroughEndOfInput()
-            await resultsTask?.value
-        } else {
-            // The controller enforces the two-second deadline. A final callback ends earlier.
-            while !cancelled, legacyTask?.state != .completed, !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(30))
+        await audioTask?.value // Drain every captured frame before closing the file.
+        do {
+            try check()
+            guard let recording else { throw DictationAudioError.unavailable }
+            defer { recording.remove() }
+            let text: String
+            if let transcriber {
+                let file = try recording.openForReading()
+                let transcription = DictationFileTranscription(module: transcriber)
+                fileTranscription = transcription
+                text = try await transcription.transcribe(file)
+            } else {
+                recording.close()
+                text = try await transcribeLegacy(url: recording.url)
+            }
+            try check()
+            onTranscript(text)
+            onEnd(false)
+        } catch { if !cancelled, !Task.isCancelled { onEnd(true) } }
+    }
+
+    private func transcribeLegacy(url: URL) async throws -> String {
+        guard let recognizer else { throw DictationAudioError.unavailable }
+        let request = try DictationPlatform.legacyRequest(url: url,
+            supportsOnDeviceRecognition: recognizer.supportsOnDeviceRecognition, punctuation: punctuation)
+        return try await withCheckedThrowingContinuation { continuation in
+            legacyResult = continuation
+            legacyTask = recognizer.recognitionTask(with: request) { @Sendable [weak self] result, error in
+                let text = result.flatMap { $0.isFinal ? DictationTranscript.legacy($0.bestTranscription.formattedString) : nil }
+                let failed = error != nil
+                Task { @MainActor [weak self] in
+                    guard let self, !self.cancelled, let continuation = self.legacyResult else { return }
+                    if let text {
+                        self.legacyResult = nil; continuation.resume(returning: text)
+                    } else if failed {
+                        self.legacyResult = nil; continuation.resume(throwing: DictationAudioError.unavailable)
+                    }
+                }
             }
         }
     }
 
     func cancel() -> Task<Void, Never> {
         cancelled = true
-        capture.stop() // Always synchronous; async cleanup below never deactivates audio.
-        input?.finish(); input = nil
-        audioTask?.cancel(); resultsTask?.cancel()
-        legacyRequest?.endAudio(); legacyTask?.cancel()
-        legacyTask = nil; legacyRequest = nil; recognizer = nil
-        let analyzer = self.analyzer; self.analyzer = nil; transcriber = nil
-        return Task { await analyzer?.cancelAndFinishNow() }
+        capture.stop() // Synchronous hardware release; async cleanup never deactivates audio.
+        audioTask?.cancel()
+        legacyTask?.cancel(); legacyTask = nil; recognizer = nil
+        legacyResult?.resume(throwing: CancellationError()); legacyResult = nil
+        recording?.remove(); recording = nil
+        let cleanup = fileTranscription?.cancel() ?? Task {}
+        fileTranscription = nil; transcriber = nil
+        return cleanup
     }
 
     private func check() throws {
         guard !cancelled else { throw CancellationError() }
         try Task.checkCancellation()
+    }
+}
+
+/// Owns one completed file's analyzer and results, including cancellation during inference.
+@MainActor final class DictationFileTranscription {
+    private let module: SpeechTranscriber
+    private let analyzer: SpeechAnalyzer
+    private var results: Task<String, Error>?
+
+    init(module: SpeechTranscriber) {
+        self.module = module
+        analyzer = SpeechAnalyzer(modules: [module], options: .init(priority: .userInitiated, modelRetention: .whileInUse))
+    }
+
+    func transcribe(_ file: AVAudioFile) async throws -> String {
+        let module = self.module
+        let results = Task<String, Error> {
+            var transcript = DictationTranscript()
+            for try await result in module.results {
+                try Task.checkCancellation()
+                guard result.isFinal else { continue }
+                _ = transcript.analyzer(text: String(result.text.characters), start: result.range.start.seconds,
+                                        end: CMTimeRangeGetEnd(result.range).seconds, isFinal: true)
+            }
+            return transcript.value
+        }
+        self.results = results
+        do {
+            let lastSample = try await analyzer.analyzeSequence(from: file)
+            try Task.checkCancellation()
+            guard let lastSample else {
+                results.cancel()
+                await analyzer.cancelAndFinishNow()
+                return ""
+            }
+            try await analyzer.finalizeAndFinish(through: lastSample)
+            return try await results.value
+        } catch {
+            results.cancel()
+            await analyzer.cancelAndFinishNow()
+            throw error
+        }
+    }
+
+    func cancel() -> Task<Void, Never> {
+        results?.cancel()
+        return Task { await analyzer.cancelAndFinishNow() }
     }
 }

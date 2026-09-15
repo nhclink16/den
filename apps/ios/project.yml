@@ -11,7 +11,7 @@ settings:
     DEVELOPMENT_TEAM: UH434K44A3
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: '0.3.0'
-    CURRENT_PROJECT_VERSION: '1'
+    CURRENT_PROJECT_VERSION: '2'
 packages:
   DenAPI:
     path: Packages/DenAPI

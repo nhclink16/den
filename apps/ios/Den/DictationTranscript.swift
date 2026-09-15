@@ -23,7 +23,7 @@ struct DictationTranscript {
     }
 
     static func legacy(_ text: String) -> String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var value: String {
+    var value: String {
         // SpeechTranscriber supplies inter-segment whitespace. Don't invent Latin spaces
         // for languages whose writing system doesn't separate every word with spaces.
         (finalized.map(\.text).joined() + (volatile?.text ?? "")).trimmingCharacters(in: .whitespacesAndNewlines)

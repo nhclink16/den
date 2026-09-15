@@ -146,3 +146,72 @@ struct DictationPCMFrame: @unchecked Sendable {
         return output.frameLength > 0 ? output : nil
     }
 }
+
+/// An app-private, short-lived recording. The writer owns conversion and never drops
+/// quiet frames, so a pause cannot erase or prematurely finish an utterance.
+@MainActor final class DictationRecording {
+    let directory: URL
+    let url: URL
+    let format: AVAudioFormat
+    private let converter: DictationAudioConverter
+    private var file: AVAudioFile?
+    private(set) var audioLevel: Double = 0
+    private(set) var duration: TimeInterval = 0
+
+    init(format: AVAudioFormat) throws {
+        guard format.commonFormat == .pcmFormatInt16, format.channelCount == 1 else {
+            throw DictationAudioError.conversion
+        }
+        self.format = format
+        converter = DictationAudioConverter(outputFormat: format)
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent("den-dictation-" + UUID().uuidString, isDirectory: true)
+        url = directory.appendingPathComponent("recording.caf")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false,
+                                               attributes: [.posixPermissions: 0o700])
+        do {
+            file = try AVAudioFile(forWriting: url, settings: format.settings,
+                                   commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
+    func append(_ buffer: AVAudioPCMBuffer) throws {
+        guard let file else { throw DictationAudioError.unavailable }
+        guard let normalized = try converter.convert(buffer) else { return }
+        try file.write(from: normalized)
+        duration += Double(normalized.frameLength) / format.sampleRate
+        audioLevel = Self.level(normalized)
+    }
+
+    func close() {
+        // Finalize the file header explicitly before opening the same file to read.
+        file?.close()
+        file = nil; audioLevel = 0
+    }
+
+    func openForReading() throws -> AVAudioFile {
+        close()
+        // AVAudioFile's default processing format is Float32. Specify mono Int16
+        // here too, before SpeechAnalyzer builds its internal AnalyzerInput values.
+        return try AVAudioFile(forReading: url, commonFormat: .pcmFormatInt16, interleaved: format.isInterleaved)
+    }
+
+    func remove() {
+        close()
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    private static func level(_ buffer: AVAudioPCMBuffer) -> Double {
+        guard let samples = buffer.int16ChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        var sum = 0.0
+        for index in 0..<Int(buffer.frameLength) {
+            let value = Double(samples[index]) / 32768
+            sum += value * value
+        }
+        let rms = sqrt(sum / Double(buffer.frameLength))
+        guard rms > 0 else { return 0 }
+        return min(1, max(0, (20 * log10(rms) + 60) / 60))
+    }
+}

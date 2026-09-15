@@ -107,47 +107,56 @@ final class TextFlowTests: XCTestCase {
             return
         }
 
-        // The Debug source emits this text only after real production PCM processing.
-        // Merely entering Listening cannot pass this test, and no second mic tap is made.
+        // The Debug source only advances recordingDuration after writing actual PCM
+        // through the production mono file writer. No text is committed during capture.
+        let recording = element("dictation-recording")
+        XCTAssertTrue(recording.waitForExistence(timeout: 10))
         for _ in 0..<100 {
-            guard !speech.exists else {
-                XCTFail("A second speech permission prompt is not part of local dictation.")
+            guard !speech.exists, !microphone.exists, app.state != .notRunning else {
+                XCTFail("The original microphone tap must survive permission and first PCM processing.")
                 return
             }
-            guard !microphone.exists else {
-                XCTFail("The microphone prompt must be dismissed before querying the composer.")
-                return
-            }
-            guard app.state != .notRunning else {
-                XCTFail("Den must survive its first PCM buffer.")
-                return
-            }
-            if field.value as? String == expected { break }
+            let duration = Double((recording.value as? String ?? "").split(separator: " ").first.map(String.init) ?? "") ?? 0
+            if duration > 0 { break }
             try await Task.sleep(for: .milliseconds(100))
         }
-        let receivedDraft = field.value as? String
-        XCTAssertEqual(receivedDraft, expected, "The first processed PCM frame must reach the existing composer draft.")
-        guard receivedDraft == expected else { return }
+        let duration = Double((recording.value as? String ?? "").split(separator: " ").first.map(String.init) ?? "") ?? 0
+        XCTAssertGreaterThan(duration, 0, "Recording must process PCM after the first microphone prompt, without another tap.")
+        XCTAssertEqual(field.value as? String, draft, "Recording must leave the original draft untouched.")
         XCTAssertEqual(app.state, .runningForeground)
-        let activeLabel = dictate.label
-        let activeValue = dictate.value as? String
-        XCTAssertEqual(activeLabel, "Stop dictating", "The original start must survive permission presentation without another mic tap.")
-        XCTAssertEqual(activeValue, "Listening")
-        guard activeLabel == "Stop dictating", activeValue == "Listening" else { return }
-        XCTAssertTrue(element("dictation-listening").exists)
-        screenshot("dictation-first-run-pcm-listening")
+        XCTAssertFalse(element("composer-dismiss-keyboard").exists, "No accessory Done row may consume keyboard space.")
+        XCTAssertFalse(dictate.exists, "The mic must be replaced by recording controls, not a pulsing icon.")
+        XCTAssertTrue(element("composer-dictation-cancel").isHittable)
+        let finish = element("composer-dictation-finish")
+        XCTAssertTrue(finish.isHittable)
+        XCTAssertTrue(app.keyboards.firstMatch.exists, "Starting dictation must preserve the existing keyboard.")
+        field.typeText(" must not be inserted")
+        XCTAssertEqual(field.value as? String, draft, "The visible draft is read-only while recording.")
+        XCTAssertTrue(recording.exists)
+        screenshot("dictation-first-run-recording")
 
-        dictate.tap()
-        let stopped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Dictate"), object: dictate)
-        let stopResult = await XCTWaiter.fulfillment(of: [stopped], timeout: 5)
+        finish.tap()
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", expected), object: field)
+        let stopResult = await XCTWaiter.fulfillment(of: [completed], timeout: 10)
         XCTAssertEqual(stopResult, .completed)
         guard stopResult == .completed else { return }
-        XCTAssertFalse(element("dictation-listening").exists)
+        XCTAssertTrue(dictate.waitForExistence(timeout: 5))
+        XCTAssertFalse(recording.exists)
         field.tap()
         field.typeText(" edited")
         XCTAssertEqual(field.value as? String, expected + " edited")
+        // Cancel a second recording and reject its late final text entirely.
+        dictate.tap()
+        XCTAssertTrue(recording.waitForExistence(timeout: 5))
+        element("composer-dictation-cancel").tap()
+        XCTAssertTrue(dictate.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, expected + " edited")
         XCTAssertTrue(element("composer-send").isEnabled)
         XCTAssertFalse(speech.exists)
+        field.typeText(" The complete draft stays visible while I pause and think. The controls stay below the text instead of squeezing it between the buttons.")
+        XCTAssertGreaterThan(field.frame.height, 60, "A long draft must expand into multiple readable lines.")
+        XCTAssertGreaterThan(field.frame.width, app.frame.width * 0.85, "An expanded draft must use the composer width, not the gap between buttons.")
+        screenshot("dictation-multiline-draft")
         let after: [Message] = try await request("/channels/\(fixture.generalChannelId)/messages")
         XCTAssertEqual(Set(after.map(\.id)), Set(before.map(\.id)), "Dictation and stopping must never send a message.")
     }
@@ -416,9 +425,9 @@ final class TextFlowTests: XCTestCase {
 
     private func selectTab(_ name: String) {
         if app.keyboards.firstMatch.exists {
-            let dismiss = element("composer-dismiss-keyboard")
-            XCTAssertTrue(dismiss.waitForExistence(timeout: 5), "The composer must provide an accessible keyboard dismissal action.")
-            dismiss.tap()
+            let timeline = element("conversation-timeline")
+            XCTAssertTrue(timeline.waitForExistence(timeout: 5))
+            timeline.tap()
             let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
             XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 5), .completed)
         }

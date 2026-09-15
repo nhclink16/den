@@ -3,12 +3,19 @@ import Observation
 import UIKit
 
 @MainActor protocol DictationSessionDriver: AnyObject {
+    var audioLevel: Double { get }
+    var recordingDuration: TimeInterval { get }
     func prepare() async throws
     func startCapture() throws
     /// Stops all hardware synchronously. Async completion must never touch AVAudioSession.
     func stopCapture()
     func finish() async
     func cancel() -> Task<Void, Never>
+}
+
+extension DictationSessionDriver {
+    var audioLevel: Double { 0 }
+    var recordingDuration: TimeInterval { 0 }
 }
 
 @MainActor @Observable final class DictationController {
@@ -25,11 +32,14 @@ import UIKit
         var authorize: @MainActor (@escaping @MainActor () -> Bool) async -> Authorization
         var makeDriver: @MainActor (Language, Bool, @escaping @MainActor (String) -> Void,
                                    @escaping @MainActor (Bool) -> Void) -> any DictationSessionDriver
+        var finishTimeout: Duration = .seconds(60)
     }
 
     private(set) var languages: [Language] = []
     private(set) var state = State.idle
     private(set) var error: String?
+    private(set) var audioLevel: Double = 0
+    private(set) var recordingDuration: TimeInterval = 0
     var selectedLanguageID: String {
         didSet {
             guard selectedLanguageID != oldValue else { return }
@@ -58,6 +68,7 @@ import UIKit
     @ObservationIgnored private var cleanup: Task<Void, Never>?
     @ObservationIgnored private var finishTask: Task<Void, Never>?
     @ObservationIgnored private var finishDeadline: Task<Void, Never>?
+    @ObservationIgnored private var meterTask: Task<Void, Never>?
     @ObservationIgnored private var transcriptHandler: (@MainActor (String) -> Void)?
     @ObservationIgnored private var lastTranscript = ""
     private var selectedLanguage: Language? { languages.first { $0.id == selectedLanguageID } }
@@ -93,12 +104,13 @@ import UIKit
         await task.value
     }
 
-    /// Every update is the complete transcript for this session, not an insertion delta.
+    /// Recording never changes the draft. Deliver the complete text once after explicit stop.
     func start(onTranscript: @escaping @MainActor (String) -> Void) async {
         guard !isActive, !isCallActive() else { return }
         generation += 1
         let expected = generation
         state = .preparing; error = nil; lastTranscript = ""; transcriptHandler = onTranscript
+        audioLevel = 0; recordingDuration = 0
         await cleanup?.value
         guard owns(expected) else { return }
         let authorization = await dependencies.authorize { [weak self] in self?.owns(expected) ?? false }
@@ -124,6 +136,15 @@ import UIKit
             guard owns(expected), state == .preparing else { return }
             try session.startCapture()
             state = .listening
+            meterTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let self, self.owns(expected), self.state == .listening else { return }
+                    self.audioLevel = session.audioLevel
+                    self.recordingDuration = session.recordingDuration
+                    if self.recordingDuration >= 300 { self.stop(); return }
+                    try? await Task.sleep(for: .milliseconds(80))
+                }
+            }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } catch {
             guard owns(expected) else { return }
@@ -136,6 +157,8 @@ import UIKit
         guard state != .finishing else { return }
         guard state == .listening, let driver else { cancel(); return }
         driver.stopCapture() // Before returning, including before any future CallKit preparation.
+        meterTask?.cancel(); meterTask = nil
+        audioLevel = 0; recordingDuration = driver.recordingDuration
         state = .finishing
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let expected = generation
@@ -145,9 +168,9 @@ import UIKit
             self.complete(expected)
         }
         finishDeadline = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: self?.dependencies.finishTimeout ?? .seconds(60))
             guard !Task.isCancelled, let self, self.owns(expected) else { return }
-            self.complete(expected)
+            self.fail("Transcription took too long. Your draft is still here. Try a shorter recording.", expected: expected)
         }
     }
 
@@ -157,6 +180,8 @@ import UIKit
         let wasListening = state == .listening
         generation += 1 // Drop late permission, framework and finalization callbacks first.
         transcriptHandler = nil
+        lastTranscript = ""
+        meterTask?.cancel(); meterTask = nil
         finishTask?.cancel(); finishTask = nil
         finishDeadline?.cancel(); finishDeadline = nil
         if let driver {
@@ -165,7 +190,7 @@ import UIKit
             let currentCleanup = driver.cancel()
             cleanup = Task { await priorCleanup?.value; await currentCleanup.value }
         }
-        driver = nil; state = .idle
+        driver = nil; state = .idle; audioLevel = 0; recordingDuration = 0
         if wasListening { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     }
     func clearError() { error = nil }
@@ -177,7 +202,7 @@ import UIKit
     }
     private func receive(_ text: String, expected: Int) {
         guard owns(expected), text != lastTranscript else { return }
-        lastTranscript = text; transcriptHandler?(text)
+        lastTranscript = text
     }
     private func fail(_ message: String, expected: Int) {
         guard owns(expected) else { return }
@@ -185,6 +210,10 @@ import UIKit
     }
     private func complete(_ expected: Int) {
         guard owns(expected) else { return }
+        guard state == .finishing else { return }
+        let text = lastTranscript
+        let handler = transcriptHandler
         cancel()
+        if !text.isEmpty { handler?(text) }
     }
 }

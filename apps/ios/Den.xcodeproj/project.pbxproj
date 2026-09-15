@@ -50,6 +50,7 @@
 		A9FB855C8974C6F44F0D5B1E /* VoIPPushControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA4C8AF9B8D6A04BA0D4C34 /* VoIPPushControllerTests.swift */; };
 		B397F47A92E384B9F3BF2B8E /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09DF3594F0D16B6827AC5BF0 /* MessageRow.swift */; };
 		BABB1F1C14C3E885F6A85525 /* Uploads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22406EE69BD3E19BC185B1FF /* Uploads.swift */; };
+		BD616473EF9E6486AA7C79FF /* DictationRecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2790B14571060F68BB047888 /* DictationRecordingView.swift */; };
 		C8DF6B456D7238B918029C58 /* DenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2090BBE6491B82B6CCD3D7E /* DenApp.swift */; };
 		CDA71E0597B67485AC0FCB85 /* CallController+Signaling.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06C0C9E77D8EF4401FEAF68 /* CallController+Signaling.swift */; };
 		CF0AB831CC5721D1AD4BDA7D /* DictationAudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6F196BF86791F3731935FD /* DictationAudioCapture.swift */; };
@@ -93,6 +94,7 @@
 		22406EE69BD3E19BC185B1FF /* Uploads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Uploads.swift; sourceTree = "<group>"; };
 		241DE37D9A042F183B3CA901 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2619A1F16EF2881719476BAF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2790B14571060F68BB047888 /* DictationRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationRecordingView.swift; sourceTree = "<group>"; };
 		28C1795DAFC5F51CE224F96F /* DictationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationEngineTests.swift; sourceTree = "<group>"; };
 		2CBFD008B5A2FDF6289180A9 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		2CF80F8940F1ADBC109472E1 /* VoIPPushController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoIPPushController.swift; sourceTree = "<group>"; };
@@ -177,6 +179,7 @@
 			children = (
 				3F727F7CE78EA8446B93C7E8 /* ComposerView.swift */,
 				8DB1667BB04F23C9590FD604 /* ConversationView.swift */,
+				2790B14571060F68BB047888 /* DictationRecordingView.swift */,
 				9E8A1780AF113648910DB467 /* InboxSearchView.swift */,
 				4B1B8272F1BD313251E624DF /* MessageInput.swift */,
 				09DF3594F0D16B6827AC5BF0 /* MessageRow.swift */,
@@ -468,6 +471,7 @@
 				11B4FE5A798F5BC5B938036C /* DictationController.swift in Sources */,
 				E89FC78E3858046DDD7F5E2E /* DictationEngine.swift in Sources */,
 				07A0CDC7CCE7346CBC65E5ED /* DictationInsertion.swift in Sources */,
+				BD616473EF9E6486AA7C79FF /* DictationRecordingView.swift in Sources */,
 				388F8C0B01AFC410EC240FBE /* DictationTranscript.swift in Sources */,
 				02E5FDFB31EA22F19EE719A4 /* InboxSearchView.swift in Sources */,
 				5DA0407BDCD46AEF019E3E87 /* MessageInput.swift in Sources */,
@@ -538,7 +542,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = UH434K44A3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -623,7 +627,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = UH434K44A3;
 				ENABLE_NS_ASSERTIONS = NO;

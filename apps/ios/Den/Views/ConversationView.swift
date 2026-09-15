@@ -39,7 +39,7 @@ struct ConversationView: View {
                     .accessibilityAddTraits(.isHeader)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { store.dictation?.stop(); showPeople = true } label: { Image(systemName: "person.2") }
+                Button { store.dictation?.cancel(); showPeople = true } label: { Image(systemName: "person.2") }
                     .accessibilityLabel("People in this room")
             }
             if channel.kind == .dm {
@@ -128,8 +128,13 @@ struct ConversationView: View {
                 }
                 .padding(.vertical, 12)
                 .contentShape(Rectangle())
-                .simultaneousGesture(TapGesture().onEnded { store.dictation?.stop() })
             }
+            .accessibilityIdentifier("conversation-timeline")
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded {
+                store.dictation?.cancel()
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            })
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .onScrollGeometryChange(for: Bool.self) { geometry in
@@ -200,11 +205,7 @@ struct ConversationView: View {
     }
 
     @ViewBuilder private var typingIndicator: some View {
-        if store.dictationChannelId == channel.id, store.dictation?.state == .listening {
-            Text("listening").font(theme.monoFont(.caption)).foregroundStyle(theme.accent)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 4)
-                .accessibilityIdentifier("dictation-listening")
-        } else {
+        if store.dictationChannelId != channel.id {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let names = (store.typing[channel.id] ?? [:]).filter {
                     $0.key != store.user?.id && context.date.timeIntervalSince($0.value) < 6

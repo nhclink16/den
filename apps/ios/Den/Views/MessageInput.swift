@@ -11,6 +11,7 @@ struct MessageInput: UIViewRepresentable {
     let onSend: () -> Void
     let onManualChange: () -> Void
     let onEscape: () -> Void
+    var isReadOnly = false
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -28,12 +29,6 @@ struct MessageInput: UIViewRepresentable {
         view.accessibilityLabel = "Message"
         view.accessibilityHint = "Return sends. Shift-Return adds a new line."
         view.accessibilityIdentifier = "composer-field"
-        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 320, height: 44))
-        let done = UIBarButtonItem(title: "Done", style: .plain, target: view, action: #selector(ChatTextView.dismissKeyboard))
-        done.accessibilityLabel = "Dismiss keyboard"
-        done.accessibilityIdentifier = "composer-dismiss-keyboard"
-        toolbar.items = [.flexibleSpace(), done]
-        view.inputAccessoryView = toolbar
         return view
     }
 
@@ -48,9 +43,9 @@ struct MessageInput: UIViewRepresentable {
         view.font = DenFonts.uiFont(theme.family.fonts.body, compatibleWith: view.traitCollection)
         view.textColor = UIColor(theme.ink)
         view.tintColor = UIColor(theme.accent)
-        if let toolbar = view.inputAccessoryView as? UIToolbar {
-            toolbar.tintColor = UIColor(theme.accent)
-        }
+        // Keep first responder and the keyboard in place during a recording.
+        // Disabling UITextView editing would dismiss the keyboard.
+        view.isReadOnly = isReadOnly
         if focused && !view.isFirstResponder { view.becomeFirstResponder() }
         else if !focused && view.isFirstResponder { view.resignFirstResponder() }
     }
@@ -67,13 +62,13 @@ struct MessageInput: UIViewRepresentable {
         var applyingUpdate = false
         init(_ parent: MessageInput) { self.parent = parent }
         func textViewDidChange(_ textView: UITextView) {
-            guard !applyingUpdate else { return }
+            guard !applyingUpdate, !parent.isReadOnly else { return }
             parent.onManualChange()
             parent.text = textView.text
             parent.selection = textView.selectedRange
         }
         func textViewDidChangeSelection(_ textView: UITextView) {
-            guard !applyingUpdate, parent.selection != textView.selectedRange else { return }
+            guard !applyingUpdate, !parent.isReadOnly, parent.selection != textView.selectedRange else { return }
             parent.onManualChange()
             parent.selection = textView.selectedRange
         }
@@ -84,6 +79,7 @@ struct MessageInput: UIViewRepresentable {
             if !applyingUpdate { parent.focused = false }
         }
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            guard !parent.isReadOnly else { return false }
             if text == "\n", textView.markedTextRange == nil,
                (textView as? ChatTextView)?.insertingLineBreak != true {
                 parent.onSend()
@@ -96,12 +92,18 @@ struct MessageInput: UIViewRepresentable {
 }
 
 final class ChatTextView: UITextView {
+    var isReadOnly = false
     var insertingLineBreak = false
     var onEscape: (() -> Void)?
     var onInteraction: (() -> Void)?
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard !isReadOnly else { return }
         onInteraction?()
         super.touchesBegan(touches, with: event)
+    }
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if isReadOnly { return false }
+        return super.canPerformAction(action, withSender: sender)
     }
     override var keyCommands: [UIKeyCommand]? {
         let newline = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(insertLineBreak))
@@ -113,10 +115,10 @@ final class ChatTextView: UITextView {
         return (super.keyCommands ?? []) + [newline, escape]
     }
     @objc private func insertLineBreak() {
+        guard !isReadOnly else { return }
         insertingLineBreak = true
         defer { insertingLineBreak = false }
         insertText("\n")
     }
-    @objc func dismissKeyboard() { onEscape?(); resignFirstResponder() }
     @objc private func stopDictating() { onEscape?(); resignFirstResponder() }
 }

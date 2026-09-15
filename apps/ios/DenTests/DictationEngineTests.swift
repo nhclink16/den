@@ -131,15 +131,56 @@ import Testing
     }
 
     @Test @MainActor func legacyRejectsNetworkOnlyRecognitionAndAlwaysRequiresOnDevice() throws {
+        let url = URL(fileURLWithPath: "/tmp/den-dictation-test.caf")
         #expect(throws: DictationAudioError.self) {
-            try DictationPlatform.legacyRequest(supportsOnDeviceRecognition: false, punctuation: true)
+            try DictationPlatform.legacyRequest(url: url, supportsOnDeviceRecognition: false, punctuation: true)
         }
         for punctuation in [false, true] {
-            let request = try DictationPlatform.legacyRequest(supportsOnDeviceRecognition: true, punctuation: punctuation)
+            let request = try DictationPlatform.legacyRequest(url: url, supportsOnDeviceRecognition: true, punctuation: punctuation)
+            #expect(request.url == url, "The fallback must read the completed local recording.")
             #expect(request.requiresOnDeviceRecognition, "A fallback request must never send audio to a service.")
-            #expect(request.shouldReportPartialResults)
+            #expect(!request.shouldReportPartialResults, "Record-then-transcribe publishes only final text.")
             #expect(request.addsPunctuation == punctuation)
         }
+    }
+
+    @Test @MainActor func recordingKeepsBothSidesOfALongPauseAndRemovesItsPrivateFile() throws {
+        let format = try #require(AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000,
+                                              channels: 1, interleaved: false))
+        let recording = try DictationRecording(format: format)
+        defer { recording.remove() }
+        let directory = recording.directory
+        let samplesPerSecond = 48_000
+        for (amplitude, seconds) in [(Int16(8192), 1), (Int16(0), 3), (Int16(-16384), 1)] {
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samplesPerSecond * seconds)))
+            buffer.frameLength = buffer.frameCapacity
+            let samples = try #require(buffer.int16ChannelData?[0])
+            for index in 0..<Int(buffer.frameLength) { samples[index] = amplitude }
+            try recording.append(buffer)
+            if amplitude == 0 { #expect(recording.audioLevel == 0, "Silence must produce a quiet meter, not a fabricated animation.") }
+            else { #expect(recording.audioLevel > 0 && recording.audioLevel <= 1, "The meter must reflect the written audio.") }
+        }
+        #expect(recording.duration == 5, "The recorded timeline includes the full three-second pause.")
+        let file = try recording.openForReading()
+        #expect(file.length == 240_000, "Stopping must retain both spoken regions and the intervening silence.")
+        #expect(file.processingFormat.commonFormat == .pcmFormatInt16)
+        #expect(file.processingFormat.channelCount == 1, "File transcription must retain iOS 27's safe AnalyzerInput format.")
+        let read = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4096))
+        var samples: [Int16] = []
+        while file.framePosition < file.length {
+            try file.read(into: read)
+            try #require(read.frameLength > 0, "Reading must progress until the full file has been consumed.")
+            let channel = try #require(read.int16ChannelData?[0])
+            samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: Int(read.frameLength)))
+        }
+        try #require(samples.count == 240_000, "Check every recorded sample, including a partial final read.")
+        #expect((0..<48_000).allSatisfy { samples[$0] == 8192 })
+        #expect((48_000..<192_000).allSatisfy { samples[$0] == 0 })
+        let tailMismatches = (192_000..<240_000).filter { samples[$0] != -16384 }
+        #expect(tailMismatches.isEmpty, "Final segment mismatches: \(tailMismatches.count); first: \(tailMismatches.prefix(8).map { "\($0):\(samples[$0])" })")
+        recording.remove()
+        #expect(!FileManager.default.fileExists(atPath: directory.path), "Cancellation/completion must leave no audio or directory behind.")
+        recording.remove() // Cleanup must also tolerate a cancellation racing completion.
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DEN_TEST_DICTATION_PERMISSIONS"] == "1",
@@ -197,6 +238,7 @@ import Testing
         await fixture.controller.start { received.append($0) }
         let first = try #require(fixture.drivers.last)
         first.emit("first")
+        #expect(received.isEmpty, "Recording must leave the draft untouched.")
         fixture.controller.invalidateContext()
         #expect(!first.capturing, "Context invalidation closes capture synchronously.")
         await fixture.controller.start { received.append($0) }
@@ -205,7 +247,7 @@ import Testing
         second.emit("second")
         first.emit("late result from first")
         first.end(false)
-        #expect(received == ["first", "second"])
+        #expect(received.isEmpty, "Canceled and still-recording sessions must never publish text.")
         #expect(fixture.controller.state == .listening, "Old completion must not stop the new session.")
         #expect(second.capturing)
 
@@ -213,7 +255,7 @@ import Testing
         second.emit("late result after call became active")
         #expect(!second.capturing)
         #expect(!fixture.controller.isActive)
-        #expect(received == ["first", "second"])
+        #expect(received.isEmpty, "A call starting discards the pending recording, including buffered recognition.")
         let count = fixture.drivers.count
         await fixture.controller.start { received.append($0) }
         #expect(fixture.drivers.count == count, "Active calls reject dictation before creating capture.")
@@ -226,6 +268,7 @@ import Testing
         await fixture.controller.start { received.append($0) }
         let first = try #require(fixture.drivers.last)
         first.emit("keep my last")
+        #expect(received.isEmpty)
         fixture.controller.stop()
         #expect(!first.capturing, "stop() must remove the hardware tap before returning.")
         #expect(fixture.controller.state == .finishing)
@@ -233,9 +276,12 @@ import Testing
         #expect(fixture.controller.state == .finishing, "A repeated stop must preserve pending final words.")
         await wait { first.finishWaiter != nil }
         first.emit("keep my last word")
+        try await Task.sleep(for: .milliseconds(2200))
+        #expect(fixture.controller.state == .finishing, "File transcription must not be cut off by the old two-second streaming deadline.")
+        #expect(received.isEmpty, "Even a final callback stays buffered until the whole file finishes.")
         first.releaseFinish()
         await wait { !fixture.controller.isActive }
-        #expect(received == ["keep my last", "keep my last word"])
+        #expect(received == ["keep my last word"], "Publish the entire recording exactly once, not intermediate revisions.")
 
         await fixture.controller.start { received.append($0) }
         let second = try #require(fixture.drivers.last)
@@ -245,17 +291,19 @@ import Testing
         fixture.controller.invalidateContext() // A caret move or manual edit owns the text now.
         second.emit("late final must not overwrite the edit")
         second.releaseFinish()
-        #expect(received.last == "editable text")
+        #expect(received == ["keep my last word"], "Canceling a pending transcription must not insert any of that recording.")
         #expect(!fixture.controller.isActive)
 
         await fixture.controller.start { received.append($0) }
         let third = try #require(fixture.drivers.last)
         fixture.controller.stop()
         await wait { third.finishWaiter != nil }
-        try await Task.sleep(for: .milliseconds(2200))
+        third.emit("incomplete result")
+        try await Task.sleep(for: .milliseconds(4200))
         #expect(!fixture.controller.isActive, "A recognizer that never finishes must release the session within the deadline.")
+        #expect(fixture.controller.error?.contains("too long") == true)
         third.emit("too late after finalization deadline")
-        #expect(received.last == "editable text")
+        #expect(received == ["keep my last word"], "A timeout must discard incomplete text and all late callbacks.")
         third.releaseFinish()
     }
 
@@ -320,7 +368,7 @@ private func pcmBytes(_ buffer: AVAudioPCMBuffer) -> [Data] {
         },
         makeDriver: { [weak self] _, _, emit, end in
             let driver = Driver(emit: emit, end: end); self?.drivers.append(driver); return driver
-        }))
+        }, finishTimeout: .milliseconds(4000)))
     init() {
         defaults = UserDefaults(suiteName: name)!
         defaults.set("en-US", forKey: "dictation.language")
