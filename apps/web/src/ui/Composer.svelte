@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
+  import { planComposerSubmit } from '../lib/composer-submit'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
@@ -113,15 +114,20 @@
     const queue = store.uploads
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
-    if ((!content && !ready.length) || uploading || busy) return
+    const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
+    if (!plan || uploading || busy) return
     busy = true; error = ''
     try {
-      const command = commands.find((c) => content === `/${c.name}` || content.startsWith(`/${c.name} `))
-      if (command) {
-        await command.run({ channelId: channel.id, args: content.slice(command.name.length + 1).trim(), post: (content) => store.send(channel.id, content) })
-      } else await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: ready })
-      text = ''; replyTo = null
-      queue.sent(channelId, ready)
+      if (plan.kind === 'command') {
+        const command = commands.find((c) => c.name === plan.name)!
+        await command.run({ channelId: channel.id, args: plan.args, post: (content) => store.send(channel.id, content) })
+        text = ''; replyTo = null
+        // Commands never receive upload IDs, so completed attachments stay queued.
+      } else {
+        await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: plan.uploadIds })
+        text = ''; replyTo = null
+        queue.sent(channelId, plan.uploadIds)
+      }
       requestAnimationFrame(grow)
     } catch (err) { error = (err as Error).message } finally {
       busy = false
