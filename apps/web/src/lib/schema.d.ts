@@ -1501,6 +1501,7 @@ export interface components {
         };
         Bootstrap: {
             bootstrap_token: string;
+            display_name?: string | null;
             password: string;
             username: string;
         };
@@ -2138,6 +2139,11 @@ export interface components {
             ticket: string;
         };
         Register: {
+            /**
+             * @description What people see. Falls back to the username when absent, so older
+             *     clients that predate the field still register.
+             */
+            display_name?: string | null;
             invite: string;
             password: string;
             username: string;
@@ -6093,7 +6099,10 @@ export interface operations {
     };
     get__ws: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Opt in to music queue events; omitted for older clients */
+                music?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

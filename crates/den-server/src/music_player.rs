@@ -330,8 +330,11 @@ pub(super) async fn run(weak: Weak<Inner>, room: String, mut changed: watch::Rec
                 event=changed.changed()=>{
                     if event.is_err(){return;}
                     let s=match weak.upgrade(){Some(s)=>AppState(s),None=>return};
-                    let _guard=s.writes.lock().await;
-                    if load(&s,&room).await.map_or(true,|q|q.epoch!=epoch){break None;}
+                    // The pinned playback future may hold writes while saving its
+                    // state. Never wait for that lock while playback is not polled.
+                    let current = sqlx::query_scalar::<_, i64>("SELECT epoch FROM music_rooms WHERE room_id=?")
+                        .bind(&room).fetch_optional(&s.db).await;
+                    if !matches!(current, Ok(Some(value)) if value == epoch) {break None;}
                 }
             }
         };
