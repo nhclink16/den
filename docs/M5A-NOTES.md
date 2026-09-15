@@ -24,8 +24,11 @@ confirmed **0.3.0 (2)**. The production-origin chat cache was freshly written at
 launch. No chat contents or credentials were copied out. The original Offline
 banner and its disappearance have not been visually verified: iPhone Mirroring
 requested the Mac login. Nicholas was asked to confirm the banner and dictate
-two sentences separated by a pause, then tap the checkmark. Spoken recognition
-and acceptance of the revised controls still require that result.
+two sentences separated by a pause, then tap the checkmark. He completed the
+check and reported: "dictation animation is PERFECT" and "it works great."
+This accepts the revised dictation interaction and spoken recognition on his
+physical iOS 27 phone. It is user-reported device acceptance, separate from the
+automated install, cache, simulator UI, and recorded-audio evidence.
 
 Evidence: `/tmp/den-phone-app-status.json`,
 `/tmp/den-phone-app-after-install.json`, `/tmp/den-phone-cache-files.json`,
