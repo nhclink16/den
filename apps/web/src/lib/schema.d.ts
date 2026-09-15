@@ -6653,6 +6653,8 @@ export interface operations {
             query?: {
                 /** @description Opt in to music queue events; omitted for older clients */
                 music?: boolean;
+                /** @description Opt in to sound preference events; omitted for older clients */
+                sounds?: boolean;
             };
             header?: never;
             path?: never;
