@@ -1085,6 +1085,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_avatar"];
+        post?: never;
+        delete: operations["delete__users_me_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/background/image": {
         parameters: {
             query?: never;
@@ -1096,6 +1112,22 @@ export interface paths {
         put: operations["put__users_me_background_image"];
         post?: never;
         delete: operations["delete__users_me_background_image"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/banner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_banner"];
+        post?: never;
+        delete: operations["delete__users_me_banner"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1117,6 +1149,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["patch__users_me_profile"];
+        trace?: never;
+    };
     "/users/me/read-state": {
         parameters: {
             query?: never;
@@ -1125,6 +1173,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get__users_me_read_state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users__id__avatar"];
+        put: operations["put__users__id__avatar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/banner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users__id__banner"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1418,6 +1498,10 @@ export interface components {
         };
         /** @description Every event pushed over the WebSocket stream. The CLI's `tail` prints these. */
         Event: {
+            /** @enum {string} */
+            type: "user_updated";
+            user: components["schemas"]["User"];
+        } | {
             appearance: components["schemas"]["Appearance"];
             /** @enum {string} */
             type: "appearance_updated";
@@ -1770,6 +1854,12 @@ export interface components {
             objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
         };
+        ProfilePatch: {
+            accent?: string | null;
+            bio?: string | null;
+            display_name?: string | null;
+            status?: null | components["schemas"]["Status"];
+        };
         Reaction: {
             emoji: string;
             user_ids: components["schemas"]["String"][];
@@ -1839,6 +1929,16 @@ export interface components {
         };
         ShareTerminal: {
             channel_id: components["schemas"]["String"];
+        };
+        Status: {
+            /** @description Exactly one extended grapheme cluster when set. */
+            emoji?: string | null;
+            /**
+             * Format: int64
+             * @description Unix timestamp in seconds; expired statuses are served as absent.
+             */
+            expires_at?: number | null;
+            text?: string | null;
         };
         String: string;
         TerminalFrame: {
@@ -1949,12 +2049,16 @@ export interface components {
             thumbnail_url?: string | null;
         };
         User: {
+            accent?: string | null;
             avatar_url?: string | null;
+            banner_url?: string | null;
+            bio?: string | null;
             /** @description True when this identity was created for an agent rather than a person. */
             bot: boolean;
             display_name: string;
             id: components["schemas"]["String"];
             role: components["schemas"]["Role"];
+            status?: null | components["schemas"]["Status"];
             username: string;
         };
         /** @description A short-lived, single-use credential for a native client's WebSocket upgrade. */
@@ -4746,6 +4850,85 @@ export interface operations {
             };
         };
     };
+    put__users_me_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/gif": number[];
+                "image/jpeg": number[];
+                "image/png": number[];
+                "image/webp": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users_me_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_background_image: {
         parameters: {
             query?: never;
@@ -4879,6 +5062,85 @@ export interface operations {
             };
         };
     };
+    put__users_me_banner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/gif": number[];
+                "image/jpeg": number[];
+                "image/png": number[];
+                "image/webp": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users_me_banner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_notification_preferences: {
         parameters: {
             query?: never;
@@ -4939,6 +5201,46 @@ export interface operations {
             };
         };
     };
+    patch__users_me_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilePatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_read_state: {
         parameters: {
             query?: never;
@@ -4954,6 +5256,145 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelReadState"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users__id__avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG derivative or original GIF; strong ETag and private, max-age=86400 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": number[];
+                    "image/gif": number[];
+                };
+            };
+            /** @description Matching ETag */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users__id__avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/gif": number[];
+                "image/jpeg": number[];
+                "image/png": number[];
+                "image/webp": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users__id__banner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG derivative or original GIF; strong ETag and private, max-age=86400 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": number[];
+                    "image/gif": number[];
+                };
+            };
+            /** @description Matching ETag */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
