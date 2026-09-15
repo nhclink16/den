@@ -89,3 +89,9 @@ menu, that clipped Leave and squeezed out the room name in the sidebar. The dock
 now wraps when needed, retaining the room label and every button. The streams
 smoke checks all dock control bounds with multiple shares active. The combined
 UI preview passes the full streams smoke, including mobile.
+
+Rebased cleanly onto `53db9af` after PR #1 merged. The actual rebased worktree
+passes web build, zero-error/zero-warning type checks, all five unit tests, and
+the full streams browser smoke. `07-dock-integration-before.png` and
+`07-dock-integration-after.png` show the spacing overlap and the wrapped dock at
+the same 1440x900 viewport with the integrated light theme.
