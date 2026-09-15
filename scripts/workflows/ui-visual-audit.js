@@ -8,7 +8,12 @@ export const meta = {
   ],
 }
 
-// args: { baseUrl, user, password, outDir }
+// Models are pinned rather than tiered. ~/.pi/workflows/model-tiers.json maps medium to
+// glm-5.3 and big to openai-codex/gpt-6-astra; the latter draws on the Codex weekly budget
+// this workflow exists to avoid spending. Pass args.model to override.
+const MODEL = args?.model || 'opencode-go/muse-spark-1.3-contributor'
+
+// args: { baseUrl, user, password, outDir, model }
 const cfg = {
   baseUrl: args?.baseUrl || 'http://localhost:5173',
   user: args?.user || 'nicholas',
@@ -107,7 +112,7 @@ Why this combination: ${s.note}
 ${RUBRIC}
 
 If the capture fails, set captureOk false and explain rather than inventing findings.`,
-      { label: `see:${s.path}@${s.w}`, phase: 'Capture', schema: FINDING_SCHEMA, tier: 'medium' },
+      { label: `see:${s.path}@${s.w}`, phase: 'Capture', schema: FINDING_SCHEMA, model: MODEL, thinking: 'high' },
     )
   }),
 )
@@ -145,5 +150,5 @@ be, and severity.
 End with a short coverage note saying what was not looked at, including any failed captures and
 anything these viewports could not reach, such as an active call, a screen share, or the terminal.
 Do not pad the report. If the app is largely fine, say that plainly.`,
-  { label: 'report', phase: 'Synthesize', tier: 'big' },
+  { label: 'report', phase: 'Synthesize', model: MODEL, thinking: 'xhigh' },
 )

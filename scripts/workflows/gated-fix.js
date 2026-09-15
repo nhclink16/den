@@ -10,6 +10,8 @@ export const meta = {
 
 // args: { issues: [{ number, title, hint? }], openPrs?: boolean }
 // Nothing here picks its own work. A human chose these.
+// Pinned for the same reason as the audit workflow: tier 'big' routes to gpt-6-astra here.
+const MODEL = args?.model || 'opencode-go/muse-spark-1.3-contributor'
 const issues = args?.issues || []
 const openPrs = args?.openPrs !== false
 if (!issues.length) {
@@ -65,7 +67,8 @@ and describe where you got stuck — that is more useful than a change that does
           {
             label: `fix:#${issue.number}${attempt > 1 ? `:retry${attempt}` : ''}`,
             phase: 'Fix',
-            tier: 'big',
+            model: MODEL,
+            thinking: 'xhigh',
             isolation: 'worktree',
             keepWorktree: true,
           },
@@ -108,7 +111,7 @@ Read the actual diff in its worktree with git, do not rely on that summary. Judg
 
 Answer VERDICT: SHIP or VERDICT: REWORK on its own line, then your reasoning in a few sentences.
 Shipping something subtly wrong is far worse than asking for rework.`,
-      { label: `review:#${a.issue.number}`, phase: 'Review', tier: 'big' },
+      { label: `review:#${a.issue.number}`, phase: 'Review', model: MODEL, thinking: 'xhigh' },
     ).then((verdict) => ({ ...a, verdict })),
   ),
 )
@@ -126,7 +129,7 @@ Push the branch and open the PR with gh. The body must state what the issue was,
 the exact check output proving the suite passes, and anything left unverified.
 
 Do NOT merge it. Do NOT enable auto-merge. A human reviews before anything lands on main.`,
-        { label: `pr:#${r.issue.number}`, phase: 'Review', tier: 'medium' },
+        { label: `pr:#${r.issue.number}`, phase: 'Review', model: MODEL, thinking: 'high' },
       ),
     ),
   )
