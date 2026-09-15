@@ -101,6 +101,17 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     );
     let (mut socket, _) = connect_async(request).await.unwrap();
     tokio::time::sleep(Duration::from_millis(40)).await;
+    t.req(
+        Method::PUT,
+        &format!("/users/me/hosts/{host_id}/recording"),
+        &t.admin.token,
+    )
+    .json(&json!({"enabled":true}))
+    .send()
+    .await
+    .unwrap()
+    .error_for_status()
+    .unwrap();
     let terminal = t
         .post(
             &format!("/hosts/{host_id}/sessions"),

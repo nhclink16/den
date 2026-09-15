@@ -20,6 +20,7 @@ mod profile_images;
 mod profiles;
 mod push;
 mod terminal;
+mod terminal_recording;
 mod thumbnails;
 mod tickets;
 mod uploads;
@@ -229,6 +230,11 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/grants", get(access::grants))
         .route("/grants/{id}", delete(access::revoke))
         .route("/access/log", get(access::log))
+        .route(
+            "/users/me/hosts/{id}/recording",
+            get(terminal_recording::get).put(terminal_recording::put),
+        )
+        .route("/sessions/{id}/recording", post(terminal_recording::set))
         .route("/sessions/{id}/controller", post(terminal::controller))
         .route(
             "/sessions/{id}/request-control",

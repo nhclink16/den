@@ -489,3 +489,5 @@ mod profile_images;
 mod profiles;
 #[path = "api/voice_preferences.rs"]
 mod voice_preferences;
+#[path = "api/terminal_recording.rs"]
+mod terminal_recording;

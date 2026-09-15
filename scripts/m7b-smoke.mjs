@@ -64,6 +64,8 @@ try {
   await a.getByRole('textbox', { name: 'Message Just you', exact: true }).fill(`/terminal ${hostName}`)
   await a.getByRole('textbox', { name: 'Message Just you', exact: true }).press('Enter')
   await editor(a).waitFor(); await ready(a)
+  await a.getByRole('checkbox', { name: 'Record session', exact: true }).click()
+  await until(async () => { const messages = await api('GET', `/channels/${self.id}/messages`, undefined, admin.token); const id = messages.flatMap(m => m.objects || []).filter(o => o.kind === 'terminal').at(-1)?.id; return id && (await api('GET', `/objects/${id}`, undefined, admin.token)).state.terminal.recording_enabled }, 'recording enabled')
   const messages = await api('GET', `/channels/${self.id}/messages`, undefined, admin.token)
   id = messages.flatMap(m => m.objects || []).filter(o => o.kind === 'terminal').at(-1).id
   await until(async () => (await screen(a)).includes('codexbox'), 'shell prompt')
@@ -132,7 +134,7 @@ try {
   const file=await fetch(`${base}/uploads/${state.recording_upload_id}/file`,{headers:{authorization:`Bearer ${admin.token}`}});assert(file.ok)
   const records=(await file.text()).trim().split('\n').map(JSON.parse)
   const bobTime=records.find(([ms,b64])=>Buffer.from(b64,'base64').toString().includes('BOB_OK'))?.[0];assert(bobTime!==undefined)
-  await a.getByLabel('Replay position').fill(String(bobTime));await until(async()=> (await screen(a)).includes('BOB_OK'),'recording replays BOB_OK')
+  await a.getByLabel('Replay position').fill(String(bobTime - records[0][0]));await until(async()=> (await screen(a)).includes('BOB_OK'),'recording replays BOB_OK')
   await pairShots(a,'replay')
   assert.equal(errors.length,0,errors.join('\n'))
   console.log(`PASS ${base}: session ${id}, shared card ${sharedId}; screenshots saved`)
