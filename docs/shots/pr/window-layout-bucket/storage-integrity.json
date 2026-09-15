@@ -1,0 +1,17 @@
+{
+  "landscape": {
+    "key": "den.call-layout:014976B5C19921152EE7083399",
+    "utf8Bytes": 356,
+    "before": "a471a8cd241189edbd765863dce433e4ea11a6fd4e93cf52409df89c96d524be",
+    "afterFirstRotation": "a471a8cd241189edbd765863dce433e4ea11a6fd4e93cf52409df89c96d524be",
+    "afterEditingPortrait": "a471a8cd241189edbd765863dce433e4ea11a6fd4e93cf52409df89c96d524be",
+    "byteIdentical": true
+  },
+  "portrait": {
+    "key": "den.call-layout:014976B5C19921152EE7083399:portrait",
+    "before": "730a91872c2830b5c056ccdee157fb67ba06040e8291402b6b5d58f43b126b99",
+    "after": "730a91872c2830b5c056ccdee157fb67ba06040e8291402b6b5d58f43b126b99",
+    "byteIdentical": true
+  },
+  "resetInPortraitRemovedBoth": true
+}

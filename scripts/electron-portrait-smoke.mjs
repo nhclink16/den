@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 
 const base = process.env.DEN_SMOKE_URL || 'http://127.0.0.1:17010'
 const credentials = JSON.parse(await readFile(process.env.DEN_SMOKE_CREDENTIALS || '/mnt/storage/den-electron-acceptance/credentials.json', 'utf8'))
-const output = process.env.DEN_SMOKE_SHOTS || 'docs/shots/pr/portrait-layout-memory'
+const output = process.env.DEN_SMOKE_SHOTS || 'docs/shots/pr/window-layout-bucket'
 const display = process.env.DISPLAY || ':101'
 const x = (...args) => execFileSync('xdotool', args.map(String), { env: { ...process.env, DISPLAY: display } }).toString().trim()
 const windowId = process.env.DEN_ELECTRON_WINDOW || x('search', '--onlyvisible', '--class', '^den$').split('\n')[0]
@@ -36,7 +36,7 @@ async function capture(name) {
   const result = await page.evaluate(() => {
     const rect = e => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }
     return {
-      viewport: [innerWidth, innerHeight], preset: document.querySelector('.presets').innerText,
+      viewport: [innerWidth, innerHeight], windowPortrait: matchMedia('(orientation: portrait)').matches, preset: document.querySelector('.presets').innerText,
       activePreset: document.querySelector('.presets button[aria-pressed="true"]')?.textContent.trim() || 'Custom',
       savedLayouts: Object.fromEntries(Object.keys(localStorage).filter(k => k.startsWith('den.call-layout:')).map(k => [k, localStorage.getItem(k)])),
       scroll: rect(document.querySelector('.grid-scroll')), canvas: rect(document.querySelector('.grid-canvas')),
@@ -63,6 +63,9 @@ try {
   await page.evaluate(origin => { localStorage.setItem('den.native.origin', origin); localStorage.setItem('den.voice', JSON.stringify({ mode: 'activity', cameraOn: true, micOn: true, sounds: false })) }, base)
   await page.reload(); await page.locator('nav.side').waitFor()
   await page.locator('nav.side a').filter({ hasText: 'general' }).click()
+  await resize(1900, 1100)
+  if (!await page.locator('aside.members').count()) await page.getByTitle('Toggle people (Ctrl+Shift+M)').click()
+  await page.locator('aside.members').waitFor()
   await page.evaluate(peers)
   browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: false, env: { ...process.env, DISPLAY: display }, args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--enable-usermedia-screen-capturing', '--auto-select-desktop-capture-source=Entire screen'] })
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, permissions: ['camera', 'microphone'] })
@@ -125,26 +128,31 @@ try {
   assert.deepEqual(portraitCustom.savedLayouts, separateTall.savedLayouts)
   assert.equal(custom.savedLayouts[landscapeKey], separateWide.savedLayouts[landscapeKey], 'Landscape layout did not return byte-identical')
   if (recording) { const done = new Promise(resolve => recording.once('exit', resolve)); recording.stdin.write('q'); await done; recording = null }
-  // Diagnostic: a sidebar can cross the call-area orientation boundary while the
-  // native window stays landscape. Capture that interaction without treating it
-  // as a failure of the two independently stored arrangements.
+  // Regression: a sidebar changes the container shape, never the saved bucket.
   await resize(1400, 1100); const withPeople = await capture('sidebar-visible')
   await page.getByTitle('Toggle people (Ctrl+Shift+M)').click(); await sleep(700)
   const withoutPeople = await capture('sidebar-hidden')
+  assert.deepEqual(withPeople.viewport, [1400, 1100]); assert.deepEqual(withoutPeople.viewport, [1400, 1100])
+  assert.equal(withPeople.scroll.width, 900); assert.equal(withoutPeople.scroll.width, 1120)
+  assert.equal(withPeople.windowPortrait, false); assert.equal(withoutPeople.windowPortrait, false)
+  const cells = result => result.tiles.map(t => ({ key: t.key, cell: t.cell }))
+  assert.deepEqual(cells(withPeople), cells(custom), 'Opening people swapped the saved landscape Custom arrangement')
+  assert.deepEqual(cells(withPeople), cells(withoutPeople), 'Sidebar toggle swapped the saved Custom arrangement')
+  assert(withoutPeople.tiles[0].rect.width > withPeople.tiles[0].rect.width, 'More available width made the share smaller')
   assert.deepEqual(withPeople.savedLayouts, withoutPeople.savedLayouts, 'Sidebar toggle modified saved layout bytes')
   await page.getByTitle('Toggle people (Ctrl+Shift+M)').click(); await sleep(700)
   await resize(1100, 1900)
   // Reset clears both orientations, including the one that is not visible.
   await screen.focus(); await page.keyboard.press('r'); await sleep(500)
   const reset = await capture('reset-both'); assert(!reset.savedLayouts[landscapeKey] && !reset.savedLayouts[`${landscapeKey}:portrait`])
+  assert.equal(reset.activePreset, 'Auto')
   await resize(1900, 1100)
-  await page.getByRole('button', { name: 'Auto', exact: true }).click(); await sleep(500)
-  const restored = await capture('auto-restored'); assert.deepEqual(shape(wide), shape(restored))
+  const restored = await capture('auto-restored'); assert.equal(restored.activePreset, 'Auto'); assert.deepEqual(shape(wide), shape(restored))
   const connections = await page.evaluate(() => window.__portraitPeers.map(p => ({ connection: p.connectionState, ice: p.iceConnectionState })))
   assert(connections.length >= 2 && connections.every(p => p.connection === 'connected'))
   assert.deepEqual(errors, [])
   await writeFile(`${output}/verification.json`, JSON.stringify({ nativeWindowResized: true, generatedCameraAndDisplayInput: true, connections, errors, results }, null, 2) + '\n')
-  console.log('PASS: live share + two cams; landscape/portrait/landscape; landscape Custom restored; portrait starts Auto and remembers its own Custom; reset clears both; decoded video continues')
+  console.log('PASS: live share + two cams; landscape/portrait/landscape; landscape Custom restored; portrait starts Auto and remembers its own Custom; reset clears both; sidebar toggle keeps the bucket and widens the share; decoded video continues')
 } finally {
   if (recording) recording.stdin.write('q')
   for (const p of [page, peer].filter(Boolean)) if (!p.isClosed()) {

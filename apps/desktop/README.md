@@ -110,7 +110,9 @@ sidebars for the comparison.
 - [ ] Reset while in portrait. Confirm that both orientation keys are removed and
   landscape also returns to its default preset.
 - [ ] Near a square call area, toggle the people panel without resizing the window.
-  Record whether it changes which orientation's arrangement is shown.
+  At 1400 × 1100, verify call width changes from 900 to 1120 pixels while Custom
+  cells and saved bytes stay identical. The share must widen, and only a real
+  window orientation change may switch the saved arrangement.
 - [ ] During attended hardware QA, move the window between real landscape and
   portrait monitors and repeat at each monitor's display scaling. A virtual X11
   resize proves native window response, but does not cover mixed-DPI monitor changes.
@@ -118,7 +120,7 @@ sidebars for the comparison.
 The Linux automation is `scripts/electron-portrait-smoke.mjs`. It runs a second
 Chromium participant, publishes a screen-share track, and checks native X11 resizing,
 video frame progress, tile bounds, separate Custom layouts, byte-identical storage,
-and resetting both orientations. Its
+resetting both orientations, and preserving the saved bucket across panel toggles. Its
 camera and display inputs are generated; Den and LiveKit carry the real tracks.
 It requires `xdotool`, Chromium, Playwright, an X11 window manager, and a display
 large enough for both window sizes. Optional recording also requires ffmpeg and
