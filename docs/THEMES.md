@@ -12,11 +12,12 @@ are generated from them. `crates/den-core/src/themes.json` is the single source
 for built-in families. A family contains both appearances:
 
 ```json
-{"mode":"system","theme":"den","custom_themes":[]}
+{"mode":"system","light_theme":"paper","dark_theme":"den","custom_themes":[],"background":null,"contrast":100}
 ```
 
-Mode is `light`, `dark`, or `system`; System follows the device. The selected
-family stays the same as Mode changes. A theme has this shape:
+Mode is `light`, `dark`, or `system`; System follows the device. Resolve
+`light_theme` for Light and `dark_theme` for Dark. Each ID must name a built-in
+or one of this account's custom families. The choices are independent. A theme has this shape:
 
 ```json
 {
@@ -66,9 +67,16 @@ hyphens or underscores, with at least one nonspace character. Colors require
 and missing selected families are rejected. The custom-theme array is limited
 to 12 families and 16 KiB of compact UTF-8 JSON. Import files also have a 16 KiB
 limit. An imported ID collision receives a new UUID. Deleting the selected custom
-family selects Den.
+family selects Den for each choice that referenced it.
 
 ## Migration and generated halves
+
+Migration `0013_split_theme_choice.sql` copies the previous `theme` value into
+both `light_theme` and `dark_theme`, falling back to `den` when absent. It removes
+`theme`, sets `background` to null and `contrast` to 100, and preserves custom
+families. New clients must send both choices. Old caches can copy `theme` into
+both choices before their first save.
+
 
 Migration `0008_theme_pairs.sql` replaces the previous light/dark selections with
 `theme`, preferring `dark_theme`, then `light_theme`, then `den`. The old built-in
@@ -99,14 +107,14 @@ export some custom families before saving if the account reaches that limit.
 
 ## Runtime and editor
 
-The root applies the selected family's active half through one `applyTheme`
+The root applies the resolved choice's corresponding half through one `applyTheme`
 function, also embedded synchronously before application modules. Browser cache
 uses `den.appearance`; native cache uses `den.appearance:<origin>`. The server is
 authoritative after login. Native pending saves retain their original server.
 
 The grid has eight split previews. Light occupies the top-left and Dark the
 bottom-right, separated by a thin line. Explicit Light or Dark mode dims the other
-half to 70%; System leaves both undimmed. Only the selected family is checked.
+half to 70%; System leaves both undimmed. Light and Dark choices are selected independently.
 Names use each family's display font. Custom cards keep their custom label
 and keyboard/touch-accessible delete control.
 
@@ -176,9 +184,61 @@ and density are unchanged from M9.
 at 4.5:1 for both halves of every built-in family. User-authored colors retain
 M9's validation policy and are not silently modified to meet a contrast target.
 
+## Backgrounds and contrast
+
+`background` is nullable. A built-in selection is stored as:
+
+```json
+{"source":{"type":"builtin","name":"aurora"},"blur":8,"dim":20,"saturate":100,"scope":"app","fit":"cover"}
+```
+
+The six names are `aurora`, `dunes`, `harbor`, `ember-sky`, `slate-mist`, and
+`grain`. Clients render these as CSS gradients using the active theme colors;
+the server stores names and has no preset image assets. An account image uses
+`{"type":"upload","id":"<opaque content ID>"}` instead. Scope is `app`,
+`sidebar`, or `chat`; fit is `cover`, `contain`, or `tile`.
+
+The server clamps integer inputs to blur 0–40 pixels, dim 0–80 percent and
+saturate 50–150 percent. Appearance's `contrast` defaults to 100 and clamps to
+80–120. Clients multiply text and border contrast by `contrast / 100`; the server
+stores the number without changing palette colors. Save responses and private
+`appearance_updated` events contain the clamped values.
+
+- `PUT /users/me/background/image` accepts a raw PNG, JPEG, WebP or GIF body,
+  with its matching `image/*` content type and an 8 MiB limit. It must decode
+  with the thumbnail limits: 8192 pixels on either axis, 16 million pixels total,
+  and a 64 MiB decoder allocation cap. Returns `{id,content_type,size,width,height}`;
+  dimensions account for image orientation. Invalid images return 400, oversized
+  bodies 413, and unsupported content types 415. Failed validation preserves the
+  previous file.
+- The ID is an opaque SHA-256 content ID, not an entity ULID or a download path.
+  Replacement changes it when bytes change. If an upload is already selected,
+  replacement updates its reference and emits the owner's appearance event.
+- `GET /users/me/background/image` serves only the authenticated account's image.
+  Another account without its own image receives 404. Responses carry an ETag,
+  `Cache-Control: private, max-age=3600`, and `Vary: Authorization, Cookie`;
+  matching `If-None-Match` receives 304. Clients should include the returned ID
+  in a query parameter when displaying a replacement to avoid an old cached body.
+- `DELETE /users/me/background/image` returns 204, including when already absent.
+  It clears a selected upload background and sends the private appearance event.
+- Both appearance endpoints return `background: null` with
+  `X-Den-Background-Status: missing` if the requested upload ID does not match the
+  owner's existing file. A missing file never blocks loading the other settings.
+  Native and web clients can use the header to explain the missing image.
+
+Cookie-authenticated image writes require the same CSRF and Origin checks as
+other writes. Images live at `DEN_UPLOADS/backgrounds/<user id>`, one file per
+account with atomic replacement, separate from channel uploads. Offline export
+and import include those files and check archive hashes and paths. Temporary
+replacement files are not archived.
+
 ## Native clients
 
-Consume the same family JSON, Mode resolution, token derivations, radii and
-density scale. Font families may map to locally installed or bundled equivalents.
-Do not add a second palette format. Clients built against the retired M9 schema
+Consume the same family JSON. After resolving Mode, select `light_theme.light`
+or `dark_theme.dark`. Fonts, radius and density come from that selected family.
+Apply the same token derivations and contrast multiplier. Map background scope
+to the corresponding native container, fit to fill/fit/repeat, blur to pixels,
+and dim/saturation to their percentage effects. Use authenticated image requests
+and invalidate cached images when the opaque content ID changes. Font families may map to locally installed or bundled equivalents.
+Do not add a second palette format. Clients built against the retired M9/M9b schema
 need an updated appearance implementation before using this server contract.

@@ -1085,6 +1085,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/background/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_background_image"];
+        put: operations["put__users_me_background_image"];
+        post?: never;
+        delete: operations["delete__users_me_background_image"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/notification-preferences": {
         parameters: {
             query?: never;
@@ -1173,12 +1189,56 @@ export interface components {
             message: string;
         };
         Appearance: {
+            background?: null | components["schemas"]["Background"];
+            /**
+             * Format: int32
+             * @default 100
+             */
+            contrast: number;
             custom_themes: components["schemas"]["Theme"][];
+            dark_theme: string;
+            light_theme: string;
             mode: components["schemas"]["AppearanceMode"];
-            theme: string;
         };
         /** @enum {string} */
         AppearanceMode: "light" | "dark" | "system";
+        Background: {
+            /** Format: int32 */
+            blur: number;
+            /** Format: int32 */
+            dim: number;
+            fit: components["schemas"]["BackgroundFit"];
+            /** Format: int32 */
+            saturate: number;
+            scope: components["schemas"]["BackgroundScope"];
+            source: components["schemas"]["BackgroundSource"];
+        };
+        /** @enum {string} */
+        BackgroundBuiltin: "aurora" | "dunes" | "harbor" | "ember-sky" | "slate-mist" | "grain";
+        /** @enum {string} */
+        BackgroundFit: "cover" | "contain" | "tile";
+        BackgroundImage: {
+            content_type: string;
+            /** Format: int32 */
+            height: number;
+            /** @description Opaque SHA-256 content ID. Changes when the image bytes change. */
+            id: string;
+            /** Format: int64 */
+            size: number;
+            /** Format: int32 */
+            width: number;
+        };
+        /** @enum {string} */
+        BackgroundScope: "app" | "sidebar" | "chat";
+        BackgroundSource: {
+            name: components["schemas"]["BackgroundBuiltin"];
+            /** @enum {string} */
+            type: "builtin";
+        } | {
+            id: string;
+            /** @enum {string} */
+            type: "upload";
+        };
         BeginUpload: {
             channel_id: components["schemas"]["String"];
             content_type: string;
@@ -4633,6 +4693,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Missing upload resolves to background:null and X-Den-Background-Status: missing */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4665,6 +4726,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Returns clamped values; missing upload resolves to background:null and X-Den-Background-Status: missing */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4672,6 +4734,139 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Appearance"];
                 };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users_me_background_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner's image; ETag and Cache-Control: private, max-age=3600 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": number[];
+                    "image/jpeg": number[];
+                    "image/webp": number[];
+                    "image/gif": number[];
+                };
+            };
+            /** @description Matching ETag */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_background_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/gif": number[];
+                "image/jpeg": number[];
+                "image/png": number[];
+                "image/webp": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackgroundImage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users_me_background_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Den API",
-    "description": "M3 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. All IDs are ULIDs.",
+    "description": "M3 REST API. Cookie-authenticated writes require Origin and X-CSRF-Token. CLI and agents use bearer authentication. Entity IDs are ULIDs; background image IDs are opaque SHA-256 content IDs.",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -3509,7 +3509,7 @@
         "operationId": "get__users_me_appearance",
         "responses": {
           "200": {
-            "description": "",
+            "description": "Missing upload resolves to background:null and X-Den-Background-Status: missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -3547,7 +3547,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "Returns clamped values; missing upload resolves to background:null and X-Den-Background-Status: missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -3555,6 +3555,208 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/background/image": {
+      "get": {
+        "tags": [
+          "backgrounds"
+        ],
+        "operationId": "get__users_me_background_image",
+        "responses": {
+          "200": {
+            "description": "Owner's image; ETag and Cache-Control: private, max-age=3600",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/gif": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Matching ETag"
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "backgrounds"
+        ],
+        "operationId": "put__users_me_background_image",
+        "requestBody": {
+          "content": {
+            "image/gif": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundImage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "backgrounds"
+        ],
+        "operationId": "delete__users_me_background_image",
+        "responses": {
+          "204": {
+            "description": "Image removed"
           },
           "default": {
             "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
@@ -3843,21 +4045,42 @@
         "type": "object",
         "required": [
           "mode",
-          "theme",
+          "light_theme",
+          "dark_theme",
           "custom_themes"
         ],
         "properties": {
+          "background": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Background"
+              }
+            ]
+          },
+          "contrast": {
+            "type": "integer",
+            "format": "int32",
+            "default": 100,
+            "maximum": 120,
+            "minimum": 80
+          },
           "custom_themes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Theme"
             }
           },
+          "dark_theme": {
+            "type": "string"
+          },
+          "light_theme": {
+            "type": "string"
+          },
           "mode": {
             "$ref": "#/components/schemas/AppearanceMode"
-          },
-          "theme": {
-            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3868,6 +4091,148 @@
           "light",
           "dark",
           "system"
+        ]
+      },
+      "Background": {
+        "type": "object",
+        "required": [
+          "source",
+          "blur",
+          "dim",
+          "saturate",
+          "scope",
+          "fit"
+        ],
+        "properties": {
+          "blur": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 40,
+            "minimum": 0
+          },
+          "dim": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 80,
+            "minimum": 0
+          },
+          "fit": {
+            "$ref": "#/components/schemas/BackgroundFit"
+          },
+          "saturate": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 150,
+            "minimum": 50
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BackgroundScope"
+          },
+          "source": {
+            "$ref": "#/components/schemas/BackgroundSource"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BackgroundBuiltin": {
+        "type": "string",
+        "enum": [
+          "aurora",
+          "dunes",
+          "harbor",
+          "ember-sky",
+          "slate-mist",
+          "grain"
+        ]
+      },
+      "BackgroundFit": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain",
+          "tile"
+        ]
+      },
+      "BackgroundImage": {
+        "type": "object",
+        "required": [
+          "id",
+          "content_type",
+          "size",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "content_type": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "Opaque SHA-256 content ID. Changes when the image bytes change."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "BackgroundScope": {
+        "type": "string",
+        "enum": [
+          "app",
+          "sidebar",
+          "chat"
+        ]
+      },
+      "BackgroundSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/components/schemas/BackgroundBuiltin"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "builtin"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "upload"
+                ]
+              }
+            }
+          }
         ]
       },
       "BeginUpload": {
