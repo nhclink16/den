@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
+  import { runComposerSubmit } from '../lib/composer'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
@@ -116,12 +117,13 @@
     if ((!content && !ready.length) || uploading || busy) return
     busy = true; error = ''
     try {
-      const command = commands.find((c) => content === `/${c.name}` || content.startsWith(`/${c.name} `))
-      if (command) {
-        await command.run({ channelId: channel.id, args: content.slice(command.name.length + 1).trim(), post: (content) => store.send(channel.id, content) })
-      } else await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: ready })
+      await runComposerSubmit({
+        channelId, content, ready, replyTo: replyTo?.id, commands,
+        send: (id, value, opts) => store.send(id, value, opts),
+        post: (id, value) => store.send(id, value),
+        sent: (id, ids) => queue.sent(id, ids),
+      })
       text = ''; replyTo = null
-      queue.sent(channelId, ready)
       requestAnimationFrame(grow)
     } catch (err) { error = (err as Error).message } finally {
       busy = false
