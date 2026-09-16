@@ -1229,7 +1229,7 @@ async fn typing_is_scoped_to_its_conversation_and_never_confirms_a_private_threa
 }
 
 #[tokio::test]
-async fn unsupported_thread_context_is_refused_without_side_effects() {
+async fn a_main_conversation_marker_cannot_be_a_thread_reply() {
     let t = Test::new().await;
     let channel = t.general().await;
     let path = format!("/channels/{channel}/messages");
@@ -1244,91 +1244,41 @@ async fn unsupported_thread_context_is_refused_without_side_effects() {
         )
         .await;
     let thread = reply["thread_id"].as_str().unwrap().to_string();
-    let reply_id = id(&reply);
-    let counts = |db: sqlx::SqlitePool| async move {
-        let one = |sql: &'static str, db: sqlx::SqlitePool| async move {
-            sqlx::query_scalar::<_, i64>(sql)
-                .fetch_one(&db)
-                .await
-                .unwrap()
-        };
-        (
-            one("SELECT count(*) FROM objects", db.clone()).await,
-            one("SELECT count(*) FROM terminal_sessions", db.clone()).await,
-            one("SELECT count(*) FROM channels WHERE kind='dm'", db.clone()).await,
-            one("SELECT count(*) FROM read_state", db).await,
-        )
-    };
-    let before = counts(t.state.db.clone()).await;
-    // Placing cards in a conversation is the next PR. Until then these fields are
-    // refused rather than accepted and dropped, which would put a job's card
-    // somewhere its runner never asked for.
-    let context = [
-        json!({"thread_id": thread}),
-        json!({"task_id": "run-1"}),
-        json!({"reply_to": root}),
-    ];
-    for extra in &context {
-        for (route, base) in [
-            (
-                format!("/channels/{channel}/objects"),
-                json!({"kind":"canvas","name":"board","state":{}}),
-            ),
-            // The host does not exist, so an unguarded handler would answer 404 at
-            // its lookup. A 400 therefore proves the guard runs first, ahead of
-            // everything else in the handler. This fixture supplies channel_id and
-            // so does not reach the no-channel default self-DM branch; ordinary
-            // terminal opening is covered by the existing terminal fixtures.
-            (
-                format!("/hosts/{}/sessions", ulid::Ulid::new()),
-                json!({"channel_id": channel}),
-            ),
-            (
-                format!("/sessions/{}/share", ulid::Ulid::new()),
-                json!({"channel_id": channel}),
-            ),
-        ] {
-            let mut body = base.as_object().unwrap().clone();
-            body.extend(extra.as_object().unwrap().clone());
-            assert_eq!(
-                status(&t, Method::POST, &route, &t.admin.token, body.into()).await,
-                400,
-                "{route} accepted {extra}"
-            );
-        }
-    }
-    // roots_only on the channel read is no longer a staged limit — the read model
-    // implements it, and its behaviour lives in the unread scenarios. What is still
-    // refused is a main-conversation marker that is actually a thread reply.
+    // Card context used to be refused here while placement was unimplemented. It is
+    // implemented now and has its own acceptance; what is still refused is a
+    // main-conversation read whose marker is not a main-conversation message.
     assert_eq!(
         status(
             &t,
             Method::PUT,
             &format!("/channels/{channel}/read"),
             &t.admin.token,
-            json!({"message_id": reply_id, "roots_only": true})
+            json!({"message_id": id(&reply), "roots_only": true})
         )
         .await,
         400
     );
-    assert_eq!(counts(t.state.db.clone()).await, before);
-    // The same calls without context are unchanged.
-    t.post(
-        &format!("/channels/{channel}/objects"),
-        &t.admin.token,
-        json!({"kind":"canvas","name":"board","state":{}}),
-    )
-    .await;
+    // And roots_only is still the wrong endpoint for a thread's own messages.
     assert_eq!(
         status(
             &t,
-            Method::PUT,
-            &format!("/channels/{channel}/read"),
+            Method::GET,
+            &format!("/threads/{thread}/messages?roots_only=true"),
             &t.admin.token,
-            json!({"message_id": root})
+            json!({})
         )
         .await,
-        200
+        400
+    );
+    // Refusing a marker must acknowledge nothing: no read position was written.
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM read_state WHERE user_id=?")
+            .bind(&t.admin.user.id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        0,
+        "a rejected read marker still moved a position"
     );
 }
 

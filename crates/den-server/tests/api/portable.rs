@@ -110,6 +110,31 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     .execute(&t.state.db)
     .await
     .unwrap();
+    // A real canvas card placed in a job's conversation through the API, so the
+    // archive carries a card whose message actually belongs to a thread.
+    let card = t
+        .post(
+            &format!("/channels/{channel}/objects"),
+            &t.admin.token,
+            json!({"kind":"canvas","name":"Archived board","state":{},"task_id":"run-43"}),
+        )
+        .await;
+    let card_object = card["id"].as_str().unwrap().to_string();
+    let card_message = card["message_id"].as_str().unwrap().to_string();
+    let card_thread =
+        sqlx::query_scalar::<_, String>("SELECT id FROM threads WHERE root_message_id=?")
+            .bind(&card_message)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    let card_reply = t
+        .post(
+            &format!("/channels/{channel}/messages"),
+            &t.admin.token,
+            json!({"content":"progress","task_id":"run-43"}),
+        )
+        .await;
+    let card_reply = card_reply["id"].as_str().unwrap().to_string();
     let partial = t.post("/uploads", &t.admin.token, json!({"channel_id":channel,"filename":"partial.txt","content_type":"text/plain","size":6})).await;
     let upload = partial["id"].as_str().unwrap();
     let response = t
@@ -237,6 +262,43 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
             .await
             .unwrap(),
         "Portable friends"
+    );
+    // The card, the conversation it rooted, its reply and the job mapping all came
+    // across together. A card that lost its thread would be an orphan in the room.
+    assert_eq!(
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT o.name,o.message_id FROM objects o WHERE o.id=?"
+        )
+        .bind(&card_object)
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        ("Archived board".to_string(), card_message.clone())
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT root_message_id FROM threads WHERE id=?")
+            .bind(&card_thread)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        card_message
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, Option<String>>("SELECT thread_id FROM messages WHERE id=?")
+            .bind(&card_reply)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        Some(card_thread.clone())
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, String>(
+            "SELECT thread_id FROM thread_tasks WHERE task_id='run-43'"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        card_thread
     );
     for table in ["sessions", "tokens", "invites", "host_enrollments"] {
         assert_eq!(

@@ -34,6 +34,9 @@ pub(crate) async fn can_view(s: &AppState, user: &str, id: &str) -> bool {
     false
 }
 // Keep the object/message insertion fields together at the transaction boundary.
+// `ctx` is the conversation this card belongs to. access.rs passes an empty one:
+// an access-request card is not a job's work and must never be swept into whatever
+// task the requester happens to be running.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn create_object(
     s: &AppState,
@@ -44,21 +47,28 @@ pub(crate) async fn create_object(
     name: &str,
     key: &str,
     value: serde_json::Value,
+    ctx: &threads::Context<'_>,
 ) -> Result<Object> {
-    let message = s.id();
-    let mut tx = s.db.begin().await?;
-    sqlx::query("INSERT INTO messages(id,channel_id,author_id,content) VALUES(?,?,?,'')")
-        .bind(&message)
-        .bind(channel)
-        .bind(user)
-        .execute(&mut *tx)
-        .await?;
     let state = serde_json::to_string(&serde_json::json!({key:value})).unwrap();
-    sqlx::query("INSERT INTO objects(id,channel_id,message_id,kind,name,state,created_by) VALUES(?,?,?,?,?,?,?)").bind(id).bind(channel).bind(&message).bind(kind).bind(name).bind(state).bind(user).execute(&mut *tx).await?;
-    tx.commit().await?;
+    let (message, thread) = threads::create_card(
+        s,
+        threads::Card {
+            object: id,
+            channel,
+            author: user,
+            kind,
+            name,
+            state,
+        },
+        ctx,
+    )
+    .await?;
     let msg = messages::get_message(s, &message).await?;
     let _ = s.events.send(Event::MessageCreated(msg.clone()));
-    let _ = inbox::changed(s, channel, None, Some(&msg)).await;
+    if let Some(thread) = &thread {
+        let _ = threads::announce(s, thread).await;
+    }
+    let _ = inbox::changed(s, channel, thread.as_deref(), Some(&msg)).await;
     objects::load(s, id).await
 }
 pub(crate) async fn state(
@@ -103,12 +113,6 @@ pub(crate) async fn open(
     Path(id): Path<String>,
     ApiJson(v): ApiJson<OpenTerminal>,
 ) -> Result<Json<Object>> {
-    // Before the default self-DM is created: a refused request must leave nothing.
-    threads::unsupported_context(
-        v.thread_id.as_deref(),
-        v.task_id.as_deref(),
-        v.reply_to.as_deref(),
-    )?;
     let host = hosts::load(&s, &id).await?;
     if !hosts::permitted(&s, &a.user.id, &id, true).await {
         return Err(Error::missing());
@@ -152,6 +156,19 @@ pub(crate) async fn open(
         recording_enabled: terminal_recording::preference(&s, &host.owner_id, &host.id).await?,
         control_request_ids: vec![],
     };
+    // Host authorization and readiness came first, then the channel — including the
+    // self-DM default. Only now is placement resolved, and only within that chosen
+    // channel: the task key is (author, channel, task_id), so a job running in a room
+    // and a terminal opened with no --in are deliberately separate conversations.
+    // Looking the task up across channels would be exactly the inference the plan
+    // rules out. A conflicting explicit thread or reply is rejected here, never used
+    // to move the request somewhere else.
+    let ctx = threads::Context {
+        thread_id: v.thread_id.as_deref(),
+        task_id: v.task_id.as_deref(),
+        reply_to: v.reply_to.as_deref(),
+        hint: Some(&host.name),
+    };
     let o = create_object(
         &s,
         &id,
@@ -161,6 +178,7 @@ pub(crate) async fn open(
         &host.name,
         "terminal",
         serde_json::to_value(&t).unwrap(),
+        &ctx,
     )
     .await?;
     sqlx::query("INSERT INTO terminal_sessions(id,host_id) VALUES(?,?)")
@@ -254,11 +272,6 @@ pub(crate) async fn share(
     Path(id): Path<String>,
     ApiJson(v): ApiJson<ShareTerminal>,
 ) -> Result<Json<Object>> {
-    threads::unsupported_context(
-        v.thread_id.as_deref(),
-        v.task_id.as_deref(),
-        v.reply_to.as_deref(),
-    )?;
     let _g = s.writes.lock().await;
     let t = load(&s, &id).await?;
     if !can_view(&s, &a.user.id, &id).await {
@@ -268,6 +281,15 @@ pub(crate) async fn share(
         return Err(Error::bad("Choose a text channel"));
     }
     let object = s.id();
+    // Sharing adds another card for the SAME session in the chosen conversation. No
+    // second PTY is opened, and a resolved destination refuses the card like any
+    // other new content.
+    let ctx = threads::Context {
+        thread_id: v.thread_id.as_deref(),
+        task_id: v.task_id.as_deref(),
+        reply_to: v.reply_to.as_deref(),
+        hint: Some(&t.host_name),
+    };
     let o = create_object(
         &s,
         &object,
@@ -277,6 +299,7 @@ pub(crate) async fn share(
         &t.host_name,
         "terminal",
         serde_json::to_value(&t).unwrap(),
+        &ctx,
     )
     .await?;
     sqlx::query("INSERT INTO terminal_cards VALUES(?,?)")
