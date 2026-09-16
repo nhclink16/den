@@ -25,6 +25,34 @@ async fn ids(t: &Test, path: &str, token: &str) -> Vec<String> {
 fn id(v: &Value) -> String {
     v["id"].as_str().unwrap().to_string()
 }
+/// Shut the server down, release the database, and serve the same directory again
+/// from a fresh AppState. A fact that survives this is stored, not remembered. The
+/// original server and pool are gone afterwards, so this goes last in a test and
+/// every later assertion goes through the returned URL.
+async fn restart(t: &mut Test) -> (String, tokio::task::JoinHandle<()>) {
+    t.stop_for_export().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let state = AppState::open(
+        t.dir.join("den.db"),
+        t.dir.join("uploads"),
+        t.dir.join("bootstrap.key"),
+        url.clone(),
+        1024 * 1024,
+    )
+    .await
+    .unwrap();
+    let app = den_server::router_with_web(state, t.dir.join("spa"));
+    let task = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
+    });
+    (url, task)
+}
 
 /// A reply resolves its destination and inserts inside one transaction, while
 /// every authenticated request writes through profile expiry outside the message
@@ -302,17 +330,27 @@ async fn refused_placement_leaves_no_rows_and_private_threads_stay_private() {
         .fetch_one(&t.state.db)
         .await
         .unwrap();
-    // An unattachable upload must not leave the thread its reply would have opened.
+    // An unattachable upload must not leave the thread its reply would have opened,
+    // nor a task mapping that would capture the job's later posts.
     assert_eq!(
         status(
             &t,
             Method::POST,
             &path,
             &t.admin.token,
-            json!({"content":"x","reply_to":root,"upload_ids":[ulid::Ulid::new().to_string()]})
+            json!({"content":"x","reply_to":root,"task_id":"doomed-run","upload_ids":[ulid::Ulid::new().to_string()]})
         )
         .await,
         400
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM thread_tasks WHERE task_id='doomed-run'"
+        )
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap(),
+        0
     );
     // A thread from another channel is not a destination here.
     assert_eq!(
@@ -362,17 +400,15 @@ async fn refused_placement_leaves_no_rows_and_private_threads_stay_private() {
         )
         .await;
     let dm_thread = dm_reply["thread_id"].as_str().unwrap().to_string();
-    assert_eq!(
-        status(
-            &t,
-            Method::GET,
-            &format!("/threads/{dm_thread}/messages"),
-            &bob.token,
-            json!({})
-        )
-        .await,
-        404
-    );
+    for (method, path) in [
+        (Method::GET, format!("/threads/{dm_thread}/messages")),
+        (Method::PATCH, format!("/threads/{dm_thread}")),
+    ] {
+        assert_eq!(
+            status(&t, method, &path, &bob.token, json!({"title":"mine now"})).await,
+            404
+        );
+    }
     assert_eq!(
         status(
             &t,
@@ -411,6 +447,313 @@ async fn refused_placement_leaves_no_rows_and_private_threads_stay_private() {
         }
     }
     assert!(leaked.is_empty(), "leaked thread metadata: {leaked:?}");
+}
+
+#[tokio::test]
+async fn task_identity_groups_work_and_survives_a_restart() {
+    let mut t = Test::new().await;
+    let channel = t.general().await;
+    let path = format!("/channels/{channel}/messages");
+    // Two jobs from one identity are independent; nothing is inferred from the bot.
+    let first = t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"job one","task_id":"run-1"}),
+        )
+        .await;
+    let second = t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"job two","task_id":"run-2"}),
+        )
+        .await;
+    let one = first["thread"]["id"].as_str().unwrap().to_string();
+    let two = second["thread"]["id"].as_str().unwrap().to_string();
+    assert_ne!(one, two);
+    // A task's first post is a room root, so the room still shows the job started.
+    assert!(first["thread_id"].is_null());
+    assert_eq!(
+        ids(&t, &format!("{path}?roots_only=true"), &t.admin.token).await,
+        vec![id(&first), id(&second)]
+    );
+    // Later posts carrying the same ID join without repeating any destination.
+    let progress = t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"step","task_id":"run-1"}),
+        )
+        .await;
+    assert_eq!(progress["thread_id"].as_str().unwrap(), one);
+
+    // An established mapping cannot be redirected into another conversation.
+    assert_eq!(
+        status(
+            &t,
+            Method::POST,
+            &path,
+            &t.admin.token,
+            json!({"content":"hijack","task_id":"run-1","thread_id":two})
+        )
+        .await,
+        409
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM messages WHERE content='hijack'")
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        0
+    );
+    // A post with no task context at all is an ordinary room message.
+    let plain = t
+        .post(&path, &t.admin.token, json!({"content":"just talking"}))
+        .await;
+    assert!(plain["thread_id"].is_null() && plain["thread"].is_null());
+
+    // The mapping lives in the database, not in the running server: after a real
+    // shutdown a replacement resumes the same thread.
+    let (url, task) = restart(&mut t).await;
+    let resumed: Value = t
+        .http
+        .post(format!("{url}{path}"))
+        .bearer_auth(&t.admin.token)
+        .json(&json!({"content":"after restart","task_id":"run-1"}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(resumed["thread_id"].as_str().unwrap(), one);
+    task.abort();
+}
+
+#[tokio::test]
+async fn resolving_is_explicit_reversible_and_blocks_new_content() {
+    let mut t = Test::new().await;
+    let bob = t.member("bob").await;
+    let channel = t.general().await;
+    let path = format!("/channels/{channel}/messages");
+    let root = id(&t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"   \n  first   line  \nsecond line"}),
+        )
+        .await);
+    let reply = t
+        .post(&path, &bob.token, json!({"content":"a","reply_to":root}))
+        .await;
+    let thread = reply["thread_id"].as_str().unwrap().to_string();
+    let spare = id(&t
+        .post(&path, &bob.token, json!({"content":"b","reply_to":root}))
+        .await);
+    // A task thread with no replies yet: its root is still undeletable, and its
+    // established ID must not be able to reopen it once resolved.
+    let job = t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"deploy it","task_id":"run-9"}),
+        )
+        .await;
+    let job_root = id(&job);
+    let job_thread = job["thread"]["id"].as_str().unwrap().to_string();
+    assert_eq!(job["thread"]["reply_count"], 0);
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{job_root}"),
+            &t.admin.token,
+            json!({})
+        )
+        .await,
+        409
+    );
+    // The title is the first nonempty root line with its whitespace collapsed,
+    // skipping leading blank lines, and editing the root never rewrites that
+    // snapshot.
+    let resolved: ThreadSummary = t
+        .req(Method::PATCH, &format!("/threads/{thread}"), &bob.token)
+        .json(&json!({"resolved":true}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(resolved.title, "first line");
+    assert_eq!(resolved.resolved_by.unwrap(), bob.user.id);
+    let at = resolved.resolved_at.unwrap();
+
+    // Assert the edit itself was accepted, so a rejected request cannot pass as a
+    // preserved snapshot title.
+    assert_eq!(
+        status(
+            &t,
+            Method::PATCH,
+            &format!("/messages/{root}"),
+            &t.admin.token,
+            json!({"content":"totally different now"})
+        )
+        .await,
+        200
+    );
+    // Resolving again is idempotent: the original actor and time are preserved.
+    let again: ThreadSummary = t
+        .req(Method::PATCH, &format!("/threads/{thread}"), &t.admin.token)
+        .json(&json!({"resolved":true}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(again.title, "first line");
+    assert_eq!(again.resolved_at.unwrap(), at);
+    assert_eq!(again.resolved_by.unwrap(), bob.user.id);
+
+    // New content is refused; a delayed agent update cannot undo the resolution.
+    for body in [
+        json!({"content":"late","thread_id":thread}),
+        json!({"content":"late","reply_to":root}),
+    ] {
+        assert_eq!(
+            status(&t, Method::POST, &path, &t.admin.token, body).await,
+            409
+        );
+    }
+    // The same for a job: resolving ends it, and a straggling post carrying the
+    // established task ID is a conflict rather than a silent reopen.
+    t.req(
+        Method::PATCH,
+        &format!("/threads/{job_thread}"),
+        &t.admin.token,
+    )
+    .json(&json!({"resolved":true}))
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(
+        status(
+            &t,
+            Method::POST,
+            &path,
+            &t.admin.token,
+            json!({"content":"straggler","task_id":"run-9"})
+        )
+        .await,
+        409
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM messages WHERE content='straggler'")
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        0
+    );
+    // Content and read rows survive; the replies are all still there.
+    assert_eq!(
+        ids(&t, &format!("/threads/{thread}/messages"), &bob.token)
+            .await
+            .len(),
+        2
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM thread_read_state WHERE thread_id=?")
+            .bind(&thread)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        2
+    );
+    // Reopening is explicit, and then the conversation accepts content again.
+    let open: ThreadSummary = t
+        .req(Method::PATCH, &format!("/threads/{thread}"), &t.admin.token)
+        .json(&json!({"resolved":false,"title":"  renamed  "}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(open.resolved_at.is_none() && open.resolved_by.is_none());
+    assert_eq!(open.title, "renamed");
+    t.post(
+        &path,
+        &t.admin.token,
+        json!({"content":"late","thread_id":thread}),
+    )
+    .await;
+
+    // A root cannot be deleted out from under its conversation; a reply can.
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{root}"),
+            &t.admin.token,
+            json!({})
+        )
+        .await,
+        409
+    );
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{spare}"),
+            &bob.token,
+            json!({})
+        )
+        .await,
+        204
+    );
+
+    // Resolution is stored, not timed. Shut the server down entirely, serve the
+    // same directory again, and the job is still resolved and still refusing its
+    // own task ID. No passage of time changed anything.
+    let (url, task) = restart(&mut t).await;
+    let job_after: Message = t
+        .http
+        .get(format!("{url}/messages/{job_root}"))
+        .bearer_auth(&t.admin.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let after = job_after.thread.unwrap();
+    assert!(after.resolved_at.is_some() && after.resolved_by.is_some());
+    assert_eq!(
+        t.http
+            .post(format!("{url}{path}"))
+            .bearer_auth(&t.admin.token)
+            .json(&json!({"content":"straggler","task_id":"run-9"}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        409
+    );
+    // The thread reopened before the restart is still open and still accepts work.
+    assert_eq!(
+        t.http
+            .post(format!("{url}{path}"))
+            .bearer_auth(&t.admin.token)
+            .json(&json!({"content":"after restart","thread_id":thread}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    task.abort();
 }
 
 #[tokio::test]
@@ -692,21 +1035,32 @@ async fn thread_metadata_reaches_channel_members_and_only_them() {
             json!({"content":"b","thread_id":thread}),
         )
         .await;
+    drain(
+        &mut member,
+        |e| matches!(e, Event::MessageCreated(m) if m.id == id(&second)),
+    )
+    .await;
+    // Resolving broadcasts the resolution itself.
+    t.req(Method::PATCH, &format!("/threads/{thread}"), &t.admin.token)
+        .json(&json!({"resolved":true,"title":"shipped"}))
+        .send()
+        .await
+        .unwrap();
     let marker = t
         .post(&path, &t.admin.token, json!({"content":"barrier one"}))
         .await;
-    let grown = drain(
+    let resolved = drain(
         &mut member,
         |e| matches!(e, Event::MessageCreated(m) if m.id == id(&marker)),
     )
     .await;
-    let summary = grown
+    let summary = resolved
         .iter()
         .rev()
         .find(|s| s.id == thread)
-        .expect("no ThreadUpdated on a further reply");
-    // Nothing can resolve a conversation yet, so its resolution fields stay null.
-    assert!(summary.resolved_at.is_none() && summary.resolved_by.is_none());
+        .expect("no ThreadUpdated on resolve");
+    assert!(summary.resolved_at.is_some());
+    assert_eq!(summary.title, "shipped");
     assert_eq!(summary.reply_count, 2);
 
     // Deleting a reply refreshes the count, because it is counted from the rows.
@@ -944,27 +1298,6 @@ async fn unsupported_thread_context_is_refused_without_side_effects() {
             );
         }
     }
-    // Grouping a runner's messages by task arrives with the lifecycle PR. A message
-    // carrying one is refused rather than posted into the room without it, which
-    // would scatter a job with no way for its runner to notice.
-    assert_eq!(
-        status(
-            &t,
-            Method::POST,
-            &format!("/channels/{channel}/messages"),
-            &t.admin.token,
-            json!({"content":"job one","task_id":"run-1"})
-        )
-        .await,
-        400
-    );
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM messages WHERE content='job one'")
-            .fetch_one(&t.state.db)
-            .await
-            .unwrap(),
-        0
-    );
     // The main conversation's own marker is still the flat one until the read model
     // lands, so claiming to read only the roots is refused rather than quietly
     // acknowledging the thread replies it says it is skipping.

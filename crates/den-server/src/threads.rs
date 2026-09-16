@@ -66,6 +66,15 @@ pub(crate) fn title_from(content: &str, hint: Option<&str>) -> String {
     // Truncate by characters: an 80-byte cut can split a multi-byte character.
     chosen.chars().take(80).collect()
 }
+fn check_title(value: &str) -> Result<String> {
+    let title = value.trim();
+    if !(1..=80).contains(&title.chars().count()) || title.chars().any(char::is_control) {
+        return Err(Error::bad(
+            "Title must be 1 to 80 characters without control characters",
+        ));
+    }
+    Ok(title.into())
+}
 /// Refuse conversation context on a route that cannot honour it yet. Placing object
 /// cards is a later PR; until it lands, accepting these fields and dropping them
 /// would silently put a task's card somewhere its runner did not ask for.
@@ -77,6 +86,16 @@ pub(crate) fn unsupported_context(
     if thread_id.is_some() || task_id.is_some() || reply_to.is_some() {
         return Err(Error::bad(
             "Thread context for this card is not supported yet",
+        ));
+    }
+    Ok(())
+}
+/// A runner's job identity. Opaque: never lowercased, trimmed into a different
+/// value, or inferred from the bot, token or elapsed time.
+fn check_task(value: &str) -> Result<()> {
+    if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
+        return Err(Error::bad(
+            "Task ID must be 1 to 128 bytes without control characters",
         ));
     }
     Ok(())
@@ -101,21 +120,37 @@ pub(crate) enum Target {
         root: Option<String>,
     },
 }
+/// A resolved destination together with what is already stored about it.
+pub(crate) struct Placement {
+    target: Target,
+    /// A persisted task mapping already pointed here. It has been validated against
+    /// every other supplied destination, so it must be preserved, not written again.
+    mapped: bool,
+}
+
 /// Resolve the destination. Reads only: a conflict fails here, before a thread is
 /// created or an upload is attached.
 pub(crate) async fn resolve(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel: &str,
-    _author: &str,
+    author: &str,
     ctx: &Context<'_>,
-) -> Result<Target> {
-    // Grouping a runner's messages by task arrives with the lifecycle PR. Until
-    // then a task ID is refused rather than dropped: silently ignoring it would
-    // scatter one job through the room with no way for its runner to notice.
-    if ctx.task_id.is_some() {
-        return Err(Error::bad("Agent task grouping is not supported yet"));
-    }
+) -> Result<Placement> {
     let mut found: Option<String> = None;
+    if let Some(task) = ctx.task_id {
+        check_task(task)?;
+        // A persisted mapping is authoritative. A read error must abort rather than
+        // look like a missing mapping and start a second thread for the same job.
+        found = sqlx::query_scalar!(
+            "SELECT thread_id FROM thread_tasks WHERE user_id=? AND channel_id=? AND task_id=?",
+            author,
+            channel,
+            task
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
+    }
+    let mapped = found.is_some();
     if let Some(explicit) = ctx.thread_id {
         let owned = sqlx::query_scalar!(
             "SELECT id FROM threads WHERE id=? AND channel_id=?",
@@ -148,18 +183,17 @@ pub(crate) async fn resolve(
                 ))
             }
             None => {
-                return Ok(Target::Open {
-                    root: Some(reply.into()),
+                return Ok(Placement {
+                    target: Target::Open {
+                        root: Some(reply.into()),
+                    },
+                    mapped,
                 })
             }
         }
     }
     match found {
         Some(thread) => {
-            // Nothing here can resolve a thread yet, but stored state is what
-            // decides: a database that has already run the lifecycle PR keeps its
-            // resolutions if this build is rolled back onto it, and a resolved
-            // conversation must not quietly accept new replies in the meantime.
             if sqlx::query_scalar!(
                 "SELECT count(*) FROM threads WHERE id=? AND resolved_at IS NOT NULL",
                 thread
@@ -172,10 +206,21 @@ pub(crate) async fn resolve(
                     "This thread is resolved; reopen it before posting",
                 ));
             }
-            Ok(Target::Join(thread))
+            Ok(Placement {
+                target: Target::Join(thread),
+                mapped,
+            })
         }
-        // A post with no context at all stays in the room.
-        None => Ok(Target::Room),
+        // A task's first post becomes a room root and opens its own thread. An
+        // ordinary post with no context at all stays in the room.
+        None if ctx.task_id.is_some() => Ok(Placement {
+            target: Target::Open { root: None },
+            mapped,
+        }),
+        None => Ok(Placement {
+            target: Target::Room,
+            mapped,
+        }),
     }
 }
 fn agree(found: &mut Option<String>, candidate: String) -> Result<()> {
@@ -200,9 +245,10 @@ pub(crate) async fn apply(
     channel: &str,
     author: &str,
     message: &str,
-    target: Target,
+    placement: Placement,
     ctx: &Context<'_>,
 ) -> Result<Option<String>> {
+    let Placement { target, mapped } = placement;
     let (thread, opened) = match target {
         Target::Room => return Ok(None),
         Target::Join(thread) => (thread, false),
@@ -245,6 +291,19 @@ pub(crate) async fn apply(
             "UPDATE messages SET thread_id=? WHERE id=?",
             thread,
             message
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    // A mapping resolve already loaded is the one being continued: rewriting it
+    // would collide on its own key and could only ever store the same value.
+    if let (Some(task), false) = (ctx.task_id, mapped) {
+        sqlx::query!(
+            "INSERT INTO thread_tasks(user_id,channel_id,task_id,thread_id) VALUES(?,?,?,?)",
+            author,
+            channel,
+            task,
+            thread
         )
         .execute(&mut **tx)
         .await?;
@@ -375,4 +434,43 @@ pub(crate) async fn replies(
         result.push(messages::with_uploads(&s, row).await?);
     }
     Ok(Json(result))
+}
+
+#[utoipa::path(patch,path="/threads/{id}",params(("id"=String,Path)),request_body=UpdateThread,responses((status=200,body=ThreadSummary),(status=404,body=ApiError)))]
+pub(crate) async fn update(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+    ApiJson(v): ApiJson<UpdateThread>,
+) -> Result<Json<ThreadSummary>> {
+    let _guard = s.writes.lock().await;
+    // Any member who can see the channel may rename, resolve or reopen its threads.
+    let thread = readable(&s, &a.user.id, &id).await?;
+    if let Some(title) = &v.title {
+        let title = check_title(title)?;
+        sqlx::query!("UPDATE threads SET title=? WHERE id=?", title, id)
+            .execute(&s.db)
+            .await?;
+    }
+    match v.resolved {
+        // Resolving an already resolved thread keeps the original actor and time:
+        // only an actual reopen clears them.
+        Some(true) if thread.resolved_at.is_none() => {
+            sqlx::query!("UPDATE threads SET resolved_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),resolved_by=? WHERE id=?",a.user.id,id).execute(&s.db).await?;
+        }
+        Some(false) => {
+            sqlx::query!(
+                "UPDATE threads SET resolved_at=NULL,resolved_by=NULL WHERE id=?",
+                id
+            )
+            .execute(&s.db)
+            .await?;
+        }
+        _ => {}
+    }
+    let thread = summary(&s.db, &id).await?;
+    let _ = s.events.send(Event::ThreadUpdated {
+        thread: thread.clone(),
+    });
+    Ok(Json(thread))
 }
