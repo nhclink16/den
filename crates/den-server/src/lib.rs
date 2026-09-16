@@ -12,6 +12,7 @@ mod inbox;
 mod invitation_state;
 mod invitation_tickets;
 mod invitations;
+mod jams;
 mod messages;
 mod music;
 mod objects;
@@ -21,6 +22,7 @@ mod profile_images;
 mod profiles;
 mod push;
 mod sounds;
+mod spotify;
 mod terminal;
 mod terminal_recording;
 mod thumbnails;
@@ -57,6 +59,7 @@ type ObjectPresenceConnections = HashMap<String, (String, HashMap<String, usize>
 #[doc(hidden)]
 pub struct Inner {
     pub(crate) music: music::Music,
+    pub(crate) spotify: spotify::Spotify,
     pub db: SqlitePool,
     pub(crate) hosts: hosts::Hosts,
     pub livekit: Option<calls::LiveKit>,
@@ -167,6 +170,7 @@ impl AppState {
             .await?;
         let state = Self(Arc::new(Inner {
             music: music::Music::default(),
+            spotify: spotify::Spotify::default(),
             db,
             hosts: hosts::Hosts::default(),
             livekit: None,
@@ -243,6 +247,17 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         .route("/rooms/{id}/music/skip", post(music::skip))
         .route("/rooms/{id}/music/pause", post(music::pause))
         .route("/rooms/{id}/music/seek", post(music::seek))
+        .route(
+            "/rooms/{id}/jam",
+            get(jams::get).post(jams::start).delete(jams::end),
+        )
+        .route("/rooms/{id}/jam/join", post(jams::join))
+        .route(
+            "/users/me/spotify",
+            get(spotify::account).delete(spotify::disconnect),
+        )
+        .route("/users/me/spotify/authorize", post(spotify::authorize))
+        .route("/users/me/spotify/callback", post(spotify::callback))
         .route("/instance", get(objects::instance))
         .route("/auth/ws-ticket", post(tickets::issue))
         .route("/hosts", get(hosts::list))

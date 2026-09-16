@@ -13,7 +13,7 @@ import { apiFor, setCsrf } from './api'
 import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
-import type { MusicQueue, CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
+import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, User } from './types'
 
 const PREFS_KEY = 'den.layout'
 
@@ -57,6 +57,27 @@ export class Store {
     this.musicReceivedAt.set(q.room_id, Date.now()); this.music = new Map(this.music).set(q.room_id, q)
   }
   async loadMusic(room: string) { this.receiveMusic(await this.api.get<MusicQueue>(`/rooms/${room}/music`)) }
+  /** One live Jam per room, keyed by channel. Absent means nobody started one. */
+  jams = $state<Map<string, Jam>>(new Map())
+  /** Bumped on every accepted write, so a slow poll cannot resurrect an ended Jam. */
+  private jamSeq = new Map<string, number>()
+  receiveJam(channelId: string, jam: Jam | null) {
+    this.jamSeq.set(channelId, (this.jamSeq.get(channelId) ?? 0) + 1)
+    const next = new Map(this.jams)
+    if (jam) next.set(channelId, jam); else next.delete(channelId)
+    this.jams = next
+  }
+  async loadJam(room: string) {
+    const seq = (this.jamSeq.get(room) ?? 0) + 1
+    this.jamSeq.set(room, seq)
+    const { jam } = await this.api.get<RoomJam>(`/rooms/${room}/jam`)
+    // A socket event or a newer read landed while this one was in flight.
+    if (this.jamSeq.get(room) !== seq) return
+    this.receiveJam(room, jam ?? null)
+  }
+  /** This account's Spotify link. `unavailable` until the server says otherwise. */
+  spotify = $state<SpotifyAccount>({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null })
+  async loadSpotify() { this.spotify = await this.api.get<SpotifyAccount>('/users/me/spotify') }
   calls = $state<CallState[]>([])
   private connecting = false
   private generation = 0
@@ -160,7 +181,7 @@ export class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
-    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
       this.api.get<Category[]>('/categories'),
@@ -172,9 +193,11 @@ export class Store {
       this.api.get<Appearance>('/users/me/appearance'),
       this.api.get<VoicePreferences>('/users/me/voice'),
       this.api.get<SoundState>('/users/me/sounds'),
+      this.api.get<SpotifyAccount>('/users/me/spotify'),
     ])
     this.receiveAppearance(appearance)
     this.sounds = sounds
+    this.spotify = spotify
     this.receiveVoice(voice)
     this.settings = settings
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
@@ -187,6 +210,7 @@ export class Store {
     this.calls = calls
     if (this.active) call.snapshot(calls)
     await Promise.all([...this.music.keys()].filter(id => channels.some(c => c.id === id)).map(id => this.loadMusic(id)))
+    await Promise.all([...this.jams.keys()].filter(id => channels.some(c => c.id === id)).map(id => this.loadJam(id).catch(() => {})))
     // Refresh the tail of channels we already had open so the view is current after a gap.
     await Promise.all([...this.messages.keys()].filter((id) => channels.some((c) => c.id === id)).map((id) => this.loadLatest(id)))
   }
@@ -279,7 +303,7 @@ export class Store {
       this.backoff = Math.min(this.backoff * 2, 15_000)
       return
     } finally { this.connecting = false }
-    url += `${url.includes('?') ? '&' : '?'}music=true`
+    url += `${url.includes('?') ? '&' : '?'}music=true&jam=true`
     const ws = new WebSocket(url)
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
@@ -310,6 +334,8 @@ export class Store {
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
       case 'music_queue_updated': this.receiveMusic(ev.queue); break
+      case 'jam_updated': this.receiveJam(ev.channel_id, ev.jam ?? null); break
+      case 'spotify_account_updated': this.spotify = ev.account; break
       case 'sounds_updated': void this.loadSounds(); break
       case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break
       case 'appearance_updated': this.receiveAppearance(ev.appearance); break

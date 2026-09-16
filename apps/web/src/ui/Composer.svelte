@@ -3,6 +3,7 @@
   import { plugins } from '../plugins'
   import { planComposerSubmit, shouldClearDraft, type DraftIdentity } from '../lib/composer-submit'
   import { store } from '../lib/store.svelte'
+  import { isJamLink, startJam } from '../lib/jam'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
@@ -16,9 +17,21 @@
   // Every text change goes through setText so the edit count stays honest: a send
   // that resolves later compares this, not the string, before clearing the box.
   let revision = $state(0)
-  function setText(value: string) { if (value === text) return; text = value; revision++ }
+  function setText(value: string) { if (value === text) return; text = value; revision++; jamDismissed = false }
   const draft = (): DraftIdentity => ({ channelId: channel.id, replyToId: replyTo?.id ?? null, revision })
   const pending = $derived(store.uploads.forChannel(channel.id))
+  // A Jam link belongs at the top of the room, not in the scrollback. Offer the
+  // pin; sending it as an ordinary message is still one click away.
+  let jamDismissed = $state(false)
+  let jamBusy = $state(false)
+  const offerJam = $derived(!jamDismissed && isJamLink(text))
+  async function pinJam() {
+    if (jamBusy) return
+    jamBusy = true; error = ''
+    try { await startJam(store, channel.id, text); setText(''); requestAnimationFrame(grow) }
+    catch (err) { error = (err as Error).message }
+    finally { jamBusy = false }
+  }
   let busy = $state(false)
   let error = $state('')
   let dismissed = $state(false)
@@ -162,6 +175,14 @@
       {/each}
     </div>
   {/if}
+  {#if offerJam}
+    <div class="reply-bar jam-offer">
+      <Icon name="pin" size={13} />
+      <span class="snippet">Pin this Spotify Jam to the top of {channel.kind === 'dm' ? store.title(channel) : `#${channel.name}`}?</span>
+      <button class="btn lit tiny" onclick={pinJam} disabled={jamBusy}>{jamBusy ? 'Pinning…' : 'Pin the Jam'}</button>
+      <button class="x" onclick={() => (jamDismissed = true)} aria-label="Send it as a message instead"><Icon name="x" size={14} /></button>
+    </div>
+  {/if}
   {#if replyTo}
     <div class="reply-bar">
       <Icon name="reply" size={13} />
@@ -226,6 +247,7 @@
     border-radius: var(--r-lg) var(--r-lg) 0 0; font-size: 13px;
   }
   .pending { flex-wrap: wrap; gap: 6px; }
+  .jam-offer .tiny { min-height: 28px; padding: 3px 10px; font-size: 12px; }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { display: grid; padding: 3px; border-radius: var(--r); color: var(--ink-3); }
   .x:hover { color: var(--ink); background: var(--bg-3); }

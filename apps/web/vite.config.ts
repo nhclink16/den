@@ -4,7 +4,15 @@ import { readFileSync } from 'node:fs'
 
 // The API lives at root paths on den-server. In dev, proxy those so the browser
 // origin is the Vite origin and cookies + CSRF just work. Run the server with
-// DEN_ORIGIN=http://localhost:5173.
+// DEN_ORIGIN=http://127.0.0.1:5173 and browse to http://127.0.0.1:5173.
+//
+// Not localhost. Spotify refuses `localhost` as a redirect host and only the
+// registered `http://127.0.0.1:5173/spotify/callback` works, while a browser
+// treats localhost and 127.0.0.1 as different origins — so mixing the two breaks
+// the OAuth callback, the session cookie, or both.
+//
+// `spotify` is deliberately absent from the list below: /spotify/callback is an
+// SPA route that must reach index.html, not the API.
 const api = ['rooms', 'instance', 'hosts', 'requests', 'grants', 'access', 'sessions', 'objects', 'auth', 'users', 'invites', 'tokens', 'bots', 'channels', 'dms', 'categories', 'messages', 'uploads', 'health', 'openapi.json', 'search', 'presence', 'calls', 'livekit']
 
 export default defineConfig({

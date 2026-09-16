@@ -11,6 +11,7 @@
   import Members from './Members.svelte'
   import Inbox from './Inbox.svelte'
   import Settings from './Settings.svelte'
+  import SpotifyCallback from './SpotifyCallback.svelte'
   import Palette from './Palette.svelte'
   import Search from './Search.svelte'
   import { notify } from '../lib/notify.svelte'
@@ -85,6 +86,8 @@
       <Search q={router.route.q} channelId={router.route.channel} onmenu={() => (drawer = !drawer)} {narrow} />
     {:else if router.route.name === 'settings'}
       <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
+    {:else if router.route.name === 'spotify-callback'}
+      <SpotifyCallback route={router.route} />
     {/if}
     {/if}
     {#if !showSidebar && call.channel}<CallDock />{/if}

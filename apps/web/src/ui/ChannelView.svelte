@@ -1,5 +1,7 @@
 <script lang="ts">
   import MusicComposer from './MusicComposer.svelte'
+  import JamCard from './JamCard.svelte'
+  import JamComposer from './JamComposer.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import ObjectDock from './ObjectDock.svelte'
   import { objects } from '../lib/objects.svelte'
@@ -55,11 +57,13 @@
     {/if}
   </header>
 
+  <JamCard channelId={channel.id} />
+
   {#if call.channel && !objects.expanded}<CallView />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
   {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}
-    <div class="voice-empty"><div class="voice-music">{#if call.channel?.id !== channel.id}<button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button>{/if}<h2>Bring a song</h2><p>Music plays for everyone in the call.</p><MusicComposer roomId={channel.id} /></div></div>
+    <div class="voice-empty"><div class="voice-music">{#if call.channel?.id !== channel.id}<button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button>{/if}<h2>Bring a song</h2><p>Music plays for everyone in the call.</p><MusicComposer roomId={channel.id} /><div class="or"><span>or</span></div><JamComposer roomId={channel.id} /></div></div>
   {:else}
   {#if isDm && call.channel?.id !== channel.id && call.ids(channel.id).length}
     <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
@@ -106,6 +110,8 @@
   .voice-music { width: min(360px, calc(100% - 32px)); }
   .voice-music h2 { font-size: 22px; margin: 20px 0 4px; }
   .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: 13px; }
+  .or { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
   .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }

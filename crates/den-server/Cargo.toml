@@ -19,6 +19,8 @@ sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio
 argon2 = "0.5"
 rand = "0.8"
 sha2 = "0.10"
+# AEAD for refresh tokens at rest. Already in the lock via rustls; never hand-roll crypto.
+ring = "0.17"
 ulid = "1"
 tower-http = { version = "0.6", features = ["fs"] }
 tower = { version = "0.5", features = ["util"] }

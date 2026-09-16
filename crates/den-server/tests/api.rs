@@ -37,6 +37,18 @@ impl Test {
         Self::with_music(voice, music.map(|r| (r, "ffmpeg".into(), "den-dj".into()))).await
     }
     async fn with_music(voice: Option<&str>, music: Option<(String, String, String)>) -> Self {
+        Self::built(voice, music, false).await
+    }
+    /// A server that holds a Spotify client secret. Tests never read process
+    /// environment, and the real secret is not on any developer machine.
+    async fn with_spotify() -> Self {
+        Self::built(None, None, true).await
+    }
+    async fn built(
+        voice: Option<&str>,
+        music: Option<(String, String, String)>,
+        spotify: bool,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -60,6 +72,13 @@ impl Test {
         };
         let state = if let Some((resolver, ffmpeg, publisher)) = music {
             state.with_music_tools(resolver, ffmpeg, publisher)
+        } else {
+            state
+        };
+        let state = if spotify {
+            state
+                .with_spotify("test-client-secret".into(), [3u8; 32])
+                .unwrap()
         } else {
             state
         };
@@ -519,6 +538,8 @@ mod music;
 mod sounds;
 #[path = "api/sounds_ws.rs"]
 mod sounds_ws;
+#[path = "api/spotify.rs"]
+mod spotify;
 
 #[cfg(unix)]
 #[path = "api/terminal_reconciliation.rs"]
