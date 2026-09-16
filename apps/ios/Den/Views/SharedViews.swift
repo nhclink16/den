@@ -47,6 +47,30 @@ struct QuietOfflineChip: View {
     }
 }
 
+struct SyncStatusView: View {
+    let store: AppStore
+    @State private var retrying = false
+
+    var body: some View {
+        if store.syncProblem == .incompatibleResponse {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Update Den", systemImage: "arrow.down.app").font(.headline)
+                Text(DenFailure.updateRequired.localizedDescription).font(.subheadline)
+                Button(retrying ? "Checking…" : "Try again") {
+                    retrying = true
+                    Task { await store.retrySync(); retrying = false }
+                }
+                .disabled(retrying)
+                .accessibilityIdentifier("compatibility-retry")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("compatibility-status")
+        } else if store.syncProblem == .networkOffline {
+            QuietOfflineChip()
+        }
+    }
+}
+
 struct MarkdownMessageText: View {
     let content: String
     let store: AppStore

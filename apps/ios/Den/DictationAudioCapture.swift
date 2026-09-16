@@ -103,6 +103,23 @@ struct DictationPCMFrame: @unchecked Sendable {
     }
 }
 
+/// `Mutex` is noncopyable, so an escaping `@Sendable` callback cannot capture one
+/// directly. Holding the lock and the frame together behind a reference gives the
+/// converter's callback a shared instance to consume exactly once.
+private final class DictationOneShotInput: Sendable {
+    private let frame: Mutex<DictationPCMFrame?>
+    init(_ frame: DictationPCMFrame) { self.frame = Mutex(frame) }
+
+    /// Yields the source buffer on the first call and nothing on every later one.
+    func take() -> AVAudioPCMBuffer? {
+        frame.withLock { pending in
+            let next = pending?.buffer
+            pending = nil
+            return next
+        }
+    }
+}
+
 /// Used only by one ordered input consumer, never concurrently with the audio tap.
 @MainActor final class DictationAudioConverter {
     private var converter: AVAudioConverter?
@@ -131,16 +148,11 @@ struct DictationPCMFrame: @unchecked Sendable {
         guard let converter, buffer.format.sampleRate > 0 else { throw DictationAudioError.conversion }
         let capacity = AVAudioFrameCount(ceil(Double(buffer.frameLength) * outputFormat.sampleRate / buffer.format.sampleRate) + 64)
         guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else { throw DictationAudioError.conversion }
-        let provided = Mutex(false)
-        let source = DictationPCMFrame(buffer)
+        let input = DictationOneShotInput(DictationPCMFrame(buffer))
         var error: NSError?
         let status = converter.convert(to: output, error: &error) { @Sendable _, inputStatus in
-            let first = provided.withLock { value in
-                guard !value else { return false }
-                value = true; return true
-            }
-            guard first else { inputStatus.pointee = .noDataNow; return nil }
-            inputStatus.pointee = .haveData; return source.buffer
+            guard let next = input.take() else { inputStatus.pointee = .noDataNow; return nil }
+            inputStatus.pointee = .haveData; return next
         }
         guard status != .error, error == nil else { throw DictationAudioError.conversion }
         return output.frameLength > 0 ? output : nil

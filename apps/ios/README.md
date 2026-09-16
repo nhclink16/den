@@ -40,6 +40,32 @@ after the reviewed initial resolution. The OpenAPI plugin uses the committed
 `Packages/DenAPI/Sources/DenAPI/openapi.json`, never a production API fetch in CI.
 [Apple package CI guidance](https://developer.apple.com/documentation/xcode/building-swift-packages-or-apps-that-use-them-in-continuous-integration-workflows)
 
+Run `DenTests` on the simulator with normal automatic ad-hoc signing. Do not pass
+`CODE_SIGNING_ALLOWED=NO` for that suite: `CompatibilityRecoveryTests` asserts
+against the real `SessionVault`, because a retained keychain token is what proves
+an unreadable server response did not sign the user out. An unsigned build has no
+application-identifier keychain group and fails in setup with
+`keychain(-34018)`, `errSecMissingEntitlement`. Simulator ad-hoc signing does
+not require a Development or Distribution certificate. Device signing is
+separate.
+
+### API compatibility policy
+
+`scripts/regenerate-api.sh` saves the unmodified server OpenAPI under
+`Packages/DenAPI/Contract/openapi.json`. `scripts/prepare-client-schema.py` derives
+the plugin's input by omitting `additionalProperties: false`, and nothing else.
+The pinned generator then ignores unknown object fields instead of rejecting
+them. It does not retain or send those unknown fields back in later requests.
+Required fields, known value types, enum values, and union tags stay validated.
+The server contract and its request validation do not change.
+
+Do not hand-edit either generated Swift or the derived schema. The Cloud checkout
+check rejects a stale derivation. Run the preparation script with `--check` for
+an offline check; run `regenerate-api.sh` to adopt a reviewed live contract.
+Unknown WebSocket event tags are ignored by the native router rather than decoded
+through the generated closed `Event` enum. Missing required response data remains
+an incompatibility, not an ordinary network outage.
+
 The XcodeGen installer downloads the
 [2.45.4 release](https://github.com/yonaskolb/XcodeGen/releases/tag/2.45.4), checks
 its pinned SHA-256, and unpacks into a temporary tools directory. It does not

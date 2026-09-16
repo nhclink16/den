@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
+python3 ../scripts/prepare-client-schema.py --check
 den_xcodegen=$(./install-xcodegen.sh)
 python3 ./verify-project.py --xcodegen "$den_xcodegen"
 python3 ./package-fixture-source.py --check

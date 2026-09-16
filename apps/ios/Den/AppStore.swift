@@ -16,7 +16,9 @@ import UIKit
     var typing: [String: [String: Date]] = [:]
     var callStates: [API.CallState] = []
     var instanceName = "Den"
-    var offline = false
+    var syncProblem: SyncProblem?
+    // Both states make live actions unavailable; only a network failure is shown as Offline.
+    var offline: Bool { syncProblem != nil }
     var busy = false
     var error: String?
     var selectedChannelId: String?
@@ -60,7 +62,7 @@ import UIKit
             if let cached = OfflineCache.read(origin: origin) {
                 user = cached.user; channels = cached.channels; categories = cached.categories
                 users = cached.users; messages = cached.messages; readStates = cached.readStates
-                instanceName = cached.instanceName; offline = true
+                instanceName = cached.instanceName; syncProblem = .networkOffline
             }
             try await refresh()
             connectSocket()
@@ -69,10 +71,10 @@ import UIKit
         } catch {
             if DenFailure.unauthorized(error) { clearSession(); self.error = DenFailure.signedOut.localizedDescription }
             else {
-                offline = true
+                recordSyncFailure(error)
                 // Restoring cached text offline is an expected state, not a blocking alert.
                 if user == nil { report(error) }
-                connectSocket()
+                if syncProblem != .incompatibleResponse { connectSocket() }
             }
         }
     }
@@ -88,10 +90,14 @@ import UIKit
         try SessionVault.save(session.token, origin: nextOrigin)
         stopNetwork()
         if user?.id != session.user.id || origin != nextOrigin { OfflineCache.remove(origin: nextOrigin); messages = [:] }
-        origin = nextOrigin; theme.reset(origin: nextOrigin); user = session.user
+        origin = nextOrigin; theme.reset(origin: nextOrigin); user = session.user; syncProblem = nil
         service = DenService(origin: nextOrigin, token: session.token)
         UserDefaults.standard.set(nextOrigin.absoluteString, forKey: "den.activeOrigin")
-        try await refresh()
+        do { try await refresh() }
+        catch {
+            if !DenFailure.unauthorized(error), !DenFailure.cancelled(error), syncProblem != .incompatibleResponse { connectSocket() }
+            throw error
+        }
         connectSocket()
         await notifications?.requestAfterLogin()
         await voip?.resumeAfterLogin()
@@ -102,6 +108,14 @@ import UIKit
     }
     func check(_ expected: UUID) throws { guard generation == expected else { throw CancellationError() } }
     func refresh() async throws {
+        let expected = generation
+        do { try await refreshContents() }
+        catch {
+            if generation == expected, !DenFailure.cancelled(error) { recordSyncFailure(error) }
+            throw error
+        }
+    }
+    private func refreshContents() async throws {
         let service = try activeService(), expected = generation
         async let identity = service.me()
         async let fetchedChannels = service.channels()
@@ -123,10 +137,11 @@ import UIKit
         let visible = Set(channels.map(\.id))
         messages = messages.filter { visible.contains($0.key) }
         if let selectedChannelId, !visible.contains(selectedChannelId) { self.selectedChannelId = nil }
-        offline = false
         if let selectedChannelId, channels.first(where: { $0.id == selectedChannelId })?.kind != .voice {
-            try await loadConversation(channelId: selectedChannelId)
+            try await loadConversation(channelId: selectedChannelId, duringRefresh: true)
         }
+        syncProblem = nil
+        if error == DenFailure.updateRequired.localizedDescription { error = nil }
         saveCache(); await notifications?.updateBadge()
         // Read-only machine/access lists cannot prevent chat from booting.
         let fetchedHosts = (try? await service.hosts()) ?? []; try check(expected); hosts = fetchedHosts
@@ -140,7 +155,8 @@ import UIKit
             messages[channelId] = tail.sorted { $0.id < $1.id }; messageHasNewer[channelId] = false
         }
         else { merge(tail, channelId: channelId) }
-        offline = false; saveCache()
+        if syncProblem == .networkOffline { syncProblem = nil }
+        saveCache()
     }
     func fetchMessage(id: String, channelId: String) async throws -> API.Message {
         let expected = generation
@@ -152,10 +168,10 @@ import UIKit
     func selectChannel(_ id: String, messageId: String? = nil) {
         selectedChannelId = id; targetMessageId = messageId
     }
-    func loadConversation(channelId: String) async throws {
+    func loadConversation(channelId: String, duringRefresh: Bool = false) async throws {
         // The reconnect loop refetches before clearing offline. Browsing the cache must
         // not issue a request per room or turn an expected outage into modal errors.
-        guard !offline else { return }
+        guard duringRefresh || !offline else { return }
         let service = try activeService(), expected = generation
         let target = selectedChannelId == channelId ? targetMessageId : nil
         let unread = readStates.first { $0.channelId == channelId }
@@ -286,7 +302,7 @@ import UIKit
         user = nil; channels = []; categories = []; users = []; readStates = []; messages = [:]; messageHasNewer = [:]
         callStates = []; presence = []; typing = [:]; selectedChannelId = nil; targetMessageId = nil
         for item in pendingUploads { try? FileManager.default.removeItem(at: item.localURL) }
-        pendingUploads = []; hosts = []; grants = []; offline = false
+        pendingUploads = []; hosts = []; grants = []; syncProblem = nil
     }
     func saveCache() {
         guard let user else { return }
@@ -299,6 +315,27 @@ import UIKit
         // URLError.cancelled in ClientError; this is not a connectivity failure.
         guard !Task.isCancelled, !DenFailure.cancelled(failure) else { return }
         if DenFailure.unauthorized(failure) { clearSession(); error = DenFailure.signedOut.localizedDescription }
-        else { error = DenFailure.present(failure) }
+        else {
+            if DenFailure.incompatible(failure) { recordSyncFailure(failure) }
+            error = DenFailure.present(failure)
+        }
+    }
+    func recordSyncFailure(_ failure: Error) {
+        guard !DenFailure.cancelled(failure) else { return }
+        if DenFailure.incompatible(failure) {
+            syncProblem = .incompatibleResponse
+            socketLoop?.cancel(); socketLoop = nil
+            socket?.cancel(with: .goingAway, reason: nil); socket = nil
+        } else if syncProblem != .incompatibleResponse {
+            syncProblem = .networkOffline
+        }
+        presence = []; typing = [:]
+    }
+    func retrySync() async {
+        do {
+            try await refresh()
+            // A schema failure tore the loop down. An ordinary pull must not bounce a live socket.
+            if socketLoop == nil { connectSocket() }
+        } catch { report(error) }
     }
 }

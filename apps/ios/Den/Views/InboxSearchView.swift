@@ -18,7 +18,7 @@ struct InboxView: View {
 
     var body: some View {
         List {
-            if store.offline { QuietOfflineChip().listRowBackground(Color.clear) }
+            if store.offline { SyncStatusView(store: store).listRowBackground(Color.clear) }
             if unread.isEmpty {
                 ContentUnavailableView("You're caught up", systemImage: "tray", description: Text("Mentions, direct messages, and unread rooms appear here."))
                     .listRowBackground(Color.clear)
@@ -64,7 +64,7 @@ struct InboxView: View {
                 }
             }
         }
-        .refreshable { do { try await store.refresh(); await loadPreviews() } catch { store.report(error) } }
+        .refreshable { await store.retrySync(); await loadPreviews() }
         .task(id: unread.map(\.id)) { await loadPreviews() }
     }
 

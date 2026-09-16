@@ -63,7 +63,7 @@ struct ConversationView: View {
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if store.offline { QuietOfflineChip().padding(.horizontal, 16).padding(.bottom, 8) }
+                    if store.offline { SyncStatusView(store: store).padding(.horizontal, 16).padding(.bottom, 8) }
                     if !messages.isEmpty && !exhausted {
                         Button {
                             guard !loadingOlder, let first = messages.first else { return }
@@ -144,7 +144,8 @@ struct ConversationView: View {
                 if value { markTailRead() }
             }
             .refreshable {
-                do { try await store.loadMessages(channelId: channel.id) } catch { store.report(error) }
+                if store.syncProblem == .incompatibleResponse { await store.retrySync() }
+                else { do { try await store.loadMessages(channelId: channel.id) } catch { store.report(error) } }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
