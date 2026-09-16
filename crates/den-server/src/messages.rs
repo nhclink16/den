@@ -130,7 +130,7 @@ pub(crate) async fn send(
             tracing::error!(code = e.1, "thread metadata update failed");
         }
     }
-    if let Err(e) = inbox::changed(&s, &msg.channel_id, Some(&msg)).await {
+    if let Err(e) = inbox::changed(&s, &msg.channel_id, thread.as_deref(), Some(&msg)).await {
         tracing::error!(code = e.1, "inbox update failed");
     }
     Ok(Json(msg))
@@ -172,7 +172,9 @@ pub(crate) async fn edit(
             tracing::error!(code = e.1, "thread metadata update failed");
         }
     }
-    if let Err(e) = inbox::changed(&s, &old.channel_id, None).await {
+    // None for the message keeps the existing policy that an edit never alerts,
+    // while the thread is still named so its counts refresh.
+    if let Err(e) = inbox::changed(&s, &old.channel_id, threads::touched(&msg), None).await {
         tracing::error!(code = e.1, "inbox update failed");
     }
     Ok(Json(msg))
@@ -241,7 +243,10 @@ pub(crate) async fn remove(
             tracing::error!(code = e.1, "thread metadata update failed");
         }
     }
-    if let Err(e) = inbox::changed(&s, &old.channel_id, None).await {
+    // The thread is carried from the message we already loaded: after the delete
+    // there may be no reply left to look it up from, and its new zero count still
+    // has to reach everyone who could see it.
+    if let Err(e) = inbox::changed(&s, &old.channel_id, old.thread_id.as_deref(), None).await {
         tracing::error!(code = e.1, "inbox update failed");
     }
     Ok(StatusCode::NO_CONTENT)

@@ -1,0 +1,47 @@
+{
+  "db_name": "SQLite",
+  "query": "WITH unread AS (\n            SELECT m.id AS id,\n                EXISTS(SELECT 1 FROM message_mentions mm WHERE mm.message_id=m.id AND mm.user_id=?) AS mentioned\n            FROM messages m\n            LEFT JOIN read_state r ON r.channel_id=m.channel_id AND r.user_id=?\n            WHERE m.channel_id=? AND m.thread_id IS NULL AND m.author_id<>?\n                AND (r.last_read_id IS NULL OR m.id>r.last_read_id)\n            UNION ALL\n            SELECT m.id AS id,\n                EXISTS(SELECT 1 FROM message_mentions mm WHERE mm.message_id=m.id AND mm.user_id=?) AS mentioned\n            FROM messages m JOIN threads t ON t.id=m.thread_id JOIN channels c ON c.id=t.channel_id\n            LEFT JOIN thread_read_state s ON s.thread_id=t.id AND s.user_id=?\n            WHERE t.channel_id=? AND m.author_id<>?\n                AND (s.last_read_id IS NULL OR m.id>s.last_read_id)\n                AND (coalesce(s.following,0)=1 OR c.kind='dm'\n                    OR EXISTS(SELECT 1 FROM channel_subscriptions cs WHERE cs.channel_id=t.channel_id AND cs.user_id=?))\n        )\n        SELECT (SELECT last_read_id FROM read_state WHERE user_id=? AND channel_id=?) as \"last_read_id?\",\n            (SELECT count(*) FROM unread) as \"unread_count!: i64\",\n            (SELECT count(*) FROM unread WHERE mentioned) as \"mention_count!: i64\",\n            (SELECT count(*) FROM unread u WHERE\n                (coalesce((SELECT mentions FROM notification_preferences WHERE user_id=?),1)=1 AND u.mentioned)\n                OR (coalesce((SELECT dms FROM notification_preferences WHERE user_id=?),1)=1\n                    AND EXISTS(SELECT 1 FROM channels c WHERE c.id=? AND c.kind='dm'))\n                OR EXISTS(SELECT 1 FROM channel_subscriptions cs WHERE cs.channel_id=? AND cs.user_id=?)\n            ) as \"notification_count!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "last_read_id?",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "read_state",
+            "name": "last_read_id"
+          }
+        }
+      },
+      {
+        "name": "unread_count!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "mention_count!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "notification_count!: i64",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4a41c54867c1343bf09f764c8fb57152523a2fe13536d1bc8bb0448c36a3fd85"
+}

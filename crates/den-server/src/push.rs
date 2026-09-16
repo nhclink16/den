@@ -159,14 +159,22 @@ pub(crate) fn notification(
         NotificationReason::SubscribedChannel => "New message in Den",
     };
     let body: String = message.content.chars().take(180).collect();
+    let mut payload = json!({"aps":{"alert":{"title":title,"body":body},"sound":"default","badge":badge},
+        "type":"notification","channel_id":message.channel_id,"message_id":message.id,"reason":reason});
+    // The conversation this belongs to, when it is a thread reply. A native client
+    // that suppresses alerts for the channel on screen needs it to suppress only the
+    // conversation actually open, rather than every thread of that channel.
+    // message_id and channel_id remain the deep-link authority.
+    if let Some(thread) = &message.thread_id {
+        payload["thread_id"] = json!(thread);
+    }
     queue(
         s,
         Job {
             user_id: user.into(),
             channel_id: message.channel_id.clone(),
             expires_at: now() + 3600,
-            payload: json!({"aps":{"alert":{"title":title,"body":body},"sound":"default","badge":badge},
-            "type":"notification","channel_id":message.channel_id,"message_id":message.id,"reason":reason}),
+            payload,
             invitation: None,
         },
     );

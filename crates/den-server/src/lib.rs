@@ -23,6 +23,7 @@ mod push;
 mod sounds;
 mod terminal;
 mod terminal_recording;
+mod thread_read;
 mod threads;
 mod thumbnails;
 mod tickets;
@@ -369,7 +370,19 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             "/channels/{id}/messages",
             get(messages::messages).post(messages::send),
         )
-        .route("/threads/{id}", axum::routing::patch(threads::update))
+        .route("/channels/{id}/threads", get(thread_read::list))
+        .route(
+            "/threads/{id}",
+            get(thread_read::get).patch(threads::update),
+        )
+        .route(
+            "/threads/{id}/read",
+            axum::routing::put(thread_read::mark_read),
+        )
+        .route(
+            "/threads/{id}/follow",
+            axum::routing::put(thread_read::follow),
+        )
         .route("/threads/{id}/messages", get(threads::replies))
         .route(
             "/messages/{id}",

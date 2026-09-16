@@ -155,7 +155,7 @@ pub(crate) async fn create(
     tx.commit().await?;
     let msg = messages::get_message(&s, &message).await?;
     let _ = s.events.send(Event::MessageCreated(msg.clone()));
-    if let Err(e) = inbox::changed(&s, &channel, Some(&msg)).await {
+    if let Err(e) = inbox::changed(&s, &channel, None, Some(&msg)).await {
         tracing::error!(code = e.1, "object inbox update failed");
     }
     Ok(Json(load(&s, &id).await?))

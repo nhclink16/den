@@ -1236,16 +1236,15 @@ async fn unsupported_thread_context_is_refused_without_side_effects() {
     let root = id(&t
         .post(&path, &t.admin.token, json!({"content":"topic"}))
         .await);
-    let thread = t
+    let reply = t
         .post(
             &path,
             &t.admin.token,
             json!({"content":"a","reply_to":root}),
         )
-        .await["thread_id"]
-        .as_str()
-        .unwrap()
-        .to_string();
+        .await;
+    let thread = reply["thread_id"].as_str().unwrap().to_string();
+    let reply_id = id(&reply);
     let counts = |db: sqlx::SqlitePool| async move {
         let one = |sql: &'static str, db: sqlx::SqlitePool| async move {
             sqlx::query_scalar::<_, i64>(sql)
@@ -1298,16 +1297,16 @@ async fn unsupported_thread_context_is_refused_without_side_effects() {
             );
         }
     }
-    // The main conversation's own marker is still the flat one until the read model
-    // lands, so claiming to read only the roots is refused rather than quietly
-    // acknowledging the thread replies it says it is skipping.
+    // roots_only on the channel read is no longer a staged limit — the read model
+    // implements it, and its behaviour lives in the unread scenarios. What is still
+    // refused is a main-conversation marker that is actually a thread reply.
     assert_eq!(
         status(
             &t,
             Method::PUT,
             &format!("/channels/{channel}/read"),
             &t.admin.token,
-            json!({"message_id": root, "roots_only": true})
+            json!({"message_id": reply_id, "roots_only": true})
         )
         .await,
         400

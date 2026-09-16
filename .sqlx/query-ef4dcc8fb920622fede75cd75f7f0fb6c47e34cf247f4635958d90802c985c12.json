@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO thread_read_state(user_id,thread_id,last_read_id,following) VALUES(?,?,NULL,0)\n             ON CONFLICT(user_id,thread_id) DO UPDATE SET following=0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ef4dcc8fb920622fede75cd75f7f0fb6c47e34cf247f4635958d90802c985c12"
+}

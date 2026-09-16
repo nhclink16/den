@@ -233,6 +233,8 @@ mod objects;
 mod portable;
 #[path = "api/thread_conversations.rs"]
 mod thread_conversations;
+#[path = "api/thread_unread.rs"]
+mod thread_unread;
 #[path = "api/threads.rs"]
 mod threads;
 

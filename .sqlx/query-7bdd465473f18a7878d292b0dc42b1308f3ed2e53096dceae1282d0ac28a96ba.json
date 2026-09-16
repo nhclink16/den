@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO thread_read_state(user_id,thread_id,last_read_id,following)\n            SELECT ?,t.id,coalesce((SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id),t.root_message_id),0\n            FROM threads t JOIN channels c ON c.id=t.channel_id\n            WHERE t.channel_id=? AND c.kind<>'dm'\n                AND NOT EXISTS(SELECT 1 FROM thread_read_state p WHERE p.thread_id=t.id AND p.user_id=? AND p.following=1)\n            ON CONFLICT(user_id,thread_id) DO UPDATE SET last_read_id=CASE\n                WHEN thread_read_state.last_read_id IS NULL OR thread_read_state.last_read_id<excluded.last_read_id\n                THEN excluded.last_read_id ELSE thread_read_state.last_read_id END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "7bdd465473f18a7878d292b0dc42b1308f3ed2e53096dceae1282d0ac28a96ba"
+}

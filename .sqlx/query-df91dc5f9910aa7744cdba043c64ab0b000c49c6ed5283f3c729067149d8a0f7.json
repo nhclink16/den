@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(\n            SELECT 1 FROM messages m JOIN channels c ON c.id=m.channel_id\n            LEFT JOIN read_state r ON r.channel_id=m.channel_id AND r.user_id=?\n            LEFT JOIN thread_read_state p ON p.thread_id=m.thread_id AND p.user_id=?\n            WHERE m.id=? AND m.author_id<>?\n                AND CASE WHEN m.thread_id IS NULL\n                    THEN (r.last_read_id IS NULL OR m.id>r.last_read_id)\n                    ELSE (p.last_read_id IS NULL OR m.id>p.last_read_id)\n                        AND (coalesce(p.following,0)=1 OR c.kind='dm'\n                            OR EXISTS(SELECT 1 FROM channel_subscriptions cs WHERE cs.channel_id=m.channel_id AND cs.user_id=?))\n                END\n        ) as \"eligible!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "eligible!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "df91dc5f9910aa7744cdba043c64ab0b000c49c6ed5283f3c729067149d8a0f7"
+}

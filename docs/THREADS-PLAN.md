@@ -109,6 +109,29 @@ thread. Reading one thread never reads another thread or the main conversation.*
   Unscoped bot messages remain ordinary messages. Silently grouping them by time
   or bot identity would merge unrelated work, so that is deliberately not inferred.
 
+## Mixed-version rollout, and what a flat read means
+
+A channel read with `roots_only` absent or false is deliberately a **flat
+acknowledgement**: it marks the main conversation and every thread of that channel
+read through the supplied marker. That is what an old client displaying one
+timeline means by it, and it is also what an explicit room-wide "Mark all read"
+means. The server cannot tell those two apart from the request body and must not
+try — no client-version heuristic, no silently different meaning.
+
+The consequence is worth stating plainly rather than discovering later. Read
+positions are shared across a person's devices, so **an old client showing the flat
+timeline can acknowledge thread replies that an updated device is keeping
+collapsed.** Independent thread unread is therefore not reliable for an account
+until that account's active clients are updated — and that includes an already-open
+web tab, which keeps running old code until it is reloaded, and an installed native
+app until it is actually updated. Publishing the server PRs is not a deployment
+instruction, and shipping web and native together still cannot upgrade a session
+already running.
+
+Do not try to bridge this by sending `roots_only=true` from a client that still
+renders the flat timeline. That client has no thread UI, so the replies it has
+already shown the reader would stay unread with nothing available to clear them.
+
 ## Compatibility checked in current code
 
 - `den_core::Event` has the receive-only `#[serde(other)] Unknown` fallback.

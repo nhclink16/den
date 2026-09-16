@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT coalesce(max(m.id),?) as \"tail!\" FROM messages m WHERE m.thread_id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "tail!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "b97953c10cec5723d3d5ec90aab518e82437047c32b98fe701ec6ac67494b41c"
+}

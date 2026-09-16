@@ -58,7 +58,7 @@ pub(crate) async fn create_object(
     tx.commit().await?;
     let msg = messages::get_message(s, &message).await?;
     let _ = s.events.send(Event::MessageCreated(msg.clone()));
-    let _ = inbox::changed(s, channel, Some(&msg)).await;
+    let _ = inbox::changed(s, channel, None, Some(&msg)).await;
     objects::load(s, id).await
 }
 pub(crate) async fn state(
