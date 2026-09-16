@@ -1,0 +1,70 @@
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-cli/src/main.rs:202:
+         display_name: Option<String>,
+     },
+ }
+-fn password(stdin: bool) -> anyhow::Result<String> {    if let Ok(value) = std::env::var("DEN_PASSWORD") {
++fn password(stdin: bool) -> anyhow::Result<String> {
++    if let Ok(value) = std::env::var("DEN_PASSWORD") {
+         return Ok(value);
+     }
+     anyhow::ensure!(stdin, "Set DEN_PASSWORD or pass --password-stdin");
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-cli/src/main.rs:371:
+             limit,
+             all,
+         } => {
+-            anyhow::ensure!(
+-                (1..=200).contains(&limit),
+-                "Limit must be 1-200"
+-            );
++            anyhow::ensure!((1..=200).contains(&limit), "Limit must be 1-200");
+             anyhow::ensure!(
+                 !(before.is_some() && after.is_some()),
+                 "Use --before or --after, not both"
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-server/tests/api/uploads.rs:329:
+     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
+ }
+ 
+-async fn rejected(
+-    t: &Test,
+-    token: &str,
+-    body: serde_json::Value,
+-) -> (StatusCode, String, String) {
++async fn rejected(t: &Test, token: &str, body: serde_json::Value) -> (StatusCode, String, String) {
+     let r = t
+         .req(Method::POST, "/uploads", token)
+         .json(&body)
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-server/tests/api/uploads.rs:360:
+     let cid = t.general().await;
+     let max = 1024 * 1024; // Test harness max_upload bytes.
+     for size in [0, -3, max + 1] {
+-        let (status, code, message) = rejected(&t, &alice.token, begin(&cid, "big.bin", size)).await;
++        let (status, code, message) =
++            rejected(&t, &alice.token, begin(&cid, "big.bin", size)).await;
+         assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE, "size {size}");
+         assert_eq!(code, "upload_size");
+         assert_eq!(message, format!("Size must be 1-{max} bytes"));
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-server/tests/api/uploads.rs:373:
+         "x".repeat(256),
+     ];
+     for filename in names {
+-        let (status, code, message) =
+-            rejected(&t, &alice.token, begin(&cid, &filename, 1)).await;
++        let (status, code, message) = rejected(&t, &alice.token, begin(&cid, &filename, 1)).await;
+         assert_eq!(status, StatusCode::BAD_REQUEST, "filename {filename:?}");
+         assert_eq!(code, "invalid_request");
+         assert_eq!(message, "Invalid filename");
+Diff in /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash/crates/den-server/tests/api/uploads.rs:444:
+             .status(),
+         200
+     );
+-    t.post(&format!("/uploads/{first}/complete"), &alice.token, json!({}))
+-        .await;
++    t.post(
++        &format!("/uploads/{first}/complete"),
++        &alice.token,
++        json!({}),
++    )
++    .await;
+     assert_eq!(
+         t.req(Method::POST, "/uploads", &alice.token)
+             .json(&begin(&cid, "six.bin", 10))

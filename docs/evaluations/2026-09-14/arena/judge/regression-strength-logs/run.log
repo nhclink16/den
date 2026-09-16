@@ -1,0 +1,9 @@
+A healthy [('stream::tests::tail_authenticates_every_connection', 0, False), ('stream::tests::tail_preserves_filtering_and_global_events', 0, False), ('stream::tests::tail_stops_on_401_and_403_but_retries_transient', 0, False)]
+A header-drain [('stream::tests::tail_authenticates_every_connection', 0, False), ('stream::tests::tail_preserves_filtering_and_global_events', 0, False), ('stream::tests::tail_stops_on_401_and_403_but_retries_transient', 0, False)]
+A auth-only-403 [('stream::tests::tail_authenticates_every_connection', 0, False), ('stream::tests::tail_preserves_filtering_and_global_events', 0, False), ('stream::tests::tail_stops_on_401_and_403_but_retries_transient', 0, False)]
+A restored [('stream::tests::tail_authenticates_every_connection', 0, False), ('stream::tests::tail_preserves_filtering_and_global_events', 0, False), ('stream::tests::tail_stops_on_401_and_403_but_retries_transient', 0, False)]
+B healthy [('tail_reauthenticates_on_reconnect_and_stops_when_rejected', 0, False)]
+B header-drain [('tail_reauthenticates_on_reconnect_and_stops_when_rejected', 101, False)]
+B auth-only-403 [('tail_reauthenticates_on_reconnect_and_stops_when_rejected', 101, False)]
+B restored [('tail_reauthenticates_on_reconnect_and_stops_when_rejected', 0, False)]
+Complete; frozen sources unchanged and judge CLI restored to B

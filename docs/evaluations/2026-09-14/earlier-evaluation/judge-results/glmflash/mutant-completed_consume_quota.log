@@ -1,0 +1,35 @@
+     Removed 21 files, 240.9MiB total
+COMMAND ['cargo', 'test', '-p', 'den-server', '--test', 'api', 'uploads::', '--', '--nocapture']
+   Compiling den-server v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-server)
+warning: unused variable: `pending`
+  --> crates/den-server/src/uploads.rs:57:9
+   |
+57 |     let pending = sqlx::query_scalar!(
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pending`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `den-server` (lib) generated 1 warning (run `cargo fix --lib -p den-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 17.61s
+     Running tests/api.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/api-a4576ee51ff79041)
+
+running 4 tests
+test uploads::upload_begin_rejects_bad_sizes_and_filenames_without_admitting_them ... ok
+
+thread 'uploads::upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot' (233155201) panicked at crates/den-server/tests/api/uploads.rs:449:5:
+assertion `left == right` failed
+  left: 409
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test uploads::upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot ... FAILED
+test uploads::upload_deletion_requires_owner_or_admin_and_no_live_references ... ok
+test uploads::upload_resume_survives_uncommitted_bytes_and_serves_authenticated_ranges ... ok
+
+failures:
+
+failures:
+    uploads::upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 1.21s
+
+error: test failed, to rerun pass `-p den-server --test api`

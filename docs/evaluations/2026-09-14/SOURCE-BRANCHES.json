@@ -1,0 +1,111 @@
+{
+  "branches": [
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/deepseek",
+      "branch": "wip/unreviewed/eval-deepseek-20260916",
+      "commit": "98087aca352092668e3cd948a9c0fc9e8f52932c",
+      "paths": [
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glm",
+      "branch": "wip/unreviewed/eval-glm-20260916",
+      "commit": "ca869fd200d15c03751e2f76d3446dfc4dfee7bb",
+      "paths": [
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/glmflash",
+      "branch": "wip/unreviewed/eval-glmflash-20260916",
+      "commit": "12e873bf88591e58712df8c85cbf5d04c499c555",
+      "paths": [
+        "crates/den-cli/src/main.rs",
+        "crates/den-server/tests/api/uploads.rs",
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/kimi",
+      "branch": "wip/unreviewed/eval-kimi-20260916",
+      "commit": "6707103f2ad1aca869a2c214a5cca4cc8867d931",
+      "paths": [
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/luna",
+      "branch": "wip/unreviewed/eval-luna-20260916",
+      "commit": "3a7f405a802bb86ddf1405d09625b4919bf0e760",
+      "paths": [
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/mimo",
+      "branch": "wip/unreviewed/eval-mimo-20260916",
+      "commit": "f413271eafe3b0e230e34d054ce616a1ec2cc62b",
+      "paths": [
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/muse",
+      "branch": "wip/unreviewed/eval-muse-20260916",
+      "commit": "5e5872e9d5daf7073b9bd979afa6748482af692b",
+      "paths": [
+        "crates/den-cli/src/main.rs",
+        "crates/den-server/tests/api/uploads.rs",
+        "EVAL_REVIEW.md",
+        "EVAL_SUMMARY.md",
+        "review-proposal.diff"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify",
+      "branch": "wip/unreviewed/eval-verify-20260916",
+      "commit": "190ce45ab26ada216100494bf85869b6daa6a377",
+      "paths": [
+        "crates/den-cli/src/main.rs",
+        "crates/den-server/tests/api.rs",
+        "crates/den-server/tests/api/uploads.rs",
+        "crates/den-server/tests/api/eval_review.rs"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/tmp/den-arena-20260914/repair-muse",
+      "branch": "wip/unreviewed/arena-repair-muse-20260916",
+      "commit": "29a2d9bbdfce0a223da6571b1dd0dd11913c9b0a",
+      "paths": [
+        "crates/den-cli/src/stream.rs"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/tmp/den-arena-20260914/repair-opus",
+      "branch": "wip/unreviewed/arena-repair-opus-20260916",
+      "commit": "94174168e8b677e874a42f9bd1735c95526bfcfd",
+      "paths": [
+        "crates/den-cli/src/stream.rs",
+        "crates/den-cli/tests/tail.rs"
+      ],
+      "pushed": true
+    },
+    {
+      "cwd": "/tmp/den-arena-20260914/review-muse",
+      "branch": "wip/unreviewed/arena-review-muse-20260916",
+      "commit": "d624329f6ca2a399a834d08a865351104a7f6fc4",
+      "paths": [],
+      "pushed": true
+    }
+  ]
+}

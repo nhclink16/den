@@ -1,0 +1,3 @@
+ M crates/den-cli/src/stream.rs
+?? crates/den-cli/tests/
+?? tools/arena-den

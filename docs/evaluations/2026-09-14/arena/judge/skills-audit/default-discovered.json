@@ -1,0 +1,257 @@
+[
+  {
+    "name": "customize-opencode",
+    "description": "Use ONLY when the user is editing or creating opencode's own configuration: opencode.json, opencode.jsonc, files under .opencode/, or files under ~/.config/opencode/. Also use when creating or fixing opencode agents, subagents, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring opencode itself.",
+    "location": "<built-in>"
+  },
+  {
+    "name": "memex-search",
+    "description": "Search, filter, and retrieve Claude/Codex/Cursor/OpenCode/Pi/Oh My Pi/Copilot history indexed by the memex CLI. Use when the user wants to index history, run lexical/semantic/hybrid search, fetch full transcripts, or produce LLM-friendly JSON output for RAG.",
+    "location": "/Users/nicholascaron/.agents/skills/memex-search/SKILL.md"
+  },
+  {
+    "name": "arh-office-tech-fix",
+    "description": "Investigate real ARH staff technology issues and turn verified fixes into draft Office Tech Fixes knowledge-base entries. Use when Nicholas asks about ARH office tech support, staff screenshots, Buildium/Safari issues, Elevate UC/helper prompts, Google Workspace user trouble, common Mac app issues, or whether a recurring support issue should become a Notion help entry.",
+    "location": "/Users/nicholascaron/.agents/skills/arh-office-tech-fix/SKILL.md"
+  },
+  {
+    "name": "unslop",
+    "description": "Cut AI tells from any writing. Must always apply.",
+    "location": "/Users/nicholascaron/.agents/skills/unslop/SKILL.md"
+  },
+  {
+    "name": "principle-prove-it-works",
+    "description": "Apply after completing a task, before declaring done. Verify against the real artifact (run the feature, read the actual value, inspect the diff), not a proxy, self-report, or 'it compiles.'",
+    "location": "/Users/nicholascaron/.agents/skills/principle-prove-it-works/SKILL.md"
+  },
+  {
+    "name": "resolving-merge-conflicts",
+    "description": "Use when you need to resolve an in-progress git merge/rebase conflict.",
+    "location": "/Users/nicholascaron/.agents/skills/resolving-merge-conflicts/SKILL.md"
+  },
+  {
+    "name": "herdr-browser",
+    "description": "Connect browser automation tools to a Chromium view rendered inside a Herdr browser pane.",
+    "location": "/Users/nicholascaron/.agents/skills/herdr-browser/SKILL.md"
+  },
+  {
+    "name": "research",
+    "description": "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.",
+    "location": "/Users/nicholascaron/.agents/skills/research/SKILL.md"
+  },
+  {
+    "name": "grilling",
+    "description": "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.",
+    "location": "/Users/nicholascaron/.agents/skills/grilling/SKILL.md"
+  },
+  {
+    "name": "bro",
+    "description": "Restate the last message in plain human language, with no jargon.",
+    "location": "/Users/nicholascaron/.agents/skills/bro/SKILL.md"
+  },
+  {
+    "name": "grill-with-docs",
+    "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
+    "location": "/Users/nicholascaron/.agents/skills/grill-with-docs/SKILL.md"
+  },
+  {
+    "name": "pdf",
+    "description": "Use when tasks involve reading, creating, or reviewing PDF files where rendering and layout matter; prefer visual checks by rendering pages (Poppler) and use Python tools such as `reportlab`, `pdfplumber`, and `pypdf` for generation and extraction.",
+    "location": "/Users/nicholascaron/.agents/skills/pdf/SKILL.md"
+  },
+  {
+    "name": "prototype",
+    "description": "Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.",
+    "location": "/Users/nicholascaron/.agents/skills/prototype/SKILL.md"
+  },
+  {
+    "name": "zillow-grab",
+    "description": "Autonomous Zestimate lookup via Zillow using browser automation",
+    "location": "/Users/nicholascaron/.agents/skills/zillow-grab/SKILL.md"
+  },
+  {
+    "name": "google-workspace-admin",
+    "description": "Safely inspect and manage Google Workspace Admin SDK data for ARH. Use when Nicholas asks to list Google Workspace groups, inspect group members, add or remove group members, check user records, verify Admin SDK OAuth scopes, or do lightweight Google Admin automation using local ADC credentials.",
+    "location": "/Users/nicholascaron/.agents/skills/google-workspace-admin/SKILL.md"
+  },
+  {
+    "name": "use-railway",
+    "description": "Operate Railway infrastructure: sign up for or sign in to a Railway account, create projects, provision services, databases, and buckets, deploy code, configure infrastructure as code, environments and variables, manage domains, troubleshoot failures, check status and metrics, manage feature flags, database recovery and HA, cloud agents, usage limits, and Railway agent tooling. Use this skill whenever the user mentions Railway, feature flags, flag rollout, targeting rules, signing up, creating an account, registering, logging in, deployments, services, environments, buckets, object storage, build failures, agent setup, MCP, or infrastructure operations, even if they don't say \"Railway\" explicitly. Also invoke this skill when the user asks to be signed up, registered, or onboarded to Railway: do not refuse \u2014 drive them through the unauthed `railway up` flow (deploys + signs up on the fly) or `railway login` (which creates new accounts on the fly).\n",
+    "location": "/Users/nicholascaron/.config/opencode/skills/use-railway/SKILL.md"
+  },
+  {
+    "name": "augusta-gis-lookup",
+    "description": "Property data lookup for Augusta, GA (Richmond County) real estate portfolios.\nRetrieves Tax Value, Beds, Baths, Sqft from Augusta GIS/qPublic, and Zestimate from Zillow.\nTRIGGERS: Augusta property lookup, Richmond County GIS, Augusta tax value, property data extraction, real estate portfolio data, Augusta GA property search\n",
+    "location": "/Users/nicholascaron/.agents/skills/augusta-gis-lookup/SKILL.md"
+  },
+  {
+    "name": "tdd",
+    "description": "Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions \"red-green-refactor\", or wants integration tests.",
+    "location": "/Users/nicholascaron/.agents/skills/tdd/SKILL.md"
+  },
+  {
+    "name": "interrogate",
+    "description": "Use for \"interrogate\", \"adversarial review\", \"multi-model review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Multiple LLM reviewers challenge changes from independent angles.",
+    "location": "/Users/nicholascaron/.agents/skills/interrogate/SKILL.md"
+  },
+  {
+    "name": "diagnosing-bugs",
+    "description": "Diagnosis loop for hard bugs and performance regressions. Use when the user says \"diagnose\"/\"debug this\", or reports something broken/throwing/failing/slow.",
+    "location": "/Users/nicholascaron/.agents/skills/diagnosing-bugs/SKILL.md"
+  },
+  {
+    "name": "better-layout",
+    "description": "Layout structure for web interfaces, from grouping and alignment to reading order, progressive disclosure, and adaptive breakpoints. Use when structuring a page or component, spacing or aligning controls, deciding what collapses at small sizes, handling RTL layout direction, or reviewing frontend code for layout. Triggers on layout, spacing, alignment, grouping, negative space, whitespace, visual hierarchy, reading order, progressive disclosure, breakpoints, responsive layout, container queries, safe area, full-bleed, edge-to-edge, layout margins, RTL layout, logical properties.",
+    "location": "/Users/nicholascaron/.agents/skills/better-layout/SKILL.md"
+  },
+  {
+    "name": "writing-great-skills",
+    "description": "Reference for writing and editing skills well \u2014 the vocabulary and principles that make a skill predictable.",
+    "location": "/Users/nicholascaron/.agents/skills/writing-great-skills/SKILL.md"
+  },
+  {
+    "name": "better-colors",
+    "description": "OKLCH color space and color usage for web projects. Convert hex/rgb/hsl to oklch, generate palettes, check contrast, handle gamut boundaries, theme with Tailwind v4, and apply color with meaning. Triggers on oklch, color conversion, palette generation, contrast ratio, gamut, display p3, design tokens, semantic color tokens, hue drift, chroma, dark mode colors, accent color, color meaning, light and dark appearance, increased contrast.",
+    "location": "/Users/nicholascaron/.agents/skills/better-colors/SKILL.md"
+  },
+  {
+    "name": "xlsx",
+    "description": "Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Codex needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas",
+    "location": "/Users/nicholascaron/.agents/skills/xlsx/SKILL.md"
+  },
+  {
+    "name": "notion-api",
+    "description": "This skill provides comprehensive instructions for interacting with the Notion API via REST calls. This skill should be used whenever the user asks to interact with Notion, including reading, creating, updating, or deleting pages, databases, blocks, comments, or any other Notion content. The skill covers authentication, all available endpoints, pagination, error handling, and best practices.\n",
+    "location": "/Users/nicholascaron/.agents/skills/notion-api/SKILL.md"
+  },
+  {
+    "name": "better-typography",
+    "description": "Web typography from choosing fonts to spacing, wrapping and accessibility. Use when picking or pairing typefaces, configuring variable fonts or OpenType features, setting up a type scale, checking heading hierarchy, styling text in components, truncating text, styling underlines, selection, placeholders or carets, or reviewing frontend code for typography. Triggers on typography, fonts, font formats, woff2, variable fonts, font-weight, opentype, font-feature-settings, letter-spacing, line-height, type scale, heading hierarchy, heading levels, tabular numbers, text-wrap, truncation, line clamp, underlines, text-decoration, text selection, iOS input zoom, font smoothing, text contrast, measure, line length, text-box, smart punctuation, drop cap.",
+    "location": "/Users/nicholascaron/.agents/skills/better-typography/SKILL.md"
+  },
+  {
+    "name": "better-interface",
+    "description": "User-invoked, cross-discipline interface review that coordinates better-accessibility, better-layout, better-writing, better-typography, better-colors, and better-ui. Use when explicitly invoked for a holistic review of a screen, flow, feature, or product interface. Supports quick and full review modes. Triggers on better-interface, full interface review, holistic UI audit, cross-discipline design review, review the whole interface.",
+    "location": "/Users/nicholascaron/.agents/skills/better-interface/SKILL.md"
+  },
+  {
+    "name": "better-accessibility",
+    "description": "Accessibility engineering for product interfaces, from focus states and keyboard support to ARIA, forms, and screen readers. Use when building or reviewing UI components, modals, menus, forms, custom widgets, or when the user says \"make this accessible\" or reports keyboard or screen-reader issues. Triggers on accessibility, a11y, WCAG, aria, focus ring, focus-visible, focus trap, keyboard navigation, tab order, tabindex, screen reader, sr-only, aria-live, alt text, hit area, touch target, prefers-reduced-motion, autoplay, toast duration, skip link, semantic HTML, aria-label, form errors, disabled buttons, \"not keyboard accessible\".",
+    "location": "/Users/nicholascaron/.claude/skills/better-accessibility/SKILL.md"
+  },
+  {
+    "name": "arh-new-hire-onboarding",
+    "description": "Onboard ARH employees or contractors across Google Workspace, email groups, Elevate/Intermedia Control Panel, and related access-check lanes. Use when Nicholas asks to create ARH user accounts, add new hires to company or leasing groups, set up Elevate users or phone access, turn a hiring decision into account setup, or make onboarding easier to repeat with API-first proof and Chrome fallback.",
+    "location": "/Users/nicholascaron/.agents/skills/arh-new-hire-onboarding/SKILL.md"
+  },
+  {
+    "name": "better-writing",
+    "description": "UX writing and interface copy, from voice and button labels to error messages and empty states. Use when writing or reviewing any user-facing text: button and link labels, form errors, placeholders, settings labels, onboarding flows, notifications, or empty states. Triggers on UX writing, microcopy, interface copy, product copy, copywriting, button labels, link text, error messages, empty states, placeholder text, settings labels, capitalization, title case, sentence case, voice and tone.",
+    "location": "/Users/nicholascaron/.claude/skills/better-writing/SKILL.md"
+  },
+  {
+    "name": "find-skills",
+    "description": "Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill.",
+    "location": "/Users/nicholascaron/.agents/skills/find-skills/SKILL.md"
+  },
+  {
+    "name": "herdr",
+    "description": "Control Herdr, a terminal multiplexer for coding agents. Use only when the user explicitly mentions Herdr or asks to use Herdr to inspect or control panes, tabs, workspaces, commands, or another agent. Do not use merely because a task could benefit from a background terminal, delegation, or parallel work. Requires HERDR_ENV=1.",
+    "location": "/Users/nicholascaron/.agents/skills/herdr/SKILL.md"
+  },
+  {
+    "name": "workflow-packaging-audit",
+    "description": "Audit recent Codex work, memories, Chronicle summaries, existing skills, custom agents, and automations to identify repeated manual workflows worth packaging. Use when Nicholas asks to look back over recent work, find repeatable workflows, decide whether to create or extend skills/agents/automations, or turn recurring work into durable operating assets.",
+    "location": "/Users/nicholascaron/.agents/skills/workflow-packaging-audit/SKILL.md"
+  },
+  {
+    "name": "chronicle",
+    "description": "Allows you to view the user's screen as well as several hours of history. Use when the user makes a reference to their recent work, for which it'd be helpful to see the screen. This skill MUST be used whenever you need to resolve ambiguity in a user request, where the user hasn't specified enough context to do the task. Examples include disambiguating the specific user/app/document/error the user is referring to.\n\nYou must also use this skill if the user asks about any question regarding Chronicle or asks what you can see from the screen.\n",
+    "location": "/Users/nicholascaron/.agents/skills/chronicle/SKILL.md"
+  },
+  {
+    "name": "context7-cli",
+    "description": "Use the ctx7 CLI to fetch library documentation, manage AI coding skills, and configure Context7 MCP. Activate when the user mentions \"ctx7\" or \"context7\", needs current docs for any library, wants to install/search/generate skills, or needs to set up Context7 for their AI coding agent.",
+    "location": "/Users/nicholascaron/.agents/skills/context7-cli/SKILL.md"
+  },
+  {
+    "name": "playwright-interactive",
+    "description": "Persistent browser and Electron interaction through `js_repl` for fast iterative UI debugging.",
+    "location": "/Users/nicholascaron/.agents/skills/playwright-interactive/SKILL.md"
+  },
+  {
+    "name": "arena",
+    "description": "Spawn N parallel candidates at the same task, pick a base, graft the strongest parts of the losers into it. Use for /arena, 'arena this', 'throw it in the arena', or when one attempt at a non-trivial artifact would lock in the wrong shape.",
+    "location": "/Users/nicholascaron/.agents/skills/arena/SKILL.md"
+  },
+  {
+    "name": "fresh-thread-handoff",
+    "description": "Create concise repo-local handoff documents before moving complex work to a fresh Codex or agent thread. Use when Nicholas says he is starting a fresh thread, wants a handoff, needs restart context, is preserving multi-agent work, or asks to capture current branch, evidence, blockers, and next prompt in a durable file.",
+    "location": "/Users/nicholascaron/.agents/skills/fresh-thread-handoff/SKILL.md"
+  },
+  {
+    "name": "google-reviews-monthly-audit",
+    "description": "Audit and tally the Google Reviews bonus system for a month, including review counts, deleted reviews, edited repeat-reviewer payout events, split reviews, per-employee payout totals, $20-bill cash breakdowns, blockers, and chat-ready month-end summaries. Use when Nicholas asks to month-close, audit, tally, or reconcile Google Reviews bonuses.",
+    "location": "/Users/nicholascaron/.claude/skills/google-reviews-monthly-audit/SKILL.md"
+  },
+  {
+    "name": "recall",
+    "description": "Rebuild your recent working context from your own agent history and live repo state, then hand back a tight current-state brief. Use for 'recall my work on X', 'catch me up', 'what have I been working on', 'where did we leave off', before starting or resuming work.",
+    "location": "/Users/nicholascaron/.agents/skills/recall/SKILL.md"
+  },
+  {
+    "name": "tldraw-offline",
+    "description": "Operate the user's tldraw offline canvas app, including open .tldraw or .tldr files. Use whenever a task involves inspecting, editing, arranging, connecting, linting, or scripting a tldraw Desktop canvas.",
+    "location": "/Users/nicholascaron/.agents/skills/tldraw-offline/SKILL.md"
+  },
+  {
+    "name": "notion-research-documentation",
+    "description": "Research across Notion and synthesize into structured documentation; use when gathering info from multiple Notion sources to produce briefs, comparisons, or reports with citations.",
+    "location": "/Users/nicholascaron/.agents/skills/notion-research-documentation/SKILL.md"
+  },
+  {
+    "name": "fleet",
+    "description": "Choose and inspect Nicholas's Tailscale machines, check services and backups, explain blocked skill updates, inspect installed skills, plan safe updates, and wake the shared Arch/Windows workstation. Use for fleet health, device aliases or capabilities, SSH access, skill enrollment and provenance, tailnet-only serving, and device-specific recovery.",
+    "location": "/Users/nicholascaron/.claude/skills/fleet/SKILL.md"
+  },
+  {
+    "name": "xcodebuildmcp",
+    "description": "Official skill for XcodeBuildMCP. Use when doing iOS/macOS/watchOS/tvOS/visionOS work (build, test, run, debug, log, UI automation).",
+    "location": "/Users/nicholascaron/.agents/skills/den-ios-xcodebuildmcp/SKILL.md"
+  },
+  {
+    "name": "cua-driver",
+    "description": "Drive a native GUI app (macOS, Windows, Linux) via the cua-driver CLI (default) or MCP server; snapshot its accessibility tree, act through snapshot-bound element tokens, native menu paths, exact window geometry, or pixel coordinates, and verify from fresh state. Use when the user asks you to operate, drive, automate, or perform a GUI task in a real application on the host, or to continue, resume, or recall recent Cua activity.",
+    "location": "/Users/nicholascaron/.config/opencode/skills/cua-driver/SKILL.md"
+  },
+  {
+    "name": "frontend-design",
+    "description": "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults.",
+    "location": "/Users/nicholascaron/.config/opencode/skills/frontend-design/SKILL.md"
+  },
+  {
+    "name": "qa-to-pr-train",
+    "description": "Exhaustively test a product and turn verified findings into isolated, reviewed, dependency-ordered pull requests. Use for multi-surface QA passes across web, desktop, mobile, tablet, kiosk, roles, or realistic workflows when the user wants evidence, GitHub issues, implementation PRs, independent review, green CI, and a safe merge plan.",
+    "location": "/Users/nicholascaron/.agents/skills/qa-to-pr-train/SKILL.md"
+  },
+  {
+    "name": "better-ui",
+    "description": "Design engineering principles for making interfaces feel polished. Use when building UI components, reviewing frontend code, implementing animations, hover states, shadows, borders, micro-interactions, enter/exit animations, choosing or reviewing icons, or any visual detail work. Triggers on UI polish, design details, \"make it feel better\", \"feels off\", stagger animations, border radius, optical alignment, image outlines, box shadows, icons, icon stroke weight, icon states, motion restraint.",
+    "location": "/Users/nicholascaron/.agents/skills/better-ui/SKILL.md"
+  },
+  {
+    "name": "teach",
+    "description": "Teach the user a new skill or concept, within this workspace.",
+    "location": "/Users/nicholascaron/.agents/skills/teach/SKILL.md"
+  },
+  {
+    "name": "new",
+    "description": "Create and register a lightweight local Codex project under ~/Projects. Use when the user says \"/new project\", \"create a /new project called ...\", asks to make a new local project and add it to the Codex app, or wants a clean project folder created without manually using the Codex UI.",
+    "location": "/Users/nicholascaron/.agents/skills/new/SKILL.md"
+  },
+  {
+    "name": "codex-tool-surface-health-check",
+    "description": "Diagnose Codex Browser, Chrome, and Computer Use availability as separate live tool surfaces on Nicholas's Mac. Use when Nicholas asks to test Browser/Chrome/Computer Use, troubleshoot plugin or extension bridge failures, verify tool connectivity, or explain why browser automation or Computer Use is not attaching.",
+    "location": "/Users/nicholascaron/.agents/skills/codex-tool-surface-health-check/SKILL.md"
+  }
+]

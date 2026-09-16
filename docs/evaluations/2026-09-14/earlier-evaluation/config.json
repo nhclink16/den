@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "cua-driver": {
+      "enabled": false
+    },
+    "cua-arch": {
+      "enabled": false
+    },
+    "railway": {
+      "enabled": false
+    }
+  },
+  "share": "disabled",
+  "snapshot": false,
+  "lsp": false,
+  "formatter": false,
+  "agent": {
+    "eval-worker": {
+      "mode": "all",
+      "description": "Isolated Den coding evaluation worker",
+      "steps": 45,
+      "prompt": "Complete the assigned Den tasks. Be precise about what you actually verified. Follow repository conventions. Do not delegate.",
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "allow",
+        "bash": {
+          "*": "deny",
+          "cargo *": "allow",
+          "rustfmt *": "allow",
+          "git diff*": "allow",
+          "git status*": "allow"
+        }
+      }
+    }
+  }
+}

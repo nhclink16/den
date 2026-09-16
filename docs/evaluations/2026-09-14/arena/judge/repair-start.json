@@ -1,0 +1,29 @@
+{
+  "free_gib": 12.949195861816406,
+  "prompt_sha256": "8226143095b763c95d4c0d34a2aa4c1f751ed0906f70b1a82e7a850fde0ff538",
+  "starts": {
+    "muse": "2026-09-14T20:53:50.010633+00:00",
+    "opus": "2026-09-14T20:53:50.431327+00:00"
+  },
+  "muse": {
+    "returncode": 0,
+    "stdout": "{\"id\":\"cli:agent:prompt\",\"result\":{\"agent\":{\"agent\":\"opencode\",\"agent_status\":\"idle\",\"cwd\":\"/private/tmp/den-arena-20260914/repair-muse\",\"focused\":false,\"foreground_cwd\":\"/private/tmp/den-arena-20260914/repair-muse\",\"interactive_ready\":true,\"name\":\"arena-muse\",\"pane_id\":\"w11:p6\",\"revision\":2,\"state_change_seq\":676,\"tab_id\":\"w11:t5\",\"terminal_id\":\"term_65b777e720c5324\",\"terminal_title\":\"OC | Unscored provider-access check\",\"terminal_title_stripped\":\"OC | Unscored provider-access check\",\"workspace_id\":\"w11\"},\"type\":\"agent_prompted\"}}\n",
+    "stderr": ""
+  },
+  "opus": {
+    "returncode": 0,
+    "stdout": "{\"id\":\"cli:agent:prompt\",\"result\":{\"agent\":{\"agent\":\"claude\",\"agent_status\":\"idle\",\"cwd\":\"/private/tmp/den-arena-20260914/repair-opus\",\"focused\":true,\"foreground_cwd\":\"/private/tmp/den-arena-20260914/repair-opus\",\"pane_id\":\"w11:p7\",\"revision\":3,\"state_change_seq\":675,\"tab_id\":\"w11:t5\",\"terminal_id\":\"term_65b7780d346f225\",\"terminal_title\":\"\u2733 Arena Opus repair\",\"terminal_title_stripped\":\"Arena Opus repair\",\"workspace_id\":\"w11\"},\"type\":\"agent_prompted\"}}\n",
+    "stderr": ""
+  },
+  "interruptions": [
+    {
+      "time": "2026-09-14T20:54:30.074504+00:00",
+      "cause": "Harness: Claude restricted/dontAsk denied explicitly allowed reproduction Bash; paused both contestants without hints."
+    }
+  ],
+  "resumed": {
+    "muse": "2026-09-14T20:56:17.520147+00:00",
+    "opus": "2026-09-14T20:56:17.938315+00:00"
+  },
+  "resume_prompt": "Resume the repair now. The reproduction command is /tmp/den-arena-20260914/runtime/bin/python tools/arena_repro.py tools/arena-den . This harness-created symlink targets only your own CLI binary. The original task and scope remain unchanged. You have a fresh 20-minute remaining limit because the harness interruption is excluded; finish sooner when complete. No further hints will be provided."
+}

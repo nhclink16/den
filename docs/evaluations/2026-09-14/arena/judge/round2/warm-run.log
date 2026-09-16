@@ -1,0 +1,3 @@
+review-muse warm; own source/target verified; no hidden tests
+review-opus warm; own source/target verified; no hidden tests
+Both patched snapshots match; targets are independent

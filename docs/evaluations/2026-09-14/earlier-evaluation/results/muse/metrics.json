@@ -1,0 +1,30 @@
+{
+  "elapsed_seconds": 216.17,
+  "returncode": 0,
+  "model": "opencode-go/muse-spark-1.3-contributor",
+  "cost_usd_reported": 0.020997665999999998,
+  "steps": 40,
+  "input_tokens": 134395,
+  "output_tokens": 9486,
+  "reasoning_tokens": 9359,
+  "cached_input_tokens": 1894583,
+  "tool_calls": 50,
+  "tool_errors": [
+    {
+      "tool": "read",
+      "error": "File not found: /private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/muse/crates/den-server/tests/api/main.rs"
+    },
+    {
+      "tool": "bash",
+      "error": "The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{\"permission\":\"*\",\"action\":\"allow\",\"pattern\":\"*\"},{\"permission\":\"*\",\"action\":\"deny\",\"pattern\":\"*\"},{\"permission\":\"bash\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"bash\",\"pattern\":\"cargo *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"rustfmt *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git diff*\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git status*\",\"action\":\"allow\"}]"
+    },
+    {
+      "tool": "edit",
+      "error": "Found multiple matches for oldString. Provide more surrounding context to make the match unique."
+    }
+  ],
+  "errors": [],
+  "session_ids": [
+    "ses_f5e93dd80ffeEsDYGEZA45JBbW"
+  ]
+}

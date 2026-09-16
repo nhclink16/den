@@ -1,0 +1,25 @@
+     Removed 20 files, 241.1MiB total
+   Compiling den-server v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-server)
+    Finished `test` profile [unoptimized] target(s) in 10.23s
+     Running tests/api.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/api-a4576ee51ff79041)
+
+running 4 tests
+
+thread 'uploads::upload_admission_rejects_bad_size_and_filename_without_side_effects' (233167939) panicked at crates/den-server/tests/api.rs:99:9:
+assertion `left == right` failed: /uploads
+  left: 413
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test uploads::upload_admission_rejects_bad_size_and_filename_without_side_effects ... FAILED
+test uploads::upload_resume_survives_uncommitted_bytes_and_serves_authenticated_ranges ... ok
+test uploads::upload_deletion_requires_owner_or_admin_and_no_live_references ... ok
+test uploads::upload_pending_limit_is_per_owner_and_frees_on_complete ... ok
+
+failures:
+
+failures:
+    uploads::upload_admission_rejects_bad_size_and_filename_without_side_effects
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 1.25s
+
+error: test failed, to rerun pass `-p den-server --test api`

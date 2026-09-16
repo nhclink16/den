@@ -1,0 +1,36 @@
+{
+  "time": "2026-09-14T21:07:36.046970+00:00",
+  "removed_build_caches": [
+    {
+      "path": "/tmp/den-arena-20260914/target-repair-muse",
+      "logical_kib": 404660
+    },
+    {
+      "path": "/tmp/den-arena-20260914/target-repair-opus",
+      "logical_kib": 405996
+    },
+    {
+      "path": "/tmp/den-arena-20260914/target-review-muse",
+      "logical_kib": 1122864
+    },
+    {
+      "path": "/tmp/den-arena-20260914/target-review-opus",
+      "logical_kib": 1122864
+    },
+    {
+      "path": "/tmp/den-arena-20260914/judge/repair-target",
+      "logical_kib": 402464
+    },
+    {
+      "path": "/tmp/den-arena-20260914/judge/round2-target",
+      "logical_kib": 1122828
+    },
+    {
+      "path": "/tmp/den-arena-20260914/judge/regression-strength-target",
+      "logical_kib": 405992
+    }
+  ],
+  "free_before_gib": 11.716548919677734,
+  "free_after_gib": 13.510147094726562,
+  "preserved": "All source snapshots, frozen submissions, prompts, logs, native sessions, fixtures and result receipts"
+}

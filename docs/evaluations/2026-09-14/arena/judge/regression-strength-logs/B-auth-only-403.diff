@@ -1,0 +1,11 @@
+--- candidate/stream.rs
++++ mutant/stream.rs
+@@ -78,7 +78,7 @@
+                 }
+             }
+             Err(tungstenite::Error::Http(response))
+-                if matches!(response.status().as_u16(), 401 | 403) =>
++                if response.status().as_u16() == 403 =>
+             {
+                 anyhow::bail!("Authentication rejected; log in again")
+             }

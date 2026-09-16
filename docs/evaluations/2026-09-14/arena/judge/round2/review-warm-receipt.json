@@ -1,0 +1,66 @@
+{
+  "review-muse": {
+    "source": "/private/tmp/den-arena-20260914/review-muse",
+    "target": "/private/tmp/den-arena-20260914/target-review-muse",
+    "commit": "4447411536bb233f6656becfeaeb4122d4359bc4",
+    "local_artifacts": [
+      {
+        "target": "den_core",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-muse/crates/den-core/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "den_server",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-muse/crates/den-server/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "den-server",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-muse/crates/den-server/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "api",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-muse/crates/den-server/Cargo.toml",
+        "fresh": false
+      }
+    ],
+    "api_binary": "/tmp/den-arena-20260914/target-review-muse/debug/deps/api-a4576ee51ff79041",
+    "api_binary_sha256": "5a225faec102229f2ce6ec508c6969a4bda324aca5638194f87d466b1387e8d8",
+    "api_binary_inode": 299658756,
+    "tests": "37 tests, 0 benchmarks",
+    "free_bytes": 12220833792
+  },
+  "review-opus": {
+    "source": "/private/tmp/den-arena-20260914/review-opus",
+    "target": "/private/tmp/den-arena-20260914/target-review-opus",
+    "commit": "4447411536bb233f6656becfeaeb4122d4359bc4",
+    "local_artifacts": [
+      {
+        "target": "den_core",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-opus/crates/den-core/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "den_server",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-opus/crates/den-server/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "den-server",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-opus/crates/den-server/Cargo.toml",
+        "fresh": false
+      },
+      {
+        "target": "api",
+        "manifest_path": "/private/tmp/den-arena-20260914/review-opus/crates/den-server/Cargo.toml",
+        "fresh": false
+      }
+    ],
+    "api_binary": "/tmp/den-arena-20260914/target-review-opus/debug/deps/api-a4576ee51ff79041",
+    "api_binary_sha256": "2dab168628278497f5ef3be7d2905ca6a7b220d506891a8162b8129bcf7716b0",
+    "api_binary_inode": 299659076,
+    "tests": "37 tests, 0 benchmarks",
+    "free_bytes": 12017725440
+  }
+}

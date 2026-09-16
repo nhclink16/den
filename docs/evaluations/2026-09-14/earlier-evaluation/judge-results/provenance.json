@@ -1,0 +1,34 @@
+{
+  "candidates_before": {
+    "glmflash": {
+      "head": "8b2adfc89e5ff798edd3d8df6aab046b36534b13",
+      "diff_sha256": "2dc95007491e5c701487315641b0270c86238d9ceb57134e0b066d751c30573e",
+      "cli_sha256": "f4df4fe7b97abeb717f3b11ea1fe4165b9a2734ec0dbfee981d89f3f2c964625",
+      "uploads_test_sha256": "8c8d59c6b4191454d144d4b13563cdaa13b58a5edd10fbdcd99054a264ab41bd"
+    },
+    "muse": {
+      "head": "8b2adfc89e5ff798edd3d8df6aab046b36534b13",
+      "diff_sha256": "db8a92fcc87da2f3e8bb74961108a54476eb89f561dd195da5134fe3cc5b38da",
+      "cli_sha256": "a25db3abd9e60e95dfeed85f0b8249a9907a51e58372e21b21231163f4b6007c",
+      "uploads_test_sha256": "881ceb3bfe7515e0d3bf9617967a5adcb3202fbab544ce851abb35b3b7a5d573"
+    }
+  },
+  "target": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target",
+  "cache_policy": "clean candidate package before every build/test; debug=0; incremental=0",
+  "candidates_after": {
+    "glmflash": {
+      "head": "8b2adfc89e5ff798edd3d8df6aab046b36534b13",
+      "diff_sha256": "2dc95007491e5c701487315641b0270c86238d9ceb57134e0b066d751c30573e",
+      "cli_sha256": "f4df4fe7b97abeb717f3b11ea1fe4165b9a2734ec0dbfee981d89f3f2c964625",
+      "uploads_test_sha256": "8c8d59c6b4191454d144d4b13563cdaa13b58a5edd10fbdcd99054a264ab41bd"
+    },
+    "muse": {
+      "head": "8b2adfc89e5ff798edd3d8df6aab046b36534b13",
+      "diff_sha256": "db8a92fcc87da2f3e8bb74961108a54476eb89f561dd195da5134fe3cc5b38da",
+      "cli_sha256": "a25db3abd9e60e95dfeed85f0b8249a9907a51e58372e21b21231163f4b6007c",
+      "uploads_test_sha256": "881ceb3bfe7515e0d3bf9617967a5adcb3202fbab544ce851abb35b3b7a5d573"
+    }
+  },
+  "candidates_unchanged": true,
+  "server_mutations_restored": true
+}

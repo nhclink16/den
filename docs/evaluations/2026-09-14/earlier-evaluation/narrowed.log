@@ -1,0 +1,10 @@
+starting narrowed sequential run
+narrowed.py started pid=43616
+glmflash has events but no process.json; waiting for live run
+glmflash live run ended; marking externally completed
+glmflash already complete, skipping
+starting deepseek
+finished deepseek
+starting muse
+finished muse
+ALL DONE

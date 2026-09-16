@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'arena_review::cookie_parser_preserves_trim_and_first_matching_cookie' (233283483) panicked at crates/den-server/tests/api/arena_review.rs:9:5:
+assertion `left == right` failed
+  left: 401
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test arena_review::cookie_parser_preserves_trim_and_first_matching_cookie ... FAILED
+
+failures:
+
+failures:
+    arena_review::cookie_parser_preserves_trim_and_first_matching_cookie
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.37s
+

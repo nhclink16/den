@@ -1,0 +1,4 @@
+     Removed 6 files, 924.2KiB total
+COMMAND ['cargo', 'build', '-p', 'den']
+   Compiling den v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-cli)
+    Finished `dev` profile [unoptimized] target(s) in 0.94s

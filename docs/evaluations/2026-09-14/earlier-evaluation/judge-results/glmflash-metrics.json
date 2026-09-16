@@ -1,0 +1,61 @@
+{
+  "externally_completed": true,
+  "model": "opencode-go/glm-5.3-flash",
+  "cost_usd_reported": 0.09104836,
+  "steps": 36,
+  "input_tokens": 225458,
+  "output_tokens": 31293,
+  "reasoning_tokens": 614,
+  "cached_input_tokens": 1375872,
+  "tool_calls": 47,
+  "tool_errors": [
+    {
+      "tool": "bash",
+      "error": "The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{\"permission\":\"*\",\"action\":\"allow\",\"pattern\":\"*\"},{\"permission\":\"*\",\"action\":\"deny\",\"pattern\":\"*\"},{\"permission\":\"bash\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"bash\",\"pattern\":\"cargo *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"rustfmt *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git diff*\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git status*\",\"action\":\"allow\"}]"
+    },
+    {
+      "tool": "bash",
+      "error": "The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{\"permission\":\"*\",\"action\":\"allow\",\"pattern\":\"*\"},{\"permission\":\"*\",\"action\":\"deny\",\"pattern\":\"*\"},{\"permission\":\"bash\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"bash\",\"pattern\":\"cargo *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"rustfmt *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git diff*\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git status*\",\"action\":\"allow\"}]"
+    },
+    {
+      "tool": "edit",
+      "error": "Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings."
+    },
+    {
+      "tool": "bash",
+      "error": "The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{\"permission\":\"*\",\"action\":\"allow\",\"pattern\":\"*\"},{\"permission\":\"*\",\"action\":\"deny\",\"pattern\":\"*\"},{\"permission\":\"bash\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"bash\",\"pattern\":\"cargo *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"rustfmt *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git diff*\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git status*\",\"action\":\"allow\"}]"
+    },
+    {
+      "tool": "bash",
+      "error": "The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{\"permission\":\"*\",\"action\":\"allow\",\"pattern\":\"*\"},{\"permission\":\"*\",\"action\":\"deny\",\"pattern\":\"*\"},{\"permission\":\"bash\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"bash\",\"pattern\":\"cargo *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"rustfmt *\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git diff*\",\"action\":\"allow\"},{\"permission\":\"bash\",\"pattern\":\"git status*\",\"action\":\"allow\"}]"
+    }
+  ],
+  "errors": [
+    {
+      "type": "error",
+      "timestamp": 1789413879032,
+      "sessionID": "ses_f5ea85102ffepCTjwuo0lOJCtd",
+      "error": {
+        "name": "UnknownError",
+        "data": {
+          "message": "Unexpected server error. Check server logs for details.",
+          "ref": "err_a8902ceb"
+        }
+      }
+    },
+    {
+      "type": "error",
+      "timestamp": 1789413879058,
+      "sessionID": "ses_f5ea85102ffepCTjwuo0lOJCtd",
+      "error": {
+        "name": "UnknownError",
+        "data": {
+          "message": "Failed to execute statement"
+        }
+      }
+    }
+  ],
+  "session_ids": [
+    "ses_f5ea85102ffepCTjwuo0lOJCtd"
+  ]
+}

@@ -1,0 +1,278 @@
+diff --git a/crates/den-cli/src/main.rs b/crates/den-cli/src/main.rs
+index 3f2ffee..2b3b3b7 100644
+--- a/crates/den-cli/src/main.rs
++++ b/crates/den-cli/src/main.rs
+@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
+ use client::{print, Client};
+ use den_core::*;
+ use reqwest::Method;
++use std::collections::BTreeMap;
+ use std::path::PathBuf;
+ 
+ #[derive(Parser)]
+@@ -92,8 +93,12 @@ enum Cmd {
+         before: Option<String>,
+         #[arg(long)]
+         after: Option<String>,
++        /// Page size, 1-200. With --all this is how many messages each fetch returns.
+         #[arg(long, default_value_t = 50)]
+         limit: u32,
++        /// Fetch every matching page and print one ascending, duplicate-free array.
++        #[arg(long)]
++        all: bool,
+     },
+     Edit {
+         message: String,
+@@ -197,8 +202,7 @@ enum BotCmd {
+         display_name: Option<String>,
+     },
+ }
+-fn password(stdin: bool) -> anyhow::Result<String> {
+-    if let Ok(value) = std::env::var("DEN_PASSWORD") {
++fn password(stdin: bool) -> anyhow::Result<String> {    if let Ok(value) = std::env::var("DEN_PASSWORD") {
+         return Ok(value);
+     }
+     anyhow::ensure!(stdin, "Set DEN_PASSWORD or pass --password-stdin");
+@@ -365,18 +369,97 @@ fn main() -> anyhow::Result<()> {
+             before,
+             after,
+             limit,
++            all,
+         } => {
+-            let mut path = format!(
+-                "/channels/{}/messages?limit={limit}",
+-                c.resolve_channel(&channel)?
++            anyhow::ensure!(
++                (1..=200).contains(&limit),
++                "Limit must be 1-200"
+             );
+-            if let Some(v) = before {
+-                path.push_str(&format!("&before={}", id(&v)?));
+-            }
+-            if let Some(v) = after {
+-                path.push_str(&format!("&after={}", id(&v)?));
++            anyhow::ensure!(
++                !(before.is_some() && after.is_some()),
++                "Use --before or --after, not both"
++            );
++            // Resolve names/@users exactly once, before any paging.
++            let cid = c.resolve_channel(&channel)?;
++            if !all {
++                let mut path = format!("/channels/{cid}/messages?limit={limit}");
++                if let Some(v) = before {
++                    path.push_str(&format!("&before={}", id(&v)?));
++                }
++                if let Some(v) = after {
++                    path.push_str(&format!("&after={}", id(&v)?));
++                }
++                print(&c.get::<Vec<Message>>(&path)?)?;
++            } else {
++                // before or no cursor: newest page first, walking backwards
++                // towards older messages. after: oldest page first, forwards.
++                let use_before = match (&before, &after) {
++                    (Some(v), _) => {
++                        id(v)?;
++                        true
++                    }
++                    (None, Some(v)) => {
++                        id(v)?;
++                        false
++                    }
++                    (None, None) => true,
++                };
++                // An empty cursor means no bound: start at the newest page.
++                let mut cursor = String::new();
++                if let Some(v) = before.as_ref().or(after.as_ref()) {
++                    cursor = v.clone();
++                }
++                let mut merged: BTreeMap<String, Message> = BTreeMap::new();
++                loop {
++                    let mut path = format!("/channels/{cid}/messages?limit={limit}");
++                    if !cursor.is_empty() {
++                        let key = if use_before { "before" } else { "after" };
++                        path.push_str(&format!("&{key}={cursor}"));
++                    }
++                    let page: Vec<Message> = c.get(&path)?;
++                    // A full page whose first id we already stored means the
++                    // cursor made no progress; fail instead of looping forever.
++                    if page.len() == limit as usize
++                        && page.first().is_some_and(|m| merged.contains_key(&m.id))
++                    {
++                        anyhow::bail!("Message listing did not advance; aborting --all");
++                    }
++                    if page.is_empty() {
++                        break;
++                    }
++                    let page_len = page.len();
++                    for m in page {
++                        merged.insert(m.id.clone(), m);
++                    }
++                    // A short page means we have reached the end of the range.
++                    if page_len < limit as usize {
++                        break;
++                    }
++                    // Continue from the far end of this page, exclusive.
++                    let next = if use_before {
++                        // Pages come back ascending; the oldest message of a
++                        // backwards page is its first id, which is the next
++                        // exclusive lower bound.
++                        merged
++                            .values()
++                            .filter(|m| cursor.is_empty() || m.id < cursor)
++                            .map(|m| m.id.clone())
++                            .next()
++                    } else {
++                        merged
++                            .values()
++                            .filter(|m| m.id > cursor)
++                            .map(|m| m.id.clone())
++                            .next_back()
++                    };
++                    match next {
++                        Some(next) => cursor = next,
++                        None => break,
++                    }
++                }
++                let merged: Vec<Message> = merged.into_values().collect();
++                print(&merged)?;
+             }
+-            print(&c.get::<Vec<Message>>(&path)?)?;
+         }
+         Cmd::Edit { message, text } => print(&c.send::<Message>(
+             Method::PATCH,
+diff --git a/crates/den-server/tests/api/uploads.rs b/crates/den-server/tests/api/uploads.rs
+index 8c49d58..d575e88 100644
+--- a/crates/den-server/tests/api/uploads.rs
++++ b/crates/den-server/tests/api/uploads.rs
+@@ -328,3 +328,131 @@ async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
+     );
+     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
+ }
++
++async fn rejected(
++    t: &Test,
++    token: &str,
++    body: serde_json::Value,
++) -> (StatusCode, String, String) {
++    let r = t
++        .req(Method::POST, "/uploads", token)
++        .json(&body)
++        .send()
++        .await
++        .unwrap();
++    let status = r.status();
++    let err: Value = r.json().await.unwrap();
++    (
++        status,
++        err["error"].as_str().unwrap_or_default().into(),
++        err["message"].as_str().unwrap_or_default().into(),
++    )
++}
++
++fn begin(cid: &str, filename: &str, size: i64) -> Value {
++    json!({"channel_id":cid,"filename":filename,"content_type":"application/octet-stream","size":size})
++}
++
++#[tokio::test]
++async fn upload_begin_rejects_bad_sizes_and_filenames_without_admitting_them() {
++    let t = Test::new().await;
++    let alice = t.member("alice").await;
++    let cid = t.general().await;
++    let max = 1024 * 1024; // Test harness max_upload bytes.
++    for size in [0, -3, max + 1] {
++        let (status, code, message) = rejected(&t, &alice.token, begin(&cid, "big.bin", size)).await;
++        assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE, "size {size}");
++        assert_eq!(code, "upload_size");
++        assert_eq!(message, format!("Size must be 1-{max} bytes"));
++    }
++    let names = vec![
++        "".to_string(),
++        "dir/a.bin".to_string(),
++        "dir\\a.bin".to_string(),
++        "bad\u{1}.bin".to_string(),
++        "x".repeat(256),
++    ];
++    for filename in names {
++        let (status, code, message) =
++            rejected(&t, &alice.token, begin(&cid, &filename, 1)).await;
++        assert_eq!(status, StatusCode::BAD_REQUEST, "filename {filename:?}");
++        assert_eq!(code, "invalid_request");
++        assert_eq!(message, "Invalid filename");
++    }
++    // Rejected admission must not leave rows or files behind.
++    assert_eq!(
++        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM uploads")
++            .fetch_one(&t.state.db)
++            .await
++            .unwrap(),
++        0
++    );
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 0);
++}
++
++#[tokio::test]
++async fn upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot() {
++    let t = Test::new().await;
++    let alice = t.member("alice").await;
++    let bob = t.member("bob").await;
++    let cid = t.general().await;
++    let mut first = String::new();
++    for i in 0..5 {
++        let up = t
++            .post(
++                "/uploads",
++                &alice.token,
++                begin(&cid, &format!("p{i}.bin"), 10),
++            )
++            .await;
++        if i == 0 {
++            first = up["id"].as_str().unwrap().into();
++        }
++    }
++    let (status, code, message) = rejected(&t, &alice.token, begin(&cid, "six.bin", 10)).await;
++    assert_eq!(status, StatusCode::CONFLICT);
++    assert_eq!(code, "conflict");
++    assert_eq!(message, "Finish pending uploads first; maximum five");
++    // The rejected sixth upload created no row and no file.
++    assert_eq!(
++        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM uploads WHERE owner_id=?")
++            .bind(&alice.user.id)
++            .fetch_one(&t.state.db)
++            .await
++            .unwrap(),
++        5
++    );
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 5);
++    // Each owner has an independent allowance.
++    assert_eq!(
++        t.req(Method::POST, "/uploads", &bob.token)
++            .json(&begin(&cid, "bob.bin", 10))
++            .send()
++            .await
++            .unwrap()
++            .status(),
++        200
++    );
++    // Completing one of alice's uploads frees her sixth slot.
++    assert_eq!(
++        t.req(Method::PATCH, &format!("/uploads/{first}"), &alice.token)
++            .header("Upload-Offset", 0)
++            .body("0123456789")
++            .send()
++            .await
++            .unwrap()
++            .status(),
++        200
++    );
++    t.post(&format!("/uploads/{first}/complete"), &alice.token, json!({}))
++        .await;
++    assert_eq!(
++        t.req(Method::POST, "/uploads", &alice.token)
++            .json(&begin(&cid, "six.bin", 10))
++            .send()
++            .await
++            .unwrap()
++            .status(),
++        200
++    );
++}

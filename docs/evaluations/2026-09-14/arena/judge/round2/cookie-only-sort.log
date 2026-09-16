@@ -1,0 +1,6 @@
+
+running 1 test
+test arena_review::presence_order_remains_sorted_and_unique_across_tabs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 2.42s
+

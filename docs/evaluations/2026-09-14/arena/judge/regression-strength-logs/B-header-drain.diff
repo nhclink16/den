@@ -1,0 +1,19 @@
+--- candidate/stream.rs
++++ mutant/stream.rs
+@@ -21,13 +21,11 @@
+     }
+     let url = format!("{}/ws", c.url.replacen("http", "ws", 1));
+     let mut delay = 1;
+-    // Every connection, not just the first one, has to carry the credentials.
+-    let authorization: tungstenite::http::HeaderValue = format!("Bearer {token}").parse()?;
++    let mut auth_headers = tungstenite::http::HeaderMap::new();
++    auth_headers.insert("Authorization", format!("Bearer {token}").parse()?);
+     loop {
+         let mut request = url.as_str().into_client_request()?;
+-        request
+-            .headers_mut()
+-            .insert("Authorization", authorization.clone());
++        request.headers_mut().extend(auth_headers.drain());
+         match tungstenite::connect(request) {
+             Ok((mut socket, _)) => {
+                 // Detect a half-open connection even when no chat events arrive.

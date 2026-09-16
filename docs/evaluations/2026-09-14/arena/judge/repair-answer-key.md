@@ -1,0 +1,1 @@
+HeaderMap::drain consumes authorization headers after first handshake. Reconnect requests lose auth. 401 has also been removed from permanent authentication rejections, causing retries instead of nonzero exit. Restore both behaviors; do not accept removal of authentication or tests.

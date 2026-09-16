@@ -1,0 +1,14 @@
+baseline {'read': 0, 'csrf': 0, 'sort': 0, 'cookie': 0}
+read-only {'read': 101, 'csrf': 0, 'sort': 0, 'cookie': 0}
+csrf-only {'read': 0, 'csrf': 101, 'sort': 0, 'cookie': 0}
+sort-only {'read': 0, 'csrf': 0, 'sort': 0, 'cookie': 0}
+cookie-only {'read': 0, 'csrf': 0, 'sort': 0, 'cookie': 0}
+negative-sort {'read': 0, 'csrf': 0, 'sort': 101, 'cookie': 0}
+Traceback (most recent call last):
+  File "/tmp/den-arena-20260914/judge/round2/prove.py", line 84, in <module>
+    hidden.write_text((OUT/'arena_review.rs').read_text())
+                   ^^^^^^^^^^^^
+  File "/tmp/den-arena-20260914/judge/round2/prove.py", line 70, in build
+    p.terminate();p.wait();raise RuntimeError('Stopped build: below 8 GiB free')
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Stopped build: below 8 GiB free

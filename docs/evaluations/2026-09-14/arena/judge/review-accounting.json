@@ -1,0 +1,916 @@
+{
+  "status": "final frozen review accounting",
+  "scope": "Review only. Opus uses new high-effort session; earlier unused max-preflight session is excluded. Muse readiness excluded from task-only.",
+  "sources": {
+    "frozen/review/A/native.json": {
+      "sha256": "71e64fd3c5151d7e6fee881306d1e40492383a5c521ed317787bbf1a69eaca8e",
+      "bytes": 391314
+    },
+    "frozen/review/B/native.jsonl": {
+      "sha256": "797f19c6ccf329573d38a6fb822ba32d407000d526de0a3d812e33860af8297d",
+      "bytes": 265853
+    }
+  },
+  "method": {
+    "claude": "Deduplicate by message.id; all duplicate usage agrees. Classify via parentUuid ancestry. Thinking is subset of output. Cache-write TTLs priced separately.",
+    "muse": "Sum unique messages[].info. Output excludes reasoning, so output+reasoning is priced. Classify by exact parentID. Native session totals are cross-check only.",
+    "billing": "Claude Max API-equivalent and Muse Go reported token cost, neither invoice nor subscription allocation.",
+    "timing": "Per-task prompt to final answer, no recorded harness pause during review. Starts differ by1.141seconds.",
+    "model_identity": "Provider-reported response model IDs, not upstream infrastructure audit.",
+    "muse_effort": "Configured xhigh in source config and verified identical-wrapper resolved config; review variant not recorded in native metadata. Not provider-confirmed effort."
+  },
+  "muse": {
+    "session_id": "ses_f5e472e2dffejo3QLT74Bh408M",
+    "models": [
+      "opencode-go/muse-spark-1.3-contributor"
+    ],
+    "efforts_recorded": [],
+    "effort_not_recorded_messages": 16,
+    "fallback_observed": false,
+    "whole_session": {
+      "assistant_message_count": 16,
+      "responses_with_nonzero_usage": 16,
+      "usage": {
+        "input_uncached": 48370,
+        "output_excluding_reasoning": 2859,
+        "reasoning": 7076,
+        "output_including_reasoning": 9935,
+        "cache_read": 380688,
+        "cache_write": 0
+      },
+      "reported_cost_usd": 0.007585376,
+      "completed_message_count": 16,
+      "error_message_count": 0,
+      "incomplete_message_count": 0
+    },
+    "task_only": {
+      "assistant_message_count": 14,
+      "responses_with_nonzero_usage": 14,
+      "usage": {
+        "input_uncached": 43052,
+        "output_excluding_reasoning": 2741,
+        "reasoning": 6976,
+        "output_including_reasoning": 9717,
+        "cache_read": 375854,
+        "cache_write": 0
+      },
+      "reported_cost_usd": 0.007000308,
+      "completed_message_count": 14,
+      "error_message_count": 0,
+      "incomplete_message_count": 0
+    },
+    "by_turn": {
+      "readiness": {
+        "assistant_message_count": 2,
+        "responses_with_nonzero_usage": 2,
+        "usage": {
+          "input_uncached": 5318,
+          "output_excluding_reasoning": 118,
+          "reasoning": 100,
+          "output_including_reasoning": 218,
+          "cache_read": 4834,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000585068,
+        "completed_message_count": 2,
+        "error_message_count": 0,
+        "incomplete_message_count": 0
+      },
+      "review_task": {
+        "assistant_message_count": 14,
+        "responses_with_nonzero_usage": 14,
+        "usage": {
+          "input_uncached": 43052,
+          "output_excluding_reasoning": 2741,
+          "reasoning": 6976,
+          "output_including_reasoning": 9717,
+          "cache_read": 375854,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.007000308,
+        "completed_message_count": 14,
+        "error_message_count": 0,
+        "incomplete_message_count": 0
+      }
+    },
+    "timing": {
+      "readiness_prompt_utc": "2026-09-14T21:00:39.275Z",
+      "review_prompt_utc": "2026-09-14T21:02:37.949Z",
+      "final_response_complete_utc": "2026-09-14T21:04:21.172Z",
+      "review_elapsed_seconds": 103.223
+    },
+    "native_session_totals": {
+      "cost": 0.0075853760000000004,
+      "tokens": {
+        "input": 48370,
+        "output": 2859,
+        "reasoning": 7076,
+        "cache": {
+          "read": 380688,
+          "write": 0
+        }
+      }
+    },
+    "requests": [
+      {
+        "message_id": "msg_0a1b8d203001lbuVxqXFwOyYr6",
+        "parent_user_id": "msg_0a1b8d1e9001dSC5ei8Mz1Mqto",
+        "turn": "readiness",
+        "created_utc": "2026-09-14T21:00:39.299Z",
+        "completed_utc": "2026-09-14T21:00:42.103Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 4395,
+          "output_excluding_reasoning": 77,
+          "reasoning": 51,
+          "output_including_reasoning": 128,
+          "cache_read": 241,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000465582
+      },
+      {
+        "message_id": "msg_0a1b8dcf9001JRUtx2OW04B2r5",
+        "parent_user_id": "msg_0a1b8d1e9001dSC5ei8Mz1Mqto",
+        "turn": "readiness",
+        "created_utc": "2026-09-14T21:00:42.105Z",
+        "completed_utc": "2026-09-14T21:00:43.459Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "stop",
+        "error": null,
+        "usage": {
+          "input_uncached": 923,
+          "output_excluding_reasoning": 41,
+          "reasoning": 49,
+          "output_including_reasoning": 90,
+          "cache_read": 4593,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000119486
+      },
+      {
+        "message_id": "msg_0a1baa1bc001VIRhZGbqleaFl8",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:38.012Z",
+        "completed_utc": "2026-09-14T21:02:42.319Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 415,
+          "output_excluding_reasoning": 145,
+          "reasoning": 45,
+          "output_including_reasoning": 190,
+          "cache_read": 5489,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 9.0478e-05
+      },
+      {
+        "message_id": "msg_0a1bab2af001PRAZdyTZ2loGEE",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:42.351Z",
+        "completed_utc": "2026-09-14T21:02:43.892Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 1187,
+          "output_excluding_reasoning": 61,
+          "reasoning": 0,
+          "output_including_reasoning": 61,
+          "cache_read": 5873,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000142646
+      },
+      {
+        "message_id": "msg_0a1bab91b001ecW2sWM2vUBtbY",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:43.995Z",
+        "completed_utc": "2026-09-14T21:02:49.604Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 694,
+          "output_excluding_reasoning": 138,
+          "reasoning": 447,
+          "output_including_reasoning": 585,
+          "cache_read": 7025,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.00020045
+      },
+      {
+        "message_id": "msg_0a1bacf15001IBJ32ZIM5jFQfR",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:49.621Z",
+        "completed_utc": "2026-09-14T21:02:52.995Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 8605,
+          "output_excluding_reasoning": 115,
+          "reasoning": 44,
+          "output_including_reasoning": 159,
+          "cache_read": 7665,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.00090763
+      },
+      {
+        "message_id": "msg_0a1badc5b001KqtsLmXe7S41Rr",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:53.019Z",
+        "completed_utc": "2026-09-14T21:02:55.241Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 3343,
+          "output_excluding_reasoning": 242,
+          "reasoning": 0,
+          "output_including_reasoning": 242,
+          "cache_read": 16241,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000415182
+      },
+      {
+        "message_id": "msg_0a1bae50e001CKhYPmgiuFo1Kf",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:02:55.246Z",
+        "completed_utc": "2026-09-14T21:03:20.300Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 6140,
+          "output_excluding_reasoning": 156,
+          "reasoning": 2001,
+          "output_including_reasoning": 2157,
+          "cache_read": 19569,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.001084538
+      },
+      {
+        "message_id": "msg_0a1bb46f1001dC51K9r3fB40AE",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:20.305Z",
+        "completed_utc": "2026-09-14T21:03:22.446Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 7808,
+          "output_excluding_reasoning": 166,
+          "reasoning": 0,
+          "output_including_reasoning": 166,
+          "cache_read": 25585,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.00086517
+      },
+      {
+        "message_id": "msg_0a1bb4f56001rTkxo5lfNMfBjD",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:22.454Z",
+        "completed_utc": "2026-09-14T21:03:24.612Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 2147,
+          "output_excluding_reasoning": 133,
+          "reasoning": 0,
+          "output_including_reasoning": 133,
+          "cache_read": 33393,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000308086
+      },
+      {
+        "message_id": "msg_0a1bb57cb0011LgbBFeWWRDcXV",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:24.619Z",
+        "completed_utc": "2026-09-14T21:03:34.228Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 6109,
+          "output_excluding_reasoning": 102,
+          "reasoning": 1017,
+          "output_including_reasoning": 1119,
+          "cache_read": 35441,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000905582
+      },
+      {
+        "message_id": "msg_0a1bb7d5e0015JLZuQGvAvH5b8",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:34.238Z",
+        "completed_utc": "2026-09-14T21:03:39.816Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 1407,
+          "output_excluding_reasoning": 96,
+          "reasoning": 100,
+          "output_including_reasoning": 196,
+          "cache_read": 41457,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000262814
+      },
+      {
+        "message_id": "msg_0a1bb932e0016LZ6KO5jjaSlOt",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:39.822Z",
+        "completed_utc": "2026-09-14T21:03:48.471Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 595,
+          "output_excluding_reasoning": 60,
+          "reasoning": 843,
+          "output_including_reasoning": 903,
+          "cache_read": 42737,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000325574
+      },
+      {
+        "message_id": "msg_0a1bbb4fb00121goJs9uoGs11Z",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:48.475Z",
+        "completed_utc": "2026-09-14T21:03:50.007Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 2050,
+          "output_excluding_reasoning": 93,
+          "reasoning": 0,
+          "output_including_reasoning": 93,
+          "cache_read": 43249,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000310098
+      },
+      {
+        "message_id": "msg_0a1bbbaf9001tlTpl0k8Y3wo82",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:50.009Z",
+        "completed_utc": "2026-09-14T21:03:58.379Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "tool-calls",
+        "error": null,
+        "usage": {
+          "input_uncached": 1550,
+          "output_excluding_reasoning": 69,
+          "reasoning": 653,
+          "output_including_reasoning": 722,
+          "cache_read": 45297,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000389994
+      },
+      {
+        "message_id": "msg_0a1bbdbb0001B4yBybxLrv47Xe",
+        "parent_user_id": "msg_0a1baa177001MxhSvdQzXtEt2q",
+        "turn": "review_task",
+        "created_utc": "2026-09-14T21:03:58.384Z",
+        "completed_utc": "2026-09-14T21:04:21.172Z",
+        "provider": "opencode-go",
+        "model": "muse-spark-1.3-contributor",
+        "effort": null,
+        "finish": "stop",
+        "error": null,
+        "usage": {
+          "input_uncached": 1002,
+          "output_excluding_reasoning": 1165,
+          "reasoning": 1826,
+          "output_including_reasoning": 2991,
+          "cache_read": 46833,
+          "cache_write": 0
+        },
+        "reported_cost_usd": 0.000792066
+      }
+    ],
+    "configured_effort": "xhigh",
+    "configured_effort_evidence": [
+      {
+        "path": "configs/review-muse-opencode.json",
+        "sha256": "22988dc469638841ef6fd674a03811379154ca84a774a34072fbd702c39bb8e5"
+      },
+      {
+        "path": "judge/review-muse-resolved-config.json",
+        "sha256": "ddb885f55290f7398d917cccc6ed940be44c7fc467ba4a9768a8e7747579e0d8"
+      }
+    ]
+  },
+  "claude": {
+    "session_id": "eb2846ab-4dcb-4e8a-8b3f-ad4590c87df7",
+    "models": [
+      "claude-opus-5"
+    ],
+    "efforts_recorded": [
+      "high"
+    ],
+    "fallback_observed": false,
+    "native_assistant_rows": 36,
+    "excluded_synthetic_rows": 0,
+    "whole_session": {
+      "assistant_message_count": 18,
+      "responses_with_nonzero_usage": 18,
+      "usage": {
+        "input_uncached": 36,
+        "output_including_reasoning": 10527,
+        "reasoning_subset": 4769,
+        "cache_read": 415766,
+        "cache_write": 35155,
+        "cache_write_1h": 35155,
+        "cache_write_5m": 0
+      },
+      "api_equivalent_usd": 0.822788
+    },
+    "task_only": {
+      "assistant_message_count": 18,
+      "responses_with_nonzero_usage": 18,
+      "usage": {
+        "input_uncached": 36,
+        "output_including_reasoning": 10527,
+        "reasoning_subset": 4769,
+        "cache_read": 415766,
+        "cache_write": 35155,
+        "cache_write_1h": 35155,
+        "cache_write_5m": 0
+      },
+      "api_equivalent_usd": 0.822788
+    },
+    "by_turn": {
+      "readiness": {
+        "assistant_message_count": 0,
+        "responses_with_nonzero_usage": 0,
+        "usage": {},
+        "api_equivalent_usd": 0
+      },
+      "review_task": {
+        "assistant_message_count": 18,
+        "responses_with_nonzero_usage": 18,
+        "usage": {
+          "input_uncached": 36,
+          "output_including_reasoning": 10527,
+          "reasoning_subset": 4769,
+          "cache_read": 415766,
+          "cache_write": 35155,
+          "cache_write_1h": 35155,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.822788
+      }
+    },
+    "timing": {
+      "review_prompt_utc": "2026-09-14T21:02:39.090Z",
+      "final_response_complete_utc": "2026-09-14T21:04:30.502Z",
+      "review_elapsed_seconds": 111.412
+    },
+    "native_cost_state_checkpoints": [],
+    "requests": [
+      {
+        "message_id": "msg_011Cf41R9s75cb3VDgs7gMgm",
+        "request_id": "req_011Cf41R9P5fJet3ZtkHFu2s",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:02:42.785Z",
+        "last_response_block_utc": "2026-09-14T21:02:42.975Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 202,
+          "reasoning_subset": 0,
+          "cache_read": 0,
+          "cache_write": 8994,
+          "cache_write_1h": 8994,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.095,
+        "native_rows": 3
+      },
+      {
+        "message_id": "msg_011Cf41RvL3Cu1kLsvTU7Cby",
+        "request_id": "req_011Cf41RupnRRvQdAoR7cH7A",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:02:51.164Z",
+        "last_response_block_utc": "2026-09-14T21:02:51.465Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 149,
+          "reasoning_subset": 0,
+          "cache_read": 8994,
+          "cache_write": 1520,
+          "cache_write_1h": 1520,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.023432,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41S63gzbALGfW1repbw",
+        "request_id": "req_011Cf41S5YgHCQCfRFimHLye",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:02:57.437Z",
+        "last_response_block_utc": "2026-09-14T21:02:58.277Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 1122,
+          "reasoning_subset": 881,
+          "cache_read": 10514,
+          "cache_write": 2199,
+          "cache_write_1h": 2199,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.055307,
+        "native_rows": 3
+      },
+      {
+        "message_id": "msg_011Cf41SXSAsJzSH4QahsK4L",
+        "request_id": "req_011Cf41SWv9xaNQYykM3bZmW",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:09.221Z",
+        "last_response_block_utc": "2026-09-14T21:03:10.212Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 2237,
+          "reasoning_subset": 1955,
+          "cache_read": 12713,
+          "cache_write": 4696,
+          "cache_write_1h": 4696,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.1092515,
+        "native_rows": 3
+      },
+      {
+        "message_id": "msg_011Cf41TQMYh8YijfanCa5Gc",
+        "request_id": "req_011Cf41TPpo28hwkfqC66tRY",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:11.902Z",
+        "last_response_block_utc": "2026-09-14T21:03:12.305Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 244,
+          "reasoning_subset": 0,
+          "cache_read": 17409,
+          "cache_write": 2365,
+          "cache_write_1h": 2365,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0384645,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41TZEqP6rwmWDVJarUo",
+        "request_id": "req_011Cf41TYm4k7tyBw12j4t46",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:13.695Z",
+        "last_response_block_utc": "2026-09-14T21:03:14.294Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 262,
+          "reasoning_subset": 69,
+          "cache_read": 19774,
+          "cache_write": 1806,
+          "cache_write_1h": 1806,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.034507,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41Ti4Ai71mvQfm6SMq6",
+        "request_id": "req_011Cf41ThVBe3EJU8ZshTFvT",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:16.702Z",
+        "last_response_block_utc": "2026-09-14T21:03:17.691Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 426,
+          "reasoning_subset": 100,
+          "cache_read": 21580,
+          "cache_write": 1036,
+          "cache_write_1h": 1036,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.03181,
+        "native_rows": 3
+      },
+      {
+        "message_id": "msg_011Cf41TxoRfsbSmbnw1fmt4",
+        "request_id": "req_011Cf41TxJQpTqhXY1mt555Q",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:21.741Z",
+        "last_response_block_utc": "2026-09-14T21:03:22.793Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 770,
+          "reasoning_subset": 551,
+          "cache_read": 22616,
+          "cache_write": 2005,
+          "cache_write_1h": 2005,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.050618,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41ULCndAB8rWNjFurCw",
+        "request_id": "req_011Cf41UKSeqVmAmtcdJowvB",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:23.951Z",
+        "last_response_block_utc": "2026-09-14T21:03:24.563Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 222,
+          "reasoning_subset": 29,
+          "cache_read": 24621,
+          "cache_write": 995,
+          "cache_write_1h": 995,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0278205,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41UTve7PVgZ1Vrfa7po",
+        "request_id": "req_011Cf41UTQP1r4DzRCXtyPcj",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:26.987Z",
+        "last_response_block_utc": "2026-09-14T21:03:27.664Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 387,
+          "reasoning_subset": 226,
+          "cache_read": 25616,
+          "cache_write": 2717,
+          "cache_write_1h": 2717,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.049663,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41Uh3fW5vLjJ3pDJk7L",
+        "request_id": "req_011Cf41UgXuajMr3GCLwFnpo",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:29.237Z",
+        "last_response_block_utc": "2026-09-14T21:03:30.013Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 330,
+          "reasoning_subset": 0,
+          "cache_read": 28333,
+          "cache_write": 434,
+          "cache_write_1h": 434,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0267665,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41UsP2R2mbu7gSwQBCJ",
+        "request_id": "req_011Cf41UrpnZo6W2Uoh9A1D6",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:31.580Z",
+        "last_response_block_utc": "2026-09-14T21:03:32.753Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 299,
+          "reasoning_subset": 96,
+          "cache_read": 28767,
+          "cache_write": 2170,
+          "cache_write_1h": 2170,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0435685,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41V5SKG6ks7n1Fb7dor",
+        "request_id": "req_011Cf41V4sLA5ThtkCzxPe7p",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:34.135Z",
+        "last_response_block_utc": "2026-09-14T21:03:34.896Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 232,
+          "reasoning_subset": 0,
+          "cache_read": 30937,
+          "cache_write": 412,
+          "cache_write_1h": 412,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0253985,
+        "native_rows": 2
+      },
+      {
+        "message_id": "msg_011Cf41VDpbmM4JdrokH7P1s",
+        "request_id": "req_011Cf41VDJLNxsyiLtoSVB25",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:36.479Z",
+        "last_response_block_utc": "2026-09-14T21:03:36.479Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 124,
+          "reasoning_subset": 0,
+          "cache_read": 31349,
+          "cache_write": 843,
+          "cache_write_1h": 843,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0272145,
+        "native_rows": 1
+      },
+      {
+        "message_id": "msg_011Cf41VLyx4JJB1MTKeXDA9",
+        "request_id": "req_011Cf41VLPyNGS673QTJNeE1",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:38.688Z",
+        "last_response_block_utc": "2026-09-14T21:03:38.688Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 176,
+          "reasoning_subset": 0,
+          "cache_read": 32192,
+          "cache_write": 872,
+          "cache_write_1h": 872,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.029226,
+        "native_rows": 1
+      },
+      {
+        "message_id": "msg_011Cf41VWKHTLSdjT3hhxBDC",
+        "request_id": "req_011Cf41VVqknGHmgnUkDkGeS",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:03:40.247Z",
+        "last_response_block_utc": "2026-09-14T21:03:40.247Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 195,
+          "reasoning_subset": 0,
+          "cache_read": 33064,
+          "cache_write": 287,
+          "cache_write_1h": 287,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.024287,
+        "native_rows": 1
+      },
+      {
+        "message_id": "msg_011Cf41YCoRCL7VvmSb55A2g",
+        "request_id": "req_011Cf41YCBCs5PaRw7Kwssad",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:04:16.662Z",
+        "last_response_block_utc": "2026-09-14T21:04:16.662Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 126,
+          "reasoning_subset": 0,
+          "cache_read": 33351,
+          "cache_write": 585,
+          "cache_write_1h": 585,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.0256855,
+        "native_rows": 1
+      },
+      {
+        "message_id": "msg_011Cf41YJMXL2wpuVeoAEKiP",
+        "request_id": "req_011Cf41YHno83obQ9ATNoNCv",
+        "turn": "review_task",
+        "first_response_block_utc": "2026-09-14T21:04:22.107Z",
+        "last_response_block_utc": "2026-09-14T21:04:30.502Z",
+        "model": "claude-opus-5",
+        "effort": "high",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_uncached": 2,
+          "output_including_reasoning": 3024,
+          "reasoning_subset": 862,
+          "cache_read": 33936,
+          "cache_write": 1219,
+          "cache_write_1h": 1219,
+          "cache_write_5m": 0
+        },
+        "api_equivalent_usd": 0.104768,
+        "native_rows": 2
+      }
+    ]
+  },
+  "pricing_sources": {
+    "claude": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "muse": "~/.cache/opencode/models.json: opencode-go.models.muse-spark-1.3-contributor; each reported message cost reproduced"
+  }
+}

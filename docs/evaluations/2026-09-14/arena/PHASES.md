@@ -1,0 +1,8 @@
+- [x] Frame
+- [x] Prove fixtures
+- [x] Preflight sessions and storage (one documented repair harness interruption)
+- [x] Run repair round (Opus max; completed before user changed remaining runs to high)
+- [x] Run review round (Opus high, both completed)
+- [x] Cross-judge
+- [x] Pick and verify
+- [x] Report and remove build caches

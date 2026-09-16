@@ -1,0 +1,11 @@
+--- a/crates/den-server/src/ws.rs
++++ b/crates/den-server/src/ws.rs
+@@ -19,7 +19,7 @@
+         .keys()
+         .cloned()
+         .collect::<Vec<_>>();
+-    online_user_ids.sort();
++    online_user_ids.sort_unstable();
+     PresenceState {
+         online_user_ids,
+         objects: Vec::new(),

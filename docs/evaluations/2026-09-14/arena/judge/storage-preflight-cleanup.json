@@ -1,0 +1,12 @@
+[
+  {
+    "path": "/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/den-cloud-rust.LyKduO/target",
+    "reported_KiB": 1405284,
+    "reason": "inactive rebuildable Rust cache; no process references"
+  },
+  {
+    "path": "/Users/nicholascaron/Projects/personal/den/target",
+    "reported_KiB": 2198380,
+    "reason": "inactive rebuildable Rust cache; no process references"
+  }
+]

@@ -1,0 +1,23 @@
+     Removed 21 files, 241.1MiB total
+COMMAND ['cargo', 'test', '-p', 'den-server', '--test', 'api', 'review_holdout_resume', '--', '--nocapture']
+   Compiling den-server v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-server)
+    Finished `test` profile [unoptimized] target(s) in 9.12s
+     Running tests/api.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/api-a4576ee51ff79041)
+
+running 1 test
+
+thread 'eval_review::review_holdout_resume_discards_excess_crash_bytes' (233146576) panicked at crates/den-server/tests/api/eval_review.rs:40:5:
+assertion `left == right` failed: resumed upload must finalize after replacing crash bytes
+  left: 409
+ right: 200
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test eval_review::review_holdout_resume_discards_excess_crash_bytes ... FAILED
+
+failures:
+
+failures:
+    eval_review::review_holdout_resume_discards_excess_crash_bytes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 38 filtered out; finished in 0.41s
+
+error: test failed, to rerun pass `-p den-server --test api`

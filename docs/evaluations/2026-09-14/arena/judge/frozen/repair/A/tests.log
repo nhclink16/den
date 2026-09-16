@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized] target(s) in 0.16s
+     Running unittests src/main.rs (/tmp/den-arena-20260914/target-repair-muse/debug/deps/den-e44893f4f2f15806)
+
+running 3 tests
+test stream::tests::tail_stops_on_401_and_403_but_retries_transient ... ok
+test stream::tests::tail_preserves_filtering_and_global_events ... ok
+test stream::tests::tail_authenticates_every_connection ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,22 @@
+{
+  "free_gib": 11.79498291015625,
+  "prompt_sha256": "bd4da21dc6efa6d31d1ccad626166622fe28c239b65b946c842d5d923e36796b",
+  "effort": {
+    "muse": "xhigh",
+    "opus": "high"
+  },
+  "starts": {
+    "muse": "2026-09-14T21:02:37.277792+00:00",
+    "opus": "2026-09-14T21:02:37.798052+00:00"
+  },
+  "muse": {
+    "rc": 0,
+    "out": "{\"id\":\"cli:agent:prompt\",\"result\":{\"agent\":{\"agent\":\"opencode\",\"agent_status\":\"idle\",\"cwd\":\"/private/tmp/den-arena-20260914/review-muse\",\"focused\":false,\"foreground_cwd\":\"/private/tmp/den-arena-20260914/review-muse\",\"pane_id\":\"w11:p6\",\"revision\":5,\"state_change_seq\":699,\"tab_id\":\"w11:t5\",\"terminal_id\":\"term_65b777e720c5324\",\"terminal_title\":\"OC | Unscored den-server api readiness check\",\"terminal_title_stripped\":\"OC | Unscored den-server api readiness check\",\"workspace_id\":\"w11\"},\"type\":\"agent_prompted\"}}\n",
+    "err": ""
+  },
+  "opus": {
+    "rc": 0,
+    "out": "{\"id\":\"cli:agent:prompt\",\"result\":{\"agent\":{\"agent\":\"claude\",\"agent_status\":\"idle\",\"cwd\":\"/private/tmp/den-arena-20260914/review-opus\",\"focused\":false,\"foreground_cwd\":\"/private/tmp/den-arena-20260914/review-opus\",\"pane_id\":\"w11:p7\",\"revision\":9,\"state_change_seq\":701,\"tab_id\":\"w11:t5\",\"terminal_id\":\"term_65b7780d346f225\",\"terminal_title\":\"\u2733 Arena Opus review\",\"terminal_title_stripped\":\"Arena Opus review\",\"workspace_id\":\"w11\"},\"type\":\"agent_prompted\"}}\n",
+    "err": ""
+  }
+}

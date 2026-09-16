@@ -1,0 +1,56 @@
+{
+  "baseline": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 0
+  },
+  "read-only": {
+    "read": 101,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 0
+  },
+  "csrf-only": {
+    "read": 0,
+    "csrf": 101,
+    "sort": 0,
+    "cookie": 0
+  },
+  "sort-only": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 0
+  },
+  "cookie-only": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 0
+  },
+  "negative-sort": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 101,
+    "cookie": 0
+  },
+  "negative-cookie": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 101
+  },
+  "proposal": {
+    "read": 101,
+    "csrf": 101,
+    "sort": 0,
+    "cookie": 0
+  },
+  "restored": {
+    "read": 0,
+    "csrf": 0,
+    "sort": 0,
+    "cookie": 0
+  }
+}

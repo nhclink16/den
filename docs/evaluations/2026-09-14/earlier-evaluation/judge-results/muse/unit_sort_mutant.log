@@ -1,0 +1,22 @@
+     Removed 6 files, 1.2MiB total
+   Compiling den v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-cli)
+    Finished `test` profile [unoptimized] target(s) in 0.44s
+     Running unittests src/main.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/den-e44893f4f2f15806)
+
+running 1 test
+
+thread 'tests::sort_messages_orders_ascending_and_dedups' (233169493) panicked at crates/den-cli/src/main.rs:580:9:
+assertion `left == right` failed
+  left: ["02", "01", "02", "03"]
+ right: ["01", "02", "03"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tests::sort_messages_orders_ascending_and_dedups ... FAILED
+
+failures:
+
+failures:
+    tests::sort_messages_orders_ascending_and_dedups
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p den --bin den`

@@ -1,0 +1,12 @@
+     Removed 8 files, 39.0MiB total
+COMMAND ['cargo', 'test', '-p', 'den']
+   Compiling den v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-cli)
+    Finished `test` profile [unoptimized] target(s) in 0.65s
+     Running unittests src/main.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/den-e44893f4f2f15806)
+
+running 2 tests
+test tests::read_args_reject_both_cursors_and_bad_limits ... ok
+test tests::sort_messages_orders_ascending_and_dedups ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

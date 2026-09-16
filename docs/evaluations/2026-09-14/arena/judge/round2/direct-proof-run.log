@@ -1,0 +1,9 @@
+direct-read-baseline 0
+direct-read-mutant 101
+Traceback (most recent call last):
+  File "/tmp/den-arena-20260914/judge/round2/prove-direct-read.py", line 13, in <module>
+    binary=m.build(label)
+  File "/tmp/den-arena-20260914/judge/round2/prove.py", line 70, in build
+    os.killpg(p.pid,signal.SIGTERM);p.wait();raise RuntimeError('Stopped build: below 8 GiB free')
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Stopped build: below 8 GiB free

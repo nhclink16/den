@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'tail_reauthenticates_on_reconnect_and_stops_when_rejected' (233351757) panicked at crates/den-cli/tests/tail.rs:143:5:
+assertion `left == right` failed: reconnect must send the token again
+  left: None
+ right: Some("Bearer tail-regression-token")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tail_reauthenticates_on_reconnect_and_stops_when_rejected ... FAILED
+
+failures:
+
+failures:
+    tail_reauthenticates_on_reconnect_and_stops_when_rejected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+

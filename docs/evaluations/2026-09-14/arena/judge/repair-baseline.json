@@ -1,0 +1,153 @@
+{
+  "reconnect": {
+    "passed": true,
+    "checks": {
+      "exits_on_auth_rejection": true,
+      "one_connection_on_initial_rejection": true,
+      "auth_on_every_connection": true,
+      "expected_events_once": true,
+      "json_only_stdout": true,
+      "ping_response": true,
+      "gap_diagnostics": true,
+      "global_resync_events": true,
+      "global_presence_events": true
+    },
+    "elapsed_seconds": 2.6,
+    "attempts_authenticated": [
+      true,
+      true,
+      true
+    ],
+    "accepted_connections": [
+      1,
+      2
+    ],
+    "stdout": "{\"type\":\"resync\",\"reason\":\"connected; refresh history\"}\n{\"type\":\"message_created\",\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000300\",\"content\":\"event 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}\n{\"type\":\"resync\",\"reason\":\"connected; refresh history\"}\n{\"type\":\"message_created\",\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000300\",\"content\":\"event 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}\n",
+    "stderr": "Gap: connected; refresh history. Run den read to refresh; events are not replayed.\nConnection lost; events may be missing. Reconnecting in 1s.\nGap: connected; refresh history. Run den read to refresh; events are not replayed.\nConnection lost; events may be missing. Reconnecting in 1s.\nError: Authentication rejected; log in again\n",
+    "returncode": 1,
+    "timed_out": false,
+    "requests": [
+      "/ws",
+      "/ws",
+      "/ws"
+    ]
+  },
+  "401": {
+    "passed": true,
+    "checks": {
+      "exits_on_auth_rejection": true,
+      "one_connection_on_initial_rejection": true,
+      "auth_on_every_connection": true,
+      "expected_events_once": true,
+      "json_only_stdout": true,
+      "ping_response": true,
+      "gap_diagnostics": true,
+      "global_resync_events": true,
+      "global_presence_events": true
+    },
+    "elapsed_seconds": 0.02,
+    "attempts_authenticated": [
+      true
+    ],
+    "accepted_connections": [],
+    "stdout": "",
+    "stderr": "Error: Authentication rejected; log in again\n",
+    "returncode": 1,
+    "timed_out": false,
+    "requests": [
+      "/ws"
+    ]
+  },
+  "403": {
+    "passed": true,
+    "checks": {
+      "exits_on_auth_rejection": true,
+      "one_connection_on_initial_rejection": true,
+      "auth_on_every_connection": true,
+      "expected_events_once": true,
+      "json_only_stdout": true,
+      "ping_response": true,
+      "gap_diagnostics": true,
+      "global_resync_events": true,
+      "global_presence_events": true
+    },
+    "elapsed_seconds": 0.03,
+    "attempts_authenticated": [
+      true
+    ],
+    "accepted_connections": [],
+    "stdout": "",
+    "stderr": "Error: Authentication rejected; log in again\n",
+    "returncode": 1,
+    "timed_out": false,
+    "requests": [
+      "/ws"
+    ]
+  },
+  "transient": {
+    "passed": true,
+    "checks": {
+      "exits_on_auth_rejection": true,
+      "one_connection_on_initial_rejection": true,
+      "auth_on_every_connection": true,
+      "expected_events_once": true,
+      "json_only_stdout": true,
+      "ping_response": true,
+      "gap_diagnostics": true,
+      "global_resync_events": true,
+      "global_presence_events": true
+    },
+    "elapsed_seconds": 2.04,
+    "attempts_authenticated": [
+      true,
+      true,
+      true
+    ],
+    "accepted_connections": [
+      2
+    ],
+    "stdout": "{\"type\":\"resync\",\"reason\":\"connected; refresh history\"}\n{\"type\":\"message_created\",\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000300\",\"content\":\"event 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}\n",
+    "stderr": "Connection lost; events may be missing. Reconnecting in 1s.\nGap: connected; refresh history. Run den read to refresh; events are not replayed.\nConnection lost; events may be missing. Reconnecting in 1s.\nError: Authentication rejected; log in again\n",
+    "returncode": 1,
+    "timed_out": false,
+    "requests": [
+      "/ws",
+      "/ws",
+      "/ws"
+    ]
+  },
+  "filter": {
+    "passed": true,
+    "checks": {
+      "exits_on_auth_rejection": true,
+      "one_connection_on_initial_rejection": true,
+      "auth_on_every_connection": true,
+      "expected_events_once": true,
+      "json_only_stdout": true,
+      "ping_response": true,
+      "gap_diagnostics": true,
+      "global_resync_events": true,
+      "global_presence_events": true
+    },
+    "elapsed_seconds": 2.03,
+    "attempts_authenticated": [
+      true,
+      true,
+      true
+    ],
+    "accepted_connections": [
+      1,
+      2
+    ],
+    "stdout": "{\"type\":\"resync\",\"reason\":\"connected; refresh history\"}\n{\"type\":\"presence\",\"user_id\":\"00000000000000000000000300\",\"online\":true}\n{\"type\":\"message_created\",\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000300\",\"content\":\"event 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}\n{\"type\":\"resync\",\"reason\":\"connected; refresh history\"}\n{\"type\":\"presence\",\"user_id\":\"00000000000000000000000300\",\"online\":true}\n{\"type\":\"message_created\",\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000300\",\"content\":\"event 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}\n",
+    "stderr": "Gap: connected; refresh history. Run den read to refresh; events are not replayed.\nConnection lost; events may be missing. Reconnecting in 1s.\nGap: connected; refresh history. Run den read to refresh; events are not replayed.\nConnection lost; events may be missing. Reconnecting in 1s.\nError: Authentication rejected; log in again\n",
+    "returncode": 1,
+    "timed_out": false,
+    "requests": [
+      "/channels/00000000000000000000000100",
+      "/ws",
+      "/ws",
+      "/ws"
+    ]
+  }
+}

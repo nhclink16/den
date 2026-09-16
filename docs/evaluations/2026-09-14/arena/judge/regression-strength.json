@@ -1,0 +1,373 @@
+{
+  "purpose": "Independent callsite-level mutation test of frozen anonymous candidates; no model reports used",
+  "timeout_seconds_per_test": 40,
+  "candidates": {
+    "A": {
+      "source": "/tmp/den-arena-20260914/judge/frozen/repair/A/source/crates/den-cli",
+      "source_sha256": {
+        "Cargo.toml": "6c3b4f6af18551725b1720cf82b4cca4c0d5e6057d53aa3431978f57b42696b6",
+        "src/hosts.rs": "f323daeb2760578ddfffa5c1eff9b136dd7a5c09ecbbdb41c6bf94543ecf0c96",
+        "src/stream.rs": "5420335665dda83b3bf20aea108764c221655c6d1d2bd91110f5348c6f650609",
+        "src/client.rs": "d9fd9fc0cdce9b59a681397a8db156893215558d2cdbad786423421d0f9c3b57",
+        "src/canvas.rs": "d924e5e0e736e937fc4d0b99b52851045e594937e97945d02d2b1282a5e773a7",
+        "src/main.rs": "5aee368b2dd08af757da18f1e6bbc491632b30a625d2f97a4595c78efec8dcd3"
+      },
+      "variants": {
+        "healthy": {
+          "source_sha256": "5420335665dda83b3bf20aea108764c221655c6d1d2bd91110f5348c6f650609",
+          "tests": [
+            {
+              "name": "stream::tests::tail_authenticates_every_connection",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.01,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-healthy-test-0.log"
+            },
+            {
+              "name": "stream::tests::tail_preserves_filtering_and_global_events",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.01,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-healthy-test-1.log"
+            },
+            {
+              "name": "stream::tests::tail_stops_on_401_and_403_but_retries_transient",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.011,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-healthy-test-2.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "unmodified candidate"
+        },
+        "header-drain": {
+          "source_sha256": "5747cd197554042393cf06a1e7a46b8bb9079b6112313de993a658b6d52ffc5e",
+          "tests": [
+            {
+              "name": "stream::tests::tail_authenticates_every_connection",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.021,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-header-drain-test-0.log"
+            },
+            {
+              "name": "stream::tests::tail_preserves_filtering_and_global_events",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.02,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-header-drain-test-1.log"
+            },
+            {
+              "name": "stream::tests::tail_stops_on_401_and_403_but_retries_transient",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.012,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-header-drain-test-2.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "actual tail loop only"
+        },
+        "auth-only-403": {
+          "source_sha256": "1305aa082d486dd395021d46d5262f3b9f5af070a61d08e347f74ac53623bee2",
+          "tests": [
+            {
+              "name": "stream::tests::tail_authenticates_every_connection",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.021,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-auth-only-403-test-0.log"
+            },
+            {
+              "name": "stream::tests::tail_preserves_filtering_and_global_events",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.013,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-auth-only-403-test-1.log"
+            },
+            {
+              "name": "stream::tests::tail_stops_on_401_and_403_but_retries_transient",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.013,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-auth-only-403-test-2.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "actual tail loop only"
+        },
+        "restored": {
+          "source_sha256": "5420335665dda83b3bf20aea108764c221655c6d1d2bd91110f5348c6f650609",
+          "tests": [
+            {
+              "name": "stream::tests::tail_authenticates_every_connection",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.014,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-restored-test-0.log"
+            },
+            {
+              "name": "stream::tests::tail_preserves_filtering_and_global_events",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.005,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-restored-test-1.log"
+            },
+            {
+              "name": "stream::tests::tail_stops_on_401_and_403_but_retries_transient",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/den-e44893f4f2f15806",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 0.005,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/A-restored-test-2.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "unmodified candidate"
+        }
+      },
+      "frozen_source_unchanged": true,
+      "judge_cli_restored": true
+    },
+    "B": {
+      "source": "/tmp/den-arena-20260914/judge/frozen/repair/B/source/crates/den-cli",
+      "source_sha256": {
+        "Cargo.toml": "6c3b4f6af18551725b1720cf82b4cca4c0d5e6057d53aa3431978f57b42696b6",
+        "tests/tail.rs": "b4e1df6791088ab55396042f1f33590532406416a714a55c425cb6223f4ea296",
+        "src/hosts.rs": "f323daeb2760578ddfffa5c1eff9b136dd7a5c09ecbbdb41c6bf94543ecf0c96",
+        "src/stream.rs": "de926e095ce0ba89e07d01996b9e4c974a63b3d0781a932807ce2d1ea38e223e",
+        "src/client.rs": "d9fd9fc0cdce9b59a681397a8db156893215558d2cdbad786423421d0f9c3b57",
+        "src/canvas.rs": "d924e5e0e736e937fc4d0b99b52851045e594937e97945d02d2b1282a5e773a7",
+        "src/main.rs": "5aee368b2dd08af757da18f1e6bbc491632b30a625d2f97a4595c78efec8dcd3"
+      },
+      "variants": {
+        "healthy": {
+          "source_sha256": "de926e095ce0ba89e07d01996b9e4c974a63b3d0781a932807ce2d1ea38e223e",
+          "tests": [
+            {
+              "name": "tail_reauthenticates_on_reconnect_and_stops_when_rejected",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/tail-0433f4728567f599",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 2.504,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/B-healthy-test-0.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "tail",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "unmodified candidate"
+        },
+        "header-drain": {
+          "source_sha256": "3167e41f066b2a57db834017b9ffed15a45333c3dac8ea43b03c6870a71fc533",
+          "tests": [
+            {
+              "name": "tail_reauthenticates_on_reconnect_and_stops_when_rejected",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/tail-0433f4728567f599",
+              "exit_code": 101,
+              "timed_out": false,
+              "seconds": 2.517,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/B-header-drain-test-0.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "tail",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": false,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "actual tail loop only"
+        },
+        "auth-only-403": {
+          "source_sha256": "cd3398752192a3863c5392e3297aa651d15ae5479fad04b4e65d10471ddfaaca",
+          "tests": [
+            {
+              "name": "tail_reauthenticates_on_reconnect_and_stops_when_rejected",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/tail-0433f4728567f599",
+              "exit_code": 101,
+              "timed_out": false,
+              "seconds": 22.477,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/B-auth-only-403-test-0.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "tail",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": false,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "actual tail loop only"
+        },
+        "restored": {
+          "source_sha256": "de926e095ce0ba89e07d01996b9e4c974a63b3d0781a932807ce2d1ea38e223e",
+          "tests": [
+            {
+              "name": "tail_reauthenticates_on_reconnect_and_stops_when_rejected",
+              "binary": "/tmp/den-arena-20260914/judge/regression-strength-target/debug/deps/tail-0433f4728567f599",
+              "exit_code": 0,
+              "timed_out": false,
+              "seconds": 2.555,
+              "log": "/tmp/den-arena-20260914/judge/regression-strength-logs/B-restored-test-0.log"
+            }
+          ],
+          "local_artifacts": [
+            {
+              "target": "den_core",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-core/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "tail",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": true
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            },
+            {
+              "target": "den",
+              "manifest_path": "/private/tmp/den-arena-20260914/judge/regression-strength-work/crates/den-cli/Cargo.toml",
+              "fresh": false
+            }
+          ],
+          "all_passed": true,
+          "helpers_and_tests_preserved": true,
+          "mutation_scope": "unmodified candidate"
+        }
+      },
+      "frozen_source_unchanged": true,
+      "judge_cli_restored": true
+    }
+  },
+  "free_bytes": 11511156736,
+  "completed": true,
+  "findings": {
+    "A": "All three helper tests pass with each original defect independently reintroduced at the actual tail callsite. They do not detect either loop regression.",
+    "B": "The CLI integration test fails both independent callsite mutations: reconnect authorization is absent under header drain; the process keeps reconnecting after 401 under the narrowed guard. Healthy and restored versions pass.",
+    "timeouts": "No 40-second supervisor timeout fired. The B auth-only-403 test failed its own explicit 20-second exit deadline, after approximately 22.4 seconds total."
+  },
+  "stray_test_cli_processes": []
+}

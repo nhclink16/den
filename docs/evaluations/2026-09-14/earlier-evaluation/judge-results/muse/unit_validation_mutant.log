@@ -1,0 +1,20 @@
+     Removed 8 files, 39.0MiB total
+   Compiling den v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-cli)
+    Finished `test` profile [unoptimized] target(s) in 0.65s
+     Running unittests src/main.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/den-e44893f4f2f15806)
+
+running 1 test
+
+thread 'tests::read_args_reject_both_cursors_and_bad_limits' (233169340) panicked at crates/den-cli/src/main.rs:570:9:
+assertion failed: check_read_args(None, None, 0).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test tests::read_args_reject_both_cursors_and_bad_limits ... FAILED
+
+failures:
+
+failures:
+    tests::read_args_reject_both_cursors_and_bad_limits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p den --bin den`

@@ -1,0 +1,389 @@
+diff --git a/crates/den-cli/src/main.rs b/crates/den-cli/src/main.rs
+index 3f2ffee..529496e 100644
+--- a/crates/den-cli/src/main.rs
++++ b/crates/den-cli/src/main.rs
+@@ -1,6 +1,7 @@
+ mod canvas;
+ mod client;
+ mod hosts;
++mod read;
+ mod stream;
+ use anyhow::Context;
+ use clap::{Parser, Subcommand};
+@@ -94,6 +95,9 @@ enum Cmd {
+         after: Option<String>,
+         #[arg(long, default_value_t = 50)]
+         limit: u32,
++        /// Fetch every matching page and print one ascending, de-duplicated array.
++        #[arg(long)]
++        all: bool,
+     },
+     Edit {
+         message: String,
+@@ -213,6 +217,87 @@ fn id(value: &str) -> anyhow::Result<&str> {
+     );
+     Ok(value)
+ }
++fn validate_read(limit: u32, before: Option<&str>, after: Option<&str>) -> anyhow::Result<()> {
++    anyhow::ensure!((1..=200).contains(&limit), "Limit must be 1-200");
++    anyhow::ensure!(
++        before.is_none() || after.is_none(),
++        "Use before or after, not both"
++    );
++    if let Some(v) = before {
++        id(v)?;
++    }
++    if let Some(v) = after {
++        id(v)?;
++    }
++    Ok(())
++}
++/// Fetch every matching message page. Backward walks (no cursor or `before`)
++/// start at the newest page and page toward older IDs; forward walks (`after`)
++/// start at the oldest page after the cursor and page toward newer IDs.
++/// Results are de-duplicated and returned in ascending message-ID order.
++fn read_all(
++    c: &Client,
++    channel_id: &str,
++    before: Option<String>,
++    after: Option<String>,
++    limit: u32,
++) -> anyhow::Result<Vec<Message>> {
++    read_all_pages(before, after, limit, |before, after| {
++        let mut path = format!("/channels/{channel_id}/messages?limit={limit}");
++        if let Some(v) = before {
++            path.push_str(&format!("&before={v}"));
++        }
++        if let Some(v) = after {
++            path.push_str(&format!("&after={v}"));
++        }
++        c.get(&path)
++    })
++}
++fn read_all_pages(
++    before: Option<String>,
++    after: Option<String>,
++    limit: u32,
++    mut fetch: impl FnMut(Option<&str>, Option<&str>) -> anyhow::Result<Vec<Message>>,
++) -> anyhow::Result<Vec<Message>> {
++    use std::collections::BTreeMap;
++    let forward = after.is_some();
++    let mut cursor_before = before;
++    let mut cursor_after = after;
++    let mut collected: BTreeMap<String, Message> = BTreeMap::new();
++    loop {
++        let page = fetch(cursor_before.as_deref(), cursor_after.as_deref())?;
++        let full = page.len() == limit as usize;
++        let fresh = page
++            .iter()
++            .any(|message| !collected.contains_key(&message.id));
++        // Pages arrive ascending: the walk edge is the oldest message going
++        // backwards, the newest going forwards.
++        let edge = if forward { page.last() } else { page.first() }.map(|m| m.id.clone());
++        for message in page {
++            collected.insert(message.id.clone(), message);
++        }
++        if !full {
++            break;
++        }
++        let edge = edge.expect("a full page is non-empty");
++        let prev = if forward { &cursor_after } else { &cursor_before };
++        let progressed = match prev {
++            Some(prev) if forward => edge > *prev,
++            Some(prev) => edge < *prev,
++            None => true,
++        };
++        anyhow::ensure!(
++            fresh && progressed,
++            "Message pages stopped progressing at message {edge}"
++        );
++        if forward {
++            cursor_after = Some(edge);
++        } else {
++            cursor_before = Some(edge);
++        }
++    }
++    Ok(collected.into_values().collect())
++}
+ fn main() -> anyhow::Result<()> {
+     let args = Cli::parse();
+     let mut c = Client::new(args.url, args.token, args.config)?;
+@@ -365,18 +450,22 @@ fn main() -> anyhow::Result<()> {
+             before,
+             after,
+             limit,
++            all,
+         } => {
+-            let mut path = format!(
+-                "/channels/{}/messages?limit={limit}",
+-                c.resolve_channel(&channel)?
+-            );
+-            if let Some(v) = before {
+-                path.push_str(&format!("&before={}", id(&v)?));
++            validate_read(limit, before.as_deref(), after.as_deref())?;
++            let channel_id = c.resolve_channel(&channel)?;
++            if !all {
++                let mut path = format!("/channels/{channel_id}/messages?limit={limit}");
++                if let Some(v) = before {
++                    path.push_str(&format!("&before={}", id(&v)?));
++                }
++                if let Some(v) = after {
++                    path.push_str(&format!("&after={}", id(&v)?));
++                }
++                print(&c.get::<Vec<Message>>(&path)?)?;
++            } else {
++                print(&read_all(&c, &channel_id, before, after, limit)?)?;
+             }
+-            if let Some(v) = after {
+-                path.push_str(&format!("&after={}", id(&v)?));
+-            }
+-            print(&c.get::<Vec<Message>>(&path)?)?;
+         }
+         Cmd::Edit { message, text } => print(&c.send::<Message>(
+             Method::PATCH,
+@@ -433,3 +522,140 @@ fn main() -> anyhow::Result<()> {
+     }
+     Ok(())
+ }
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use clap::Parser;
++    fn msg(n: u64) -> Message {
++        Message {
++            id: format!("{n:026}"),
++            channel_id: "01CHANNEL000000000000000".into(),
++            author_id: "01AUTHOR0000000000000000".into(),
++            content: format!("m{n}"),
++            reply_to: None,
++            created_at: String::new(),
++            edited_at: None,
++            attachments: Vec::new(),
++            objects: Vec::new(),
++            reactions: Vec::new(),
++            mention_ids: Vec::new(),
++        }
++    }
++    fn ids(messages: &[Message]) -> Vec<u64> {
++        messages.iter().map(|m| m.id.parse().unwrap()).collect()
++    }
++    /// Simulates the server over message IDs 1..=total, recording cursors.
++    fn server(
++        total: u64,
++        limit: u32,
++        calls: std::rc::Rc<std::cell::RefCell<Vec<(Option<String>, Option<String>)>>>,
++    ) -> impl FnMut(Option<&str>, Option<&str>) -> anyhow::Result<Vec<Message>> {
++        move |before, after| {
++            calls
++                .borrow_mut()
++                .push((before.map(str::to_string), after.map(str::to_string)));
++            let matching = (1..=total).filter(|i| {
++                let id = format!("{i:026}");
++                before.is_none_or(|b| id.as_str() < b) && after.is_none_or(|a| id.as_str() > a)
++            });
++            let page: Vec<u64> = if after.is_some() {
++                matching.take(limit as usize).collect()
++            } else {
++                let mut page: Vec<u64> = matching.rev().take(limit as usize).collect();
++                page.reverse();
++                page
++            };
++            Ok(page.into_iter().map(msg).collect())
++        }
++    }
++    #[test]
++    fn read_parses_all_flag() {
++        let cli = Cli::try_parse_from(["den", "read", "general", "--all"]).unwrap();
++        let Cmd::Read { all, limit, .. } = cli.cmd else {
++            panic!("expected read")
++        };
++        assert!(all);
++        assert_eq!(limit, 50);
++    }
++    #[test]
++    fn read_all_walks_backwards_from_newest() {
++        let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
++        let messages = read_all_pages(None, None, 100, server(250, 100, calls.clone())).unwrap();
++        assert_eq!(ids(&messages), (1..=250).collect::<Vec<_>>());
++        let calls = calls.borrow();
++        assert_eq!(calls.len(), 3);
++        assert_eq!(calls[0], (None, None));
++        assert_eq!(calls[1].0.as_deref(), Some(&msg(151).id[..]));
++        assert_eq!(calls[2].0.as_deref(), Some(&msg(51).id[..]));
++    }
++    #[test]
++    fn read_all_walks_forwards_from_after() {
++        let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
++        let start = msg(100).id;
++        let messages =
++            read_all_pages(None, Some(start.clone()), 100, server(250, 100, calls.clone()))
++                .unwrap();
++        assert_eq!(ids(&messages), (101..=250).collect::<Vec<_>>());
++        let calls = calls.borrow();
++        assert_eq!(calls.len(), 2);
++        assert_eq!(calls[0], (None, Some(start)));
++        assert_eq!(calls[1].1.as_deref(), Some(&msg(200).id[..]));
++    }
++    #[test]
++    fn read_all_includes_the_final_short_page() {
++        // 7 messages at limit 3: pages of 3, 3, then a short page of 1.
++        let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
++        let messages = read_all_pages(None, None, 3, server(7, 3, calls)).unwrap();
++        assert_eq!(ids(&messages), (1..=7).collect::<Vec<_>>());
++    }
++    #[test]
++    fn read_all_dedupes_overlapping_pages() {
++        let mut pages = vec![vec![msg(1), msg(2), msg(3)], vec![msg(1)]].into_iter();
++        let messages =
++            read_all_pages(None, None, 3, move |_, _| Ok(pages.next().unwrap_or_default()))
++                .unwrap();
++        assert_eq!(ids(&messages), vec![1, 2, 3]);
++    }
++    #[test]
++    fn read_all_fails_when_pages_stop_progressing() {
++        // A full page repeating forever must fail, not hang.
++        let result = read_all_pages(None, None, 3, |_, _| Ok(vec![msg(1), msg(2), msg(3)]));
++        assert!(result.is_err());
++        // An edge that repeats the cursor violates exclusivity; also a failure.
++        let cursor = msg(5).id;
++        let result = read_all_pages(None, Some(cursor), 2, |_, _| Ok(vec![msg(4), msg(5)]));
++        assert!(result.is_err());
++    }
++    #[test]
++    fn read_all_propagates_page_errors() {
++        let result = read_all_pages(None, None, 3, |_, _| anyhow::bail!("first page failed"));
++        assert!(result.is_err());
++        let mut first = true;
++        let result = read_all_pages(None, None, 3, move |_, _| {
++            if std::mem::replace(&mut first, false) {
++                Ok(vec![msg(1), msg(2), msg(3)])
++            } else {
++                anyhow::bail!("later page failed")
++            }
++        });
++        assert!(result.is_err());
++    }
++    #[test]
++    fn validate_read_rejects_before_any_request() {
++        for (limit, before, after) in [
++            (0, None, None),
++            (201, None, None),
++            (
++                50,
++                Some("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
++                Some("01ARZ3NDEKTSV4RRFFQ69G5FAV"),
++            ),
++            (50, Some("not-a-ulid"), None),
++            (50, None, Some("not-a-ulid")),
++        ] {
++            assert!(validate_read(limit, before, after).is_err());
++        }
++        assert!(validate_read(1, None, None).is_ok());
++        assert!(validate_read(200, Some("01ARZ3NDEKTSV4RRFFQ69G5FAV"), None).is_ok());
++    }
++}
+diff --git a/crates/den-server/tests/api/uploads.rs b/crates/den-server/tests/api/uploads.rs
+index 8c49d58..e4925c8 100644
+--- a/crates/den-server/tests/api/uploads.rs
++++ b/crates/den-server/tests/api/uploads.rs
+@@ -328,3 +328,100 @@ async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
+     );
+     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
+ }
++
++#[tokio::test]
++async fn upload_admission_enforces_size_filename_and_pending_quota() {
++    let t = Test::new().await;
++    let alice = t.member("alice").await;
++    let bob = t.member("bob").await;
++    let cid = t.general().await;
++    let rows = || async {
++        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM uploads")
++            .fetch_one(&t.state.db)
++            .await
++            .unwrap()
++    };
++    // Size bounds: the test server caps uploads at 1 MiB.
++    for size in [0, -1, 1024 * 1024 + 1] {
++        let r = t
++            .req(Method::POST, "/uploads", &alice.token)
++            .json(&json!({"channel_id":cid,"filename":"a.bin","content_type":"application/octet-stream","size":size}))
++            .send()
++            .await
++            .unwrap();
++        assert_eq!(r.status(), 413, "size {size}");
++        assert_eq!(r.json::<Value>().await.unwrap()["error"], "upload_size");
++    }
++    for filename in ["", "a/b", "a\\b", "has\u{7}control", &"x".repeat(256)] {
++        let r = t
++            .req(Method::POST, "/uploads", &alice.token)
++            .json(&json!({"channel_id":cid,"filename":filename,"content_type":"application/octet-stream","size":1}))
++            .send()
++            .await
++            .unwrap();
++        assert_eq!(r.status(), 400, "filename {filename:?}");
++        assert_eq!(r.json::<Value>().await.unwrap()["error"], "invalid_request");
++    }
++    // Rejected admission created neither an upload row nor a file.
++    assert_eq!(rows()().await, 0);
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 0);
++    // Boundary values are admitted: 255-byte filename, exactly max size.
++    let mut ids = Vec::new();
++    for (filename, size) in [
++        ("x".repeat(255), 1),
++        ("max.bin".into(), 1024 * 1024),
++        ("f2".into(), 1),
++        ("f3".into(), 1),
++        ("f4".into(), 1),
++    ] {
++        let upload = t
++            .post(
++                "/uploads",
++                &alice.token,
++                json!({"channel_id":cid,"filename":filename,"content_type":"application/octet-stream","size":size}),
++            )
++            .await;
++        ids.push(upload["id"].as_str().unwrap().to_string());
++    }
++    // The sixth pending upload for the same owner is a conflict.
++    let r = t
++        .req(Method::POST, "/uploads", &alice.token)
++        .json(&json!({"channel_id":cid,"filename":"six","content_type":"application/octet-stream","size":1}))
++        .send()
++        .await
++        .unwrap();
++    assert_eq!(r.status(), 409);
++    assert_eq!(r.json::<Value>().await.unwrap()["error"], "conflict");
++    assert_eq!(rows()().await, 5);
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 5);
++    // Another owner has an independent allowance.
++    t.post(
++        "/uploads",
++        &bob.token,
++        json!({"channel_id":cid,"filename":"bob.bin","content_type":"application/octet-stream","size":1}),
++    )
++    .await;
++    // Completing one of alice's pending uploads frees her slot.
++    let path = format!("/uploads/{}", ids[0]);
++    assert_eq!(
++        t.req(Method::PATCH, &path, &alice.token)
++            .header("Upload-Offset", 0)
++            .body("x")
++            .send()
++            .await
++            .unwrap()
++            .status(),
++        200
++    );
++    let done = t
++        .post(&format!("{path}/complete"), &alice.token, json!({}))
++        .await;
++    assert_eq!(done["complete"], true);
++    t.post(
++        "/uploads",
++        &alice.token,
++        json!({"channel_id":cid,"filename":"freed","content_type":"application/octet-stream","size":1}),
++    )
++    .await;
++    assert_eq!(rows()().await, 7);
++}

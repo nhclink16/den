@@ -1,0 +1,6 @@
+
+running 1 test
+test m2_live::websocket_targets_notifications_and_read_state_without_dm_leaks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.86s
+

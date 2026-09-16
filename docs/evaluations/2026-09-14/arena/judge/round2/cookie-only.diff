@@ -1,0 +1,12 @@
+--- a/crates/den-server/src/auth.rs
++++ b/crates/den-server/src/auth.rs
+@@ -108,7 +108,8 @@
+             .and_then(|v| v.to_str().ok())
+             .and_then(|v| {
+                 v.split(';')
+-                    .find_map(|p| p.trim().strip_prefix("den_session="))
++                    .map(str::trim)
++                    .find_map(|p| p.strip_prefix("den_session="))
+             });
+         let digest = hash(bearer.or(cookie).ok_or_else(Error::unauthorized)?);
+         let time = now();

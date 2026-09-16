@@ -1,0 +1,14 @@
+     Removed 20 files, 240.5MiB total
+COMMAND ['cargo', 'test', '-p', 'den-server', '--test', 'api', 'uploads::', '--', '--nocapture']
+   Compiling den-server v0.2.1 (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/worktrees/verify/crates/den-server)
+    Finished `test` profile [unoptimized] target(s) in 8.67s
+     Running tests/api.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-target/debug/deps/api-a4576ee51ff79041)
+
+running 4 tests
+test uploads::upload_begin_rejects_bad_sizes_and_filenames_without_admitting_them ... ok
+test uploads::upload_deletion_requires_owner_or_admin_and_no_live_references ... ok
+test uploads::upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot ... ok
+test uploads::upload_resume_survives_uncommitted_bytes_and_serves_authenticated_ranges ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 1.14s
+

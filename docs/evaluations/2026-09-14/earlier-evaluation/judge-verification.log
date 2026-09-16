@@ -1,0 +1,55 @@
+baseline/original-review.log 0
+baseline/owner-bypass.log 101
+baseline/no-truncate-corruption.log 101
+baseline/no-truncate-valid-resume.log 0
+baseline/cli-build.log 0
+{
+  "original_review_checks": {
+    "returncode": 0,
+    "seconds": 50.38,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/baseline/original-review.log"
+  },
+  "owner_bypass": {
+    "returncode": 101,
+    "seconds": 10.77,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/baseline/owner-bypass.log"
+  },
+  "no_truncate_synthetic_corruption": {
+    "returncode": 101,
+    "seconds": 10.32,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/baseline/no-truncate-corruption.log"
+  },
+  "no_truncate_existing_resume_test": {
+    "returncode": 0,
+    "seconds": 10.64,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/baseline/no-truncate-valid-resume.log"
+  },
+  "cli_build": {
+    "returncode": 0,
+    "seconds": 12.91,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/baseline/cli-build.log"
+  }
+}
+glmflash/verify-cli-tests.log 0
+glmflash/verify-cli-build.log 0
+glmflash/verify-uploads.log 0
+glmflash/mutant-zero_size_accepted.log 101
+glmflash/mutant-oversize_accepted.log 101
+glmflash/mutant-filenames_unchecked.log 101
+glmflash/mutant-six_pending_allowed.log 101
+glmflash/mutant-quota_shared_by_all_owners.log 101
+glmflash/mutant-completed_consume_quota.log 101
+{"name": "glmflash", "cli_passed": 19, "cli_total": 19, "mutations_killed": 6, "mutations_total": 6}
+glmflash/restored-uploads.log 0
+muse/verify-cli-tests.log 0
+muse/verify-cli-build.log 0
+muse/verify-uploads.log 0
+muse/mutant-zero_size_accepted.log 101
+muse/mutant-oversize_accepted.log 101
+muse/mutant-filenames_unchecked.log 101
+muse/mutant-six_pending_allowed.log 101
+muse/mutant-quota_shared_by_all_owners.log 101
+muse/mutant-completed_consume_quota.log 101
+{"name": "muse", "cli_passed": 19, "cli_total": 19, "mutations_killed": 6, "mutations_total": 6}
+muse/restored-uploads.log 0
+VERIFICATION COMPLETE

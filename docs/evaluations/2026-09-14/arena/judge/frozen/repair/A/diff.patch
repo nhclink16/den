@@ -1,0 +1,156 @@
+diff --git a/crates/den-cli/src/stream.rs b/crates/den-cli/src/stream.rs
+index a64ced8..e1c301e 100644
+--- a/crates/den-cli/src/stream.rs
++++ b/crates/den-cli/src/stream.rs
+@@ -11,6 +11,30 @@ use std::{
+ };
+ use tungstenite::{client::IntoClientRequest, Message as Frame};
+ 
++fn is_auth_rejection(status: u16) -> bool {
++    matches!(status, 401 | 403)
++}
++
++fn passes_filter(event: &Event, channel: &Option<String>) -> bool {
++    let event_channel = match event {
++        Event::MessageCreated(m) | Event::MessageEdited(m) => Some(&m.channel_id),
++        Event::MessageDeleted { channel_id, .. }
++        | Event::ObjectPatched { channel_id, .. }
++        | Event::ObjectPresence { channel_id, .. }
++        | Event::Typing { channel_id, .. } => Some(channel_id),
++        _ => None,
++    };
++    channel.is_none() || event_channel.is_none() || event_channel == channel.as_ref()
++}
++
++fn ws_request(url: &str, token: &str) -> anyhow::Result<tungstenite::http::Request<()>> {
++    let mut request = url.into_client_request()?;
++    request
++        .headers_mut()
++        .insert("Authorization", format!("Bearer {token}").parse()?);
++    Ok(request)
++}
++
+ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
+     let token = c
+         .token
+@@ -21,11 +45,8 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
+     }
+     let url = format!("{}/ws", c.url.replacen("http", "ws", 1));
+     let mut delay = 1;
+-    let mut auth_headers = tungstenite::http::HeaderMap::new();
+-    auth_headers.insert("Authorization", format!("Bearer {token}").parse()?);
+     loop {
+-        let mut request = url.as_str().into_client_request()?;
+-        request.headers_mut().extend(auth_headers.drain());
++        let request = ws_request(&url, token)?;
+         match tungstenite::connect(request) {
+             Ok((mut socket, _)) => {
+                 // Detect a half-open connection even when no chat events arrive.
+@@ -48,20 +69,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
+                             if let Event::Resync { reason } = &event {
+                                 eprintln!("Gap: {reason}. Run den read to refresh; events are not replayed.");
+                             }
+-                            let event_channel = match &event {
+-                                Event::MessageCreated(m) | Event::MessageEdited(m) => {
+-                                    Some(&m.channel_id)
+-                                }
+-                                Event::MessageDeleted { channel_id, .. }
+-                                | Event::ObjectPatched { channel_id, .. }
+-                                | Event::ObjectPresence { channel_id, .. }
+-                                | Event::Typing { channel_id, .. } => Some(channel_id),
+-                                _ => None,
+-                            };
+-                            if channel.is_none()
+-                                || event_channel.is_none()
+-                                || event_channel == channel.as_ref()
+-                            {
++                            if passes_filter(&event, &channel) {
+                                 print(&event)?;
+                             }
+                         }
+@@ -76,7 +84,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
+                 }
+             }
+             Err(tungstenite::Error::Http(response))
+-                if response.status().as_u16() == 403 =>
++                if is_auth_rejection(response.status().as_u16()) =>
+             {
+                 anyhow::bail!("Authentication rejected; log in again")
+             }
+@@ -167,3 +175,76 @@ pub fn upload(
+     )?;
+     print(&result)
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    fn test_message(channel_id: &str, id: &str) -> Event {
++        Event::MessageCreated(Message {
++            id: id.to_string(),
++            channel_id: channel_id.to_string(),
++            author_id: "00000000000000000000000300".to_string(),
++            content: "event".to_string(),
++            reply_to: None,
++            created_at: "2026-09-14T00:00:00Z".to_string(),
++            edited_at: None,
++            attachments: vec![],
++            objects: vec![],
++            reactions: vec![],
++            mention_ids: vec![],
++        })
++    }
++
++    #[test]
++    fn tail_stops_on_401_and_403_but_retries_transient() {
++        assert!(is_auth_rejection(401));
++        assert!(is_auth_rejection(403));
++        assert!(!is_auth_rejection(503));
++        assert!(!is_auth_rejection(500));
++    }
++
++    #[test]
++    fn tail_authenticates_every_connection() {
++        let url = "ws://127.0.0.1:1/ws";
++        for _ in 0..2 {
++            let request = ws_request(url, "synthetic-arena-token").unwrap();
++            assert_eq!(
++                request.headers().get("Authorization").unwrap(),
++                "Bearer synthetic-arena-token"
++            );
++        }
++    }
++
++    #[test]
++    fn tail_preserves_filtering_and_global_events() {
++        let kept = "00000000000000000000000100".to_string();
++        let other = "00000000000000000000000200".to_string();
++        let filter = Some(kept.clone());
++        assert!(passes_filter(
++            &test_message(&kept, "00000000000000000000000001"),
++            &filter
++        ));
++        assert!(!passes_filter(
++            &test_message(&other, "00000000000000000000000090"),
++            &filter
++        ));
++        assert!(passes_filter(
++            &Event::Resync {
++                reason: "connected; refresh history".to_string()
++            },
++            &filter
++        ));
++        assert!(passes_filter(
++            &Event::Presence {
++                user_id: "00000000000000000000000300".to_string(),
++                online: true
++            },
++            &filter
++        ));
++        assert!(passes_filter(
++            &test_message(&other, "00000000000000000000000090"),
++            &None
++        ));
++    }
++}

@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'auth::auth_consumes_invites_protects_cookies_and_revokes_credentials' (233284187) panicked at crates/den-server/tests/api/auth.rs:69:5:
+assertion `left == right` failed
+  left: 200
+ right: 403
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test auth::auth_consumes_invites_protects_cookies_and_revokes_credentials ... FAILED
+
+failures:
+
+failures:
+    auth::auth_consumes_invites_protects_cookies_and_revokes_credentials
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 1.41s
+

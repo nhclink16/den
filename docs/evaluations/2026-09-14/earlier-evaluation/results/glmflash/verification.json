@@ -1,0 +1,431 @@
+{
+  "model": "glm-5.3-flash",
+  "cli_tests": {
+    "returncode": 0,
+    "seconds": 1.35,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/verify-cli-tests.log"
+  },
+  "cli_build": {
+    "returncode": 0,
+    "seconds": 1.1,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/verify-cli-build.log"
+  },
+  "cli_checks": [
+    {
+      "name": "legacy_latest",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000007\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 7\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000005",
+        "00000000000000000000000006",
+        "00000000000000000000000007"
+      ]
+    },
+    {
+      "name": "legacy_before",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000006"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005"
+      ]
+    },
+    {
+      "name": "legacy_after",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&after=00000000000000000000000002"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005"
+      ]
+    },
+    {
+      "name": "all_backwards",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000005"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000002"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\"",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005",
+        "00000000000000000000000006",
+        "00000000000000000000000007"
+      ]
+    },
+    {
+      "name": "all_before",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000006"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000003"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005"
+      ]
+    },
+    {
+      "name": "all_after",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&after=00000000000000000000000002"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&after=00000000000000000000000005"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000007\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 7\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005",
+        "00000000000000000000000006",
+        "00000000000000000000000007"
+      ]
+    },
+    {
+      "name": "all_empty",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ]
+      ],
+      "stdout": "[]\n",
+      "stderr": "",
+      "actual_ids": []
+    },
+    {
+      "name": "all_exact_multiple",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000004"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000001"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\"",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005",
+        "00000000000000000000000006"
+      ]
+    },
+    {
+      "name": "all_single_item_pages",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=1"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=1&before=00000000000000000000000003"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=1&before=00000000000000000000000002"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=1&before=00000000000000000000000001"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]}]\n",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003"
+      ]
+    },
+    {
+      "name": "all_later_error",
+      "passed": true,
+      "returncode": 1,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000005"
+        ]
+      ],
+      "stdout": "",
+      "stderr": "Error: 503 Service Unavailable: fixture later-page failure\n",
+      "actual_ids": null
+    },
+    {
+      "name": "all_no_progress",
+      "passed": true,
+      "returncode": 1,
+      "requests": [
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000005"
+        ]
+      ],
+      "stdout": "",
+      "stderr": "Error: Message listing did not advance; aborting --all\n",
+      "actual_ids": null
+    },
+    {
+      "name": "resolve_name_once",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/channels"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000005"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000002"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\"",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005",
+        "00000000000000000000000006",
+        "00000000000000000000000007"
+      ]
+    },
+    {
+      "name": "resolve_dm_once",
+      "passed": true,
+      "returncode": 0,
+      "requests": [
+        [
+          "GET",
+          "/users"
+        ],
+        [
+          "POST",
+          "/dms"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000005"
+        ],
+        [
+          "GET",
+          "/channels/00000000000000000000000100/messages?limit=3&before=00000000000000000000000002"
+        ]
+      ],
+      "stdout": "[{\"id\":\"00000000000000000000000001\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 1\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000002\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 2\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000003\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 3\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000004\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 4\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000005\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 5\",\"reply_to\":null,\"created_at\":\"2026-09-14T00:00:00Z\",\"edited_at\":null,\"attachments\":[],\"objects\":[],\"reactions\":[],\"mention_ids\":[]},{\"id\":\"00000000000000000000000006\",\"channel_id\":\"00000000000000000000000100\",\"author_id\":\"00000000000000000000000200\",\"content\":\"message 6\"",
+      "stderr": "",
+      "actual_ids": [
+        "00000000000000000000000001",
+        "00000000000000000000000002",
+        "00000000000000000000000003",
+        "00000000000000000000000004",
+        "00000000000000000000000005",
+        "00000000000000000000000006",
+        "00000000000000000000000007"
+      ]
+    },
+    {
+      "name": "reject_limit_0_legacy",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Limit must be 1-200\n",
+      "actual_ids": null
+    },
+    {
+      "name": "reject_limit_201_legacy",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Limit must be 1-200\n",
+      "actual_ids": null
+    },
+    {
+      "name": "reject_both_cursors_legacy",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Use --before or --after, not both\n",
+      "actual_ids": null
+    },
+    {
+      "name": "reject_limit_0_all",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Limit must be 1-200\n",
+      "actual_ids": null
+    },
+    {
+      "name": "reject_limit_201_all",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Limit must be 1-200\n",
+      "actual_ids": null
+    },
+    {
+      "name": "reject_both_cursors_all",
+      "passed": true,
+      "returncode": 1,
+      "requests": [],
+      "stdout": "",
+      "stderr": "Error: Use --before or --after, not both\n",
+      "actual_ids": null
+    }
+  ],
+  "upload_baseline": {
+    "returncode": 0,
+    "seconds": 10.76,
+    "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/verify-uploads.log"
+  },
+  "mutations": {
+    "zero_size_accepted": {
+      "returncode": 101,
+      "seconds": 9.93,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-zero_size_accepted.log",
+      "compiled": true,
+      "killed": true
+    },
+    "oversize_accepted": {
+      "returncode": 101,
+      "seconds": 9.87,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-oversize_accepted.log",
+      "compiled": true,
+      "killed": true
+    },
+    "filenames_unchecked": {
+      "returncode": 101,
+      "seconds": 9.92,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-filenames_unchecked.log",
+      "compiled": true,
+      "killed": true
+    },
+    "six_pending_allowed": {
+      "returncode": 101,
+      "seconds": 10.28,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-six_pending_allowed.log",
+      "compiled": true,
+      "killed": true
+    },
+    "quota_shared_by_all_owners": {
+      "returncode": 101,
+      "seconds": 14.07,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-quota_shared_by_all_owners.log",
+      "compiled": true,
+      "killed": true
+    },
+    "completed_consume_quota": {
+      "returncode": 101,
+      "seconds": 22.18,
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/mutant-completed_consume_quota.log",
+      "compiled": true,
+      "killed": true
+    }
+  }
+}

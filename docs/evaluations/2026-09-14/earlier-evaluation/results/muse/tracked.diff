@@ -1,0 +1,363 @@
+diff --git a/crates/den-cli/src/main.rs b/crates/den-cli/src/main.rs
+index 3f2ffee..b609936 100644
+--- a/crates/den-cli/src/main.rs
++++ b/crates/den-cli/src/main.rs
+@@ -94,6 +94,9 @@ enum Cmd {
+         after: Option<String>,
+         #[arg(long, default_value_t = 50)]
+         limit: u32,
++        /// Fetch every matching page and print one ascending JSON array.
++        #[arg(long)]
++        all: bool,
+     },
+     Edit {
+         message: String,
+@@ -213,6 +216,111 @@ fn id(value: &str) -> anyhow::Result<&str> {
+     );
+     Ok(value)
+ }
++fn check_read_args(before: Option<&str>, after: Option<&str>, limit: u32) -> anyhow::Result<()> {
++    if before.is_some() && after.is_some() {
++        anyhow::bail!("Use before or after, not both");
++    }
++    if !(1..=200).contains(&limit) {
++        anyhow::bail!("Limit must be 1-200");
++    }
++    if let Some(v) = before {
++        id(v)?;
++    }
++    if let Some(v) = after {
++        id(v)?;
++    }
++    Ok(())
++}
++fn sort_messages(mut out: Vec<Message>) -> Vec<Message> {
++    out.sort_by(|a, b| a.id.cmp(&b.id));
++    out.dedup_by(|a, b| a.id == b.id);
++    out
++}
++fn read_all(
++    c: &Client,
++    channel_id: &str,
++    before: Option<String>,
++    after: Option<String>,
++    limit: u32,
++) -> anyhow::Result<Vec<Message>> {
++    use std::collections::HashSet;
++    let mut out: Vec<Message> = Vec::new();
++    let mut seen: HashSet<String> = HashSet::new();
++    if let Some(start) = after {
++        let mut cursor = start;
++        loop {
++            let path = format!("/channels/{channel_id}/messages?limit={limit}&after={cursor}");
++            let page: Vec<Message> = c.get(&path)?;
++            if page.is_empty() {
++                break;
++            }
++            let len = page.len();
++            // Server pages are ascending; every id must be past the cursor.
++            if page.first().is_some_and(|m| m.id <= cursor) {
++                anyhow::bail!("Server returned no progress; aborting pagination");
++            }
++            let next = page.last().expect("nonempty").id.clone();
++            if next == cursor {
++                anyhow::bail!("Server returned no progress; aborting pagination");
++            }
++            for m in page {
++                if seen.insert(m.id.clone()) {
++                    out.push(m);
++                }
++            }
++            if len < limit as usize {
++                break;
++            }
++            // Full page with no cursor advance would loop forever.
++            if next == cursor {
++                anyhow::bail!("Server returned no progress; aborting pagination");
++            }
++            cursor = next;
++        }
++    } else {
++        let mut cursor: Option<String> = before;
++        loop {
++            let mut path = format!("/channels/{channel_id}/messages?limit={limit}");
++            if let Some(v) = &cursor {
++                path.push_str(&format!("&before={v}"));
++            }
++            let page: Vec<Message> = c.get(&path)?;
++            if page.is_empty() {
++                break;
++            }
++            let len = page.len();
++            let first = page.first().expect("nonempty").id.clone();
++            let last = page.last().expect("nonempty").id.clone();
++            if let Some(cur) = &cursor {
++                // Newest-matching page must sit strictly below the cursor.
++                if last >= *cur {
++                    anyhow::bail!("Server returned no progress; aborting pagination");
++                }
++                if first == *cur {
++                    anyhow::bail!("Server returned no progress; aborting pagination");
++                }
++            } else if len == limit as usize && seen.contains(&first) && seen.contains(&last) {
++                anyhow::bail!("Server returned no progress; aborting pagination");
++            }
++            // A full page that does not move the cursor would loop forever.
++            if cursor.as_ref() == Some(&first) {
++                anyhow::bail!("Server returned no progress; aborting pagination");
++            }
++            for m in page {
++                if seen.insert(m.id.clone()) {
++                    out.push(m);
++                }
++            }
++            if len < limit as usize {
++                break;
++            }
++            cursor = Some(first);
++        }
++    }
++    out.sort_by(|a, b| a.id.cmp(&b.id));
++    out.dedup_by(|a, b| a.id == b.id);
++    Ok(sort_messages(out))
++}
+ fn main() -> anyhow::Result<()> {
+     let args = Cli::parse();
+     let mut c = Client::new(args.url, args.token, args.config)?;
+@@ -365,18 +473,22 @@ fn main() -> anyhow::Result<()> {
+             before,
+             after,
+             limit,
++            all,
+         } => {
+-            let mut path = format!(
+-                "/channels/{}/messages?limit={limit}",
+-                c.resolve_channel(&channel)?
+-            );
+-            if let Some(v) = before {
+-                path.push_str(&format!("&before={}", id(&v)?));
+-            }
+-            if let Some(v) = after {
+-                path.push_str(&format!("&after={}", id(&v)?));
++            check_read_args(before.as_deref(), after.as_deref(), limit)?;
++            let cid = c.resolve_channel(&channel)?;
++            if !all {
++                let mut path = format!("/channels/{cid}/messages?limit={limit}");
++                if let Some(v) = before {
++                    path.push_str(&format!("&before={}", id(&v)?));
++                }
++                if let Some(v) = after {
++                    path.push_str(&format!("&after={}", id(&v)?));
++                }
++                print(&c.get::<Vec<Message>>(&path)?)?;
++            } else {
++                print(&read_all(&c, &cid, before, after, limit)?)?;
+             }
+-            print(&c.get::<Vec<Message>>(&path)?)?;
+         }
+         Cmd::Edit { message, text } => print(&c.send::<Message>(
+             Method::PATCH,
+@@ -433,3 +545,38 @@ fn main() -> anyhow::Result<()> {
+     }
+     Ok(())
+ }
++#[cfg(test)]
++mod tests {
++    use super::*;
++    fn msg(id: &str) -> Message {
++        Message {
++            id: id.to_string(),
++            channel_id: "c".into(),
++            author_id: "a".into(),
++            content: "hi".into(),
++            reply_to: None,
++            created_at: "t".into(),
++            edited_at: None,
++            attachments: vec![],
++            objects: vec![],
++            reactions: vec![],
++            mention_ids: vec![],
++        }
++    }
++    #[test]
++    fn read_args_reject_both_cursors_and_bad_limits() {
++        let good = "01JAAAAAAAAAAAAAAAAAAAAAAAAA"[..26].to_string();
++        assert!(check_read_args(Some(&good), Some(&good), 50).is_err());
++        assert!(check_read_args(None, None, 0).is_err());
++        assert!(check_read_args(None, None, 201).is_err());
++        assert!(check_read_args(None, None, 1).is_ok());
++        assert!(check_read_args(None, None, 200).is_ok());
++        assert!(check_read_args(Some("short"), None, 50).is_err());
++    }
++    #[test]
++    fn sort_messages_orders_ascending_and_dedups() {
++        let out = sort_messages(vec![msg("02"), msg("01"), msg("02"), msg("03")]);
++        let ids: Vec<_> = out.iter().map(|m| m.id.as_str()).collect();
++        assert_eq!(ids, ["01", "02", "03"]);
++    }
++}
+diff --git a/crates/den-server/tests/api/uploads.rs b/crates/den-server/tests/api/uploads.rs
+index 8c49d58..f275d1f 100644
+--- a/crates/den-server/tests/api/uploads.rs
++++ b/crates/den-server/tests/api/uploads.rs
+@@ -328,3 +328,160 @@ async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
+     );
+     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
+ }
++
++#[tokio::test]
++async fn upload_admission_rejects_bad_size_and_filename_without_side_effects() {
++    let t = Test::new().await;
++    let alice = t.member("alice").await;
++    let cid = t.general().await;
++    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
++        .fetch_one(&t.state.db)
++        .await
++        .unwrap();
++    let files = std::fs::read_dir(t.dir.join("uploads")).unwrap().count();
++    assert_eq!(rows, 0);
++    assert_eq!(files, 0);
++    let long = "x".repeat(256);
++    let cases = vec![
++        (
++            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":0}),
++            413u16,
++            "upload_size",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":-5}),
++            413u16,
++            "upload_size",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":2*1024*1024}),
++            413u16,
++            "upload_size",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"","content_type":"application/octet-stream","size":5}),
++            400u16,
++            "invalid_request",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"a/b","content_type":"application/octet-stream","size":5}),
++            400u16,
++            "invalid_request",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"a\\b","content_type":"application/octet-stream","size":5}),
++            400u16,
++            "invalid_request",
++        ),
++        (
++            json!({"channel_id":cid,"filename":"a\u{1}b","content_type":"application/octet-stream","size":5}),
++            400u16,
++            "invalid_request",
++        ),
++        (
++            json!({"channel_id":cid,"filename":long,"content_type":"application/octet-stream","size":5}),
++            400u16,
++            "invalid_request",
++        ),
++    ];
++    for (body, status, code) in cases {
++        let r = t
++            .req(Method::POST, "/uploads", &alice.token)
++            .json(&body)
++            .send()
++            .await
++            .unwrap();
++        assert_eq!(r.status(), status);
++        let err: Value = r.json().await.unwrap();
++        assert_eq!(err["error"], code);
++    }
++    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
++        .fetch_one(&t.state.db)
++        .await
++        .unwrap();
++    assert_eq!(rows, 0);
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 0);
++    // Lower and upper size bounds are inclusive.
++    let one = t
++        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"one.bin","content_type":"application/octet-stream","size":1}))
++        .await;
++    assert!(one["id"].is_string());
++    let max = t
++        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"max.bin","content_type":"application/octet-stream","size":1048576}))
++        .await;
++    assert!(max["id"].is_string());
++    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
++        .fetch_one(&t.state.db)
++        .await
++        .unwrap();
++    assert_eq!(rows, 2);
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 2);
++}
++
++#[tokio::test]
++async fn upload_pending_limit_is_per_owner_and_frees_on_complete() {
++    let t = Test::new().await;
++    let alice = t.member("alice").await;
++    let bob = t.member("bob").await;
++    let cid = t.general().await;
++    let mut ids = Vec::new();
++    for i in 0..5 {
++        let u = t
++            .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":format!("p{i}.bin"),"content_type":"application/octet-stream","size":5}))
++            .await;
++        ids.push(u["id"].as_str().unwrap().to_string());
++    }
++    let r = t
++        .req(Method::POST, "/uploads", &alice.token)
++        .json(&json!({"channel_id":cid,"filename":"p5.bin","content_type":"application/octet-stream","size":5}))
++        .send()
++        .await
++        .unwrap();
++    assert_eq!(r.status(), 409);
++    assert_eq!(r.json::<Value>().await.unwrap()["error"], "conflict");
++    // Rejected admission leaves no row or file.
++    let pending: i64 =
++        sqlx::query_scalar("SELECT count(*) FROM uploads WHERE owner_id=? AND complete=0")
++            .bind(&alice.user.id)
++            .fetch_one(&t.state.db)
++            .await
++            .unwrap();
++    assert_eq!(pending, 5);
++    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 5);
++    // Another owner has an independent allowance.
++    let other = t
++        .post("/uploads", &bob.token, json!({"channel_id":cid,"filename":"bob.bin","content_type":"application/octet-stream","size":5}))
++        .await;
++    assert!(other["id"].is_string());
++    // Completing an upload frees a slot.
++    let first = &ids[0];
++    assert_eq!(
++        t.req(Method::PATCH, &format!("/uploads/{first}"), &alice.token)
++            .header("Upload-Offset", 0)
++            .body("12345")
++            .send()
++            .await
++            .unwrap()
++            .status(),
++        200
++    );
++    let done = t
++        .post(
++            &format!("/uploads/{first}/complete"),
++            &alice.token,
++            json!({}),
++        )
++        .await;
++    assert_eq!(done["complete"], true);
++    let freed = t
++        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"p5.bin","content_type":"application/octet-stream","size":5}))
++        .await;
++    assert!(freed["id"].is_string());
++    let pending: i64 =
++        sqlx::query_scalar("SELECT count(*) FROM uploads WHERE owner_id=? AND complete=0")
++            .bind(&alice.user.id)
++            .fetch_one(&t.state.db)
++            .await
++            .unwrap();
++    assert_eq!(pending, 5);
++}

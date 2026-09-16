@@ -1,0 +1,72 @@
+{
+  "glmflash": {
+    "reject_valid_maximum": {
+      "returncode": 0,
+      "compiled": true,
+      "failed_tests": [],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/reject_valid_maximum.log"
+    },
+    "accept_max_plus_one": {
+      "returncode": 101,
+      "compiled": true,
+      "failed_tests": [
+        "test uploads::upload_begin_rejects_bad_sizes_and_filenames_without_admitting_them ... FAILED",
+        "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 1.13s"
+      ],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/accept_max_plus_one.log"
+    },
+    "restored_boundaries": {
+      "returncode": 0,
+      "compiled": true,
+      "failed_tests": [],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/glmflash/restored-boundaries.log"
+    }
+  },
+  "muse": {
+    "reject_valid_maximum": {
+      "returncode": 101,
+      "compiled": true,
+      "failed_tests": [
+        "test uploads::upload_admission_rejects_bad_size_and_filename_without_side_effects ... FAILED",
+        "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 1.25s"
+      ],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/reject_valid_maximum.log"
+    },
+    "accept_max_plus_one": {
+      "returncode": 0,
+      "compiled": true,
+      "failed_tests": [],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/accept_max_plus_one.log"
+    },
+    "restored_boundaries": {
+      "returncode": 0,
+      "compiled": true,
+      "failed_tests": [],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/restored-boundaries.log"
+    },
+    "unit_validation_mutant": {
+      "returncode": 101,
+      "compiled": true,
+      "failed_tests": [
+        "test tests::read_args_reject_both_cursors_and_bad_limits ... FAILED",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s"
+      ],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/unit_validation_mutant.log"
+    },
+    "unit_sort_mutant": {
+      "returncode": 101,
+      "compiled": true,
+      "failed_tests": [
+        "test tests::sort_messages_orders_ascending_and_dedups ... FAILED",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s"
+      ],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/unit_sort_mutant.log"
+    },
+    "restored_cli_units": {
+      "returncode": 0,
+      "compiled": true,
+      "failed_tests": [],
+      "log": "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/judge-results/muse/restored-cli-units.log"
+    }
+  }
+}

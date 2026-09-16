@@ -1,0 +1,19 @@
+{
+  "availableModels": [
+    "claude-opus-5"
+  ],
+  "autoMemoryEnabled": false,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(cargo *)",
+      "Bash(rustfmt *)",
+      "Bash(git diff *)",
+      "Bash(git status *)",
+      "Bash(/tmp/den-arena-20260914/runtime/bin/python tools/arena_repro.py *)",
+      "Bash(/private/tmp/den-arena-20260914/runtime/bin/python tools/arena_repro.py *)"
+    ]
+  }
+}

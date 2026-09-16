@@ -1,0 +1,42 @@
+{
+  "removed_old_test_products": [
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T17-01-00-402Z_pid32758_5f2be279.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-54-53-877Z_pid32758_94503c03.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-28-52-915Z_pid99391_5b04d20a.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-26-58-315Z_pid99391_d96f458f.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-25-53-234Z_pid99391_15e44f10.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-17-41-559Z_pid99391_bfff3fbd.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-17-07-779Z_pid99391_cd513724.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-16-01-821Z_pid99391_ebc389dc.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-10-25-279Z_pid99391_e6fe1d27.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-09-00-371Z_pid99391_8911fb01.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-07-20-235Z_pid99391_7291ed82.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-06-10-002Z_pid99391_45433cff.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-04-45-686Z_pid99391_a770e51e.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-03-54-484Z_pid99391_673f7bff.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T16-01-45-493Z_pid99391_fe01c880.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-42-30-350Z_pid99391_1e10d878.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-42-00-121Z_pid99391_3b5e5132.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-40-43-157Z_pid99391_fc94aac0.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-30-02-393Z_pid99391_895cf00b.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-29-30-053Z_pid99391_2a702550.xctestproducts",
+    "/Users/nicholascaron/Library/Developer/XcodeBuildMCP/workspaces/den-65f821c5653d/test-products/test_sim_2026-09-14T15-28-48-615Z_pid99391_25b63354.xctestproducts"
+  ],
+  "preserved_result_bundles": true,
+  "remaining_test_products": 7,
+  "removed_caches": [
+    "/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/target",
+    "/Users/nicholascaron/.npm/_cacache",
+    "/Users/nicholascaron/.bun/install/cache",
+    "/private/tmp/den-m4-debug/target"
+  ],
+  "final_disk": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   460Gi   389Gi    20Gi    96%    6.4M  207M    3%   /System/Volumes/Data\n",
+  "preserved": [
+    "All project source and evaluation worktrees",
+    "Evaluation results and logs",
+    "All Xcode result-bundles and seven recent test-products",
+    "Codex history and worktrees",
+    "Docker volumes and databases",
+    "npm npx installations and Bun global installations"
+  ]
+}

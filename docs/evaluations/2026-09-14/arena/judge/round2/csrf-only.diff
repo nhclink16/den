@@ -1,0 +1,11 @@
+--- a/crates/den-server/src/auth.rs
++++ b/crates/den-server/src/auth.rs
+@@ -131,7 +131,7 @@
+                         .get("x-csrf-token")
+                         .and_then(|v| v.to_str().ok())
+                         .unwrap_or("");
+-                    if origin != Some(&s.origin) || hash(csrf) != row.csrf_hash {
++                    if origin != Some(&s.origin) && hash(csrf) != row.csrf_hash {
+                         return Err(Error::forbidden());
+                     }
+                 }

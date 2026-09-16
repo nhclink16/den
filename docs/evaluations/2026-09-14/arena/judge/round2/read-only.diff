@@ -1,0 +1,16 @@
+--- a/crates/den-server/src/ws.rs
++++ b/crates/den-server/src/ws.rs
+@@ -126,12 +126,7 @@
+             }
+             Some(&message.channel_id)
+         }
+-        Event::ReadStateUpdated { user_id, state } => {
+-            if user_id != &a.user.id {
+-                return false;
+-            }
+-            Some(&state.channel_id)
+-        }
++        Event::ReadStateUpdated { state, .. } => Some(&state.channel_id),
+         Event::AppearanceUpdated { user_id, .. }
+         | Event::NotificationPreferencesUpdated { user_id, .. } => return user_id == &a.user.id,
+         Event::MessageCreated(m) | Event::MessageEdited(m) => Some(&m.channel_id),

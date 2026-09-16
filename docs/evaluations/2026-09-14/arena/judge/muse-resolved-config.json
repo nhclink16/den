@@ -1,0 +1,48 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/muse-spark-1.3-contributor",
+  "enabled_providers": [
+    "opencode-go"
+  ],
+  "autoupdate": false,
+  "share": "disabled",
+  "plugin": [],
+  "mcp": {},
+  "lsp": false,
+  "formatter": false,
+  "instructions": [],
+  "provider": {
+    "opencode-go": {
+      "models": {
+        "muse-spark-1.3-contributor": {
+          "options": {
+            "reasoningEffort": "xhigh"
+          }
+        }
+      }
+    }
+  },
+  "permission": {
+    "*": "deny",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "edit": "allow",
+    "external_directory": "deny",
+    "bash": {
+      "*": "deny",
+      "cargo *": "allow",
+      "rustfmt *": "allow",
+      "git diff": "allow",
+      "git diff *": "allow",
+      "git status": "allow",
+      "git status *": "allow",
+      "/tmp/den-arena-20260914/runtime/bin/python tools/arena_repro.py *": "allow"
+    }
+  },
+  "agent": {},
+  "mode": {},
+  "command": {},
+  "username": "nicholascaron"
+}

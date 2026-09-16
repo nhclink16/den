@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.48s
+     Running unittests src/main.rs (/private/var/folders/4s/y00rkcbd2bb08bkpw776jwyr0000gp/T/opencode/den-go-eval/target/debug/deps/den-bdf90cf261890463)
+
+running 2 tests
+test tests::read_args_reject_both_cursors_and_bad_limits ... ok
+test tests::sort_messages_orders_ascending_and_dedups ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
