@@ -94,6 +94,9 @@ enum Cmd {
         after: Option<String>,
         #[arg(long, default_value_t = 50)]
         limit: u32,
+        /// Fetch every matching page and print one ascending JSON array.
+        #[arg(long)]
+        all: bool,
     },
     Edit {
         message: String,
@@ -212,6 +215,111 @@ fn id(value: &str) -> anyhow::Result<&str> {
         "Expected a ULID"
     );
     Ok(value)
+}
+fn check_read_args(before: Option<&str>, after: Option<&str>, limit: u32) -> anyhow::Result<()> {
+    if before.is_some() && after.is_some() {
+        anyhow::bail!("Use before or after, not both");
+    }
+    if !(1..=200).contains(&limit) {
+        anyhow::bail!("Limit must be 1-200");
+    }
+    if let Some(v) = before {
+        id(v)?;
+    }
+    if let Some(v) = after {
+        id(v)?;
+    }
+    Ok(())
+}
+fn sort_messages(mut out: Vec<Message>) -> Vec<Message> {
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out.dedup_by(|a, b| a.id == b.id);
+    out
+}
+fn read_all(
+    c: &Client,
+    channel_id: &str,
+    before: Option<String>,
+    after: Option<String>,
+    limit: u32,
+) -> anyhow::Result<Vec<Message>> {
+    use std::collections::HashSet;
+    let mut out: Vec<Message> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    if let Some(start) = after {
+        let mut cursor = start;
+        loop {
+            let path = format!("/channels/{channel_id}/messages?limit={limit}&after={cursor}");
+            let page: Vec<Message> = c.get(&path)?;
+            if page.is_empty() {
+                break;
+            }
+            let len = page.len();
+            // Server pages are ascending; every id must be past the cursor.
+            if page.first().is_some_and(|m| m.id <= cursor) {
+                anyhow::bail!("Server returned no progress; aborting pagination");
+            }
+            let next = page.last().expect("nonempty").id.clone();
+            if next == cursor {
+                anyhow::bail!("Server returned no progress; aborting pagination");
+            }
+            for m in page {
+                if seen.insert(m.id.clone()) {
+                    out.push(m);
+                }
+            }
+            if len < limit as usize {
+                break;
+            }
+            // Full page with no cursor advance would loop forever.
+            if next == cursor {
+                anyhow::bail!("Server returned no progress; aborting pagination");
+            }
+            cursor = next;
+        }
+    } else {
+        let mut cursor: Option<String> = before;
+        loop {
+            let mut path = format!("/channels/{channel_id}/messages?limit={limit}");
+            if let Some(v) = &cursor {
+                path.push_str(&format!("&before={v}"));
+            }
+            let page: Vec<Message> = c.get(&path)?;
+            if page.is_empty() {
+                break;
+            }
+            let len = page.len();
+            let first = page.first().expect("nonempty").id.clone();
+            let last = page.last().expect("nonempty").id.clone();
+            if let Some(cur) = &cursor {
+                // Newest-matching page must sit strictly below the cursor.
+                if last >= *cur {
+                    anyhow::bail!("Server returned no progress; aborting pagination");
+                }
+                if first == *cur {
+                    anyhow::bail!("Server returned no progress; aborting pagination");
+                }
+            } else if len == limit as usize && seen.contains(&first) && seen.contains(&last) {
+                anyhow::bail!("Server returned no progress; aborting pagination");
+            }
+            // A full page that does not move the cursor would loop forever.
+            if cursor.as_ref() == Some(&first) {
+                anyhow::bail!("Server returned no progress; aborting pagination");
+            }
+            for m in page {
+                if seen.insert(m.id.clone()) {
+                    out.push(m);
+                }
+            }
+            if len < limit as usize {
+                break;
+            }
+            cursor = Some(first);
+        }
+    }
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out.dedup_by(|a, b| a.id == b.id);
+    Ok(sort_messages(out))
 }
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
@@ -365,18 +473,22 @@ fn main() -> anyhow::Result<()> {
             before,
             after,
             limit,
+            all,
         } => {
-            let mut path = format!(
-                "/channels/{}/messages?limit={limit}",
-                c.resolve_channel(&channel)?
-            );
-            if let Some(v) = before {
-                path.push_str(&format!("&before={}", id(&v)?));
+            check_read_args(before.as_deref(), after.as_deref(), limit)?;
+            let cid = c.resolve_channel(&channel)?;
+            if !all {
+                let mut path = format!("/channels/{cid}/messages?limit={limit}");
+                if let Some(v) = before {
+                    path.push_str(&format!("&before={}", id(&v)?));
+                }
+                if let Some(v) = after {
+                    path.push_str(&format!("&after={}", id(&v)?));
+                }
+                print(&c.get::<Vec<Message>>(&path)?)?;
+            } else {
+                print(&read_all(&c, &cid, before, after, limit)?)?;
             }
-            if let Some(v) = after {
-                path.push_str(&format!("&after={}", id(&v)?));
-            }
-            print(&c.get::<Vec<Message>>(&path)?)?;
         }
         Cmd::Edit { message, text } => print(&c.send::<Message>(
             Method::PATCH,
@@ -432,4 +544,39 @@ fn main() -> anyhow::Result<()> {
         )?)?,
     }
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn msg(id: &str) -> Message {
+        Message {
+            id: id.to_string(),
+            channel_id: "c".into(),
+            author_id: "a".into(),
+            content: "hi".into(),
+            reply_to: None,
+            created_at: "t".into(),
+            edited_at: None,
+            attachments: vec![],
+            objects: vec![],
+            reactions: vec![],
+            mention_ids: vec![],
+        }
+    }
+    #[test]
+    fn read_args_reject_both_cursors_and_bad_limits() {
+        let good = "01JAAAAAAAAAAAAAAAAAAAAAAAAA"[..26].to_string();
+        assert!(check_read_args(Some(&good), Some(&good), 50).is_err());
+        assert!(check_read_args(None, None, 0).is_err());
+        assert!(check_read_args(None, None, 201).is_err());
+        assert!(check_read_args(None, None, 1).is_ok());
+        assert!(check_read_args(None, None, 200).is_ok());
+        assert!(check_read_args(Some("short"), None, 50).is_err());
+    }
+    #[test]
+    fn sort_messages_orders_ascending_and_dedups() {
+        let out = sort_messages(vec![msg("02"), msg("01"), msg("02"), msg("03")]);
+        let ids: Vec<_> = out.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, ["01", "02", "03"]);
+    }
 }
