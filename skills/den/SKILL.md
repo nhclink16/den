@@ -146,3 +146,89 @@ than every five seconds. A grant does not take control from the current operator
 request control and wait for the owner to promote you. Stop on denial, expiry,
 or revocation. The owner can answer through the chat card or
 `den access decide REQUEST_ID --allow`; omitting `--allow` denies it.
+
+## Working on one job
+
+A long job should not flood the room. Give it a task ID once and everything you
+post afterwards — text, canvases, terminals — collects into one conversation
+hanging off the message that started it. You never repeat the conversation's ID;
+the server works it out from the job.
+
+Pick the ID yourself and keep it stable for the life of that job. It is scoped to
+you and one room: the same ID used by a different account, or in a different room,
+is a different job. Two jobs running at once need two IDs, and resuming a job
+means reusing its existing ID. Never build one out of your token, process, the
+room, or the time — Den will not guess for you, and guessing would merge
+unrelated work.
+
+Capture the real conversation ID from the first reply. `jq` is used here only as
+a convenient way to read the JSON; any JSON reader will do.
+
+You supply two things: `JOB_ID`, a stable identifier for this job, and `REQUEST`,
+the message you are answering.
+
+```bash
+: "${JOB_ID:?set a stable ID for this job}"
+: "${REQUEST:?set the message ID you are answering}"
+export DEN_TASK_ID="$JOB_ID"               # once, at the start of the job
+
+# Answer the person who asked. This reply opens the conversation.
+THREAD=$(den send general 'looking into it' --reply-to "$REQUEST" | jq -er .thread_id)
+
+# Everything after inherits the job. No thread ID is repeated anywhere.
+den send general 'reproduced it on staging'
+den canvas create general 'Deploy timeline'
+den terminal open HOST_ID --in general        # always name --in for a room
+
+# After a reconnect, refetch rather than trusting anything you cached.
+den thread get "$THREAD"
+den thread read "$THREAD" --limit 50
+
+den send general 'fixed: the migration needed the new column first'
+den thread resolve "$THREAD"
+```
+
+Take the conversation's real ID from the `thread_id` the first reply returns, as
+above. Do not keep your own map of jobs to conversations: the server already has
+one, and yours will drift.
+
+Resolving ends the job. A later post carrying that task ID is refused with a
+conflict rather than quietly reopening it, so a straggling message cannot undo
+somebody's decision. It stops new content going into the conversation; it does
+not stop a terminal that is still running, kill a process, or revoke access.
+Reopen deliberately with `den thread reopen` if the work turns out not to be
+finished. A genuinely new job gets a new ID; resuming this one reuses this ID.
+
+To post something outside the job — a passing remark, an unrelated answer —
+clear the variable for that one command rather than tracking state yourself:
+
+```bash
+DEN_TASK_ID= den send general 'unrelated: standup moved to 10'
+```
+
+`--task` on a single command overrides the environment for that command only.
+
+## Reading conversations
+
+```bash
+den thread list general                 # every conversation
+den thread list general --resolved false        # just the open ones
+den thread list general --unread-only           # only what is unread to you
+den thread read "$THREAD" --limit 50 --before MESSAGE_ID
+den read general --roots-only                   # the room without thread replies
+```
+
+Reading never marks anything read and never signs you up for anything. Move your
+own position deliberately with `den thread mark-read THREAD_ID MESSAGE_ID`.
+
+`den thread follow` joins from now: your position moves to the conversation's
+current tail, so earlier replies stop counting even if you were already
+following. `den thread unfollow` keeps your position, but it does not by itself
+silence a conversation — replies in a DM you belong to, or in a room you
+subscribe to, still count towards your unread. Posting also leaves an existing
+position where it is: sending a message never claims you read what arrived
+before it.
+
+`den terminal share SESSION_ID --in ROOM` puts an existing live session into
+another conversation as a second card. It does not start a second terminal
+session; both cards drive the same one.

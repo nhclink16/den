@@ -3,6 +3,7 @@ mod client;
 mod hosts;
 mod music;
 mod stream;
+mod threads;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use client::{print, Client};
@@ -89,10 +90,10 @@ enum Cmd {
         /// Channel ULID, text channel name (general or #general), or @username for a DM.
         channel: String,
         text: String,
-        #[arg(long)]
-        reply_to: Option<String>,
         #[arg(long = "upload")]
         uploads: Vec<String>,
+        #[command(flatten)]
+        context: threads::Context,
     },
     Read {
         /// Channel ULID, text channel name (general or #general), or @username for a DM.
@@ -103,6 +104,9 @@ enum Cmd {
         after: Option<String>,
         #[arg(long, default_value_t = 50)]
         limit: u32,
+        /// Main conversation only. Omitted, this is the flat list old clients see.
+        #[arg(long)]
+        roots_only: bool,
     },
     Edit {
         message: String,
@@ -126,6 +130,9 @@ enum Cmd {
         #[arg(long)]
         content_type: Option<String>,
     },
+    /// Conversations hanging off a message.
+    #[command(subcommand)]
+    Thread(threads::Cmd),
     #[command(subcommand)]
     Token(TokenCmd),
     #[command(subcommand)]
@@ -227,6 +234,7 @@ fn main() -> anyhow::Result<()> {
     let mut c = Client::new(args.url, args.token, args.config)?;
     match args.cmd {
         Cmd::Music(args) => music::run(&c, args)?,
+        Cmd::Thread(cmd) => threads::run(&c, cmd)?,
         Cmd::Canvas(cmd) => canvas::run(&c, cmd)?,
         Cmd::Host(cmd) => hosts::host(&c, cmd)?,
         Cmd::Access(cmd) => hosts::access(&c, cmd)?,
@@ -363,29 +371,37 @@ fn main() -> anyhow::Result<()> {
         Cmd::Send {
             channel,
             text,
-            reply_to,
             uploads,
-        } => print(&c.send::<Message>(
-            Method::POST,
-            &format!("/channels/{}/messages", c.resolve_channel(&channel)?),
-            &CreateMessage {
-                content: text,
-                reply_to,
-                upload_ids: uploads,
-                thread_id: None,
-                task_id: None,
-            },
-        )?)?,
+            context,
+        } => {
+            let channel = c.resolve_channel(&channel)?;
+            let (thread_id, task_id, reply_to) = context.parts()?;
+            print(&c.send::<Message>(
+                Method::POST,
+                &format!("/channels/{channel}/messages"),
+                &CreateMessage {
+                    content: text,
+                    reply_to,
+                    upload_ids: uploads,
+                    thread_id,
+                    task_id,
+                },
+            )?)?
+        }
         Cmd::Read {
             channel,
             before,
             after,
             limit,
+            roots_only,
         } => {
             let mut path = format!(
                 "/channels/{}/messages?limit={limit}",
                 c.resolve_channel(&channel)?
             );
+            if roots_only {
+                path.push_str("&roots_only=true");
+            }
             if let Some(v) = before {
                 path.push_str(&format!("&before={}", id(&v)?));
             }
