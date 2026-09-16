@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { plugins } from '../plugins'
   import { planComposerSubmit, shouldClearDraft, type DraftIdentity } from '../lib/composer-submit'
+  import { conversationKey, room, sameConversation, type Conversation } from '../lib/conversation'
+  import type { Drafts } from '../lib/drafts'
   import { store } from '../lib/store.svelte'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
@@ -10,15 +12,65 @@
   import Avatar from './Avatar.svelte'
   import DictationButton from './DictationButton.svelte'
 
-  let { channel, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
+  // `conversation` defaults to the room, so every existing caller keeps its
+  // current behaviour untouched while a thread composer can pass its own root.
+  let { channel, conversation, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; conversation?: Conversation; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
+  const here = $derived<Conversation>(conversation ?? room(channel.id))
 
-  let text = $state('')
+  // The draft belongs to the conversation, not to this component: navigating away
+  // and back, or a call expanding over the view, must not lose what was typed.
   // Every text change goes through setText so the edit count stays honest: a send
   // that resolves later compares this, not the string, before clearing the box.
-  let revision = $state(0)
-  function setText(value: string) { if (value === text) return; text = value; revision++ }
-  const draft = (): DraftIdentity => ({ channelId: channel.id, replyToId: replyTo?.id ?? null, revision })
-  const pending = $derived(store.uploads.forChannel(channel.id))
+  const text = $derived(store.drafts.for(here).text)
+  function setText(value: string) { store.drafts.setText(here, value) }
+  // Read through a captured owner, never through a derived and never through the
+  // `store` proxy after an await: the proxy follows the active instance, and a
+  // derived on a destroyed component hands back its last cached value.
+  const draft = (owner: Drafts, c: Conversation): DraftIdentity =>
+    ({ conversation: c, replyToId: owner.for(c).replyToId, revision: owner.for(c).revision })
+
+  // True until this composer is destroyed. A send that finishes afterwards may
+  // still clear the stored draft, but must not write to bindings nobody is
+  // showing any more.
+  let alive = true
+
+  // The quote belongs to the DRAFT, which outlives the message list: a reply
+  // parent can scroll out of the loaded page while the draft answering it is
+  // still open. This effect only presents it. Failing to resolve the message is
+  // not a cancel, so it never writes back a null; only cancelReply and a
+  // successful send clear the target.
+  $effect(() => {
+    const key = conversationKey(here)
+    untrack(() => {
+      const c = here
+      const owner = store.drafts
+      const token = owner.token
+      const saved = owner.for(c).replyToId
+      if (saved === (replyTo?.id ?? null)) return
+      if (!saved) { replyTo = null; return }
+      const cached = store.messages.get(c.channelId)?.find((m) => m.id === saved)
+      if (cached) { replyTo = cached; return }
+      const load = store.fetchMessage
+      void load(saved, c.channelId).then((m) => {
+        // A late arrival may only fill in the banner for the same composer, the
+        // same owner and the same quote it was asked about.
+        if (!m || !alive || conversationKey(here) !== key) return
+        if (store.drafts !== owner || !owner.holds(token) || owner.for(c).replyToId !== saved) return
+        replyTo = m
+      })
+    })
+  })
+  // Picking a target stores it. Clearing is never inferred here.
+  $effect(() => {
+    const id = replyTo?.id ?? null
+    if (id === null) return
+    untrack(() => store.drafts.setReplyTo(here, id))
+  })
+  function cancelReply() {
+    store.drafts.setReplyTo(here, null)
+    replyTo = null
+  }
+  const pending = $derived(store.uploads.forConversation(here))
   let busy = $state(false)
   let error = $state('')
   let dismissed = $state(false)
@@ -78,11 +130,11 @@
     let width = ta.clientWidth
     const observer = new ResizeObserver(() => { if (ta.clientWidth !== width) { width = ta.clientWidth; grow() } })
     observer.observe(ta)
-    return () => observer.disconnect()
+    return () => { alive = false; observer.disconnect() }
   })
 
-  function add(files: File[]) { store.uploads.add(channel.id, files); ta?.focus() }
-  function removePending(p: PendingUpload) { store.uploads.remove(channel.id, p) }
+  function add(files: File[]) { store.uploads.add(here, files); ta?.focus() }
+  function removePending(p: PendingUpload) { store.uploads.remove(here, p) }
 
   function onPaste(e: ClipboardEvent) {
     const files = [...(e.clipboardData?.files || [])]
@@ -104,7 +156,7 @@
       }
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
-    if (e.key === 'Escape' && replyTo) replyTo = null
+    if (e.key === 'Escape' && replyTo) cancelReply()
     if (e.key === 'ArrowUp' && !text) {
       const mine = [...(store.messages.get(channel.id) || [])].reverse().find((m) => m.author_id === store.me?.id)
       if (mine) document.getElementById(`m-${mine.id}`)?.querySelector<HTMLButtonElement>('button[title="Edit"]')?.click()
@@ -112,32 +164,66 @@
   }
 
   // A send can finish after navigation or call expansion removes this composer.
-  function grow() { if (!ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
+  // A destroyed one must not measure a detached box or announce typing to
+  // whichever instance is active by then.
+  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
 
   async function submit() {
     const channelId = channel.id
+    // Everything this send will still need afterwards is captured NOW, off the
+    // proxy: which conversation, which draft owner, which lifetime of it, which
+    // upload queue, and a send bound to this instance. After the await `store`
+    // may be a different account entirely.
+    const conversation = here
+    const owner = store.drafts
+    const token = owner.token
     const queue = store.uploads
+    const send = store.send
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
     if (!plan || uploading || busy) return
-    const submitted = draft()
+    const submitted = draft(owner, conversation)
+    // The account this send belongs to. The Store object alone is not enough:
+    // the same one is reused by whoever signs in next, so the owner's lifetime
+    // token is what says this is still the same account.
+    const sameAccount = () => store.drafts === owner && owner.holds(token)
+    const live = () => alive && sameAccount()
     busy = true; error = ''
     try {
       if (plan.kind === 'command') {
         const command = commands.find((c) => c.name === plan.name)!
-        await command.run({ channelId, args: plan.args, post: (content) => store.send(channelId, content) })
+        // A command can post long after it was invoked. By then the account may
+        // have changed, and that post would be written as the new one.
+        await command.run({
+          channelId,
+          args: plan.args,
+          post: (content) => sameAccount() ? send(channelId, content) : Promise.resolve(),
+        })
         // Commands never receive upload IDs, so completed attachments stay queued.
       } else {
-        await store.send(channelId, content, { reply_to: submitted.replyToId ?? undefined, upload_ids: plan.uploadIds })
+        await send(channelId, content, { reply_to: submitted.replyToId ?? undefined, upload_ids: plan.uploadIds })
         // Consume exactly what was transmitted, whatever the box holds by now.
-        queue.sent(channelId, plan.uploadIds)
+        // The conversation was captured at submit, so a newer draft staged
+        // elsewhere keeps its own files and this one loses only what it sent.
+        queue.sent(conversation, plan.uploadIds)
       }
-      // Clear only the draft that was actually sent; it stayed editable throughout.
-      if (shouldClearDraft(submitted, draft())) { setText(''); replyTo = null }
-      requestAnimationFrame(grow)
-    } catch (err) { error = (err as Error).message } finally {
-      busy = false
+      // Clear only the draft that was actually sent, in the conversation it was
+      // sent from, on the owner it was read from. A cleared and refilled owner
+      // can hand out the same revision again, so the token is checked too.
+      if (owner.holds(token) && shouldClearDraft(submitted, draft(owner, conversation))) {
+        owner.setText(conversation, '')
+        owner.setReplyTo(conversation, null)
+        // Only touch the binding if this composer is still showing that draft.
+        if (live() && sameConversation(conversation, here)) replyTo = null
+      }
+      // Post-completion UI work belongs to the composer that started it, and only
+      // while it is still showing this account.
+      if (live()) requestAnimationFrame(grow)
+    } catch (err) {
+      if (live()) error = (err as Error).message
+    } finally {
+      if (live()) busy = false
     }
   }
 </script>
@@ -167,7 +253,7 @@
       <Icon name="reply" size={13} />
       <span>Replying to <b>{store.name(replyTo.author_id)}</b></span>
       <span class="snippet faint">{replyTo.content.slice(0, 80)}</span>
-      <button class="x" onclick={() => (replyTo = null)} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
+      <button class="x" onclick={cancelReply} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
     </div>
   {/if}
 

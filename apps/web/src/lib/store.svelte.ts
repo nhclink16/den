@@ -4,6 +4,8 @@ import { sounds as playback } from './sounds'
 import { receiveAlert } from './notify.svelte'
 import type { SoundState, SoundPreferences } from './types'
 import { Uploads } from './uploads.svelte'
+import { Drafts, type Draft } from './drafts'
+import { ReadState } from './read-state'
 import { themes } from './theme.svelte'
 import type { Appearance, VoicePreferences } from './types'
 import { objects } from './objects.svelte'
@@ -30,6 +32,12 @@ const activeListeners = new Set<(event: Event) => void>()
 export class Store {
   constructor(public origin: string) { this.api = apiFor(origin); this.uploads = new Uploads(origin); this.appearance = cachedAppearance(origin) }
   readonly uploads: Uploads
+  /// Unsent text per conversation, independent of which composer is mounted.
+  private draftEntries = $state.raw<Record<string, Draft>>({})
+  readonly drafts = new Drafts({
+    get: () => this.draftEntries,
+    set: (v) => { this.draftEntries = v },
+  })
   readonly api: ReturnType<typeof apiFor>
   appearance = $state<Appearance>(cachedAppearance())
   sounds = $state<SoundState | null>(null)
@@ -112,15 +120,48 @@ export class Store {
   }
   get totalUnread() { let n = 0; for (const s of this.readState.values()) n += s.unread_count; return n }
 
+  // Counts and their ordering both live in ReadState; this is only the reactive
+  // cell it writes through. Counts are the server's — the client no longer
+  // guesses zero, because a socket update carrying a NEWER count can arrive while
+  // a read's response is still in flight, and applying that body afterwards
+  // silently loses it.
+  private reads = new ReadState({
+    get: () => this.readState,
+    set: (v) => { this.readState = v },
+  })
+
   async markRead(channelId: string) {
-    const last = this.messages.get(channelId)?.at(-1)?.id
-    const cur = this.readState.get(channelId)
-    if (!last || (cur && cur.last_read_id && cur.last_read_id >= last && cur.unread_count === 0)) return
-    // Optimistic: the server confirms with read_state_updated.
-    this.setRead({ channel_id: channelId, last_read_id: last, unread_count: 0, mention_count: 0, notification_count: 0 })
-    try { this.setRead(await this.api.put<ChannelReadState>(`/channels/${channelId}/read`, { message_id: last })) } catch { /* resync will fix it */ }
+    // No acknowledgements while the Store is not ready: logout turns this off
+    // before anything it awaits, so an effect that is still mounted cannot start
+    // a read for an account that is going away.
+    if (!this.ready) return
+    // The marker is what is displayed NOW, and it stays that message for the
+    // whole life of this acknowledgement. A read queued behind another must not
+    // pick up messages that arrived while it waited: you never saw them, and in a
+    // room you have since left you never will.
+    const marker = this.messages.get(channelId)?.at(-1)?.id
+    if (!marker || (this.reads.get(channelId)?.last_read_id ?? '') >= marker) return
+    const epoch = this.reads.epoch
+    await this.reads.serialize(channelId, async (at) => {
+      // Only the CURSOR is re-read after the wait. The view re-runs this on every
+      // message and every read state, so several calls can be queued on one key;
+      // once one of them has acknowledged through this marker the rest have
+      // nothing to say, and sending them anyway would be a request loop.
+      if ((this.reads.get(channelId)?.last_read_id ?? '') >= marker) return
+      try {
+        const state = await this.api.put<ChannelReadState>(`/channels/${channelId}/read`, { message_id: marker })
+        // The request itself succeeded, so any earlier failure is over.
+        if (epoch === this.reads.epoch) this.readError = ''
+        this.reads.applyIf(state, epoch, at)
+      } catch (e) {
+        // Observable rather than swallowed; a resync still repairs the view. A
+        // failure from the previous account must not surface in this one.
+        if (epoch === this.reads.epoch) this.readError = (e as Error).message
+      }
+    })
   }
-  private setRead(s: ChannelReadState) { this.readState = new Map(this.readState).set(s.channel_id, s) }
+  readError = $state('')
+  private setRead(s: ChannelReadState) { this.reads.apply(s) }
 
   saveLayout(patch: Partial<Layout>) {
     this.layout = { ...this.layout, ...patch }
@@ -145,13 +186,31 @@ export class Store {
     await this.boot()
   }
   async logout() {
-    this.uploads.clear()
-    if (call.origin === this.origin || !native) await call.leave()
+    // Everything that makes this Store usable is released SYNCHRONOUSLY, before
+    // the first await. Leaving a call takes time, and during it an event queued
+    // on the old socket, a reconnect scheduled by that socket closing, or a view
+    // effect still mounted could otherwise refill the state just cleared.
+    //
+    // `generation` is the connection/account epoch the socket and the reconnect
+    // loop already check, and `ready` is what the view and new acknowledgements
+    // check; both are turned over here rather than at the end.
+    const socket = this.ws
     this.generation++
+    this.ready = false
+    this.connected = false
+    this.ws = null
+    this.uploads.clear()
+    this.drafts.clear()
+    // The counts, their versions and anything queued against them go in one step,
+    // so nothing from this account can reappear in the next.
+    this.reads.reset()
+    this.readError = ''
+    socket?.close()
+    if (call.origin === this.origin || !native) await call.leave()
     if (this.active) { call.snapshot([]); objects.active = null; objects.expanded = false; objects.presence = {} }
     try { await this.api.post('/auth/logout') } catch { /* already gone */ }
     if (native) await invoke('session_clear', { origin: this.origin })
-    setCsrf(null); this.me = null; this.ready = false; this.ws?.close()
+    setCsrf(null); this.me = null
   }
   async resume(): Promise<boolean> {
     try { this.settings = await this.api.get<Settings>('/settings') } catch { /* Default name while offline. */ }
@@ -160,6 +219,10 @@ export class Store {
   private async boot() { await this.resync(); this.ready = true; this.connect() }
 
   async resync() {
+    // Captured before the requests go out, so anything applied while they are in
+    // flight makes this snapshot stale for that key.
+    const epoch = this.reads.epoch
+    const versionsAt = this.reads.snapshot()
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
@@ -173,6 +236,9 @@ export class Store {
       this.api.get<VoicePreferences>('/users/me/voice'),
       this.api.get<SoundState>('/users/me/sounds'),
     ])
+    // Everything below mutates this Store. A resync that was in flight across a
+    // logout belongs to the account that asked for it, not to this one.
+    if (epoch !== this.reads.epoch) return
     this.receiveAppearance(appearance)
     this.sounds = sounds
     this.receiveVoice(voice)
@@ -181,7 +247,18 @@ export class Store {
     this.users = new Map(users.map((u) => [u.id, u]))
     this.channels = channels
     this.categories = categories.sort((a, b) => a.position - b.position)
-    this.readState = new Map(read.map((s) => [s.channel_id, s]))
+    // Each key goes through its own acknowledgement queue against the epoch and
+    // version this snapshot was taken at, so it waits for an acknowledgement in
+    // flight and then loses if it is stale — whichever of the two the network
+    // delivered first. Channels the snapshot no longer reports are dropped under
+    // the same rule rather than lingering as a count for a room that is gone.
+    //
+    // Deliberately NOT awaited. The server sends a `resync` event on connect, and
+    // that handler runs inside the single WebSocket event chain: waiting here for
+    // a slow acknowledgement on one channel would stop every event for every
+    // channel until it came back. Counts arrive reactively, so nothing downstream
+    // needs them settled before this returns.
+    void this.reads.reconcile(read, epoch, versionsAt).catch(() => { /* a later resync repairs it */ })
     this.notif = notif
     this.online = new Set(presence.online_user_ids)
     this.calls = calls
@@ -217,7 +294,13 @@ export class Store {
   }
 
   async send(channelId: string, content: string, opts: { reply_to?: string; upload_ids?: string[] } = {}) {
+    const epoch = this.generation
     const m = await this.api.post<Message>(`/channels/${channelId}/messages`, { content, reply_to: opts.reply_to ?? null, upload_ids: opts.upload_ids ?? [] })
+    // The server may well have accepted this write, and that stands: it was a
+    // real message from the account that sent it. What must not follow is this
+    // send moving a DIFFERENT account's cache or read cursor, which is what an
+    // acknowledgement issued under the new epoch would do.
+    if (epoch !== this.generation) return
     this.upsert(m)
     this.markRead(channelId)
   }
@@ -264,7 +347,9 @@ export class Store {
 
   // --- realtime ---
   private async connect() {
-    if (this.ws || this.connecting || !this.me) return
+    // `ready` is false from the first line of logout until the next boot, so a
+    // reconnect cannot open a socket for an account that is being torn down.
+    if (this.ws || this.connecting || !this.me || !this.ready) return
     this.connecting = true
     const generation = this.generation
     let url = `${this.origin.replace(/^http/, 'ws')}/ws?sounds=true`
@@ -286,12 +371,18 @@ export class Store {
     ws.binaryType = 'arraybuffer'
     let events = Promise.resolve()
     ws.onmessage = (e) => {
-      events = events.then(() => this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event))
+      // Events already queued when the account changed are dropped rather than
+      // repopulating state that a logout deliberately cleared. `generation` is
+      // the connection/account epoch this socket was opened for.
+      events = events.then(() => generation === this.generation
+        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event)
+        : undefined)
         .catch(() => { ws.close() })
     }
     ws.onclose = () => {
+      if (generation !== this.generation) return   // a socket from a past account
       this.connected = false; this.ws = null
-      if (!this.me) return
+      if (!this.me || !this.ready) return
       setTimeout(() => this.connect(), this.backoff)
       this.backoff = Math.min(this.backoff * 2, 15_000)
     }

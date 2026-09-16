@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { planComposerSubmit, shouldClearDraft, type DraftIdentity } from '../apps/web/src/lib/composer-submit.ts'
+import { room } from '../apps/web/src/lib/conversation.ts'
 
 // Mirrors Uploads.sent in apps/web/src/lib/uploads.svelte.ts: it drops only the
 // completed IDs it is given, keeping everything else queued.
@@ -45,7 +46,7 @@ test('empty composer with nothing queued plans nothing', () => {
 
 // Draft completion (#27). The composer stays editable while a send is in flight,
 // so success must only clear the draft it actually submitted.
-const draft = (over: Partial<DraftIdentity> = {}): DraftIdentity => ({ channelId: 'c1', replyToId: null, revision: 3, ...over })
+const draft = (over: Partial<DraftIdentity> = {}): DraftIdentity => ({ conversation: room('c1'), replyToId: null, revision: 3, ...over })
 
 test('an untouched draft is cleared when its send succeeds', () => {
   assert.equal(shouldClearDraft(draft(), draft()), true)
@@ -68,5 +69,5 @@ test('a reply target chosen during the send is not cleared', () => {
 })
 
 test('a completion never clears another channel', () => {
-  assert.equal(shouldClearDraft(draft({ channelId: 'c1' }), draft({ channelId: 'c2' })), false)
+  assert.equal(shouldClearDraft(draft({ conversation: room('c1') }), draft({ conversation: room('c2') })), false)
 })
