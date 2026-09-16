@@ -1,3 +1,7 @@
+// Type-only, so this module still has no runtime import and stays loadable by
+// node:test directly. See the note above about keeping it pure.
+import type { Conversation } from './conversation'
+
 // Planning for the composer submit path. Pure so node:test can pin the
 // attachment contract without a browser.
 //
@@ -29,15 +33,21 @@ export function planComposerSubmit(
 // pending send is a new draft and must survive. Channel and reply target are part
 // of the identity so a completion cannot clear a changed reply context, or a
 // different channel's state in a composer that outlived the send.
+//
+// The conversation is part of it too. Two conversations in one channel can both
+// have no reply target and sit at revision 1, so without the root a completion
+// from one could clear the other's draft. The root is the identity even before
+// the server has assigned a thread ID, so acquiring one mid-send changes nothing.
 export type DraftIdentity = {
-  channelId: string
+  conversation: Conversation
   replyToId: string | null
   revision: number
 }
 
 export function shouldClearDraft(submitted: DraftIdentity, current: DraftIdentity): boolean {
   return (
-    submitted.channelId === current.channelId &&
+    submitted.conversation.channelId === current.conversation.channelId &&
+    submitted.conversation.rootId === current.conversation.rootId &&
     submitted.replyToId === current.replyToId &&
     submitted.revision === current.revision
   )

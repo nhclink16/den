@@ -1,44 +1,49 @@
 import { upload, type Progress } from './upload'
+import { conversationKey, type Conversation } from './conversation'
+import { append, busy, busyInChannel, consume, drop, patch, tray, type Queues } from './upload-queue'
 import type { Upload } from './types'
 
 export type PendingUpload = { id: number; file: File; progress: Progress; done?: Upload; error?: string; abort: AbortController }
 
-// One queue per account/instance, owned by Store, independent of mounted composers.
+// One queue per account/instance, owned by Store, independent of mounted
+// composers. The reactive owner only; the tray transforms live in upload-queue.
+//
+// The TRAY is keyed by conversation, so a file staged in the room cannot appear
+// in, or block sending from, a conversation inside the same channel. The SERVER
+// upload still belongs to its channel, which is why the channel is passed
+// separately rather than parsed back out of the key.
 export class Uploads {
   constructor(private origin: string) {}
   private seq = 0
-  private channels = $state.raw<Record<string, PendingUpload[]>>({})
-  forChannel(id: string) { return this.channels[id] || [] }
-  active(id: string) { return this.forChannel(id).some(p => !p.done && !p.error) }
-  private replace(id: string, items: PendingUpload[]) {
-    const next = { ...this.channels }
-    if (items.length) next[id] = items
-    else delete next[id]
-    this.channels = next
-  }
-  private patch(channel: string, id: number, part: Partial<PendingUpload>) {
-    this.replace(channel, this.forChannel(channel).map(p => p.id === id ? { ...p, ...part } : p))
-  }
-  add(channel: string, files: File[]) {
+  private queues = $state.raw<Queues<PendingUpload>>({})
+  forConversation(c: Conversation) { return tray(this.queues, conversationKey(c)) }
+  active(c: Conversation) { return busy(this.forConversation(c)) }
+  activeInChannel(channelId: string) { return busyInChannel(this.queues, channelId) }
+  add(c: Conversation, files: File[]) {
+    const key = conversationKey(c)
     for (const file of files) {
       const p: PendingUpload = { id: ++this.seq, file, progress: { sent: 0, total: file.size }, abort: new AbortController() }
       if (file.size > 1024 ** 3) p.error = 'Over the 1 GB limit'
-      this.replace(channel, [...this.forChannel(channel), p])
+      this.queues = append(this.queues, key, p)
       if (p.error) continue
-      void upload(channel, file, progress => this.patch(channel, p.id, { progress }), p.abort.signal, this.origin)
-        .then(done => { this.patch(channel, p.id, { done }); window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin: this.origin, sound: 'upload_complete' } })) })
-        .catch(e => this.patch(channel, p.id, { error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' }))
+      const at = (part: Partial<PendingUpload>) => { this.queues = patch(this.queues, key, p.id, part) }
+      // The file is uploaded to the CHANNEL; only the tray is per conversation.
+      void upload(c.channelId, file, progress => at({ progress }), p.abort.signal, this.origin)
+        .then(done => { at({ done }); window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin: this.origin, sound: 'upload_complete' } })) })
+        .catch(e => at({ error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' }))
     }
   }
-  remove(channel: string, item: PendingUpload) {
+  remove(c: Conversation, item: PendingUpload) {
     item.abort.abort()
-    this.replace(channel, this.forChannel(channel).filter(p => p.id !== item.id))
+    this.queues = drop(this.queues, conversationKey(c), item.id)
   }
-  sent(channel: string, ids: string[]) {
-    this.replace(channel, this.forChannel(channel).filter(p => !p.done || !ids.includes(p.done.id)))
+  /// Consume exactly the IDs that were transmitted, in the conversation they were
+  /// submitted from, even if a newer draft has since been staged there.
+  sent(c: Conversation, ids: string[]) {
+    this.queues = consume(this.queues, conversationKey(c), ids)
   }
   clear() {
-    for (const pending of Object.values(this.channels)) for (const p of pending) p.abort.abort()
-    this.channels = {}
+    for (const pending of Object.values(this.queues)) for (const p of pending) p.abort.abort()
+    this.queues = {}
   }
 }

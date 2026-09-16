@@ -1,0 +1,4 @@
+  sendReleasedUnderNextAccount: {"acceptedAs":"01M2KZ54ZMG3SQWFX2XGXCM1WE","secondAccount":"carol_8179d4","unreadAfterSwitch":"01M2KZ5K5K2G5CJ5SJFTDNRD1V","readPutsAfterSwitch":1,"badge":null,"draft":"the second account is typing"}
+AssertionError [ERR_ASSERTION]: the old send acknowledged a read under the new account
+  actual: 1,
+  expected: 0,

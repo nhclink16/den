@@ -1,0 +1,137 @@
+{
+  "phase": "green",
+  "base": "http://localhost:17038",
+  "provenance": {
+    "at": "2026-09-16T02:01:59.569Z",
+    "serverBinary": "/mnt/storage/den-electron-target/debug/den-server",
+    "serverSha256": "16892a5f93abbb2aad8ed5f2ce0d702d305b98e194d23532057005978f47401a",
+    "diffSha256": "c33f65f5d618631a39bf73a84d91d5b954be6d3f3d4808477c364cea09551d6f",
+    "redControlPatch": null,
+    "bundle": "assets/index-D4pwBvJf.js",
+    "bundleSha256": "4b7217e4ffd375f67ef9a8960fcc9d40130d87df70070944f083f75bae83ef77"
+  },
+  "steps": {
+    "fixture": {
+      "room": "01M2KZ65DDE1D4EFRZCBJFAY2H",
+      "other": "01M2KZ65DY8VKYG0Q6ZE2P4JGG",
+      "bob": "01M2KZ65TZFXSTE1R8E94HT5MH",
+      "seeded": 3
+    },
+    "heldBody": {
+      "channel_id": "01M2KZ65DDE1D4EFRZCBJFAY2H",
+      "last_read_id": "01M2KZ6681V5BHMP8VN6GJNQZT",
+      "unread_count": 0,
+      "mention_count": 0,
+      "notification_count": 0
+    },
+    "duringHeldRead": {
+      "badge": "1",
+      "reads": 1,
+      "put": "01M2KZ6681V5BHMP8VN6GJNQZT",
+      "displayedAtOpen": "01M2KZ6681V5BHMP8VN6GJNQZT",
+      "newer": "01M2KZ675EZ4XHHNSPSWJDW8QZ"
+    },
+    "staleResponseDelivered": {
+      "status": 200,
+      "body": "{\"channel_id\":\"01M2KZ65DDE1D4EFRZCBJFAY2H\",\"last_read_id\":\"01M2KZ6681V5BHMP8VN6GJNQZT\",\"unread_count\":0,\"mention_count\":0,\"notification_count\":0}"
+    },
+    "afterStaleResponse": {
+      "badge": "1",
+      "expected": "1"
+    },
+    "afterQueuedRead": {
+      "badge": null,
+      "reads": 2,
+      "marker": "01M2KZ675EZ4XHHNSPSWJDW8QZ"
+    },
+    "serverCursor": {
+      "last_read_id": "01M2KZ675EZ4XHHNSPSWJDW8QZ",
+      "displayed": "01M2KZ675EZ4XHHNSPSWJDW8QZ",
+      "unread": 0
+    },
+    "queuedReadMarker": {
+      "displayedWhenQueued": "01M2KZ68V3X3S1CVBMQ2K7EMRK",
+      "arrivedAfterLeaving": "01M2KZ69EHGVE3HXS5WZABVBQG",
+      "put": "01M2KZ68V3X3S1CVBMQ2K7EMRK",
+      "serverCursor": "01M2KZ68V3X3S1CVBMQ2K7EMRK",
+      "unread": 1
+    },
+    "idleReadRequests": 0,
+    "draftAcrossNavigation": {
+      "otherRoomBox": "",
+      "restored": "half written thought",
+      "remounted": true
+    },
+    "mentionPicker": {
+      "text": "hello @bob_0dbb86 ",
+      "caret": 18
+    },
+    "slashPicker": {
+      "offered": 2,
+      "text": "/canvas "
+    },
+    "textareaBinding": {
+      "caret": 8,
+      "afterNavigation": "dictated words here"
+    },
+    "delayedSend": {
+      "accepted": "sent while editing",
+      "kept": "sent while editing and then more",
+      "persistedCopies": 1
+    },
+    "sendReleasedUnderNextAccount": {
+      "acceptedAs": "01M2KZ63P59NRF8RBW7YPJ3G2D",
+      "secondAccount": "carol_0dbb86",
+      "unreadAfterSwitch": "01M2KZ6HRB42JSV74YES4K4B15",
+      "readPutsAfterSwitch": 0,
+      "badge": "1",
+      "draft": "the second account is typing"
+    },
+    "failedSend": {
+      "text": "this send will fail",
+      "files": 2,
+      "error": 1,
+      "uploadIds": [
+        "01M2KZ6N3002CA4VQ35RR5B3WS",
+        "01M2KZ6N3E9B7G9P4CWJ4CY0VR"
+      ]
+    },
+    "retryAfterFailure": {
+      "uploadIds": [
+        "01M2KZ6N3002CA4VQ35RR5B3WS",
+        "01M2KZ6N3E9B7G9P4CWJ4CY0VR"
+      ],
+      "remaining": 0,
+      "text": "",
+      "otherRoomChips": 1
+    },
+    "quoteOutsideLoadedPage": {
+      "quoted": "01M2KZ667A0NJ1H6C92BJ27PGD",
+      "stillCached": false,
+      "sentReplyTo": "01M2KZ667A0NJ1H6C92BJ27PGD",
+      "content": "answering the very first one"
+    },
+    "explicitCancel": {
+      "banner": 0,
+      "sent": {
+        "content": "a second answer",
+        "reply_to": null,
+        "upload_ids": []
+      }
+    },
+    "flatListingShowsReplies": {
+      "reply": "01M2KZ6Y9YBC5KRV6BM5KNK17D",
+      "thread_id": "01M2KZ6W1FBDC10A7V1GRXZD20",
+      "listed": 1
+    }
+  },
+  "pageErrors": [
+    {
+      "kind": "console",
+      "during": "deliberate 503 on send",
+      "expected": true,
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+  ],
+  "ok": true
+}

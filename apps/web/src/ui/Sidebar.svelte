@@ -55,7 +55,7 @@
           <Icon name="hash" />
         {/if}
         <span class="name">{store.title(c)}</span>
-        {#if store.uploads.active(c.id)}<span class="uploading" title="Uploading files" aria-label="Uploading files">↑</span>{/if}
+        {#if store.uploads.activeInChannel(c.id)}<span class="uploading" title="Uploading files" aria-label="Uploading files">↑</span>{/if}
         {#if u.mention}<span class="count at">@</span>{:else if u.count}<span class="count">{u.count}</span>{/if}
       </a>
       {/if}

@@ -6,6 +6,9 @@
     "module": "esnext",
     "types": ["svelte", "vite/client"],
     "allowArbitraryExtensions": true,
+    // drafts.ts is imported by the node tests as well as by the app, and node
+    // ESM will not resolve an extensionless specifier.
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     /**
      * Typecheck JS in `.svelte` and `.js` files by default.

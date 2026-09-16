@@ -1,0 +1,55 @@
+{
+  "phase": "red",
+  "base": "http://localhost:17039",
+  "provenance": {
+    "at": "2026-09-16T02:02:39.428Z",
+    "serverBinary": "/mnt/storage/den-electron-target/debug/den-server",
+    "serverSha256": "16892a5f93abbb2aad8ed5f2ce0d702d305b98e194d23532057005978f47401a",
+    "diffSha256": "c33f65f5d618631a39bf73a84d91d5b954be6d3f3d4808477c364cea09551d6f",
+    "redControlPatch": "   /// Apply a delayed response, but only if the account and that one key's version\n   /// are still the ones captured before the request went out.\n   applyIf(state: ChannelReadState, epoch: number, at: number) {\n-    if (!this.current(epoch, state.channel_id, at)) return false\n+    if (epoch !== this.generation) return false\n     this.apply(state)\n     return true\n   }",
+    "bundle": "assets/index-BsYbJoy7.js",
+    "bundleSha256": "6f84660dca520f763786ee819653cfdf40886d61bc2d3dbe648633f83f038f81"
+  },
+  "steps": {
+    "fixture": {
+      "room": "01M2KZ7CA13J4SR0FKC42579C9",
+      "other": "01M2KZ7CA7ATVMGK6JB54FEH9C",
+      "bob": "01M2KZ7CP7FXATE428BA1D1WRY",
+      "seeded": 3
+    },
+    "heldBody": {
+      "channel_id": "01M2KZ7CA13J4SR0FKC42579C9",
+      "last_read_id": "01M2KZ7D6WTGNQ4DH7TSVSTHG3",
+      "unread_count": 0,
+      "mention_count": 0,
+      "notification_count": 0
+    },
+    "duringHeldRead": {
+      "badge": "1",
+      "reads": 1,
+      "put": "01M2KZ7D6WTGNQ4DH7TSVSTHG3",
+      "displayedAtOpen": "01M2KZ7D6WTGNQ4DH7TSVSTHG3",
+      "newer": "01M2KZ7E42CP69VJG6TY6WA7NK"
+    },
+    "staleResponseDelivered": {
+      "status": 200,
+      "body": "{\"channel_id\":\"01M2KZ7CA13J4SR0FKC42579C9\",\"last_read_id\":\"01M2KZ7D6WTGNQ4DH7TSVSTHG3\",\"unread_count\":0,\"mention_count\":0,\"notification_count\":0}"
+    },
+    "afterStaleResponse": {
+      "badge": "3",
+      "expected": "anything but 1"
+    },
+    "afterQueuedRead": {
+      "badge": null,
+      "reads": 3,
+      "marker": "01M2KZ7D6WTGNQ4DH7TSVSTHG3"
+    },
+    "serverCursor": {
+      "last_read_id": "01M2KZ7E42CP69VJG6TY6WA7NK",
+      "displayed": "01M2KZ7E42CP69VJG6TY6WA7NK",
+      "unread": 0
+    }
+  },
+  "note": "Control for the read-ordering guard only. Not a before/after for drafts, quotes or uploads.",
+  "ok": true
+}
