@@ -328,3 +328,160 @@ async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
     );
     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
 }
+
+#[tokio::test]
+async fn upload_admission_rejects_bad_size_and_filename_without_side_effects() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let cid = t.general().await;
+    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    let files = std::fs::read_dir(t.dir.join("uploads")).unwrap().count();
+    assert_eq!(rows, 0);
+    assert_eq!(files, 0);
+    let long = "x".repeat(256);
+    let cases = vec![
+        (
+            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":0}),
+            413u16,
+            "upload_size",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":-5}),
+            413u16,
+            "upload_size",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"ok.bin","content_type":"application/octet-stream","size":2*1024*1024}),
+            413u16,
+            "upload_size",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"","content_type":"application/octet-stream","size":5}),
+            400u16,
+            "invalid_request",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"a/b","content_type":"application/octet-stream","size":5}),
+            400u16,
+            "invalid_request",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"a\\b","content_type":"application/octet-stream","size":5}),
+            400u16,
+            "invalid_request",
+        ),
+        (
+            json!({"channel_id":cid,"filename":"a\u{1}b","content_type":"application/octet-stream","size":5}),
+            400u16,
+            "invalid_request",
+        ),
+        (
+            json!({"channel_id":cid,"filename":long,"content_type":"application/octet-stream","size":5}),
+            400u16,
+            "invalid_request",
+        ),
+    ];
+    for (body, status, code) in cases {
+        let r = t
+            .req(Method::POST, "/uploads", &alice.token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), status);
+        let err: Value = r.json().await.unwrap();
+        assert_eq!(err["error"], code);
+    }
+    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!(rows, 0);
+    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 0);
+    // Lower and upper size bounds are inclusive.
+    let one = t
+        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"one.bin","content_type":"application/octet-stream","size":1}))
+        .await;
+    assert!(one["id"].is_string());
+    let max = t
+        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"max.bin","content_type":"application/octet-stream","size":1048576}))
+        .await;
+    assert!(max["id"].is_string());
+    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM uploads")
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!(rows, 2);
+    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 2);
+}
+
+#[tokio::test]
+async fn upload_pending_limit_is_per_owner_and_frees_on_complete() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let bob = t.member("bob").await;
+    let cid = t.general().await;
+    let mut ids = Vec::new();
+    for i in 0..5 {
+        let u = t
+            .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":format!("p{i}.bin"),"content_type":"application/octet-stream","size":5}))
+            .await;
+        ids.push(u["id"].as_str().unwrap().to_string());
+    }
+    let r = t
+        .req(Method::POST, "/uploads", &alice.token)
+        .json(&json!({"channel_id":cid,"filename":"p5.bin","content_type":"application/octet-stream","size":5}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 409);
+    assert_eq!(r.json::<Value>().await.unwrap()["error"], "conflict");
+    // Rejected admission leaves no row or file.
+    let pending: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM uploads WHERE owner_id=? AND complete=0")
+            .bind(&alice.user.id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!(pending, 5);
+    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 5);
+    // Another owner has an independent allowance.
+    let other = t
+        .post("/uploads", &bob.token, json!({"channel_id":cid,"filename":"bob.bin","content_type":"application/octet-stream","size":5}))
+        .await;
+    assert!(other["id"].is_string());
+    // Completing an upload frees a slot.
+    let first = &ids[0];
+    assert_eq!(
+        t.req(Method::PATCH, &format!("/uploads/{first}"), &alice.token)
+            .header("Upload-Offset", 0)
+            .body("12345")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    let done = t
+        .post(
+            &format!("/uploads/{first}/complete"),
+            &alice.token,
+            json!({}),
+        )
+        .await;
+    assert_eq!(done["complete"], true);
+    let freed = t
+        .post("/uploads", &alice.token, json!({"channel_id":cid,"filename":"p5.bin","content_type":"application/octet-stream","size":5}))
+        .await;
+    assert!(freed["id"].is_string());
+    let pending: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM uploads WHERE owner_id=? AND complete=0")
+            .bind(&alice.user.id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!(pending, 5);
+}
