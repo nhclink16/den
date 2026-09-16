@@ -1,0 +1,29 @@
+--- a/crates/den-server/src/uploads.rs
++++ b/crates/den-server/src/uploads.rs
+@@ -112,7 +112,7 @@
+         .and_then(|v| v.parse::<i64>().ok())
+         .ok_or_else(|| Error::bad("Upload-Offset header required"))?;
+     let _guard = s.writes.lock().await;
+-    let row = owned(&s, &a, &id).await?;
++    let row = load(&s, &id).await?;
+     if row.complete || row.offset != offset {
+         return Err(Error::conflict(
+             "Offset changed or upload complete; fetch upload status",
+@@ -129,8 +129,6 @@
+         .write(true)
+         .open(s.uploads.join(format!("{id}.part")))
+         .await?;
+-    // A crash may leave bytes beyond the committed offset. Retries replace them.
+-    file.set_len(offset as u64).await?;
+     file.seek(std::io::SeekFrom::Start(offset as u64)).await?;
+     file.write_all(&body).await?;
+     file.sync_data().await?;
+@@ -226,7 +224,7 @@
+     );
+     response
+         .headers_mut()
+-        .insert(header::CACHE_CONTROL, "private, no-store".parse().unwrap());
++        .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
+     response
+         .headers_mut()
+         .insert("x-content-type-options", "nosniff".parse().unwrap());
