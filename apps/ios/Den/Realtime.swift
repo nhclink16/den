@@ -137,12 +137,14 @@ extension AppStore {
         case "notification_preferences_updated": preferences = try field("preferences", as: API.NotificationPreferences.self)
         case "read_state_updated":
             let state = try field("state", as: API.ChannelReadState.self)
-            readStates.removeAll { $0.channelId == state.channelId }; readStates.append(state)
+            // Pushed, so authoritative: it supersedes any read response of ours
+            // still in flight for this channel.
+            applyChannelRead(state)
             saveCache(); await notifications?.updateBadge()
         case "notification":
             if let service {
                 let expected = generation
-                let reads = try await service.readStates(); try check(expected); readStates = reads
+                let reads = try await service.readStates(); try check(expected); replaceReadStates(reads)
                 await notifications?.updateBadge()
             }
         case "settings_updated", "resync": try await refresh()

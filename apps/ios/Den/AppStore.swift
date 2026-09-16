@@ -28,12 +28,19 @@ import UIKit
     var hosts: [API.Host] = []
     var grants: [API.Grant] = []
     var pendingUploads: [PendingUpload] = []
+    /// Drafts belong to their conversation, not to a composer view. A view that is
+    /// destroyed and recreated by navigation gets the same draft and the same
+    /// revision back, which is what stops a late send clearing a newer draft.
+    var drafts: [Conversation: Draft] = [:]
     var calls: CallController?
     var voip: VoIPPushController?
     var dictation: DictationController?
     var dictationChannelId: String?
     @ObservationIgnored var service: DenService?
     @ObservationIgnored var generation = UUID()
+    /// Orders read states against each other so a slow response cannot overwrite
+    /// a newer pushed update. Reused for threads by the activation PR.
+    @ObservationIgnored let readOrder = ReadOrdering()
     @ObservationIgnored var socket: URLSessionWebSocketTask?
     @ObservationIgnored var socketLoop: Task<Void, Never>?
     @ObservationIgnored var uploadTasks: [UUID: Task<Void, Never>] = [:]
@@ -61,7 +68,7 @@ import UIKit
             if service == nil { service = DenService(origin: origin, token: token) }
             if let cached = OfflineCache.read(origin: origin) {
                 user = cached.user; channels = cached.channels; categories = cached.categories
-                users = cached.users; messages = cached.messages; readStates = cached.readStates
+                users = cached.users; messages = cached.messages; replaceReadStates(cached.readStates)
                 instanceName = cached.instanceName; syncProblem = .networkOffline
             }
             try await refresh()
@@ -131,7 +138,7 @@ import UIKit
         try check(expected)
         if let oldUser = user, oldUser.id != result.0.id { messages = [:]; OfflineCache.remove(origin: origin) }
         user = result.0; channels = result.1; categories = result.2; users = result.3
-        readStates = result.4; theme.receive(result.5); preferences = result.6
+        replaceReadStates(result.4); theme.receive(result.5); preferences = result.6
         presence = Set(result.7.onlineUserIds); callStates = result.8; instanceName = result.9.instanceName
         refreshCallNames()
         let visible = Set(channels.map(\.id))
@@ -248,11 +255,56 @@ import UIKit
         if !channels.contains(where: { $0.id == channel.id }) { channels.append(channel) }
         selectChannel(channel.id); return channel
     }
+    func draft(_ conversation: Conversation) -> Draft { drafts[conversation] ?? Draft() }
+    /// Every edit bumps the revision. Setting the same text is still an edit:
+    /// A -> B -> A must not look like no change at all.
+    func setDraftText(_ text: String, for conversation: Conversation) {
+        var draft = self.draft(conversation)
+        draft.text = text
+        draft.revision += 1
+        drafts[conversation] = draft
+    }
+    func setDraftReply(_ replyToId: String?, for conversation: Conversation) {
+        var draft = self.draft(conversation)
+        draft.replyToId = replyToId
+        drafts[conversation] = draft
+    }
+    /// Captured at submit, before anything is awaited.
+    func submittedIdentity(_ conversation: Conversation) -> DraftIdentity {
+        let draft = self.draft(conversation)
+        return DraftIdentity(conversation: conversation, replyToId: draft.replyToId, revision: draft.revision)
+    }
+    /// Clears only if the conversation, the quote target and the revision are all
+    /// still the ones that were sent. Otherwise the draft on screen is newer and
+    /// belongs to whoever typed it.
+    @discardableResult
+    func clearDraft(matching identity: DraftIdentity) -> Bool {
+        guard submittedIdentity(identity.conversation) == identity else { return false }
+        drafts[identity.conversation] = nil
+        return true
+    }
     func markRead(channelId: String, messageId: String) async throws {
         let expected = generation
+        // Taken BEFORE the request goes out: what this response is allowed to
+        // overwrite is decided by what was true when it was sent.
+        let token = readOrder.begin(.channel(channelId))
         let state = try await activeService().markRead(channelId: channelId, messageId: messageId)
-        try check(expected); readStates.removeAll { $0.channelId == channelId }; readStates.append(state)
+        try check(expected)
+        applyChannelRead(state, token: token)
         saveCache(); await notifications?.updateBadge()
+    }
+    /// The single place a channel read state is stored. `token` identifies a
+    /// response to one of our own reads; a pushed update passes nil and wins.
+    func applyChannelRead(_ state: API.ChannelReadState, token: Int? = nil) {
+        guard readOrder.accept(.channel(state.channelId), token: token) else { return }
+        readStates.removeAll { $0.channelId == state.channelId }
+        readStates.append(state)
+    }
+    /// A full refresh is authoritative, so every response still in flight is now
+    /// stale regardless of which key it belongs to.
+    func replaceReadStates(_ states: [API.ChannelReadState]) {
+        readOrder.invalidateAll()
+        readStates = states
     }
     func search(query: String, channelId: String?) async throws -> [API.Message] {
         let expected = generation
@@ -268,7 +320,7 @@ import UIKit
         let expected = generation
         let saved = try await activeService().savePreferences(value)
         try check(expected); preferences = saved
-        let reads = try await activeService().readStates(); try check(expected); readStates = reads
+        let reads = try await activeService().readStates(); try check(expected); replaceReadStates(reads)
     }
     func logout() async throws {
         dictation?.invalidateContext()
@@ -299,10 +351,15 @@ import UIKit
     }
     func clearSession() {
         stopNetwork(); try? SessionVault.delete(origin); OfflineCache.remove(origin: origin)
+        // Synchronous with the account: a response from the previous account must
+        // not be accepted against the next one.
+        readOrder.reset()
         user = nil; channels = []; categories = []; users = []; readStates = []; messages = [:]; messageHasNewer = [:]
         callStates = []; presence = []; typing = [:]; selectedChannelId = nil; targetMessageId = nil
         for item in pendingUploads { try? FileManager.default.removeItem(at: item.localURL) }
         pendingUploads = []; hosts = []; grants = []; syncProblem = nil
+        // One account's half-written message must not appear under the next.
+        drafts = [:]
         // Never let one account's names survive into the next account's call labels.
         refreshCallNames()
     }

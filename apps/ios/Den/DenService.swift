@@ -51,9 +51,10 @@ final class DenService: Sendable {
     func instance() async throws -> API.Instance { try await client.getInstance().ok.body.json }
     func hosts() async throws -> [API.Host] { try await client.getHosts().ok.body.json }
     func grants() async throws -> [API.Grant] { try await client.getGrants().ok.body.json }
-    func messages(channelId: String, before: String? = nil, after: String? = nil) async throws -> [API.Message] {
+    func messages(channelId: String, before: String? = nil, after: String? = nil,
+                  rootsOnly: Bool? = nil) async throws -> [API.Message] {
         try await client.getChannelsIdMessages(path: .init(id: channelId),
-            query: .init(before: before, after: after, limit: 100)).ok.body.json
+            query: .init(before: before, after: after, limit: 100, rootsOnly: rootsOnly)).ok.body.json
     }
     func message(id: String) async throws -> API.Message { try await client.getMessagesId(path: .init(id: id)).ok.body.json }
     func search(query: String, channelId: String?) async throws -> [API.Message] {
@@ -74,8 +75,44 @@ final class DenService: Sendable {
     func openDM(userIds: [String]) async throws -> API.Channel {
         try await client.postDms(body: .json(.init(memberIds: userIds))).ok.body.json
     }
-    func markRead(channelId: String, messageId: String) async throws -> API.ChannelReadState {
-        try await client.putChannelsIdRead(path: .init(id: channelId), body: .json(.init(messageId: messageId))).ok.body.json
+    func markRead(channelId: String, messageId: String, rootsOnly: Bool? = nil) async throws -> API.ChannelReadState {
+        try await client.putChannelsIdRead(path: .init(id: channelId),
+            body: .json(.init(messageId: messageId, rootsOnly: rootsOnly))).ok.body.json
+    }
+
+    // MARK: - Conversations
+    //
+    // The whole thread surface, wrapped here so the store never reaches into the
+    // generated client. Nothing in this PR calls these: the UI stays flat until
+    // the activation PR. A page from `threads` is FILTERED and PAGINATED and
+    // never proves a thread is absent.
+    func threads(channelId: String, resolved: Bool? = nil, unreadOnly: Bool? = nil,
+                 before: String? = nil, limit: Int32 = 50) async throws -> [API.ThreadView] {
+        try await client.getChannelsIdThreads(path: .init(id: channelId),
+            query: .init(resolved: resolved, unreadOnly: unreadOnly, before: before, limit: limit)).ok.body.json
+    }
+    /// Metadata plus this account's own read state. A REPLY carries only
+    /// `threadId`, so resolving one to its conversation comes through here; a
+    /// ROOT already carries its summary inline and needs no lookup.
+    func thread(id: String) async throws -> API.ThreadView {
+        try await client.getThreadsId(path: .init(id: id)).ok.body.json
+    }
+    func threadMessages(id: String, before: String? = nil, after: String? = nil) async throws -> [API.Message] {
+        try await client.getThreadsIdMessages(path: .init(id: id),
+            query: .init(before: before, after: after, limit: 100)).ok.body.json
+    }
+    /// Rename, resolve or reopen. An omitted field is left alone by the server.
+    func updateThread(id: String, title: String? = nil, resolved: Bool? = nil) async throws -> API.ThreadSummary {
+        try await client.patchThreadsId(path: .init(id: id),
+            body: .json(.init(title: title, resolved: resolved))).ok.body.json
+    }
+    /// Advances only this thread. Never touches the room position, never follows.
+    func markThreadRead(id: String, messageId: String) async throws -> API.ThreadReadState {
+        try await client.putThreadsIdRead(path: .init(id: id), body: .json(.init(messageId: messageId))).ok.body.json
+    }
+    /// Follow advances to the current tail; unfollow keeps the position.
+    func followThread(id: String, following: Bool) async throws -> API.ThreadReadState {
+        try await client.putThreadsIdFollow(path: .init(id: id), body: .json(.init(following: following))).ok.body.json
     }
     func saveAppearance(_ value: API.Appearance) async throws -> API.Appearance {
         try await client.putUsersMeAppearance(body: .json(value)).ok.body.json

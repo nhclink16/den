@@ -28,7 +28,17 @@ struct ComposerView: View {
     let store: AppStore
     @Binding var reply: API.Message?
     let onSent: () -> Void
-    @State private var draft = ""
+    /// Defaults to the room, so the existing flat call site is untouched. The
+    /// activation PR passes a thread's own conversation here.
+    var conversation: Conversation?
+    private var here: Conversation { conversation ?? .room(channel.id) }
+    /// The draft lives in the store. This view may be destroyed and recreated by
+    /// navigation; the draft and its revision must not be.
+    private var draft: String { store.draft(here).text }
+    /// Writes go through the store so every edit bumps the conversation's revision.
+    private var draftBinding: Binding<String> {
+        Binding(get: { store.draft(here).text }, set: { store.setDraftText($0, for: here) })
+    }
     @State private var sending = false
     @State private var importing = false
     @State private var showPhotos = false
@@ -41,7 +51,7 @@ struct ComposerView: View {
     @State private var dictationStart: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
-    private var uploads: [PendingUpload] { store.pendingUploads.filter { $0.channelId == channel.id } }
+    private var uploads: [PendingUpload] { store.pendingUploads.filter { $0.conversation == here } }
     private var recording: Bool { dictationID != nil }
     private var expanded: Bool { focused || !draft.isEmpty || !uploads.isEmpty || reply != nil }
     private var canSend: Bool {
@@ -74,7 +84,7 @@ struct ComposerView: View {
             }
             ComposerLayout(expanded: expanded,
                            trailingWidth: store.dictation?.isAvailable == true ? 96 : 48) {
-                MessageInput(text: $draft, focused: $focused, selection: $selection, theme: theme,
+                MessageInput(text: draftBinding, focused: $focused, selection: $selection, theme: theme,
                              onSend: send, onManualChange: cancelDictation, onEscape: dismissComposer,
                              isReadOnly: recording)
                     .overlay(alignment: .topLeading) {
@@ -165,12 +175,17 @@ struct ComposerView: View {
                     for url in urls {
                         let access = url.startAccessingSecurityScopedResource()
                         defer { if access { url.stopAccessingSecurityScopedResource() } }
-                        try await store.attach(url: url, channelId: channel.id)
+                        try await store.attach(url: url, conversation: here)
                     }
                 } catch { store.report(error) }
             }
         }
-        .onChange(of: reply?.id) { _, value in if value != nil { focused = true } }
+        // The quote target is part of the draft's identity, so a completion cannot
+        // clear a draft whose reply context changed while it was in flight.
+        .onChange(of: reply?.id) { _, value in
+            store.setDraftReply(value, for: here)
+            if value != nil { focused = true }
+        }
     }
 
     private func dismissComposer() {
@@ -197,7 +212,7 @@ struct ComposerView: View {
                     cancelDictation(); return
                 }
                 dictationInsertion = insertion
-                draft = update.text; selection = update.selection
+                store.setDraftText(update.text, for: here); selection = update.selection
             }
             if controller.state == .idle, dictationID == id { releaseDictation() }
         }
@@ -263,7 +278,7 @@ struct ComposerView: View {
                     throw CocoaError(.fileReadUnknown)
                 }
                 defer { try? FileManager.default.removeItem(at: media.url.deletingLastPathComponent()) }
-                try await store.attach(url: media.url, channelId: channel.id)
+                try await store.attach(url: media.url, conversation: here)
             } catch { store.report(error) }
         }
     }
@@ -273,11 +288,14 @@ struct ComposerView: View {
         sending = true
         let content = draft
         let replyId = reply?.id
+        // Captured before anything is awaited: what this send is allowed to clear
+        // is decided by what was on screen when it was sent.
+        let submitted = store.submittedIdentity(here)
         Task {
             defer { sending = false }
             do {
                 try await store.send(channelId: channel.id, content: content, replyTo: replyId)
-                if draft == content { draft = ""; selection = NSRange(location: 0, length: 0) }
+                if store.clearDraft(matching: submitted) { selection = NSRange(location: 0, length: 0) }
                 if reply?.id == replyId { reply = nil }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onSent()
