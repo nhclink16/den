@@ -9,6 +9,18 @@ use tokio_tungstenite::{
     tungstenite::{client::IntoClientRequest, Message as Frame},
 };
 
+/// `From<sqlx::Error>` answers 500 with a generic body and logs the real error at
+/// ERROR. Install one subscriber for the binary so a failing test's captured
+/// output carries that line.
+fn trace() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::ERROR)
+            .with_test_writer()
+            .try_init();
+    });
+}
 struct Test {
     url: String,
     dir: PathBuf,
@@ -37,6 +49,7 @@ impl Test {
         Self::with_music(voice, music.map(|r| (r, "ffmpeg".into(), "den-dj".into()))).await
     }
     async fn with_music(voice: Option<&str>, music: Option<(String, String, String)>) -> Self {
+        trace();
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
@@ -127,13 +140,33 @@ impl Test {
             .bearer_auth(token)
     }
     async fn post(&self, path: &str, token: &str, body: Value) -> Value {
+        self.post_phase("", path, token, body).await
+    }
+    /// `phase` distinguishes several posts to one path. A failure reports the
+    /// status, the path and the decoded API error only: request bodies and
+    /// successful auth payloads carry credentials and are never printed. The 500
+    /// body is deliberately generic, so its cause arrives through the captured
+    /// tracing line rather than from here.
+    async fn post_phase(&self, phase: &str, path: &str, token: &str, body: Value) -> Value {
         let r = self
             .req(Method::POST, path, token)
             .json(&body)
             .send()
             .await
             .unwrap();
-        assert_eq!(r.status(), 200, "{path}");
+        let status = r.status();
+        if status != StatusCode::OK {
+            let detail = match r.json::<ApiError>().await {
+                Ok(e) => format!("{}: {}", e.error, e.message),
+                Err(_) => "<response body was not an ApiError>".into(),
+            };
+            let at = if phase.is_empty() {
+                String::new()
+            } else {
+                format!(" [{phase}]")
+            };
+            panic!("POST {path}{at} returned {} — {detail}", status.as_u16());
+        }
         r.json().await.unwrap()
     }
     async fn member(&self, name: &str) -> Session {
@@ -198,6 +231,8 @@ mod ios_calls;
 mod objects;
 #[path = "api/portable.rs"]
 mod portable;
+#[path = "api/thread_conversations.rs"]
+mod thread_conversations;
 #[path = "api/threads.rs"]
 mod threads;
 

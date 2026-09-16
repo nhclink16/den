@@ -120,6 +120,11 @@ pub(crate) async fn create(
             "Use the dedicated endpoint for this object kind",
         ));
     }
+    threads::unsupported_context(
+        v.thread_id.as_deref(),
+        v.task_id.as_deref(),
+        v.reply_to.as_deref(),
+    )?;
     name(&v.kind)?;
     let object_name = if v.name.trim().is_empty() {
         "Untitled canvas"

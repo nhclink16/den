@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,channel_id,author_id,content,reply_to,created_at,edited_at FROM messages WHERE id=?",
+  "query": "SELECT id,channel_id,author_id,content,reply_to,created_at,edited_at,thread_id as \"thread_id?\" FROM messages WHERE thread_id=? AND (? IS NULL OR id<?) ORDER BY id DESC LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -79,10 +79,21 @@
             "name": "edited_at"
           }
         }
+      },
+      {
+        "name": "thread_id?",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "thread_id"
+          }
+        }
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 4
     },
     "nullable": [
       false,
@@ -91,8 +102,9 @@
       false,
       true,
       false,
+      true,
       true
     ]
   },
-  "hash": "a27c4b2af9690740520b3335e0ccaadd7ee91ff5d701b3a4cb57adb20921567b"
+  "hash": "167b660c519b9a49cdf9bb142b5825b7fc1231dae858dcbc31ad934acd21dd67"
 }

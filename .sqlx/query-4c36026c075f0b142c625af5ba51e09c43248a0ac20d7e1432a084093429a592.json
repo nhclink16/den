@@ -1,0 +1,131 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id,t.channel_id,t.root_message_id,t.title,t.created_by,t.created_at,\n            t.resolved_at as \"resolved_at?\",t.resolved_by as \"resolved_by?\",\n            (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) as \"reply_count!: i64\",\n            (SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id) as \"last_reply_id?\",\n            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as \"last_activity_at!\"\n            FROM threads t WHERE t.id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "channel_id"
+          }
+        }
+      },
+      {
+        "name": "root_message_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "root_message_id"
+          }
+        }
+      },
+      {
+        "name": "title",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "name": "created_by",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "name": "created_at",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "name": "resolved_at?",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "resolved_at"
+          }
+        }
+      },
+      {
+        "name": "resolved_by?",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "resolved_by"
+          }
+        }
+      },
+      {
+        "name": "reply_count!: i64",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "last_reply_id?",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "name": "last_activity_at!",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "4c36026c075f0b142c625af5ba51e09c43248a0ac20d7e1432a084093429a592"
+}
