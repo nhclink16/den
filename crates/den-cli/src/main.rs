@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 use client::{print, Client};
 use den_core::*;
 use reqwest::Method;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -92,8 +93,12 @@ enum Cmd {
         before: Option<String>,
         #[arg(long)]
         after: Option<String>,
+        /// Page size, 1-200. With --all this is how many messages each fetch returns.
         #[arg(long, default_value_t = 50)]
         limit: u32,
+        /// Fetch every matching page and print one ascending, duplicate-free array.
+        #[arg(long)]
+        all: bool,
     },
     Edit {
         message: String,
@@ -197,8 +202,7 @@ enum BotCmd {
         display_name: Option<String>,
     },
 }
-fn password(stdin: bool) -> anyhow::Result<String> {
-    if let Ok(value) = std::env::var("DEN_PASSWORD") {
+fn password(stdin: bool) -> anyhow::Result<String> {    if let Ok(value) = std::env::var("DEN_PASSWORD") {
         return Ok(value);
     }
     anyhow::ensure!(stdin, "Set DEN_PASSWORD or pass --password-stdin");
@@ -365,18 +369,97 @@ fn main() -> anyhow::Result<()> {
             before,
             after,
             limit,
+            all,
         } => {
-            let mut path = format!(
-                "/channels/{}/messages?limit={limit}",
-                c.resolve_channel(&channel)?
+            anyhow::ensure!(
+                (1..=200).contains(&limit),
+                "Limit must be 1-200"
             );
-            if let Some(v) = before {
-                path.push_str(&format!("&before={}", id(&v)?));
+            anyhow::ensure!(
+                !(before.is_some() && after.is_some()),
+                "Use --before or --after, not both"
+            );
+            // Resolve names/@users exactly once, before any paging.
+            let cid = c.resolve_channel(&channel)?;
+            if !all {
+                let mut path = format!("/channels/{cid}/messages?limit={limit}");
+                if let Some(v) = before {
+                    path.push_str(&format!("&before={}", id(&v)?));
+                }
+                if let Some(v) = after {
+                    path.push_str(&format!("&after={}", id(&v)?));
+                }
+                print(&c.get::<Vec<Message>>(&path)?)?;
+            } else {
+                // before or no cursor: newest page first, walking backwards
+                // towards older messages. after: oldest page first, forwards.
+                let use_before = match (&before, &after) {
+                    (Some(v), _) => {
+                        id(v)?;
+                        true
+                    }
+                    (None, Some(v)) => {
+                        id(v)?;
+                        false
+                    }
+                    (None, None) => true,
+                };
+                // An empty cursor means no bound: start at the newest page.
+                let mut cursor = String::new();
+                if let Some(v) = before.as_ref().or(after.as_ref()) {
+                    cursor = v.clone();
+                }
+                let mut merged: BTreeMap<String, Message> = BTreeMap::new();
+                loop {
+                    let mut path = format!("/channels/{cid}/messages?limit={limit}");
+                    if !cursor.is_empty() {
+                        let key = if use_before { "before" } else { "after" };
+                        path.push_str(&format!("&{key}={cursor}"));
+                    }
+                    let page: Vec<Message> = c.get(&path)?;
+                    // A full page whose first id we already stored means the
+                    // cursor made no progress; fail instead of looping forever.
+                    if page.len() == limit as usize
+                        && page.first().is_some_and(|m| merged.contains_key(&m.id))
+                    {
+                        anyhow::bail!("Message listing did not advance; aborting --all");
+                    }
+                    if page.is_empty() {
+                        break;
+                    }
+                    let page_len = page.len();
+                    for m in page {
+                        merged.insert(m.id.clone(), m);
+                    }
+                    // A short page means we have reached the end of the range.
+                    if page_len < limit as usize {
+                        break;
+                    }
+                    // Continue from the far end of this page, exclusive.
+                    let next = if use_before {
+                        // Pages come back ascending; the oldest message of a
+                        // backwards page is its first id, which is the next
+                        // exclusive lower bound.
+                        merged
+                            .values()
+                            .filter(|m| cursor.is_empty() || m.id < cursor)
+                            .map(|m| m.id.clone())
+                            .next()
+                    } else {
+                        merged
+                            .values()
+                            .filter(|m| m.id > cursor)
+                            .map(|m| m.id.clone())
+                            .next_back()
+                    };
+                    match next {
+                        Some(next) => cursor = next,
+                        None => break,
+                    }
+                }
+                let merged: Vec<Message> = merged.into_values().collect();
+                print(&merged)?;
             }
-            if let Some(v) = after {
-                path.push_str(&format!("&after={}", id(&v)?));
-            }
-            print(&c.get::<Vec<Message>>(&path)?)?;
         }
         Cmd::Edit { message, text } => print(&c.send::<Message>(
             Method::PATCH,

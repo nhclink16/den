@@ -328,3 +328,131 @@ async fn upload_deletion_requires_owner_or_admin_and_no_live_references() {
     );
     assert!(!t.dir.join("uploads").join(format!("{id}.part")).exists());
 }
+
+async fn rejected(
+    t: &Test,
+    token: &str,
+    body: serde_json::Value,
+) -> (StatusCode, String, String) {
+    let r = t
+        .req(Method::POST, "/uploads", token)
+        .json(&body)
+        .send()
+        .await
+        .unwrap();
+    let status = r.status();
+    let err: Value = r.json().await.unwrap();
+    (
+        status,
+        err["error"].as_str().unwrap_or_default().into(),
+        err["message"].as_str().unwrap_or_default().into(),
+    )
+}
+
+fn begin(cid: &str, filename: &str, size: i64) -> Value {
+    json!({"channel_id":cid,"filename":filename,"content_type":"application/octet-stream","size":size})
+}
+
+#[tokio::test]
+async fn upload_begin_rejects_bad_sizes_and_filenames_without_admitting_them() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let cid = t.general().await;
+    let max = 1024 * 1024; // Test harness max_upload bytes.
+    for size in [0, -3, max + 1] {
+        let (status, code, message) = rejected(&t, &alice.token, begin(&cid, "big.bin", size)).await;
+        assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE, "size {size}");
+        assert_eq!(code, "upload_size");
+        assert_eq!(message, format!("Size must be 1-{max} bytes"));
+    }
+    let names = vec![
+        "".to_string(),
+        "dir/a.bin".to_string(),
+        "dir\\a.bin".to_string(),
+        "bad\u{1}.bin".to_string(),
+        "x".repeat(256),
+    ];
+    for filename in names {
+        let (status, code, message) =
+            rejected(&t, &alice.token, begin(&cid, &filename, 1)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "filename {filename:?}");
+        assert_eq!(code, "invalid_request");
+        assert_eq!(message, "Invalid filename");
+    }
+    // Rejected admission must not leave rows or files behind.
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM uploads")
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 0);
+}
+
+#[tokio::test]
+async fn upload_begin_caps_five_pending_per_owner_and_completion_frees_a_slot() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let bob = t.member("bob").await;
+    let cid = t.general().await;
+    let mut first = String::new();
+    for i in 0..5 {
+        let up = t
+            .post(
+                "/uploads",
+                &alice.token,
+                begin(&cid, &format!("p{i}.bin"), 10),
+            )
+            .await;
+        if i == 0 {
+            first = up["id"].as_str().unwrap().into();
+        }
+    }
+    let (status, code, message) = rejected(&t, &alice.token, begin(&cid, "six.bin", 10)).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(code, "conflict");
+    assert_eq!(message, "Finish pending uploads first; maximum five");
+    // The rejected sixth upload created no row and no file.
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM uploads WHERE owner_id=?")
+            .bind(&alice.user.id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        5
+    );
+    assert_eq!(std::fs::read_dir(t.dir.join("uploads")).unwrap().count(), 5);
+    // Each owner has an independent allowance.
+    assert_eq!(
+        t.req(Method::POST, "/uploads", &bob.token)
+            .json(&begin(&cid, "bob.bin", 10))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    // Completing one of alice's uploads frees her sixth slot.
+    assert_eq!(
+        t.req(Method::PATCH, &format!("/uploads/{first}"), &alice.token)
+            .header("Upload-Offset", 0)
+            .body("0123456789")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    t.post(&format!("/uploads/{first}/complete"), &alice.token, json!({}))
+        .await;
+    assert_eq!(
+        t.req(Method::POST, "/uploads", &alice.token)
+            .json(&begin(&cid, "six.bin", 10))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+}
