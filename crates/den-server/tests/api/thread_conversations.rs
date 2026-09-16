@@ -1092,7 +1092,9 @@ async fn a_root_becomes_deletable_again_once_its_last_reply_goes() {
     let channel = t.general().await;
     let path = format!("/channels/{channel}/messages");
 
-    let root = id(&t.post(&path, &t.admin.token, json!({"content":"topic"})).await);
+    let root = id(&t
+        .post(&path, &t.admin.token, json!({"content":"topic"}))
+        .await);
     let reply = id(&t
         .post(&path, &bob.token, json!({"content":"a","reply_to":root}))
         .await);
