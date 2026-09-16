@@ -235,8 +235,9 @@ impl Sessions {
             })
             .unwrap_or_default()
     }
-    pub fn drain(&self) -> Vec<HostFrame> {
+    pub fn drain(&mut self) -> Vec<HostFrame> {
         let mut frames = Vec::new();
+        let mut exited = Vec::new();
         for (id, p) in &self.sessions {
             let bytes = p.source.drain();
             if !bytes.is_empty() {
@@ -245,16 +246,19 @@ impl Sessions {
                     bytes,
                 });
             }
-            let mut f = p.source.0 .0.lock().unwrap();
+            let f = p.source.0 .0.lock().unwrap();
             if f.eof && f.pending.is_empty() && !f.reported {
                 if let Some(code) = f.exit {
                     frames.push(HostFrame::Exited {
                         session_id: id.clone(),
                         code,
                     });
-                    f.reported = true;
+                    exited.push(id.clone());
                 }
             }
+        }
+        for id in exited {
+            self.sessions.remove(&id);
         }
         frames
     }

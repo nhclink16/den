@@ -96,3 +96,90 @@ fn real_pty_input_resize_reattach_and_backpressure() {
     })
     .unwrap();
 }
+#[test]
+#[cfg(unix)]
+fn naturally_exited_sessions_release_capacity() {
+    let mut s = Sessions::default();
+    for i in 0..16 {
+        let id = format!("exited-{i}");
+        s.handle(HostFrame::Open {
+            session_id: id.clone(),
+            cols: 80,
+            rows: 24,
+            shell: Some("/bin/sh".into()),
+        })
+        .unwrap();
+        s.handle(HostFrame::Input {
+            session_id: id.clone(),
+            bytes: b"exit\n".to_vec(),
+        })
+        .unwrap();
+        let start = Instant::now();
+        loop {
+            if start.elapsed() > Duration::from_secs(5) {
+                panic!("Missing Exited for {id}");
+            }
+            let mut done = false;
+            for frame in s.drain() {
+                match frame {
+                    HostFrame::Output { session_id, bytes } => {
+                        s.handle(HostFrame::Ack {
+                            session_id,
+                            bytes: bytes.len(),
+                        })
+                        .unwrap();
+                    }
+                    HostFrame::Exited { session_id, .. } if session_id == id => {
+                        done = true;
+                    }
+                    HostFrame::Exited { session_id, .. } => {
+                        panic!("Unexpected Exited for {session_id}");
+                    }
+                    _ => {}
+                }
+            }
+            if done {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    s.handle(HostFrame::Open {
+        session_id: "exited-16".into(),
+        cols: 80,
+        rows: 24,
+        shell: Some("/bin/sh".into()),
+    })
+    .unwrap();
+    s.handle(HostFrame::Input {
+        session_id: "exited-16".into(),
+        bytes: b"printf 'SEVENTEENTH_OK\\n'\n".to_vec(),
+    })
+    .unwrap();
+    let mut out = String::new();
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(5) {
+        for frame in s.drain() {
+            if let HostFrame::Output { session_id, bytes } = frame {
+                out.push_str(&String::from_utf8_lossy(&bytes));
+                s.handle(HostFrame::Ack {
+                    session_id,
+                    bytes: bytes.len(),
+                })
+                .unwrap();
+            }
+        }
+        if out.contains("SEVENTEENTH_OK") {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        out.contains("SEVENTEENTH_OK"),
+        "Missing SEVENTEENTH_OK in {out:?}"
+    );
+    s.handle(HostFrame::Close {
+        session_id: "exited-16".into(),
+    })
+    .unwrap();
+}
