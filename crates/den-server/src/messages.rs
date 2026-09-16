@@ -191,10 +191,30 @@ pub(crate) async fn remove(
     }
     // Deleting a root would take its whole conversation with it, including other
     // people's replies and live objects. Resolve the thread instead.
-    if old.thread.is_some() {
-        return Err(Error::conflict(
-            "This message starts a thread; resolve the thread instead of deleting it",
-        ));
+    //
+    // Only guard once the conversation actually holds replies. A threads row is
+    // created by the first reply and is never removed -- there is no delete-thread
+    // route and nothing issues DELETE FROM threads -- so guarding on the row alone
+    // made any message permanently undeletable the moment someone replied to it,
+    // even after that reply was itself deleted, and by its own author.
+    if let Some(thread) = old.thread.as_ref() {
+        // A task thread exists before anyone replies -- it is the conversation an
+        // agent's work hangs off -- so its root stays protected at zero replies.
+        // An ordinary thread is created by the first reply and its row is never
+        // removed, so guarding on the row alone left a message permanently
+        // undeletable once someone replied, even after that reply was deleted.
+        let task = sqlx::query_scalar!(
+            "SELECT 1 FROM thread_tasks WHERE thread_id=? LIMIT 1",
+            thread.id
+        )
+        .fetch_optional(&s.db)
+        .await?
+        .is_some();
+        if thread.reply_count > 0 || task {
+            return Err(Error::conflict(
+                "This message starts a thread; resolve the thread instead of deleting it",
+            ));
+        }
     }
     for object in &old.objects {
         if object.kind == "terminal" {
