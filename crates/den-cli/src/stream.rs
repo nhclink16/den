@@ -21,11 +21,13 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
     }
     let url = format!("{}/ws", c.url.replacen("http", "ws", 1));
     let mut delay = 1;
-    let mut auth_headers = tungstenite::http::HeaderMap::new();
-    auth_headers.insert("Authorization", format!("Bearer {token}").parse()?);
+    // Every connection, not just the first one, has to carry the credentials.
+    let authorization: tungstenite::http::HeaderValue = format!("Bearer {token}").parse()?;
     loop {
         let mut request = url.as_str().into_client_request()?;
-        request.headers_mut().extend(auth_headers.drain());
+        request
+            .headers_mut()
+            .insert("Authorization", authorization.clone());
         match tungstenite::connect(request) {
             Ok((mut socket, _)) => {
                 // Detect a half-open connection even when no chat events arrive.
@@ -76,7 +78,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                 }
             }
             Err(tungstenite::Error::Http(response))
-                if response.status().as_u16() == 403 =>
+                if matches!(response.status().as_u16(), 401 | 403) =>
             {
                 anyhow::bail!("Authentication rejected; log in again")
             }
