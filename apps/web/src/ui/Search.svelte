@@ -1,7 +1,8 @@
 <script lang="ts">
   import SidebarToggle from './SidebarToggle.svelte'
-  import { store } from '../lib/store.svelte'
+  import { instances, store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
+  import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
   import { render } from '../lib/markdown'
   import { dayLabel, shortTime } from '../lib/time'
@@ -28,7 +29,11 @@
     e.preventDefault()
     router.go(`/find?q=${encodeURIComponent(text.trim())}${scope ? `&in=${scope}` : ''}`)
   }
-  function open(m: Message) { router.go(`/c/${m.channel_id}`) }
+  // The same resolver notifications and root badges use: a result that is a
+  // reply opens its conversation and reveals the message, not just its room.
+  // The concrete owner, not the proxy: goToMessage's lifetime check requires a
+  // real instance and the exported proxy is not one.
+  function open(m: Message) { void goToMessage(instances.active, m.channel_id, m.id) }
 </script>
 
 <section class="search">

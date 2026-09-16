@@ -1,4 +1,4 @@
-import { lookingAt } from './notify.svelte'
+import { goToMessage, lookingAt } from './notify.svelte'
 import { call } from './call.svelte'
 import { instances } from './store.svelte'
 import { native, invoke, listen } from './native'
@@ -20,9 +20,11 @@ class Desktop {
     void invoke<string>('platform').then(p => this.platform = p)
     void on<boolean>('ptt', held => call.setHeld(held))
     void on<string>('tray-action', action => { if (action === 'mute') void call.toggleMic(); if (action === 'deafen') void call.toggleOutput() })
-    void on<{ origin: string; channel: string }>('notification-open', ({ origin, channel }) => {
+    void on<{ origin: string; channel: string; message?: string | null }>('notification-open', ({ origin, channel, message }) => {
       const s = instances.all.find(s => s.origin === origin)
-      if (s) { instances.select(s); router.go(`/c/${channel}`) }
+      // Resolve through the shared destination resolver, so a tap on a reply
+      // opens its conversation rather than dropping into the room.
+      if (s) { instances.select(s); void goToMessage(s, channel, message ?? undefined) }
     })
     const deep = (links: string[]) => { for (const raw of links) { try { const u = new URL(raw); if (u.protocol === 'den:' && u.hostname === 'join') instances.add(u.searchParams.get('url') || '', u.searchParams.get('invite') || '') } catch { /* unrelated URL */ } } }
     void on<string[]>('deep-link://new-url', deep)
@@ -32,9 +34,12 @@ class Desktop {
     const alert = (e: globalThis.Event) => {
       const { origin, alert: a } = (e as CustomEvent<{ origin: string; alert: Extract<Event, { type: 'notification' }> }>).detail
       const s = instances.all.find(s => s.origin === origin), c = s?.channel(a.message.channel_id)
-      if (!s || !c || lookingAt(s, c.id)) return
+      if (!s || !c || lookingAt(s, c.id, a.message.thread_id)) return
       const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in #${c.name}`}`
-      void invoke('notify', { title, body: a.message.content.slice(0, 140) || 'Sent a file', origin, channel: c.id }).catch(() => {})
+      void invoke('notify', {
+        title, body: a.message.content.slice(0, 140) || 'Sent a file',
+        origin, channel: c.id, message: a.message.id,
+      }).catch(() => {})
     }
     window.addEventListener('den-alert', alert)
     return () => { stopped = true; cleanup.forEach(off => off()); clearInterval(timer); window.removeEventListener('den-alert', alert); void invoke('ptt_register', { key: null }) }

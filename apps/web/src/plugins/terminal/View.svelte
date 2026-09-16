@@ -4,6 +4,7 @@
   import { onMount } from 'svelte'
   import { api } from '../../lib/api'
   import { store } from '../../lib/store.svelte'
+  import { router } from '../../lib/router.svelte'
   import { terminals, load, catalog, capability } from './state.svelte'
   import { subscribe } from './stream'
   import type { ObjectSummary, TerminalState, LiveObject } from '../../lib/types'
@@ -17,6 +18,7 @@
   let hint = $state(false)
   let mounted = $state(false)
   let shareTo = $state('')
+  let busyShare = $state(false)
   let time = $state(0)
   let duration = $state(0)
   let playing = $state(false)
@@ -48,9 +50,52 @@
       await store.resync(); await store.loadLatest(o.channel_id); error = 'Request sent to the owner.'
     } catch (e) { error = (e as Error).message }
   }
+  /// Post a card for THIS session somewhere else. The session is not duplicated:
+  /// only a card is added. `here` posts into the conversation currently open,
+  /// which is the destination the brief asks for; choosing a room instead must
+  /// carry no thread context from wherever the reader happens to be standing.
   async function share() {
     if (!t || !shareTo) return
-    await act(`/sessions/${t.id}/share`, { channel_id: shareTo }); await store.loadLatest(shareTo); shareTo = ''
+    // Captured before any await, and actually used afterwards: the session, the
+    // destination, the bound API, the owner and its lifetime. `act` awaits, so
+    // everything read after it would otherwise be whoever is active by then.
+    const session = t.id
+    const conversation = shareTo === 'here' ? current() : undefined
+    const channelId = conversation?.channelId ?? shareTo
+    const thread = conversation?.rootId ? store.threadForRoot(conversation.rootId)?.id : undefined
+    const owner = store.drafts
+    const token = owner.token
+    const post = api.post
+    const refreshThread = store.loadThreadMessages
+    const refreshRoom = store.loadLatest
+    const mine = () => store.drafts === owner && owner.holds(token)
+    if (!channelId) return
+    busyShare = true
+    try {
+      await post(`/sessions/${session}/share`, {
+        channel_id: channelId,
+        thread_id: thread ?? null,
+        reply_to: thread ? null : conversation?.rootId ?? null,
+      })
+      if (!mine()) return
+      await catalog()
+      if (!mine()) return
+      if (thread) await refreshThread(thread); else await refreshRoom(channelId)
+      if (mine()) { error = ''; shareTo = '' }
+    } catch (e) {
+      if (mine()) error = (e as Error).message
+    } finally {
+      if (mine()) busyShare = false
+    }
+  }
+  /// The conversation on screen right now, if the reader is in one.
+  function current() {
+    if (router.route.name !== 'channel') return undefined
+    const channelId = router.route.id
+    const rootId = router.route.thread
+      ? store.thread(router.route.thread)?.root_message_id
+      : router.route.reply
+    return rootId ? { channelId, rootId } : { channelId, rootId: null }
   }
   async function revokeControl() {
     if (!t?.active_controller_id) return
@@ -157,7 +202,7 @@
   {#if hint && !t?.ended_at}<span class="hint">Esc Esc to leave</span>{/if}
   {#if t && !t.ended_at && canView}<div class="view-status">{#if direct}<span class="direct">direct</span>{/if}{#if !controller}<span>View only</span><button onclick={() => request(true)}>Request control</button>{/if}</div>{/if}
   {#if t?.ended_at}<div class="replay" data-testid="terminal-replay"><span>Session ended</span>{#if t.recording_upload_id}<button aria-label={playing ? 'Pause replay' : 'Play replay'} onclick={() => {if (time >= duration) seek(0); playing = !playing}}>{playing ? 'Pause' : 'Play'}</button><input aria-label="Replay position" type="range" min="0" max={duration || 1} value={time} oninput={e => seek(+e.currentTarget.value)} /><span>{Math.floor(time / 1000)}s</span>{#if t.recording_capped}<span>Recording stopped at 64 MiB</span>{/if}{:else}<span>No recording</span>{/if}</div>{/if}
-  {#if owner && t && !compact && !t.ended_at}<div class="actions"><label>Post card <select aria-label="Post terminal card to" bind:value={shareTo}><option value="">Choose a room</option>{#each store.textChannels.filter(c => c.kind === 'text') as c}<option value={c.id}>#{c.name}</option>{/each}</select></label><button class="btn quiet" disabled={!shareTo} onclick={share}>Post</button><button class="btn quiet" onclick={end}>End session</button></div>{/if}
+  {#if owner && t && !compact && !t.ended_at}<div class="actions"><label>Post card <select aria-label="Post terminal card to" bind:value={shareTo}><option value="">Choose a room</option>{#if current()?.rootId}<option value="here">This conversation</option>{/if}{#each store.textChannels.filter(c => c.kind === 'text') as c}<option value={c.id}>#{c.name}</option>{/each}</select></label><button class="btn quiet" disabled={!shareTo || busyShare} onclick={share}>Post</button><button class="btn quiet" onclick={end}>End session</button></div>{/if}
   {#if error}<div class="status" role="status">{error}<button aria-label="Dismiss terminal message" onclick={() => error = ''}>×</button></div>{/if}
 </div>
 <style>

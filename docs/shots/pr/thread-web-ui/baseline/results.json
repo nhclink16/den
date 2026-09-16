@@ -1,0 +1,40 @@
+{
+  "phase": "baseline",
+  "base": "http://localhost:17061",
+  "provenance": {
+    "at": "2026-09-16T03:52:06.727Z",
+    "commit": null,
+    "diffSha256": null,
+    "serverSha256": null,
+    "bundle": "assets/index-DUf4NmVZ.js",
+    "bundleSha256": "e8ea9777104585fee03032e0ea6a65fe94c2ce91c9fe8c269a9ab284d3abc106"
+  },
+  "steps": {
+    "fixture": {
+      "room": "01M2M5FS4FP5B767A3VX4Y2GSQ",
+      "other": "01M2M5FS4MT3H830ACA47MG3WZ",
+      "mira": "01M2M5FSG9G50DRKMN5QN2GZJ1",
+      "roots": [
+        "01M2M5FSGJAWRJ41NB1Y21AMB7",
+        "01M2M5FSH4KZDQK2HMBHBGRPRF"
+      ]
+    },
+    "viewports": {
+      "landscape": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      },
+      "portrait": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      },
+      "narrow": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      }
+    }
+  }
+}

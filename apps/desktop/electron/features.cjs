@@ -45,12 +45,17 @@ function features(window, emit, focus) {
   }
   trayState({})
   const notifications = new Set()
-  function notify({ title, body, origin: server, channel }) {
+  // `message` is optional and validated like every other field: with it a click
+  // can open the conversation that actually holds the message, and without it
+  // the click still falls back to the channel.
+  function notify({ title, body, origin: server, channel, message }) {
     server = origin(server)
     if (typeof title !== 'string' || title.length > 500 || typeof body !== 'string' || body.length > 1000 || typeof channel !== 'string' || channel.length > 100) throw Error('Invalid notification')
+    if (message !== undefined && message !== null && (typeof message !== 'string' || message.length > 100)) throw Error('Invalid notification')
+    const target = typeof message === 'string' ? message : null
     const notification = new Notification({ title, body, icon, silent: true })
     notifications.add(notification)
-    notification.once('click', () => { focus(); emit('notification-open', { origin: server, channel }) })
+    notification.once('click', () => { focus(); emit('notification-open', { origin: server, channel, message: target }) })
     notification.once('close', () => notifications.delete(notification))
     notification.show()
   }

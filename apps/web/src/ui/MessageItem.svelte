@@ -1,6 +1,7 @@
 <script lang="ts">
   import { objectKind } from '../plugins'
-  import { store } from '../lib/store.svelte'
+  import { instances, store } from '../lib/store.svelte'
+  import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
   import { render } from '../lib/markdown'
   import { shortTime } from '../lib/time'
@@ -8,7 +9,17 @@
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
 
-  let { m, compact, onreply, onmediaready }: { m: Message; compact: boolean; onreply: (m: Message) => void; onmediaready?: () => void } = $props()
+  // `prefix` scopes the DOM id. A thread panel shows the same root message the
+  // room does, so an unscoped id would exist twice and a deep link could reveal
+  // whichever copy the browser found first.
+  let { m, compact, prefix = 'm', onreply, onmediaready }: { m: Message; compact: boolean; prefix?: string; onreply: (m: Message) => void; onmediaready?: () => void } = $props()
+  // The badge reads the metadata OWNER, not the copy embedded in this message.
+  // A cached root predates its first reply, so its embedded summary is absent
+  // then and stale after a rename or a Resolve.
+  const conversation = $derived(
+    m.thread ? store.thread(m.thread.id) ?? m.thread : store.threadForRoot(m.id),
+  )
+  const unread = $derived(conversation ? store.threadUnread(conversation.id) : undefined)
   let editing = $state(false)
   let draft = $state('')
   const mine = $derived(m.author_id === store.me?.id)
@@ -16,7 +27,15 @@
   const author = $derived(store.user(m.author_id))
   const html = $derived(render(m.content, store.users))
   let parent = $state<Message | undefined>()
-  $effect(() => { if (m.reply_to) store.fetchMessage(m.reply_to, m.channel_id).then((p) => (parent = p)); else parent = undefined })
+  // Decoration only: a lookup that fails leaves the reference undecorated. It
+  // is never a cancellation, and it never touches a draft's quote.
+  $effect(() => {
+    if (!m.reply_to) { parent = undefined; return }
+    const want = m.reply_to
+    void store.fetchMessage(want, m.channel_id)
+      .then((p) => { if (m.reply_to === want) parent = p })
+      .catch(() => { if (m.reply_to === want) parent = undefined })
+  })
   const mentionsMe = $derived(!!store.me && (m.mention_ids || []).includes(store.me.id))
   const QUICK = ['👍', '😂', '❤️', '🔥', '👀', '💀']
   let picker = $state(false)
@@ -35,13 +54,17 @@
   }
 </script>
 
-<article class="msg" class:compact class:me={mentionsMe} id="m-{m.id}">
+<article class="msg" class:compact class:me={mentionsMe} id="{prefix}-{m.id}">
   {#if parent}
-    <div class="reply-ref">
+    <!-- The quoted message may be outside the loaded page, or in another
+         conversation entirely; the shared resolver finds it either way. -->
+    <!-- The concrete owner, not the proxy: goToMessage checks that the source is
+         a real instance, and the proxy is not one. -->
+    <button class="reply-ref" onclick={() => goToMessage(instances.active, parent!.channel_id, parent!.id)}>
       <Icon name="reply" size={12} />
       <span class="who">{store.name(parent.author_id)}</span>
       <span class="snippet">{parent.content.slice(0, 90) || 'sent a file'}</span>
-    </div>
+    </button>
   {/if}
   <div class="row">
     <div class="gutter">
@@ -67,6 +90,20 @@
       {/each}
       {#if m.attachments?.length}
         <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} author={store.name(m.author_id)} {onmediaready} />{/each}</div>
+      {/if}
+      {#if conversation && prefix === 'm'}
+        <a
+          class="thread-link"
+          class:lit={!!unread?.count}
+          href="/c/{m.channel_id}/t/{conversation.id}"
+          onclick={(e) => { if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); onreply(m) } }}
+        >
+          <Icon name="reply" size={12} />
+          <span class="thread-title">{conversation.title}</span>
+          <span class="faint">{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
+          {#if unread?.count}<span class="count" class:at={unread.mention}>{unread.mention ? '@' : unread.count}</span>{/if}
+          {#if conversation.resolved_at}<span class="faint mono">resolved</span>{/if}
+        </a>
       {/if}
       {#if m.reactions?.length}
         <div class="reactions">
@@ -95,6 +132,17 @@
 </article>
 
 <style>
+  .thread-link {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px 10px;
+    border: 1px solid var(--line); border-radius: 999px; color: var(--ink-2); font-size: 12px; max-width: 100%;
+  }
+  .thread-link:hover { background: var(--hover); color: var(--ink); }
+  .thread-link.lit { border-color: var(--lamp); color: var(--ink); }
+  .thread-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thread-link .count {
+    min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--lamp); color: var(--on-lamp, #000);
+    font-family: var(--mono); font-size: 11px; text-align: center;
+  }
   .msg { position: relative; padding: calc(2px * var(--density)) 20px; margin-top: calc(14px * var(--density)); }
   .msg.compact { margin-top: 0; }
   .msg:hover { background: var(--hover); }

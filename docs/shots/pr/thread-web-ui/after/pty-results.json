@@ -1,0 +1,16 @@
+{
+  "steps": {
+    "terminalCardInConversation": {
+      "inThread": true,
+      "objectId": "01M2M25ZFF29X0MFJPYFH4NHW0",
+      "leakedToRoom": false
+    },
+    "shellOutput": {
+      "marker": "den-mu3iby3n",
+      "observed": true,
+      "sessionObject": "01M2M25ZFF29X0MFJPYFH4NHW0"
+    }
+  },
+  "ok": true,
+  "errors": []
+}
