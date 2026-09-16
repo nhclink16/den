@@ -36,16 +36,68 @@ Settings borrows a running camera track. When there is no published camera it
 owns a private capture. Closing Settings or pausing the preview releases only
 owned tracks. Leaving a call still releases the published tracks.
 
+Background blur is a LiveKit video processor on the camera track. The room's
+video capture defaults carry it, which is the one hook that also covers the
+tracks the SDK recreates by itself; `setProcessor` and `stopProcessor` handle a
+mid-call toggle. `stopProcessor` re-applies the constraints the SDK captured with,
+which are only the device ID, so turning blur off has to put Den's own resolution,
+frame rate and picture settings back afterwards. That happens after the reactive
+blur flag is refreshed, because the reader that resolves the camera behind the
+processor is keyed on it and a stale flag skips the restore. Both the published
+track and the Settings preview show the processed output. The
+published camera gets it from the SDK, which replaces the sender track and the
+attached elements. Settings' borrowed preview gets it from the same publication.
+Settings' owned capture has no `LocalVideoTrack`, so it drives a processor of its
+own against a hidden video element, and destroys it under the same ownership rule
+that governs the track.
+
+Blur hides the real camera. Once a processor runs, the published track is a
+generator or canvas track with no device, no capabilities and no useful settings,
+so capabilities, `applyConstraints`, `getSettings` and the device ID that keys
+saved camera preferences all read the processor's `source` instead. Without that
+split the resolution, frame-rate and picture controls empty out and every camera
+collapses onto the `default` preferences key.
+
+The package times its own frames and only logs the result, so the frame-rate
+fallback is Den's. Over a window of processed frames, mean segmentation cost above
+the frame budget steps the capture rate down through 30, 24 and 15 fps. The step
+is a maximum frame rate, not an exact one, so the saved preference is untouched
+and returns when blur is turned off. Below 15 fps blur turns itself off and says
+so. It never steps back up on its own. A camera change restarts the processor and
+the ladder together.
+
+Blur is checked with the package's own probe, not a copy of it. Where it is
+unsupported the Settings control is disabled with a reason and the call control is
+hidden; where only the slower canvas path is available the control works and says
+so. A segmenter that fails to start after the probe passed leaves the camera
+unblurred and reports it, the same rollback the microphone processing switches do.
+
+MediaPipe's wasm and model are served by Den. The package fetches them from
+jsdelivr and storage.googleapis.com by default, which a self-hosted app has no
+business doing. `apps/web/public/blur/selfie_segmenter.tflite` is 244 KB and lives
+in git next to the vendored font; the wasm is 19 MB across four files and is staged
+from `node_modules` into `public/blur/wasm` by `scripts/blur-assets.mjs`, which
+both `npm run dev` and `npm run build` call. That directory is git-ignored. The
+licence notice is `public/licenses/mediapipe-tasks-vision-0.10.14.txt`.
+
 ## Extension points
 
-Soundboards can mix a per-user source into the gain node. Voice mods can insert
-a processing node between the microphone source and gain. Neither is implemented.
+Two seams are marked by name in `MicrophoneGain.init`. SOUNDBOARDS is the mixing
+point: an extra source connects into the gain node and rides out with the voice,
+with its own gain node for its own level, and never also into `context.destination`
+or the clip is heard twice and recaptured by an open microphone. VOICE MODS is the
+insertion point: effect nodes go between `input` and `gain`, connected as
+input to effect to gain, held as fields so `destroy` can disconnect them, with
+`gain` left last so the input-gain slider keeps the final word. Neither is
+implemented. Both are per-user client-side mixing, so neither needs a server
+change; a shared soundboard that others hear on their own timing would.
 
-Background blur is deferred so the stretch goal does not delay the required PR.
-A future `videoProcessors` hook belongs at camera track creation and processor
-replacement, using LiveKit's `setProcessor`. Both published video and the settings
-preview must consume its processed track. It would need a pinned processor package,
-capability checks, a measured frame-rate fallback, and cleanup on device changes.
+Background blur is implemented. `@livekit/track-processors` is pinned exact at
+0.8.0 alongside `livekit-client` 2.15.6, and `@types/dom-mediacapture-transform`
+is its type peer. Use `BackgroundProcessor({ mode: 'background-blur' })`; the
+`BackgroundBlur()` form the older LiveKit examples show is deprecated in 0.8.0.
+A virtual background is the same processor with a different mode and would need an
+image to composite, a place to store it and `switchTo` for artifact-free changes.
 
 ## Verification
 
@@ -67,6 +119,16 @@ The test uses Chromium synthetic media. Physical camera image quality, real
 microphone processing quality, Bluetooth devices, Safari, native apps and
 screen-reader output are not verified here. Chromium's synthetic camera does not
 advertise brightness, contrast or saturation; the hidden-control path is tested.
+
+Blur was added on the `feat/av-extensions` branch and is verified only as far as
+`npm run check` (clean) and a production build (clean, with the existing bundle
+advisory). Nothing below covers it. The browser smoke, the permission script and
+every observation about real cameras predate it, and `scripts/av-smoke.mjs` does
+not exercise blur: Chromium's synthetic camera will run the segmenter, but nothing
+asserts on the blurred output, the rate ladder or the owned-preview processor.
+Blur costs 165 KB raw and 49 KB gzipped on the main chunk, which is a static import
+kept static on purpose: the package's capability probe has to answer synchronously
+to render the control, and a hand-written copy of that probe would drift.
 
 Verified on 2026-09-15:
 

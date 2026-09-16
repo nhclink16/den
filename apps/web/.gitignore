@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Background blur wasm is staged from node_modules by scripts/blur-assets.mjs.
+public/blur/wasm
