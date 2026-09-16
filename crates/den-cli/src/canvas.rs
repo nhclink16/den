@@ -12,6 +12,8 @@ pub enum Cmd {
     Create {
         channel: String,
         name: String,
+        #[command(flatten)]
+        context: crate::threads::Context,
     },
     Get {
         id: String,
@@ -28,18 +30,26 @@ pub enum Cmd {
 }
 pub fn run(c: &Client, cmd: Cmd) -> anyhow::Result<()> {
     match cmd {
-        Cmd::Create { channel, name } => print(&c.send::<Object>(
-            Method::POST,
-            &format!("/channels/{}/objects", c.resolve_channel(&channel)?),
-            &CreateObject {
-                kind: "canvas".into(),
-                name,
-                state: Default::default(),
-                thread_id: None,
-                task_id: None,
-                reply_to: None,
-            },
-        )?)?,
+        Cmd::Create {
+            channel,
+            name,
+            context,
+        } => {
+            let channel = c.resolve_channel(&channel)?;
+            let (thread_id, task_id, reply_to) = context.parts()?;
+            print(&c.send::<Object>(
+                Method::POST,
+                &format!("/channels/{channel}/objects"),
+                &CreateObject {
+                    kind: "canvas".into(),
+                    name,
+                    state: Default::default(),
+                    thread_id,
+                    task_id,
+                    reply_to,
+                },
+            )?)?
+        }
         Cmd::Get { id: oid } => print(&c.get::<Object>(&format!("/objects/{}", id(&oid)?))?.state)?,
         Cmd::Patch { id: oid, file } => {
             let text = if file == "-" {

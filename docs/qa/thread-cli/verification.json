@@ -1,0 +1,194 @@
+{
+  "status": "blocked_on_host_shutdown_acceptance",
+  "scope": "CLI task/thread routing, commands and agent instructions; server and den-host unchanged",
+  "final_harness_sha256": "5711995723adf84be4f2dc0a65f31bdc22b4785ce5acfa704f903244cc684a44",
+  "cli_behavior": "All assertions completed successfully before host shutdown",
+  "ordered_close_run": {
+    "server": "http://127.0.0.1:<ephemeral>",
+    "steps": [
+      {
+        "name": "two real accounts",
+        "room": "01M2KWB47RZM50D1JMZHHM9ZZG",
+        "accounts": [
+          "runner",
+          "sam"
+        ]
+      },
+      {
+        "name": "alpha inherits env task",
+        "thread": "01M2KWB48J7H7NDRQHBTD4E1CC",
+        "card": "01M2KWB49H4WZ98V8Z8Q2GDBNP",
+        "card_reply_to": "01M2KWB49240K88Z3643K9JXKP"
+      },
+      {
+        "name": "beta is a distinct job",
+        "thread": "01M2KWB4A57Z3BZ2ZFKJW1RJFF",
+        "rejoined": "01M2KWB4A57Z3BZ2ZFKJW1RJFF"
+      },
+      {
+        "name": "opting out with an empty variable",
+        "message": "01M2KWB4BFGDYPQ9XHEQMFM57V"
+      },
+      {
+        "name": "reads are read-only",
+        "flat": 7,
+        "roots": 3
+      },
+      {
+        "name": "reply pagination",
+        "replies": 3
+      },
+      {
+        "name": "resolution filters and list pagination",
+        "open": [
+          "01M2KWB48J7H7NDRQHBTD4E1CC"
+        ],
+        "closed": [
+          "01M2KWB4A57Z3BZ2ZFKJW1RJFF"
+        ],
+        "every": [
+          "01M2KWB4A57Z3BZ2ZFKJW1RJFF",
+          "01M2KWB48J7H7NDRQHBTD4E1CC"
+        ]
+      },
+      {
+        "name": "resolve conflict and reopen",
+        "conflict": "409 Conflict",
+        "resumed": "01M2KWB4A57Z3BZ2ZFKJW1RJFF"
+      },
+      {
+        "name": "mark-read is scoped to one conversation",
+        "caught_up": {
+          "alpha": {
+            "last_read_id": "01M2KWB49H4WZ98V8Z8Q2GDBNQ",
+            "unread": 0
+          },
+          "beta": {
+            "last_read_id": "01M2KWB4NTQRF8C3Q9Q5E0HR8V",
+            "unread": 0
+          },
+          "room": {
+            "last_read_id": null,
+            "unread": 1
+          }
+        },
+        "injected": {
+          "alpha": {
+            "last_read_id": "01M2KWB49H4WZ98V8Z8Q2GDBNQ",
+            "unread": 1
+          },
+          "beta": {
+            "last_read_id": "01M2KWB4NTQRF8C3Q9Q5E0HR8V",
+            "unread": 1
+          },
+          "room": {
+            "last_read_id": null,
+            "unread": 4
+          }
+        },
+        "after": {
+          "alpha": {
+            "last_read_id": "01M2KWB4T5SJJN3T9F5RHHKQZC",
+            "unread": 0
+          },
+          "beta": {
+            "last_read_id": "01M2KWB4NTQRF8C3Q9Q5E0HR8V",
+            "unread": 1
+          },
+          "room": {
+            "last_read_id": null,
+            "unread": 3
+          }
+        }
+      },
+      {
+        "name": "unread-only filter",
+        "unread_only": [
+          "01M2KWB4A57Z3BZ2ZFKJW1RJFF"
+        ]
+      },
+      {
+        "name": "real host connected",
+        "host": "01M2KWB51DA2H54GBR61NMGF13"
+      },
+      {
+        "name": "terminal open joins the job",
+        "session": "01M2KWB55XHEFB5PCG5KMNK53B",
+        "thread": "01M2KWB48J7H7NDRQHBTD4E1CC"
+      },
+      {
+        "name": "real PTY input through the CLI",
+        "session": "01M2KWB55XHEFB5PCG5KMNK53B",
+        "shell_pid": 4000459,
+        "command": "echo $$ > <dir>/shell.pid"
+      },
+      {
+        "name": "terminal share honours explicit context",
+        "session": "01M2KWB55XHEFB5PCG5KMNK53B",
+        "card": "01M2KWB59QGFQ5B8C925E1EXEG",
+        "reply_to": "01M2KWB4T5SJJN3T9F5RHHKQZC"
+      },
+      {
+        "name": "terminal closed and its shell ended",
+        "session": "01M2KWB55XHEFB5PCG5KMNK53B",
+        "shell_pid": 4000459,
+        "terminated": true
+      },
+      {
+        "name": "rename persists",
+        "thread": "01M2KWB48J7H7NDRQHBTD4E1CC",
+        "title": "Deploy investigation"
+      },
+      {
+        "name": "den-host stopped",
+        "process": "den-host",
+        "pid": 4000411,
+        "forced": true,
+        "elapsed_ms": 10005,
+        "grace_ms": 10000,
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      {
+        "name": "den-server stopped",
+        "process": "den-server",
+        "pid": 4000229,
+        "forced": false,
+        "elapsed_ms": 11,
+        "grace_ms": 10000,
+        "code": 0,
+        "signal": null
+      }
+    ],
+    "limits": [
+      "den-host ignored SIGINT and had to be killed"
+    ],
+    "grace_ms": 10000,
+    "commands": 16,
+    "port_released": true,
+    "result": "fail"
+  },
+  "older_cli_control": {
+    "harness_sha256": "59e3b577da80f4b26dafbf628dd610e81093abd8e2299f8860791e4c33622623",
+    "older_cli_sha256": "5b77eb0421244f391c44393cd3dd9e8e906257fb07d8eb6971d3e6e21a876d86",
+    "current_cli_sha256": "b3efa6ea35eadb3e73b2058347ebd18d3f460d8b49cb2880898b5ea74e8e9b69",
+    "server_sha256": "16892a5f93abbb2aad8ed5f2ce0d702d305b98e194d23532057005978f47401a",
+    "host_sha256": "13e6505b95f78db3d1db8376d5b3fdf77e5de8c1d794e6f88387fefe7a716fd2",
+    "older_result": "fail",
+    "older_failure": "Progress send did not inherit the task thread",
+    "older_exit_code": 1,
+    "older_host_started": false,
+    "current_result": "fail",
+    "current_limits": [
+      "den-host ignored SIGINT and had to be killed"
+    ],
+    "note": "The same earlier harness and server/host binaries were used on both sides. The older CLI failed before host startup, so this is not a host-shutdown control."
+  },
+  "limits": [
+    "An earlier reported shutdown failure log was overwritten and cannot substantiate its original details.",
+    "Increasing the harness allowance from 5s to 10s did not eliminate the failure.",
+    "Waiting for the real shell PID to disappear before signalling the host did not eliminate the failure.",
+    "No host-shutdown cause has been demonstrated, and no product shutdown fix is included.",
+    "The smoke returns a failing exit status when host shutdown requires force."
+  ]
+}
