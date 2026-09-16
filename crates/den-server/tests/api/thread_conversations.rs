@@ -1079,3 +1079,70 @@ async fn a_title_is_a_snapshot_and_a_root_cannot_be_deleted_from_under_its_threa
         vec![id(&reply)]
     );
 }
+
+/// A threads row is created by the first reply and is never removed: there is no
+/// delete-thread route and nothing issues `DELETE FROM threads`. So guarding the
+/// root's deletion on the row's mere existence made a message permanently
+/// undeletable the moment anyone replied to it, even once that reply was gone, and
+/// for its own author. The guard has to follow the conversation, not the row.
+#[tokio::test]
+async fn a_root_becomes_deletable_again_once_its_last_reply_goes() {
+    let t = Test::new().await;
+    let bob = t.member("bob").await;
+    let channel = t.general().await;
+    let path = format!("/channels/{channel}/messages");
+
+    let root = id(&t.post(&path, &t.admin.token, json!({"content":"topic"})).await);
+    let reply = id(&t
+        .post(&path, &bob.token, json!({"content":"a","reply_to":root}))
+        .await);
+
+    // While the conversation holds a reply the guard is doing its job: deleting the
+    // root would take someone else's reply with it.
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{root}"),
+            &t.admin.token,
+            json!({})
+        )
+        .await,
+        409
+    );
+
+    // Bob removes his own reply. The threads row survives, because nothing deletes it.
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{reply}"),
+            &bob.token,
+            json!({})
+        )
+        .await,
+        204
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM threads WHERE root_message_id=?")
+            .bind(&root)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap(),
+        1
+    );
+
+    // With the conversation empty the root is ordinary history again and its author
+    // can delete it.
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/messages/{root}"),
+            &t.admin.token,
+            json!({})
+        )
+        .await,
+        204
+    );
+}

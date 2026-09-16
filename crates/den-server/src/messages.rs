@@ -191,7 +191,13 @@ pub(crate) async fn remove(
     }
     // Deleting a root would take its whole conversation with it, including other
     // people's replies and live objects. Resolve the thread instead.
-    if old.thread.is_some() {
+    //
+    // Only guard once the conversation actually holds replies. A threads row is
+    // created by the first reply and is never removed -- there is no delete-thread
+    // route and nothing issues DELETE FROM threads -- so guarding on the row alone
+    // made any message permanently undeletable the moment someone replied to it,
+    // even after that reply was itself deleted, and by its own author.
+    if old.thread.as_ref().is_some_and(|t| t.reply_count > 0) {
         return Err(Error::conflict(
             "This message starts a thread; resolve the thread instead of deleting it",
         ));
