@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT 1 FROM thread_tasks WHERE thread_id=? LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "1",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "186a2cb4d5e4577f134aae87fb8a304d1b511306523c7060090df2056324ef64"
+}
