@@ -120,11 +120,6 @@ pub(crate) async fn create(
             "Use the dedicated endpoint for this object kind",
         ));
     }
-    threads::unsupported_context(
-        v.thread_id.as_deref(),
-        v.task_id.as_deref(),
-        v.reply_to.as_deref(),
-    )?;
     name(&v.kind)?;
     let object_name = if v.name.trim().is_empty() {
         "Untitled canvas"
@@ -142,20 +137,35 @@ pub(crate) async fn create(
         ));
     }
     let id = s.id();
-    let message = s.id();
-    let mut tx = s.db.begin().await?;
-    sqlx::query("INSERT INTO messages(id,channel_id,author_id,content) VALUES(?,?,?,'')")
-        .bind(&message)
-        .bind(&channel)
-        .bind(&a.user.id)
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("INSERT INTO objects(id,channel_id,message_id,kind,name,state,created_by) VALUES(?,?,?,?,?,?,?)")
-        .bind(&id).bind(&channel).bind(&message).bind(&v.kind).bind(object_name).bind(state).bind(&a.user.id).execute(&mut *tx).await?;
-    tx.commit().await?;
+    // A canvas dropped into a job's conversation is placed by the same rules as a
+    // text post, and its own name titles the thread when the card is what opens it.
+    let ctx = threads::Context {
+        thread_id: v.thread_id.as_deref(),
+        task_id: v.task_id.as_deref(),
+        reply_to: v.reply_to.as_deref(),
+        hint: Some(object_name),
+    };
+    let (message, thread) = threads::create_card(
+        &s,
+        threads::Card {
+            object: &id,
+            channel: &channel,
+            author: &a.user.id,
+            kind: &v.kind,
+            name: object_name,
+            state,
+        },
+        &ctx,
+    )
+    .await?;
     let msg = messages::get_message(&s, &message).await?;
     let _ = s.events.send(Event::MessageCreated(msg.clone()));
-    if let Err(e) = inbox::changed(&s, &channel, None, Some(&msg)).await {
+    if let Some(thread) = &thread {
+        if let Err(e) = threads::announce(&s, thread).await {
+            tracing::error!(code = e.1, "thread metadata update failed");
+        }
+    }
+    if let Err(e) = inbox::changed(&s, &channel, thread.as_deref(), Some(&msg)).await {
         tracing::error!(code = e.1, "object inbox update failed");
     }
     Ok(Json(load(&s, &id).await?))

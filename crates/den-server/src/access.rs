@@ -45,6 +45,9 @@ pub(crate) async fn request(
         expires_at: now() + 600,
         grant_id: None,
     };
+    // Empty context on purpose: an access-request card is the person asking for a
+    // machine, not output from whatever job they may also be running, so it must not
+    // be swept into an unrelated task's conversation.
     let o = terminal::create_object(
         &s,
         &id,
@@ -54,6 +57,12 @@ pub(crate) async fn request(
         &host.name,
         "request",
         serde_json::to_value(request).unwrap(),
+        &threads::Context {
+            thread_id: None,
+            task_id: None,
+            reply_to: None,
+            hint: Some(&host.name),
+        },
     )
     .await?;
     hosts::audit(&s, &host, &a.user.id, "request", Some(&id)).await?;

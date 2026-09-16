@@ -75,20 +75,58 @@ fn check_title(value: &str) -> Result<String> {
     }
     Ok(title.into())
 }
-/// Refuse conversation context on a route that cannot honour it yet. Placing object
-/// cards is a later PR; until it lands, accepting these fields and dropping them
-/// would silently put a task's card somewhere its runner did not ask for.
-pub(crate) fn unsupported_context(
-    thread_id: Option<&str>,
-    task_id: Option<&str>,
-    reply_to: Option<&str>,
-) -> Result<()> {
-    if thread_id.is_some() || task_id.is_some() || reply_to.is_some() {
-        return Err(Error::bad(
-            "Thread context for this card is not supported yet",
-        ));
-    }
-    Ok(())
+/// Everything one object card needs written. The object row goes in beside its
+/// message so a thread rooted at a card can take its title from the card itself.
+pub(crate) struct Card<'a> {
+    pub object: &'a str,
+    pub channel: &'a str,
+    pub author: &'a str,
+    pub kind: &'a str,
+    pub name: &'a str,
+    pub state: String,
+}
+/// Place a card exactly as a text message is placed: one transaction covering the
+/// destination decision, the card's message, its object row, any thread this opens,
+/// the task mapping and the affiliations. A refused destination leaves none of it.
+///
+/// Returns the new message ID and the conversation it joined, if any.
+pub(crate) async fn create_card(
+    s: &AppState,
+    card: Card<'_>,
+    ctx: &Context<'_>,
+) -> Result<(String, Option<String>)> {
+    let message = s.id();
+    // This transaction reads before it writes, and s.writes does not exclude the
+    // profile-expiry writes authentication performs outside it. A deferred
+    // transaction that upgrades later can lose that race, so reserve the writer
+    // up front rather than moving the validation out of the transaction.
+    let mut tx = s.db.begin_with("BEGIN IMMEDIATE").await?;
+    let target = resolve(&mut tx, card.channel, card.author, ctx).await?;
+    // Keep the quote as well as the placement. resolve() has already checked that
+    // any reply target belongs to this channel, and a card that dropped it would
+    // land in the right conversation with its reply arrow pointing nowhere.
+    sqlx::query(
+        "INSERT INTO messages(id,channel_id,author_id,content,reply_to) VALUES(?,?,?,'',?)",
+    )
+    .bind(&message)
+    .bind(card.channel)
+    .bind(card.author)
+    .bind(ctx.reply_to)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("INSERT INTO objects(id,channel_id,message_id,kind,name,state,created_by) VALUES(?,?,?,?,?,?,?)")
+        .bind(card.object)
+        .bind(card.channel)
+        .bind(&message)
+        .bind(card.kind)
+        .bind(card.name)
+        .bind(card.state)
+        .bind(card.author)
+        .execute(&mut *tx)
+        .await?;
+    let thread = apply(&mut tx, s, card.channel, card.author, &message, target, ctx).await?;
+    tx.commit().await?;
+    Ok((message, thread))
 }
 /// A runner's job identity. Opaque: never lowercased, trimmed into a different
 /// value, or inferred from the bot, token or elapsed time.

@@ -3,14 +3,17 @@ use den_host::pty::Sessions;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
+pub(super) type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-struct Host {
-    credential: Value,
+/// A real den-host: real portable-pty sessions driven by the server's real frames
+/// over a real WebSocket. Shared with the thread card tests so they exercise an
+/// actual terminal rather than a stand-in.
+pub(super) struct Host {
+    pub(super) credential: Value,
     sessions: Sessions,
 }
 impl Host {
-    async fn new(t: &Test) -> Self {
+    pub(super) async fn new(t: &Test) -> Self {
         let enrollment = t.post("/hosts/enroll", &t.admin.token, json!({})).await;
         let code = enrollment["code"]
             .as_str()
@@ -26,7 +29,7 @@ impl Host {
             sessions: Sessions::default(),
         }
     }
-    async fn connect(&self, t: &Test) -> Socket {
+    pub(super) async fn connect(&self, t: &Test) -> Socket {
         let mut request = format!("{}/hosts/ws", t.url.replace("http", "ws"))
             .into_client_request()
             .unwrap();
@@ -38,7 +41,7 @@ impl Host {
         );
         connect_async(request).await.unwrap().0
     }
-    async fn hello(&mut self, socket: &mut Socket, ids: Option<Vec<String>>) {
+    pub(super) async fn hello(&mut self, socket: &mut Socket, ids: Option<Vec<String>>) {
         let mut hello = json!({"type":"hello","direct_url":null});
         if let Some(ids) = ids {
             hello["session_ids"] = json!(ids);
@@ -49,9 +52,23 @@ impl Host {
             .unwrap();
         self.flush(socket).await;
     }
+    /// Which sessions this host actually has open. The server's view is not
+    /// evidence; this is the host's own inventory.
+    pub(super) fn ids(&self) -> Vec<String> {
+        let mut ids = self.sessions.ids();
+        ids.sort();
+        ids
+    }
+    /// Drain until the host has applied the Close for this session. A Ping/Pong
+    /// barrier only orders frames the server sent inline with the hello
+    /// reconciliation; a Close queued by a separate HTTP request is not covered by
+    /// it, so waiting for the frame itself is the only reliable ordering.
+    pub(super) async fn closed(&mut self, socket: &mut Socket, session: &str) {
+        self.receive_until(socket, |frame| matches!(frame, Frame::Binary(bytes) if matches!(serde_json::from_slice::<HostFrame>(bytes).unwrap(), HostFrame::Close{session_id} if session_id == session))).await;
+    }
     // A WebSocket ping gives an ordered barrier after the preceding inventory.
     // Apply the real server's frames to real portable-pty sessions.
-    async fn flush(&mut self, socket: &mut Socket) {
+    pub(super) async fn flush(&mut self, socket: &mut Socket) {
         socket
             .send(Frame::Ping(b"barrier".to_vec().into()))
             .await
@@ -62,7 +79,11 @@ impl Host {
         )
         .await;
     }
-    async fn receive_until(&mut self, socket: &mut Socket, done: impl Fn(&Frame) -> bool) {
+    pub(super) async fn receive_until(
+        &mut self,
+        socket: &mut Socket,
+        done: impl Fn(&Frame) -> bool,
+    ) {
         tokio::time::timeout(Duration::from_secs(3), async {
             loop {
                 let frame = socket.next().await.unwrap().unwrap();
@@ -87,7 +108,17 @@ impl Host {
         .await
         .expect("host barrier");
     }
-    async fn open(&mut self, t: &Test, socket: &mut Socket) -> String {
+    pub(super) async fn open(&mut self, t: &Test, socket: &mut Socket) -> String {
+        self.open_with(t, socket, json!({})).await.0
+    }
+    /// Open a session with an explicit request body, so a card can carry task or
+    /// thread context. Returns the session ID and the card object.
+    pub(super) async fn open_with(
+        &mut self,
+        t: &Test,
+        socket: &mut Socket,
+        body: Value,
+    ) -> (String, Value) {
         let object = t
             .post(
                 &format!(
@@ -95,14 +126,15 @@ impl Host {
                     self.credential["host_id"].as_str().unwrap()
                 ),
                 &t.admin.token,
-                json!({}),
+                body,
             )
             .await;
-        let id = object["id"].as_str().unwrap();
+        let id = object["id"].as_str().unwrap().to_owned();
+        let id = id.as_str();
         self.receive_until(socket, |frame| matches!(frame, Frame::Binary(bytes) if matches!(serde_json::from_slice::<HostFrame>(bytes).unwrap(), HostFrame::Open{session_id,..} if session_id == id))).await;
-        id.to_owned()
+        (id.to_owned(), object.clone())
     }
-    async fn command(&mut self, t: &Test, socket: &mut Socket, id: &str, command: &str) {
+    pub(super) async fn command(&mut self, t: &Test, socket: &mut Socket, id: &str, command: &str) {
         let response = t
             .req(
                 Method::POST,
@@ -116,7 +148,7 @@ impl Host {
         assert_eq!(response.status(), 204);
         self.receive_until(socket, |frame| matches!(frame, Frame::Binary(bytes) if matches!(serde_json::from_slice::<HostFrame>(bytes).unwrap(), HostFrame::Input{session_id,bytes} if session_id == id && bytes == command.as_bytes()))).await;
     }
-    async fn pid(&mut self, t: &Test, socket: &mut Socket, id: &str) -> u32 {
+    pub(super) async fn pid(&mut self, t: &Test, socket: &mut Socket, id: &str) -> u32 {
         let path = t.dir.join(format!("{id}.pid"));
         self.command(
             t,
@@ -143,7 +175,7 @@ impl Host {
     }
 }
 
-fn alive(pid: u32) -> bool {
+pub(super) fn alive(pid: u32) -> bool {
     std::process::Command::new("kill")
         .args(["-0", &pid.to_string()])
         .stderr(std::process::Stdio::null())
@@ -151,7 +183,7 @@ fn alive(pid: u32) -> bool {
         .unwrap()
         .success()
 }
-async fn stopped(pid: u32) {
+pub(super) async fn stopped(pid: u32) {
     tokio::time::timeout(Duration::from_secs(3), async {
         while alive(pid) {
             tokio::time::sleep(Duration::from_millis(10)).await;
