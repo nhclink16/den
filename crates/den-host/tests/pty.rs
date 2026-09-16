@@ -96,3 +96,61 @@ fn real_pty_input_resize_reattach_and_backpressure() {
     })
     .unwrap();
 }
+fn wait_exited(s: &mut Sessions, id: &str) {
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(10) {
+        for f in s.drain() {
+            match f {
+                HostFrame::Output { session_id, bytes } => {
+                    let n = bytes.len();
+                    s.handle(HostFrame::Ack {
+                        session_id,
+                        bytes: n,
+                    })
+                    .unwrap();
+                }
+                HostFrame::Exited { session_id, .. } if session_id == id => return,
+                HostFrame::Exited { session_id, .. } => {
+                    panic!("Unexpected exit for {session_id:?}, waiting for {id:?}")
+                }
+                _ => {}
+            }
+        }
+        std::thread::sleep(Duration::from_millis(16));
+    }
+    panic!("Session {id:?} never exited");
+}
+#[test]
+#[cfg(unix)]
+fn naturally_exited_sessions_release_capacity() {
+    let mut s = Sessions::default();
+    for i in 0..16 {
+        let id = format!("exited-{i}");
+        s.handle(HostFrame::Open {
+            session_id: id.clone(),
+            cols: 80,
+            rows: 24,
+            shell: Some("/bin/sh".into()),
+        })
+        .unwrap();
+        s.handle(HostFrame::Input {
+            session_id: id.clone(),
+            bytes: b"exit\n".to_vec(),
+        })
+        .unwrap();
+        wait_exited(&mut s, &id);
+    }
+    s.handle(HostFrame::Open {
+        session_id: "exited-16".into(),
+        cols: 80,
+        rows: 24,
+        shell: Some("/bin/sh".into()),
+    })
+    .unwrap();
+    s.handle(HostFrame::Input {
+        session_id: "exited-16".into(),
+        bytes: b"exit\n".to_vec(),
+    })
+    .unwrap();
+    wait_exited(&mut s, "exited-16");
+}
