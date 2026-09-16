@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { plugins } from '../plugins'
   import { store } from '../lib/store.svelte'
+  import { consumedUploadIds } from '../lib/composer'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
@@ -121,7 +122,10 @@
         await command.run({ channelId: channel.id, args: content.slice(command.name.length + 1).trim(), post: (content) => store.send(channel.id, content) })
       } else await store.send(channel.id, content, { reply_to: replyTo?.id, upload_ids: ready })
       text = ''; replyTo = null
-      queue.sent(channelId, ready)
+      // Commands never transmit attachments, so only a message send consumes
+      // them. Clearing the queue after /canvas would silently drop completed
+      // uploads without delivering them anywhere.
+      queue.sent(channelId, consumedUploadIds(!!command, ready))
       requestAnimationFrame(grow)
     } catch (err) { error = (err as Error).message } finally {
       busy = false
