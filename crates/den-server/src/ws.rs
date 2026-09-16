@@ -59,8 +59,12 @@ impl Drop for Connected {
         }
     }
 }
-// Keep existing gates and gate new types until all supported /ws consumers
-// tolerate unknown tags. See docs/DESIGN.md, WebSocket compatibility.
+// The music and sounds gates stay, with their legacy-stream tests. Thread events
+// are deliberately ungated: docs/THREADS-PLAN.md records this milestone's minimum
+// tolerant-client floor — the #22 Rust consumer baseline and the tolerant native
+// response baseline — as the condition for deploying them. That floor governs
+// which builds may run against this server; it is not a claim that any particular
+// installed binary was checked. See docs/DESIGN.md, WebSocket compatibility.
 #[derive(Default, serde::Deserialize)]
 pub(crate) struct Options {
     #[serde(default)]
@@ -143,6 +147,15 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
             Some(&message.channel_id)
         }
         Event::ReadStateUpdated { user_id, state } => {
+            if user_id != &a.user.id {
+                return false;
+            }
+            Some(&state.channel_id)
+        }
+        // Thread metadata is an ordinary channel-authorized event; a personal
+        // thread position reaches nobody but its own user.
+        Event::ThreadUpdated { thread } => Some(&thread.channel_id),
+        Event::ThreadReadStateUpdated { user_id, state } => {
             if user_id != &a.user.id {
                 return false;
             }
@@ -239,12 +252,13 @@ async fn run(
                         last_seen=Instant::now();
                         let Ok(v)=serde_json::from_str::<ClientEvent>(&text) else {break;};
                         match v {
-                            ClientEvent::Typing { channel_id } => {
+                            // thread_id is accepted and discarded until thread routing lands.
+                            ClientEvent::Typing { channel_id, thread_id: _ } => {
                                 if visible(&s,&a.user.id,&channel_id).await.is_err(){break;}
                                 last_typing.retain(|_,at|at.elapsed()<Duration::from_secs(2));
                                 if last_typing.len()<20 && !last_typing.contains_key(&channel_id) {
                                     last_typing.insert(channel_id.clone(),Instant::now());
-                                    let _=s.events.send(Event::Typing{channel_id,user_id:a.user.id.clone()});
+                                    let _=s.events.send(Event::Typing{channel_id,user_id:a.user.id.clone(),thread_id:None});
                                 }
                             }
                             ClientEvent::ObjectOpen { object_id } => {

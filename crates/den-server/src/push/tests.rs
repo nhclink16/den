@@ -140,6 +140,8 @@ impl Fixture {
                 content: content.into(),
                 reply_to: None,
                 upload_ids: vec![],
+                thread_id: None,
+                task_id: None,
             }),
         )
         .await

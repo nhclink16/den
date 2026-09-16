@@ -372,6 +372,8 @@ fn main() -> anyhow::Result<()> {
                 content: text,
                 reply_to,
                 upload_ids: uploads,
+                thread_id: None,
+                task_id: None,
             },
         )?)?,
         Cmd::Read {

@@ -74,6 +74,42 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
         json!({"content":"portable history"}),
     )
     .await;
+    let root: Value = t
+        .post(
+            &format!("/channels/{channel}/messages"),
+            &t.admin.token,
+            json!({"content":"why is the build red"}),
+        )
+        .await;
+    let root = root["id"].as_str().unwrap().to_string();
+    // Threads, their replies, read positions and task mappings are ordinary rows in
+    // the archived database; prove the offline copy really carries them.
+    let thread = ulid::Ulid::new().to_string();
+    let reply = ulid::Ulid::new().to_string();
+    sqlx::query("INSERT INTO threads(id,channel_id,root_message_id,title,created_by) VALUES(?,?,?,'why is the build red',?)")
+        .bind(&thread).bind(&channel).bind(&root).bind(&t.admin.user.id)
+        .execute(&t.state.db).await.unwrap();
+    sqlx::query("INSERT INTO messages(id,channel_id,author_id,content,thread_id) VALUES(?,?,?,'a flaky test',?)")
+        .bind(&reply).bind(&channel).bind(&t.admin.user.id).bind(&thread)
+        .execute(&t.state.db).await.unwrap();
+    sqlx::query(
+        "INSERT INTO thread_read_state(user_id,thread_id,last_read_id,following) VALUES(?,?,?,1)",
+    )
+    .bind(&t.admin.user.id)
+    .bind(&thread)
+    .bind(&reply)
+    .execute(&t.state.db)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO thread_tasks(user_id,channel_id,task_id,thread_id) VALUES(?,?,'run-42',?)",
+    )
+    .bind(&t.admin.user.id)
+    .bind(&channel)
+    .bind(&thread)
+    .execute(&t.state.db)
+    .await
+    .unwrap();
     let partial = t.post("/uploads", &t.admin.token, json!({"channel_id":channel,"filename":"partial.txt","content_type":"text/plain","size":6})).await;
     let upload = partial["id"].as_str().unwrap();
     let response = t
@@ -227,6 +263,19 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
         .await
         .unwrap();
     assert!(hash.starts_with("invalidated:"));
+    assert_eq!(
+        sqlx::query_scalar::<_, String>(
+            "SELECT t.root_message_id||' '||t.title||' '||m.id||' '||r.last_read_id||' '||k.task_id
+             FROM threads t
+             JOIN messages m ON m.thread_id=t.id
+             JOIN thread_read_state r ON r.thread_id=t.id
+             JOIN thread_tasks k ON k.thread_id=t.id"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        format!("{root} why is the build red {reply} {reply} run-42")
+    );
     let state: String = sqlx::query_scalar("SELECT state FROM objects WHERE id=?")
         .bind(id)
         .fetch_one(&pool)

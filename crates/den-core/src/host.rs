@@ -184,6 +184,17 @@ pub struct OpenTerminal {
     pub channel_id: Option<Id>,
     pub cols: Option<u16>,
     pub rows: Option<u16>,
+    /// Conversation context, so a task's first card can land with the work that
+    /// caused it. The object still belongs to its message; this is not a second
+    /// thread assignment.
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub thread_id: Option<Id>,
+    #[serde(default)]
+    pub task_id: Option<String>,
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub reply_to: Option<Id>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TerminalState {
@@ -213,6 +224,14 @@ pub struct SetController {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct ShareTerminal {
     pub channel_id: Id,
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub thread_id: Option<Id>,
+    #[serde(default)]
+    pub task_id: Option<String>,
+    #[serde(default)]
+    #[schema(value_type = Option<String>)]
+    pub reply_to: Option<Id>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TerminalWrite {
