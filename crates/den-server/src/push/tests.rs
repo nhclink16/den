@@ -148,6 +148,24 @@ impl Fixture {
         .unwrap_or_else(|e| panic!("message failed: {}", e.1))
         .0
     }
+    /// A reply, so a real thread reply travels the real notification path.
+    async fn reply(&self, channel: &str, content: &str, reply_to: &str) -> Message {
+        crate::messages::send(
+            State(self.state.clone()),
+            self.auth("alice").await,
+            axum::extract::Path(channel.into()),
+            ApiJson(CreateMessage {
+                content: content.into(),
+                reply_to: Some(reply_to.into()),
+                upload_ids: vec![],
+                thread_id: None,
+                task_id: None,
+            }),
+        )
+        .await
+        .unwrap_or_else(|e| panic!("reply failed: {}", e.1))
+        .0
+    }
     async fn receive(&mut self) -> Captured {
         tokio::time::timeout(Duration::from_secs(5), self.requests.recv())
             .await
@@ -267,7 +285,31 @@ async fn real_notification_path_encodes_http2_signed_headers_deep_links_badge_an
     f.message("general", "followed channel").await;
     let followed = f.receive().await;
     assert_eq!(followed.body["reason"], "subscribed_channel");
+    // A root message carries no conversation of its own, so the field is absent
+    // rather than null: nothing changes for a client that never learned about it.
+    assert!(followed.body.get("thread_id").is_none());
     followed.reply.send((StatusCode::OK, json!({}))).unwrap();
+
+    // A real reply through the real send path. The transmitted JSON has to name the
+    // conversation, so a native client can suppress only the one on screen instead
+    // of silencing every thread of that channel. message_id and channel_id stay the
+    // deep-link authority.
+    let root = f.message("general", "a topic worth discussing").await;
+    f.receive()
+        .await
+        .reply
+        .send((StatusCode::OK, json!({})))
+        .unwrap();
+    let reply = f.reply("general", "the answer is in here", &root.id).await;
+    let threaded = f.receive().await;
+    assert_eq!(threaded.body["message_id"], reply.id);
+    assert_eq!(threaded.body["channel_id"], "general");
+    assert_eq!(
+        threaded.body["thread_id"],
+        reply.thread_id.clone().expect("the reply opened a thread")
+    );
+    assert_eq!(threaded.body["reason"], "subscribed_channel");
+    threaded.reply.send((StatusCode::OK, json!({}))).unwrap();
 }
 
 #[tokio::test]

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO thread_read_state(user_id,thread_id,last_read_id,following) VALUES(?,?,?,1)\n             ON CONFLICT(user_id,thread_id) DO UPDATE SET following=1,last_read_id=CASE\n                WHEN thread_read_state.last_read_id IS NULL OR thread_read_state.last_read_id<excluded.last_read_id\n                THEN excluded.last_read_id ELSE thread_read_state.last_read_id END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "b364a58750ce1baba2b8cb66a084c3dc1dd296e9c38d3bd8bf676e8bd3d97d5c"
+}

@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT (thread_id IS NULL) as \"root!: bool\" FROM messages WHERE id=? AND channel_id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "root!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5467bc4394b0e729a760ff3d1699ab6fa91e0d0e9f2d5eea5cb89071c118d3db"
+}

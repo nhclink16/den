@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT count(*) FROM messages WHERE id=? AND channel_id=?",
+  "query": "SELECT count(*) FROM messages WHERE id=? AND thread_id=?",
   "describe": {
     "columns": [
       {
@@ -17,5 +17,5 @@
       false
     ]
   },
-  "hash": "d6d8a963fc7d09997841428df44be4533acad7d49c26567f16952e99e0f09d24"
+  "hash": "d80ecc3c1219b826778b314848edd70b5f7ab315823f8dcae45893c2270aeeda"
 }

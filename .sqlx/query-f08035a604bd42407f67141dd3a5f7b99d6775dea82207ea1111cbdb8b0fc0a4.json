@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id FROM threads t JOIN channels c ON c.id=t.channel_id\n        LEFT JOIN thread_read_state p ON p.thread_id=t.id AND p.user_id=?\n        WHERE t.channel_id=?\n            AND (? IS NULL OR (t.resolved_at IS NOT NULL)=?)\n            AND (? IS NULL OR t.id<?)\n            AND (? = 0 OR EXISTS(\n                SELECT 1 FROM messages m WHERE m.thread_id=t.id AND m.author_id<>?\n                    AND (p.last_read_id IS NULL OR m.id>p.last_read_id)\n                    AND (coalesce(p.following,0)=1 OR c.kind='dm'\n                        OR EXISTS(SELECT 1 FROM channel_subscriptions cs WHERE cs.channel_id=t.channel_id AND cs.user_id=?))))\n        ORDER BY t.id DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "threads",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f08035a604bd42407f67141dd3a5f7b99d6775dea82207ea1111cbdb8b0fc0a4"
+}
