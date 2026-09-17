@@ -42,6 +42,7 @@
 		70B291C8918441071544E0B7 /* SessionAndMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE7132C192CBBE405AE8BD9 /* SessionAndMessagesTests.swift */; };
 		7B007E422A714BC8323861C2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241DE37D9A042F183B3CA901 /* RootView.swift */; };
 		84F2427BDE6927807E1BC572 /* AuthenticatedAttachmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5592E852A195542AE24BF4 /* AuthenticatedAttachmentView.swift */; };
+		89577C899622A0E6F83D6677 /* CameraPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793547711D357C82D41EE223 /* CameraPhotoPicker.swift */; };
 		8AD96BA93278118F65D1F6C2 /* SessionSecurity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AEE5F2502BEA24D267BEF7C /* SessionSecurity.swift */; };
 		8C95736854508BA247EA4125 /* MessagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CC2D36ECA33F5B0CEC7B5F /* MessagePresentation.swift */; };
 		90C25A28469D01FE87A3ABC8 /* CallPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFD07C20847D0ABCF3155C9 /* CallPolicyTests.swift */; };
@@ -62,6 +63,7 @@
 		DFF7AD7ACEAD215698556608 /* OfflineCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5DE20C012A882FF5A492D17 /* OfflineCache.swift */; };
 		E14128B8107D696F042FCFA2 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1EF898447BD8B862CE34D3 /* SharedViews.swift */; };
 		E310D1A30491D9E7D17844EF /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585B96EE921347A565B4A780 /* Appearance.swift */; };
+		E6ADA5DAD1B7AA2782BB7F80 /* CameraPhotoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C7FEB7CE453B80E90F37F9 /* CameraPhotoTests.swift */; };
 		E89FC78E3858046DDD7F5E2E /* DictationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9B288EBD4659BF2EF0FC11 /* DictationEngine.swift */; };
 		F1E42DDBA45CD9601B75BC3C /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = EF681CFBD07831151F15826E /* LiveKit */; };
 		F4F68C02CC8F5013B0D7CF38 /* CallControllerPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812C297CF977F7E6FB4B10B8 /* CallControllerPolicy.swift */; };
@@ -116,6 +118,7 @@
 		673A89E0F265C1922713E0CF /* font-families.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "font-families.json"; sourceTree = "<group>"; };
 		6B5592E852A195542AE24BF4 /* AuthenticatedAttachmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedAttachmentView.swift; sourceTree = "<group>"; };
 		70CC2D36ECA33F5B0CEC7B5F /* MessagePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagePresentation.swift; sourceTree = "<group>"; };
+		793547711D357C82D41EE223 /* CameraPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPhotoPicker.swift; sourceTree = "<group>"; };
 		7D9B288EBD4659BF2EF0FC11 /* DictationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationEngine.swift; sourceTree = "<group>"; };
 		7DA4C8AF9B8D6A04BA0D4C34 /* VoIPPushControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoIPPushControllerTests.swift; sourceTree = "<group>"; };
 		812C297CF977F7E6FB4B10B8 /* CallControllerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallControllerPolicy.swift; sourceTree = "<group>"; };
@@ -140,6 +143,7 @@
 		AF30419CABF7489A5EB99BFF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B15CBF8EF69E08FE1ED76C07 /* DenTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2A4BC2B4AA77A25B28AC5F0 /* CallControllerAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallControllerAPI.swift; sourceTree = "<group>"; };
+		B7C7FEB7CE453B80E90F37F9 /* CameraPhotoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPhotoTests.swift; sourceTree = "<group>"; };
 		BAFD07C20847D0ABCF3155C9 /* CallPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallPolicyTests.swift; sourceTree = "<group>"; };
 		BD1EF898447BD8B862CE34D3 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
 		BD738E6917D4F6BE0F0D86C1 /* DictationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationController.swift; sourceTree = "<group>"; };
@@ -183,6 +187,7 @@
 		07B652C7EC9D45A7FF176136 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				793547711D357C82D41EE223 /* CameraPhotoPicker.swift */,
 				3F727F7CE78EA8446B93C7E8 /* ComposerView.swift */,
 				8DB1667BB04F23C9590FD604 /* ConversationView.swift */,
 				2790B14571060F68BB047888 /* DictationRecordingView.swift */,
@@ -286,6 +291,7 @@
 			children = (
 				AF15AF355BFCCC38B791EA7C /* CallControllerPolicyTests.swift */,
 				BAFD07C20847D0ABCF3155C9 /* CallPolicyTests.swift */,
+				B7C7FEB7CE453B80E90F37F9 /* CameraPhotoTests.swift */,
 				34DC58E0CE17335F968336F5 /* CompatibilityRecoveryTests.swift */,
 				28C1795DAFC5F51CE224F96F /* DictationEngineTests.swift */,
 				8397100AF7D90ED99179087B /* DictationInsertionTests.swift */,
@@ -442,6 +448,7 @@
 			files = (
 				A839CC5B0A9C4A31B09257EC /* CallControllerPolicyTests.swift in Sources */,
 				90C25A28469D01FE87A3ABC8 /* CallPolicyTests.swift in Sources */,
+				E6ADA5DAD1B7AA2782BB7F80 /* CameraPhotoTests.swift in Sources */,
 				160D5464B6C9543D1731ECC5 /* CompatibilityRecoveryTests.swift in Sources */,
 				6FA0E2FA77DE3CD2F9F77D5E /* DictationEngineTests.swift in Sources */,
 				FCF9CB790A86E26D35171B54 /* DictationInsertionTests.swift in Sources */,
@@ -474,6 +481,7 @@
 				3F9E6ACACFEC09D2A35058D4 /* CallPolicy.swift in Sources */,
 				F6DFE6D081309B89958A2930 /* CallSession+Delegate.swift in Sources */,
 				4B249A7E0D2913FCE600A5BF /* CallSession.swift in Sources */,
+				89577C899622A0E6F83D6677 /* CameraPhotoPicker.swift in Sources */,
 				21ABA2B6495D8233D6209174 /* ComposerView.swift in Sources */,
 				2006909B02AB693B5BBD4CDB /* ConversationView.swift in Sources */,
 				41E268DBBD0198D4219B87C7 /* DebugFixture.swift in Sources */,

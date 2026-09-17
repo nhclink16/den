@@ -39,7 +39,8 @@ struct RootView: View {
         .onChange(of: store.calls?.session.error) { _, error in
             if let error, store.calls?.session.isActive == false { store.error = error }
         }
-        .font(theme.bodyFont()).foregroundStyle(theme.ink).tint(theme.accent)
+        // Native glass controls stay neutral; content applies its theme accents locally.
+        .font(theme.bodyFont()).foregroundStyle(theme.ink).tint(Color.primary)
         .background(theme.bg).preferredColorScheme(store.theme.preferredColorScheme)
         .alert("Couldn't finish", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK", role: .cancel) { store.error = nil }

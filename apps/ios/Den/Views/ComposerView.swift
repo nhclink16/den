@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreTransferable
 import DenAPI
 import PhotosUI
@@ -33,6 +34,9 @@ struct ComposerView: View {
     @State private var importing = false
     @State private var showPhotos = false
     @State private var showFiles = false
+    @State private var showCamera = false
+    @State private var cameraDenied = false
+    @State private var capturedPhoto: Result<URL, Error>?
     @State private var photos: [PhotosPickerItem] = []
     @State private var focused = false
     @State private var selection = NSRange(location: 0, length: 0)
@@ -95,6 +99,8 @@ struct ComposerView: View {
                     } else {
                         HStack(spacing: 4) {
                             Menu {
+                                Button("Take photo", systemImage: "camera") { Task { await takePhoto() } }
+                                    .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
                                 Button("Photos and videos", systemImage: "photo.on.rectangle") { showPhotos = true }
                                 Button("Choose a file", systemImage: "folder") { showFiles = true }
                             } label: {
@@ -151,6 +157,18 @@ struct ComposerView: View {
         })) {
             Button("OK") { store.dictation?.clearError() }
         } message: { Text(store.dictation?.error ?? "") }
+        .alert("Camera access is off", isPresented: $cameraDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Allow camera access in Settings to take a photo for your message.") }
+        .fullScreenCover(isPresented: $showCamera, onDismiss: importCapturedPhoto) {
+            CameraPhotoPicker { result in
+                capturedPhoto = result
+                showCamera = false
+            }.ignoresSafeArea()
+        }
         .photosPicker(isPresented: $showPhotos, selection: $photos, maxSelectionCount: 10, matching: .any(of: [.images, .videos]), preferredItemEncoding: .current)
         .onChange(of: photos) { _, value in
             guard !value.isEmpty else { return }
@@ -176,6 +194,34 @@ struct ComposerView: View {
     private func dismissComposer() {
         cancelDictation()
         focused = false
+    }
+
+    private func takePhoto() async {
+        guard !importing, !store.offline, UIImagePickerController.isSourceTypeAvailable(.camera) else { return }
+        dismissComposer()
+        let granted: Bool
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: granted = true
+        case .notDetermined: granted = await AVCaptureDevice.requestAccess(for: .video)
+        default: granted = false
+        }
+        if granted { showCamera = true }
+        else { cameraDenied = true }
+    }
+
+    private func importCapturedPhoto() {
+        guard let result = capturedPhoto else { return }
+        capturedPhoto = nil
+        let channelId = channel.id
+        importing = true
+        Task {
+            defer { importing = false }
+            do {
+                let url = try result.get()
+                defer { AttachmentFiles.remove(url) }
+                try await store.attach(url: url, channelId: channelId)
+            } catch { store.report(error) }
+        }
     }
 
     private func startDictation(_ controller: DictationController) {
