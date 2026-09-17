@@ -14,7 +14,20 @@ denchat.app {
 	request_body {
 		max_size 1100MB
 	}
-	reverse_proxy 127.0.0.1:7000
+
+	# Exactly "/" serves the static download page; every other path, including
+	# /login, /c/*, /health and the whole API, still reaches den-server
+	# untouched. The page lives in /opt/den/download, NOT /opt/den/web, because
+	# deploy/release.sh rsyncs the web root with --delete and would erase it.
+	handle / {
+		root * /opt/den/download
+		rewrite * /index.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:7000
+	}
 }
 
 rtc.denchat.app {
