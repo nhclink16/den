@@ -25,6 +25,13 @@ denchat.app {
 		file_server
 	}
 
+	# The installers themselves. Narrow prefix, served straight off disk so a
+	# 116MB download never goes through den-server.
+	handle /electron/* {
+		root * /opt/den/download
+		file_server
+	}
+
 	handle {
 		reverse_proxy 127.0.0.1:7000
 	}

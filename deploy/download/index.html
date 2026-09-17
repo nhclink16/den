@@ -22,24 +22,26 @@
 </style>
 <main>
   <h1>Den</h1>
-  <p>Desktop app, version 0.2.2.</p>
+  <p>Desktop app (Electron), build 0.2.2.</p>
 
-  <a class="primary" id="primary" href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_x64-setup.exe">Download for Windows</a>
+  <a class="primary" id="primary" href="/electron/Den-0.2.2-win-x64.exe">Download for Windows</a>
 
   <ul>
-    <li><a href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_x64-setup.exe">Windows installer (.exe)</a></li>
-    <li><a href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_x64_en-US.msi">Windows (.msi)</a></li>
-    <li><a href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_universal.dmg">macOS (.dmg, universal)</a></li>
-    <li><a href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_amd64.AppImage">Linux (.AppImage)</a></li>
-    <li><a href="https://github.com/nhclink16/den/releases/download/v0.2.2/Den_0.2.2_amd64.deb">Linux (.deb)</a></li>
+    <li><a href="/electron/Den-0.2.2-win-x64.exe">Windows installer (.exe)</a></li>
+    <li><a href="/electron/Den-0.2.2-win-x64.msi">Windows (.msi)</a></li>
+    <li><a href="/electron/Den-0.2.2-mac-universal.dmg">macOS (.dmg, universal)</a></li>
+    <li><a href="/electron/Den-0.2.2-linux-x86_64.AppImage">Linux (.AppImage)</a></li>
+    <li><a href="/electron/Den-0.2.2-linux-amd64.deb">Linux (.deb)</a></li>
     <li><a href="/login">Open Den in your browser instead</a></li>
   </ul>
 
   <p class="note">
     Windows is not code-signed yet, so SmartScreen will warn you: choose
     <strong>More info</strong> then <strong>Run anyway</strong>.
-    Checksums: <a href="https://github.com/nhclink16/den/releases/download/v0.2.2/SHA256SUMS">SHA256SUMS</a>.
-    Windows <code>.exe</code> is <code>02bc8155…aa05beb</code>.
+    Auto-update is not wired up in this build, so replacing it later means
+    downloading from here again.
+    Checksums: <a href="/electron/SHA256SUMS">SHA256SUMS</a>. Windows
+    <code>.exe</code> is <code>a7e6f8c3…205588b</code>.
   </p>
 </main>
 <script>
@@ -47,9 +49,8 @@
   // Everything stays reachable in the list below regardless, so a wrong guess
   // costs a scroll, not a download.
   (function () {
-    var p = navigator.userAgent, base = 'https://github.com/nhclink16/den/releases/download/v0.2.2/';
-    var el = document.getElementById('primary');
-    if (/Mac|iPhone|iPad/.test(p))       { el.href = base + 'Den_0.2.2_universal.dmg';  el.textContent = 'Download for macOS'; }
-    else if (/Linux|Android|X11/.test(p)){ el.href = base + 'Den_0.2.2_amd64.AppImage'; el.textContent = 'Download for Linux'; }
+    var p = navigator.userAgent, el = document.getElementById('primary');
+    if (/Mac|iPhone|iPad/.test(p))        { el.href = '/electron/Den-0.2.2-mac-universal.dmg';   el.textContent = 'Download for macOS'; }
+    else if (/Linux|Android|X11/.test(p)) { el.href = '/electron/Den-0.2.2-linux-x86_64.AppImage'; el.textContent = 'Download for Linux'; }
   })();
 </script>
