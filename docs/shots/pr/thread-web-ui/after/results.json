@@ -1,0 +1,232 @@
+{
+  "phase": "after",
+  "base": "http://localhost:17061",
+  "provenance": {
+    "at": "2026-09-16T03:52:16.837Z",
+    "commit": "22d67b9d4fe81503e60f4fe9b26d506fa21febfe",
+    "diffSha256": null,
+    "serverSha256": null,
+    "bundle": "assets/index-DUf4NmVZ.js",
+    "bundleSha256": "e8ea9777104585fee03032e0ea6a65fe94c2ce91c9fe8c269a9ab284d3abc106"
+  },
+  "steps": {
+    "fixture": {
+      "room": "01M2M5G30AHF0QZ1GD2SV6XH77",
+      "other": "01M2M5G30FAT6XQME411964T8D",
+      "mira": "01M2M5G3DP3SC03PAFD89MX3ZY",
+      "roots": [
+        "01M2M5G3DXSBQS8V0RTYK22HVP",
+        "01M2M5G3EFQ5ZDK95JAGHXETA0"
+      ]
+    },
+    "viewports": {
+      "landscape": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      },
+      "portrait": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      },
+      "narrow": {
+        "strip": 1,
+        "panel": 0,
+        "messages": 2
+      }
+    },
+    "agentInConversation": {
+      "preCreationUrl": "/c/01M2M5G30AHF0QZ1GD2SV6XH77?reply=01M2M5G3DXSBQS8V0RTYK22HVP",
+      "threadA": "01M2M5G6JPFVNSFZW3SNSJ2QN8",
+      "threadY": "01M2M5G6QFQQCZGDDYDQD0BCCH",
+      "roomRootIds": [
+        "01M2M5G3DXSBQS8V0RTYK22HVP",
+        "01M2M5G3EFQ5ZDK95JAGHXETA0",
+        "01M2M5G6QFQQCZGDDYDQD0BCCG"
+      ],
+      "repliesInA": 5,
+      "nestedStayedFlat": true,
+      "domRootsShown": 3
+    },
+    "draftsAcrossConversations": {
+      "b": "draft in B",
+      "a": "draft in A",
+      "room": "a room draft nobody should touch"
+    },
+    "heldSendWhileEditing": {
+      "sentBody": {
+        "content": "holding this one",
+        "reply_to": null,
+        "upload_ids": [],
+        "thread_id": "01M2M5G6JPFVNSFZW3SNSJ2QN8"
+      },
+      "acceptedId": "01M2M5GAAQ7RWQKA9DXB1HHY1E",
+      "kept": "holding this one"
+    },
+    "failedReply": {
+      "serverRepliesBefore": 6,
+      "serverRepliesAfter": 6,
+      "kept": "this one fails",
+      "error": 1
+    },
+    "separateUnread": {
+      "unreadAtStart": {
+        "room": 3,
+        "a": 1,
+        "b": 1
+      },
+      "afterRoomRead": {
+        "room": 2,
+        "a": 1,
+        "b": 1
+      },
+      "afterAread": {
+        "room": 1,
+        "a": 0,
+        "b": 1
+      },
+      "newRoot": "01M2M5GC5J68D6XN3E8FK8GX49",
+      "newInA": "01M2M5GC87YEWEMWR2K6ZHWJWD",
+      "newInB": "01M2M5GC9P5DWJ564HY0GA7Q28"
+    },
+    "unfollowSurvivesOpening": {
+      "following": false
+    },
+    "resolvedStillReachable": {
+      "inOpenList": false,
+      "inUnreadList": true,
+      "openStripChips": [
+        "01M2M5G6JPFVNSFZW3SNSJ2QN8"
+      ],
+      "unreadActionChips": [
+        "01M2M5G6QFQQCZGDDYDQD0BCCH"
+      ]
+    },
+    "resolveControls": {
+      "panelStillOpen": 1,
+      "reopenOffered": 1,
+      "composerLocked": 1,
+      "sendDisabled": true
+    },
+    "renameAndReopen": {
+      "title": "Lockfile release",
+      "resolved": null
+    },
+    "markAllCrossedByReply": {
+      "crossing": "01M2M5GSM5AD84VWAKSSA1GQ44",
+      "lastRead": "01M2M5GQHKJPP6VH24VGTHKJBM",
+      "unread": 0
+    },
+    "oldTargetByUrl": {
+      "target": "01M2M5G6MYC9945X5JVPP8G448",
+      "revealed": 1,
+      "panelThread": "01M2M5G6JPFVNSFZW3SNSJ2QN8"
+    },
+    "directLinkFallback": {
+      "url": "/c/01M2M5G30AHF0QZ1GD2SV6XH77"
+    },
+    "coldResolvedUrl": {
+      "panel": 1,
+      "rootShown": 1,
+      "resolvedTag": 1,
+      "reopen": 1,
+      "errors": 0
+    },
+    "resolvedHistory": {
+      "chips": [
+        "01M2M5G6QFQQCZGDDYDQD0BCCH"
+      ]
+    },
+    "unreadListRefreshes": {
+      "before": [],
+      "after": [
+        "01M2M5G6JPFVNSFZW3SNSJ2QN8"
+      ],
+      "reply": "01M2M5H6JN941GZR34Y4KVVHTQ"
+    },
+    "reactionReachesPanel": {
+      "reply": "01M2M5H6JN941GZR34Y4KVVHTQ",
+      "shown": 1
+    },
+    "deletionSurvivesRefresh": {
+      "proves": "one deletion of an already-cached tail reply crossing a held page refresh",
+      "doesNotProve": [
+        "window/target copies",
+        "confirmed-removal invalidation",
+        "reconnect reaction repair"
+      ],
+      "deleted": "01M2M5HBJ1540FSBYN613ST2QV",
+      "stillShown": 0
+    },
+    "filesBelongToTheirPane": {
+      "panel": 1,
+      "room": 0
+    },
+    "paneUploadIds": {
+      "sent": {
+        "content": "with its own attachment",
+        "reply_to": null,
+        "upload_ids": [
+          "01M2M5HEZZA0WF0CCBCPQFTDRB"
+        ],
+        "thread_id": "01M2M5G6JPFVNSFZW3SNSJ2QN8"
+      }
+    },
+    "historyParent": {
+      "atB": "/c/01M2M5G30AHF0QZ1GD2SV6XH77/t/01M2M5G6QFQQCZGDDYDQD0BCCH",
+      "afterBack": "/c/01M2M5G30AHF0QZ1GD2SV6XH77",
+      "afterForward": "/c/01M2M5G30AHF0QZ1GD2SV6XH77/t/01M2M5G6QFQQCZGDDYDQD0BCCH",
+      "afterBackAgain": "/c/01M2M5G30AHF0QZ1GD2SV6XH77"
+    },
+    "narrowReturn": {
+      "roomHidden": 1,
+      "roomInert": 1,
+      "backLabel": 1,
+      "url": "/c/01M2M5G30AHF0QZ1GD2SV6XH77",
+      "focused": {
+        "tag": "BUTTON",
+        "id": "m-01M2M5G3DXSBQS8V0RTYK22HVP",
+        "inHidden": false
+      }
+    },
+    "canvasInConversation": {
+      "inThread": true,
+      "objectId": "01M2M5HPWGV5CWGK6S0AK2Q9S5",
+      "leakedToRoom": false,
+      "cardRendered": 51
+    },
+    "searchResultNavigates": {
+      "path": "/c/01M2M5G30AHF0QZ1GD2SV6XH77/t/01M2M5G6JPFVNSFZW3SNSJ2QN8",
+      "target": "01M2M5GC87YEWEMWR2K6ZHWJWD",
+      "panel": 1
+    },
+    "quoteReferenceNavigates": {
+      "before": "http://localhost:17061/c/01M2M5G30AHF0QZ1GD2SV6XH77/t/01M2M5G6JPFVNSFZW3SNSJ2QN8",
+      "after": "http://localhost:17061/c/01M2M5G30AHF0QZ1GD2SV6XH77/t/01M2M5G6JPFVNSFZW3SNSJ2QN8?m=01M2M5HF8M0NSV6KRKQ6N9QGWE",
+      "changed": true
+    },
+    "terminalInConversation": {
+      "ran": true,
+      "host": "codexbox",
+      "inThread": true,
+      "objectId": "01M2M5HYY5XYEH594KMJQ3P2SJ",
+      "leakedToRoom": false,
+      "marker": "den-mu3kfr6m",
+      "observedShellOutput": true
+    },
+    "resolvePreservesSession": {
+      "newMessageStatus": 409,
+      "objectStatus": 200
+    }
+  },
+  "pageErrors": [
+    {
+      "kind": "console",
+      "during": "deliberate 503 on a reply",
+      "expected": true,
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+  ],
+  "ok": true
+}

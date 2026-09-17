@@ -17,7 +17,8 @@ function held<T>() {
 /// The real owner over a real map, the way the Store holds it.
 function owner() {
   let counts = new Map<string, ChannelReadState>()
-  const reads = new ReadState({ get: () => counts, set: (v) => { counts = v } })
+  // The owner is generic now; channels are keyed by channel_id.
+  const reads = new ReadState<ChannelReadState>({ get: () => counts, set: (v) => { counts = v } }, (s) => s.channel_id)
   return { reads, map: () => counts, count: (key: string) => counts.get(key)?.unread_count }
 }
 

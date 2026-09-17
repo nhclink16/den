@@ -14,8 +14,13 @@
 
   // `conversation` defaults to the room, so every existing caller keeps its
   // current behaviour untouched while a thread composer can pass its own root.
-  let { channel, conversation, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; conversation?: Conversation; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
+  let { channel, conversation, locked, replyTo = $bindable(null), dropped = $bindable([]), listening = $bindable(false) }: { channel: Channel; conversation?: Conversation; locked?: string; replyTo: Message | null; dropped: File[]; listening?: boolean } = $props()
   const here = $derived<Conversation>(conversation ?? room(channel.id))
+  // The conversation's identity is channel plus ROOT. The server's thread ID
+  // appears once the first reply is saved and is placement context only, so
+  // acquiring it never moves the draft or its files to a different owner.
+  const threadId = $derived(here.rootId ? store.threadForRoot(here.rootId)?.id : undefined)
+  const unsaved = $derived(!!here.rootId && !threadId)
 
   // The draft belongs to the conversation, not to this component: navigating away
   // and back, or a call expanding over the view, must not lose what was typed.
@@ -166,7 +171,7 @@
   // A send can finish after navigation or call expansion removes this composer.
   // A destroyed one must not measure a detached box or announce typing to
   // whichever instance is active by then.
-  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id) }
+  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
 
   async function submit() {
     const channelId = channel.id
@@ -182,7 +187,12 @@
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
-    if (!plan || uploading || busy) return
+    if (!plan || uploading || busy || locked) return
+    // Placement is captured with everything else. The ROOT places a first reply
+    // and is not the quote: cancelling the quote in an unsaved panel must not
+    // take the placement with it.
+    const placement: { thread_id?: string; reply_to?: string } =
+      threadId ? { thread_id: threadId } : here.rootId ? { reply_to: here.rootId } : {}
     const submitted = draft(owner, conversation)
     // The account this send belongs to. The Store object alone is not enough:
     // the same one is reused by whoever signs in next, so the owner's lifetime
@@ -197,12 +207,22 @@
         // have changed, and that post would be written as the new one.
         await command.run({
           channelId,
+          conversation,
+          replyToId: submitted.replyToId,
           args: plan.args,
-          post: (content) => sameAccount() ? send(channelId, content) : Promise.resolve(),
+          post: async (content) => {
+            if (sameAccount()) await send(channelId, content, { ...placement, reply_to: submitted.replyToId ?? placement.reply_to })
+          },
         })
         // Commands never receive upload IDs, so completed attachments stay queued.
       } else {
-        await send(channelId, content, { reply_to: submitted.replyToId ?? undefined, upload_ids: plan.uploadIds })
+        await send(channelId, content, {
+          ...placement,
+          // An explicit quote wins over the root for reply_to; placement still
+          // carries the thread when there is one.
+          reply_to: submitted.replyToId ?? placement.reply_to,
+          upload_ids: plan.uploadIds,
+        })
         // Consume exactly what was transmitted, whatever the box holds by now.
         // The conversation was captured at submit, so a newer draft staged
         // elsewhere keeps its own files and this one loses only what it sent.
@@ -230,6 +250,9 @@
 
 <div class="composer">
   {#if error}<p role="alert" class="error">{error}</p>{/if}
+  <!-- A resolved conversation takes nothing new, but what you already typed is
+       still yours: the draft and its files stay exactly where they are. -->
+  {#if locked}<p class="locked" role="status">{locked}</p>{/if}
   {#if matches.length}
     <div class="commands" role="listbox" id="slash-commands" aria-label="Commands">
       {#each matches as command, i}
@@ -276,13 +299,14 @@
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
     <textarea bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
-    <button class="sendbtn" class:ready={text.trim() || pending.some((p) => p.done)} onclick={submit} disabled={uploading || busy} title="Send (Enter)"><Icon name="send" size={16} /></button>
+    <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'}><Icon name="send" size={16} /></button>
   </div>
 </div>
 
 <style>
   .error { color: var(--ember); }
   .commands { position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px; z-index: 6; }
+  .locked { margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); font-size: 12px; }
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
   .commands .chosen { background: var(--bg-3); }

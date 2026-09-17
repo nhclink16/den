@@ -1,0 +1,96 @@
+{
+  "display": ":78",
+  "cdp": "http://127.0.0.1:19884",
+  "base": "http://localhost:17055",
+  "steps": {
+    "requestOrigin": {
+      "observed": [
+        "http://localhost:17055/health"
+      ],
+      "expected": "http://localhost:17055"
+    },
+    "signedIn": {
+      "room": "01M2M2RSFZHNQ579QVP16GA6ZF",
+      "thread": "01M2M2RSYB0BXAGNJKXNZ8S6TD",
+      "native": true
+    },
+    "landscape": {
+      "size": [
+        1440,
+        900
+      ],
+      "roomVisible": 1,
+      "panel": 1,
+      "controls": true
+    },
+    "portrait": {
+      "size": [
+        820,
+        1200
+      ],
+      "contentWidth": 820,
+      "sidebarVisible": false,
+      "roomStowed": 1,
+      "roomInert": 1,
+      "back": true,
+      "inWindow": true,
+      "draft": "conversation draft in electron"
+    },
+    "narrow": {
+      "size": [
+        700,
+        900
+      ],
+      "roomStowed": 1,
+      "back": true,
+      "inWindow": true,
+      "draft": "conversation draft in electron"
+    },
+    "keyboardReturn": {
+      "walk": [
+        "",
+        "",
+        "",
+        "React to this message",
+        "mira_e The deploy script",
+        "",
+        "",
+        "React to this message",
+        "Resolve",
+        "Follow",
+        "Rename",
+        "Back to room"
+      ],
+      "landed": "Back to room",
+      "urlBefore": "/c/01M2M2RSFZHNQ579QVP16GA6ZF/t/01M2M2RSYB0BXAGNJKXNZ8S6TD",
+      "urlAfter": "/c/01M2M2RSFZHNQ579QVP16GA6ZF"
+    },
+    "zoom200": {
+      "applied": true,
+      "measured": {
+        "devicePixelRatio": 1,
+        "innerWidth": 700,
+        "innerHeight": 900,
+        "visual": [
+          1,
+          700
+        ]
+      },
+      "panel": 1,
+      "back": true,
+      "draft": "conversation draft in electron",
+      "claim": "NOT a 200% zoom: applied only means the CDP call did not throw; DPR, innerWidth and visual scale are unchanged."
+    },
+    "backToLandscape": {
+      "size": [
+        1440,
+        900
+      ],
+      "room": "room draft in electron",
+      "panelDraft": "conversation draft in electron",
+      "roomVisible": 1
+    }
+  },
+  "errors": [],
+  "ok": true
+}
