@@ -107,8 +107,9 @@ which matches Den's five-person scope but remains an operator prerequisite.
   setup should still confirm the registered production and loopback callbacks.
 - The inherited production dependency audit is tracked separately in
   [#45](https://github.com/nhclink16/den/issues/45) and
-  [#46](https://github.com/nhclink16/den/issues/46). Spotify changes neither
-  dependency nor lockfile.
+  [#46](https://github.com/nhclink16/den/issues/46). Those findings come from
+  the unchanged web dependency baseline. The server declares `ring` directly
+  for token encryption; that package was already present transitively.
 - AV must merge first. Spotify must then rebase onto that exact `main`, resolve
   any new migration number, pass independent review, and make the exact rebased
   PR head green before merge.
