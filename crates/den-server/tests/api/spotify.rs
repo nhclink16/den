@@ -17,6 +17,7 @@ use std::sync::{
 #[derive(Clone, Copy)]
 enum ProviderMode {
     Healthy,
+    HeldRefresh,
     MissingScope,
     Revoked,
     Limited,
@@ -27,6 +28,7 @@ enum ProviderMode {
 struct ProviderState {
     mode: ProviderMode,
     token_calls: Arc<AtomicUsize>,
+    refresh_release: Arc<tokio::sync::Notify>,
     playback_calls: Arc<AtomicUsize>,
     auth_headers: Arc<tokio::sync::Mutex<Vec<String>>>,
     playback_headers: Arc<tokio::sync::Mutex<Vec<String>>>,
@@ -47,6 +49,7 @@ impl StubSpotify {
         let state = ProviderState {
             mode,
             token_calls: Arc::new(AtomicUsize::new(0)),
+            refresh_release: Arc::new(tokio::sync::Notify::new()),
             playback_calls: Arc::new(AtomicUsize::new(0)),
             auth_headers: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             playback_headers: Arc::new(tokio::sync::Mutex::new(Vec::new())),
@@ -80,6 +83,9 @@ async fn stub_token(
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
     if form.get("grant_type").map(String::as_str) == Some("refresh_token") {
+        if matches!(state.mode, ProviderMode::HeldRefresh) {
+            state.refresh_release.notified().await;
+        }
         if matches!(state.mode, ProviderMode::Revoked) {
             return (
                 StatusCode::BAD_REQUEST,
@@ -484,9 +490,8 @@ async fn a_new_authorization_waits_for_older_account_work() {
     let client = t.http.clone();
     let url = format!("{}/rooms/{room}/jam", t.url);
     let token = member.token.clone();
-    let refresh = tokio::spawn(async move {
-        client.get(url).bearer_auth(token).send().await.unwrap()
-    });
+    let refresh =
+        tokio::spawn(async move { client.get(url).bearer_auth(token).send().await.unwrap() });
     tokio::time::timeout(Duration::from_secs(1), async {
         while provider.state.token_calls.load(Ordering::SeqCst) < 2 {
             tokio::task::yield_now().await;
@@ -519,6 +524,68 @@ async fn a_new_authorization_waits_for_older_account_work() {
         account(&t, &member.token).await.connection,
         SpotifyConnection::Connected
     );
+}
+
+#[tokio::test]
+async fn a_rotated_refresh_token_is_not_used_until_it_is_stored() {
+    let provider = StubSpotify::start(ProviderMode::HeldRefresh).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(10)).await;
+    let member = t.member("spotify_rotation_store").await;
+    let (_, state) = authorization(&t, &member.token).await;
+    t.post(
+        "/users/me/spotify/callback",
+        &member.token,
+        json!({"code":"initial-code","state":state}),
+    )
+    .await;
+    let room = voice_room(&t).await;
+    t.post(
+        &format!("/rooms/{room}/jam"),
+        &member.token,
+        json!({"url":"https://spotify.link/rotation-store"}),
+    )
+    .await;
+
+    let client = t.http.clone();
+    let url = format!("{}/rooms/{room}/jam", t.url);
+    let token = member.token.clone();
+    let refresh = tokio::spawn(async move {
+        client
+            .get(url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap()
+            .json::<RoomJam>()
+            .await
+            .unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while provider.state.token_calls.load(Ordering::SeqCst) < 2 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("refresh reached the provider");
+
+    // Spotify may invalidate the old token as soon as it rotates. Make the
+    // replacement write fail and prove Den does not cache the accompanying
+    // access token while discarding the only usable refresh token.
+    let mut blocker = t.state.db.acquire().await.unwrap();
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut *blocker)
+        .await
+        .unwrap();
+    provider.state.refresh_release.notify_one();
+    let refreshed = refresh.await.unwrap();
+    assert!(
+        refreshed.jam.unwrap().now_playing.is_none(),
+        "Den used a rotated grant whose replacement refresh token was not stored"
+    );
+    sqlx::query("ROLLBACK")
+        .execute(&mut *blocker)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

@@ -597,10 +597,19 @@ async fn access_token(s: &AppState, user: &str) -> Option<String> {
     // Rotation does not restart Spotify's six-month lifetime: refreshing an
     // access token never extends the original authorization grant.
     if let Some(rotated) = granted.refresh_token.as_deref() {
-        if let Ok((nonce, ciphertext)) = seal(c, user, rotated) {
-            let _ = sqlx::query("UPDATE spotify_accounts SET refresh_nonce=?,refresh_ciphertext=?,key_version=1 WHERE user_id=?")
-                .bind(&nonce).bind(&ciphertext).bind(user)
-                .execute(&s.db).await;
+        let Ok((nonce, ciphertext)) = seal(c, user, rotated) else {
+            tracing::warn!(step = "refresh_store", "Spotify request failed");
+            return None;
+        };
+        let stored = sqlx::query("UPDATE spotify_accounts SET refresh_nonce=?,refresh_ciphertext=?,key_version=1 WHERE user_id=?")
+            .bind(&nonce).bind(&ciphertext).bind(user)
+            .execute(&s.db).await;
+        if !matches!(stored, Ok(result) if result.rows_affected() == 1) {
+            // The provider may invalidate the old refresh token as soon as it
+            // rotates. Never use or cache the paired access token unless the
+            // replacement credential is durable first.
+            tracing::warn!(step = "refresh_store", "Spotify request failed");
+            return None;
         }
     }
     remember(s, user, &granted).await;
