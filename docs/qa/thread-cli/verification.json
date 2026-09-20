@@ -1,0 +1,65 @@
+{
+  "status": "pass",
+  "scope": "CLI task/thread routing, thread commands, terminal sharing, agent instructions, and graceful acceptance cleanup",
+  "tested_rebased_commit": "28a7eafabb77c549950e852eda61eed272f8261d",
+  "harness_sha256": "5711995723adf84be4f2dc0a65f31bdc22b4785ce5acfa704f903244cc684a44",
+  "runs_total": 42,
+  "run_cohorts": [
+    {
+      "environment": "macOS, original feature head",
+      "runs": 1,
+      "result": "pass"
+    },
+    {
+      "environment": "codexbox, clean exact-head rebuild",
+      "runs": 11,
+      "result": "pass"
+    },
+    {
+      "environment": "codexbox, preserved historical binaries matching the earlier receipt hashes",
+      "runs": 21,
+      "result": "pass"
+    },
+    {
+      "environment": "codexbox, eight-way contention",
+      "runs": 8,
+      "result": "pass"
+    },
+    {
+      "environment": "macOS, rebased onto current main",
+      "runs": 1,
+      "result": "pass"
+    }
+  ],
+  "acceptance": {
+    "cli_assertion_groups": 16,
+    "real_accounts": 2,
+    "real_host": true,
+    "real_pty": true,
+    "thread_task_routing": "pass",
+    "read_state_isolation": "pass",
+    "resolve_and_reopen": "pass",
+    "terminal_share_context": "pass",
+    "shell_terminated_after_close": true,
+    "host_sigint_exit_observed": true,
+    "host_forced": false,
+    "server_sigint_exit_observed": true,
+    "port_released": true
+  },
+  "shutdown_observation": {
+    "historical_failure_reproduced": false,
+    "successful_full_acceptance_runs": 42,
+    "observed_host_sigint_exit_ms_range": [
+      1,
+      7
+    ],
+    "latest_rebased_run_host_exit_ms": 1,
+    "latest_rebased_run_server_exit_ms": 2,
+    "sigkill_count": 0,
+    "process_leak_count": 0
+  },
+  "limits": [
+    "The earlier one-off forced shutdown cannot be reproduced, so no speculative den-host change or regression test was added."
+  ],
+  "evidence": "https://github.com/nhclink16/den/pull/41#issuecomment-5746637898"
+}

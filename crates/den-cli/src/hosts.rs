@@ -32,8 +32,21 @@ pub enum AccessCmd {
 pub enum TerminalCmd {
     Open {
         host: String,
+        /// Where the card goes. Omitted, it lands in your own DM with yourself, not
+        /// in whatever room a task ID happens to be running in.
         #[arg(long = "in")]
         room: Option<String>,
+        #[command(flatten)]
+        context: crate::threads::Context,
+    },
+    /// Add another card for a session that is already running, without opening a
+    /// second one.
+    Share {
+        session: String,
+        #[arg(long = "in")]
+        room: String,
+        #[command(flatten)]
+        context: crate::threads::Context,
     },
     Write {
         session: String,
@@ -103,18 +116,45 @@ pub fn access(c: &Client, cmd: AccessCmd) -> anyhow::Result<()> {
 }
 pub fn terminal(c: &Client, cmd: TerminalCmd) -> anyhow::Result<()> {
     match cmd {
-        TerminalCmd::Open { host, room } => print(&c.send::<Object>(
-            Method::POST,
-            &format!("/hosts/{}/sessions", resolve(c, &host)?),
-            &OpenTerminal {
-                channel_id: room.map(|r| c.resolve_channel(&r)).transpose()?,
-                cols: None,
-                rows: None,
-                thread_id: None,
-                task_id: None,
-                reply_to: None,
-            },
-        )?)?,
+        TerminalCmd::Open {
+            host,
+            room,
+            context,
+        } => {
+            let host = resolve(c, &host)?;
+            let channel_id = room.map(|r| c.resolve_channel(&r)).transpose()?;
+            let (thread_id, task_id, reply_to) = context.parts()?;
+            print(&c.send::<Object>(
+                Method::POST,
+                &format!("/hosts/{host}/sessions"),
+                &OpenTerminal {
+                    channel_id,
+                    cols: None,
+                    rows: None,
+                    thread_id,
+                    task_id,
+                    reply_to,
+                },
+            )?)?
+        }
+        TerminalCmd::Share {
+            session,
+            room,
+            context,
+        } => {
+            let channel_id = c.resolve_channel(&room)?;
+            let (thread_id, task_id, reply_to) = context.parts()?;
+            print(&c.send::<Object>(
+                Method::POST,
+                &format!("/sessions/{}/share", crate::id(&session)?),
+                &ShareTerminal {
+                    channel_id,
+                    thread_id,
+                    task_id,
+                    reply_to,
+                },
+            )?)?
+        }
         TerminalCmd::Write { session, text } => {
             let response = c
                 .request(
