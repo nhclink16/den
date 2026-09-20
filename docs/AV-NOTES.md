@@ -90,7 +90,8 @@ from the exact direct `@mediapipe/tasks-vision` dependency into
 and `npm run build` call. That directory is git-ignored. The WASM directory and
 hash-versioned model URL receive a one-year immutable cache header; Caddy uses
 Zstandard or gzip for the roughly 9.9 MB first activation. Complete upstream
-licences, LiveKit's NOTICE and model provenance ship under `public/licenses`.
+licences, a LiveKit attribution file and model provenance ship under
+`public/licenses`.
 
 ## Extension points
 

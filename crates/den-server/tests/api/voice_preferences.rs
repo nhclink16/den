@@ -1,6 +1,28 @@
 use super::*;
 
 #[tokio::test]
+async fn legacy_camera_preferences_default_to_no_background_effect() {
+    let t = Test::new().await;
+    let alice = t.member("voice_legacy_camera").await;
+    sqlx::query("INSERT INTO user_voice_preferences(user_id,preferences) VALUES(?,?)")
+        .bind(&alice.user.id)
+        .bind(r#"{"cameras":{"old-camera":{"resolution":"720p","frame_rate":24,"mirror":false}}}"#)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+
+    let saved: VoicePreferences = t
+        .req(Method::GET, "/users/me/voice", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(saved.cameras["old-camera"].background, CameraBackground::None);
+}
+
+#[tokio::test]
 async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     let t = Test::new().await;
     let alice = t.member("voice_alice").await;

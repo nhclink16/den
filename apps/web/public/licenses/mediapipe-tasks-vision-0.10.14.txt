@@ -12,8 +12,8 @@ https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter
 SHA-256:
 191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b
 
-The complete upstream notices distributed with Den are:
+The license and attribution materials distributed with Den are:
 
   mediapipe-0.10.14-LICENSE.txt
   livekit-track-processors-0.8.0-LICENSE.txt
-  livekit-track-processors-0.8.0-NOTICE.txt
+  livekit-track-processors-0.8.0-ATTRIBUTION.txt
