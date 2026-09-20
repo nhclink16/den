@@ -19,7 +19,10 @@ async fn legacy_camera_preferences_default_to_no_background_effect() {
         .json()
         .await
         .unwrap();
-    assert_eq!(saved.cameras["old-camera"].background, CameraBackground::None);
+    assert_eq!(
+        saved.cameras["old-camera"].background,
+        CameraBackground::None
+    );
 }
 
 #[tokio::test]
