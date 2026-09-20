@@ -143,6 +143,9 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
   /** The capture rate blur is asking for, stepped down under strain. */
   rate = blurRates[0]
   private inner?: BackgroundProcessorWrapper
+  /** A disposable clone feeds MediaStreamTrackProcessor. Stopping the real camera
+   * to drain that stream would also turn the user's camera off. */
+  private input?: MediaStreamTrack
   private samples: number[] = []
   private generation = 0
   /** @param target the saved capture rate blur should try to hold.
@@ -161,6 +164,8 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
       throw error
     }
     if (generation !== this.generation) return
+    const input = options.track.clone()
+    this.input = input
     const inner = BackgroundProcessor({
       mode: 'background-blur', blurRadius: backgroundBlurRadius(this.background()), maxFps: this.rate, assetPaths: blurAssets,
       // track-processors 0.8.0's processingTimeMs adds segmentationTimeMs to
@@ -171,16 +176,17 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     }, this.name)
     this.inner = inner
     try {
-      await inner.init(options)
+      await inner.init({ ...options, track: input })
       if (generation !== this.generation || this.inner !== inner) {
-        await inner.destroy()
+        await this.dispose(inner, input)
         return
       }
     } catch (error) {
       if (this.inner === inner) this.inner = undefined
+      if (this.input === input) this.input = undefined
       // track-processors 0.8.0 ignores destroy() while `initializing`. The modern
       // path exposes enough state to release everything it created before failing.
-      await this.release(inner)
+      await this.release(inner, input)
       throw error
     }
   }
@@ -190,11 +196,30 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
   /** Release the public resources exposed by 0.8.0 when its own control-stream
    * close stalls. The generated track is no longer on the sender by the time this
    * fallback returns, and destroying the transformer closes MediaPipe/WebGL. */
-  private async release(inner: BackgroundProcessorWrapper) {
+  private async release(inner: BackgroundProcessorWrapper, input?: MediaStreamTrack) {
+    input?.stop()
     inner.processedTrack?.stop()
     inner.trackGenerator?.stop()
     inner.displayCanvas?.remove()
     await inner.transformer.destroy().catch(() => {})
+  }
+  private async dispose(inner: BackgroundProcessorWrapper, input?: MediaStreamTrack) {
+    // Draining a processor that owns a camera track depends on a Chromium-specific
+    // writableControl close. Feed it a clone instead, then end that clone first so
+    // the readable stream has a standards-based reason to finish.
+    input?.stop()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const stalled = Symbol('processor teardown stalled')
+      const result = await Promise.race([
+        inner.destroy(),
+        new Promise<typeof stalled>(resolve => { timer = setTimeout(() => resolve(stalled), 1_000) }),
+      ])
+      if (result === stalled) await this.release(inner, input)
+    } catch (error) {
+      await this.release(inner, input)
+      throw error
+    } finally { clearTimeout(timer) }
   }
   /** The package times its own frames and then only logs the estimate, so the
    * fallback is Den's to write. Over a window of frames: if segmentation costs more
@@ -219,23 +244,10 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
   async destroy() {
     ++this.generation
     const inner = this.inner
-    this.inner = undefined; this.source = undefined; this.samples = []
+    const input = this.input
+    this.inner = undefined; this.input = undefined; this.source = undefined; this.samples = []
     if (!inner) return
-    // After a camera mute/resume, ProcessorWrapper 0.8.0 can wait forever for
-    // MediaStreamTrackProcessor.writableControl.close(). Bound that SDK bug so
-    // turning blur off and leaving a call cannot wedge the AV queue.
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      const stalled = Symbol('processor teardown stalled')
-      const result = await Promise.race([
-        inner.destroy(),
-        new Promise<typeof stalled>(resolve => { timer = setTimeout(() => resolve(stalled), 1_000) }),
-      ])
-      if (result === stalled) await this.release(inner)
-    } catch (error) {
-      await this.release(inner)
-      throw error
-    } finally { clearTimeout(timer) }
+    await this.dispose(inner, input)
   }
 }
 

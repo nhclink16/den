@@ -107,6 +107,7 @@ try {
       const blur = new av.CameraBlur(() => 30, () => 'blur', () => {})
       const element = await av.startPreviewBlur(blur, source)
       const output = blur.processedTrack
+      const input = blur.input
       Object.defineProperty(blur.inner.processor, 'writableControl', {
         configurable: true,
         value: { close: () => new Promise(() => {}) },
@@ -116,6 +117,7 @@ try {
       const result = {
         elapsed: performance.now() - started,
         source: source.readyState,
+        input: input?.readyState,
         output: output?.readyState,
         canvases: document.querySelectorAll('canvas[data-livekit-processor]').length,
       }
@@ -125,6 +127,7 @@ try {
     })
     assert(report.stuckTeardown.elapsed < 1_500, `stuck teardown took ${report.stuckTeardown.elapsed} ms`)
     assert.equal(report.stuckTeardown.source, 'live')
+    assert.equal(report.stuckTeardown.input, 'ended')
     assert.equal(report.stuckTeardown.output, 'ended')
     assert.equal(report.stuckTeardown.canvases, 0)
     assert.deepEqual(errors, [])
