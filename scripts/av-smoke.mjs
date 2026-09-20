@@ -107,10 +107,13 @@ try {
  const quickBlur=a.getByRole('button',{name:'Blur my background',exact:true}).first()
  await quickBlur.click()
  await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===10},'toolbar restores last blur')
+ const beforeCameraMute=await inspect(a)
  await a.getByRole('button',{name:'Turn camera off',exact:true}).click()
  await until(async()=>!(await inspect(a)).cameraOn,'camera muted with blur preference retained')
  await a.getByRole('button',{name:'Turn camera on',exact:true}).click()
  await until(async()=>{const live=await inspect(a);return live.cameraOn&&live.blurProcessor==='den-background-blur'&&live.background==='blur'},'camera resumes with blur')
+ const resumed=await inspect(a)
+ assert.notEqual(resumed.outputId,beforeCameraMute.outputId,'camera resume installs a fresh blur pipeline')
  await a.getByRole('button',{name:'Turn background blur off',exact:true}).first().click()
  await until(async()=>!(await inspect(a)).blurProcessor,'toolbar removes blur for camera controls')
  await until(async()=>await remoteVideoFrames(b)>blurFramesBefore,'remote frames continue across blur transitions')
@@ -120,7 +123,7 @@ try {
    sameParticipant:blurSwitched.identity===blurInitial.identity,
    samePublication:blurSwitched.cameraSid===blurInitial.cameraSid,
    sameSource:blurSwitched.blurSourceId===blurInitial.blurSourceId,
-   cameraResume:true,
+   cameraResume:true,freshProcessorAfterResume:true,
  }
  const meter=a.getByRole('meter',{name:'Microphone level'})
  const slider=a.getByRole('slider',{name:'Input gain',exact:true})

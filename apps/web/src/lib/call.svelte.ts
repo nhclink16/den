@@ -411,7 +411,17 @@ class Call {
   async toggleCamera() {
     const room = this.room
     if (!room) return
-    try { await this.enableCamera(room, !room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
+    const enabled = !room.localParticipant.isCameraEnabled
+    try {
+      // track-processors 0.8.0 can wedge its MediaStreamTrackProcessor when the
+      // source is muted and resumed in place. Detach before mute; applyAV installs
+      // a fresh pipeline after LiveKit has brought the camera back.
+      const track = this.cameraPublication
+      if (!enabled && track?.getProcessor() === this.blur) await track.stopProcessor(false)
+      await this.enableCamera(room, enabled)
+      if (enabled) await this.applyAV()
+      this.refresh(); this.save({ cameraOn: this.cameraOn })
+    } catch (err) { this.report(err) }
   }
   async addScreen() {
     if (this.screenAdding) return
