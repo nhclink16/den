@@ -1,6 +1,7 @@
 {
-  "commit": "faec5a7a59717c93999370caf19593ec9bb266a9",
+  "commit": "860d746880f1d85b6d515d6fbf4d6a067a2289f3",
   "checks": {
+    "draftDuringPin": true,
     "sharedJoin": true,
     "reconnectGap": true,
     "mobileReflow": {

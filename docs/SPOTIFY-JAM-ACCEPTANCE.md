@@ -33,9 +33,14 @@ clients that predate Jam events. Production deployment is not part of this work.
   visible room.
 - Missing OAuth scopes, expired or revoked grants, rotated refresh tokens, and
   `429 Retry-After` were not covered end to end. Each now has a provider-stub test.
+- Playback backoff truncated Spotify's requested delay to 60 seconds. It now
+  preserves the full `Retry-After` up to the connection's remaining lifetime.
 - A token refresh already in flight could finish after Disconnect and restore an
   access token and playback sample. Account generations now make older provider
   work ineligible, and Disconnect clears on both sides of the refresh lock.
+- An OAuth callback already exchanging its code could reconnect after Disconnect.
+  Authorization attempts now carry the account generation, and Disconnect
+  cancels both pending and in-flight attempts before they can store a grant.
 - Refresh-token rotation initially extended the grant. Spotify documents that
   access-token refresh does not extend the six-month lifetime, so rotation now
   replaces only the encrypted token material.
@@ -48,6 +53,12 @@ clients that predate Jam events. Production deployment is not part of this work.
 - An in-flight Spotify account read could likewise repopulate the next account
   or overwrite a newer socket update. Account reads now bind to both the account
   epoch and the latest accepted Spotify update.
+- Delayed Jam write responses could overwrite a newer socket event, cross logout,
+  or clear the same room in another Electron instance. Every Jam mutation now
+  stays with its concrete Store, account generation, and per-room sequence.
+- Pinning a Jam cleared text typed while the request was pending. The pin now
+  uses the composer's existing draft owner, lifetime, conversation, and revision
+  checks before clearing only the submitted draft.
 - The initial card used perpetual pulse motion, ambiguous external-link labels,
   and a voice form that offered no keyboard path to validation. Those controls
   now use a static status, descriptive link names, and focused inline errors.
@@ -66,11 +77,11 @@ fixed there. No shipped-defect issue was filed for them.
 Green local checks:
 
 - `cargo fmt --check`
-- Four Spotify/Jam unit tests
-- Twelve deterministic Spotify/Jam API integration tests
+- Five Spotify/Jam unit tests
+- Thirteen deterministic Spotify/Jam API integration tests
 - Portable export/import roundtrip
 - `npm run check --prefix apps/web` (one inherited unused-selector warning)
-- Eighty-five web state/behavior tests
+- Eighty-eight web state/behavior tests
 - `npm run build --prefix apps/web`, including all authored contrast palettes
 - Actual-server OpenAPI regeneration for web and Swift
 - Swift client schema consistency check and package build
@@ -78,9 +89,10 @@ Green local checks:
 
 Every new automated test was mutation-proven before the mutation was removed:
 
-- One temporary crypto/URL/key-permission mutation made all four unit tests fail.
+- One temporary crypto/URL/key-permission mutation made all four original unit
+  tests fail; the backoff test separately failed against the 60-second cap.
 - Temporary authorization, refresh, timeout, scope, ownership, privacy, rate-limit,
-  disconnect-race, and event-gate regressions made all twelve Spotify/Jam
+  disconnect/callback races, and event-gate regressions made all thirteen Spotify/Jam
   integrations fail.
 - Retaining Spotify credentials in a default import made the portability test fail.
 - Dropping Jam socket handling made the browser smoke fail on shared state.
@@ -88,6 +100,10 @@ Every new automated test was mutation-proven before the mutation was removed:
   isolation regression test fail.
 - Allowing a stale Spotify account read to cross logout or overwrite a socket
   update made both account-state regressions fail.
+- Removing Jam mutation guards made the stale-socket and cross-account tests
+  fail; resolving End through the active Store made the instance test fail.
+- Holding the pin response while typing made the browser smoke fail when the
+  completion erased the newer draft.
 
 After restoration, the focused suites returned green and the temporary breaks
 were absent from the diff. The browser runner writes its machine-readable result
