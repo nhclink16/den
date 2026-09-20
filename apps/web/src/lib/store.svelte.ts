@@ -79,11 +79,13 @@ export class Store {
     this.jams = next
   }
   async loadJam(room: string) {
+    const generation = this.generation
     const seq = (this.jamSeq.get(room) ?? 0) + 1
     this.jamSeq.set(room, seq)
     const { jam } = await this.api.get<RoomJam>(`/rooms/${room}/jam`)
-    // A socket event or a newer read landed while this one was in flight.
-    if (this.jamSeq.get(room) !== seq) return
+    // A socket event, a newer read, or another account landed while this one
+    // was in flight. A room id can be shared by two accounts on one server.
+    if (generation !== this.generation || this.jamSeq.get(room) !== seq) return
     this.receiveJam(room, jam ?? null)
   }
   /** This account's Spotify link. `unavailable` until the server says otherwise. */

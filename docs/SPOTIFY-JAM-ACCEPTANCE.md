@@ -40,6 +40,8 @@ clients that predate Jam events. Production deployment is not part of this work.
   both cases and creates a new Unix key file with mode `0600`.
 - Spotify and Jam state survived client logout. Both are cleared synchronously
   with the rest of the account epoch.
+- An in-flight Jam read from the prior account could land after logout when the
+  next account reused the same room id. Jam reads now bind to the account epoch.
 - The initial card used perpetual pulse motion, ambiguous external-link labels,
   and a voice form that offered no keyboard path to validation. Those controls
   now use a static status, descriptive link names, and focused inline errors.
@@ -62,6 +64,7 @@ Green local checks:
 - Eleven deterministic Spotify/Jam API integration tests
 - Portable export/import roundtrip
 - `npm run check --prefix apps/web` (one inherited unused-selector warning)
+- Eighty-three web state/behavior tests
 - `npm run build --prefix apps/web`, including all authored contrast palettes
 - Actual-server OpenAPI regeneration for web and Swift
 - Swift client schema consistency check and package build
@@ -74,6 +77,8 @@ Every new automated test was mutation-proven before the mutation was removed:
   and event-gate regressions made all eleven Spotify/Jam integrations fail.
 - Retaining Spotify credentials in a default import made the portability test fail.
 - Dropping Jam socket handling made the browser smoke fail on shared state.
+- Allowing a prior account's Jam read to resolve after logout made the account
+  isolation regression test fail.
 
 After restoration, the focused suites returned green and the temporary breaks
 were absent from the diff. The browser runner writes its machine-readable result

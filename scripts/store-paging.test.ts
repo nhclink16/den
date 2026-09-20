@@ -166,3 +166,30 @@ test('logout leaves no paging flag for the next account', async () => {
   r.pages[0]!.release([room('020'), room('030')])
   await pending
 })
+
+test('a Jam read from the previous account cannot land in the next account', async () => {
+  const old = held()
+  const fresh = held()
+  let reads = 0
+  api = {
+    get: async () => (++reads === 1 ? old.promise : fresh.promise),
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const oldRead = s.loadJam('c')
+
+  // These are the synchronous account-boundary changes made by logout. The
+  // next account can see the same room id and starts its own first read.
+  s.generation++
+  s.jamSeq.clear()
+  s.jams = new Map()
+  const freshRead = s.loadJam('c')
+
+  old.release({ jam: { id: 'old-account-jam' } })
+  await oldRead
+  assert.equal(s.jams.size, 0, 'the previous account populated the new account cache')
+
+  fresh.release({ jam: { id: 'new-account-jam' } })
+  await freshRead
+  assert.equal(s.jams.get('c')?.id, 'new-account-jam')
+})
