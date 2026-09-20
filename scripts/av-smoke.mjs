@@ -67,7 +67,11 @@ try {
  await until(()=>a.evaluate(()=>performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname.endsWith('/blur/selfie_segmenter.tflite'))),'self-hosted model loaded')
  assert(await a.evaluate(()=>performance.getEntriesByType('resource').filter(e=>/mediapipe|selfie_segmenter|vision_wasm/.test(e.name)).every(e=>new URL(e.name).origin===location.origin)),'blur assets stay same-origin')
  const backgroundSync=await login();await voice(backgroundSync)
- await until(()=>backgroundSync.getByRole('radio',{name:'Light blur',exact:true}).isChecked(),'background preference synced to same account')
+ await until(()=>backgroundSync.evaluate(async id=>{
+   const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/store.svelte.ts').name
+   const {instances}=await import(url)
+   return instances.active.voice.cameras[id]?.background==='light_blur'
+ },selectedCamera),'background preference synced to same account')
  await backgroundSync.context().close()
  await a.screenshot({path:`${shots}/after.png`})
  await a.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
