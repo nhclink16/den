@@ -116,9 +116,12 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
     let t = Test::new().await;
     let root = t.dir.join("spa");
     std::fs::create_dir_all(root.join("assets")).unwrap();
+    std::fs::create_dir_all(root.join("blur/wasm-0.10.14")).unwrap();
     let html = "<!doctype html><title>Den fixture</title><div id='app'></div>";
     std::fs::write(root.join("index.html"), html).unwrap();
     std::fs::write(root.join("assets/app.js"), "console.log('fixture');").unwrap();
+    std::fs::write(root.join("blur/wasm-0.10.14/vision.wasm"), "wasm").unwrap();
+    std::fs::write(root.join("blur/selfie_segmenter.tflite"), "model").unwrap();
     for path in ["/", "/inbox", "/chat/abc"] {
         let response = t.http.get(format!("{}{path}", t.url)).send().await.unwrap();
         assert_eq!(response.status(), 200);
@@ -146,6 +149,25 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
         .to_str()
         .unwrap()
         .contains("javascript"));
+    for path in [
+        "/blur/wasm-0.10.14/vision.wasm",
+        "/blur/selfie_segmenter.tflite?v=191ac952",
+    ] {
+        let response = t.http.get(format!("{}{path}", t.url)).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            response.headers()["cache-control"],
+            "public, max-age=31536000, immutable"
+        );
+    }
+    let unversioned_model = t
+        .http
+        .get(format!("{}/blur/selfie_segmenter.tflite", t.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unversioned_model.status(), 200);
+    assert_eq!(unversioned_model.headers()["cache-control"], "no-store");
     let head = t
         .http
         .head(format!("{}/inbox", t.url))

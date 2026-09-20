@@ -1,5 +1,6 @@
 # Historical Docker outline only. The live VPS uses systemd and Caddyfile.
 {$DEN_DOMAIN} {
+    encode zstd gzip
     reverse_proxy den:7000
 }
 
