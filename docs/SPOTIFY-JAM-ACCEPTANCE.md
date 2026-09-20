@@ -19,7 +19,7 @@ clients that predate Jam events. Production deployment is not part of this work.
 | Web and narrow UI | Composer suggestion, room card, voice-room form, account settings, callback route, inline confirmation, external-link naming, keyboard focus, reduced-motion-safe status, 320 px reflow | `scripts/run-spotify-jam-smoke.sh`; [desktop](shots/pr/feat/spotify-jam/desktop.png), [320 px](shots/pr/feat/spotify-jam/mobile-320.png), [settings](shots/pr/feat/spotify-jam/settings-mobile.png) |
 | Logout/reconnect cleanup | Account and Jam state cannot cross a logout; a Jam started during a forced socket gap appears after reconnect | Browser smoke `logoutIsolation` and `reconnectGap` assertions |
 | Portability | Jams and joins survive export/import; default import drops Spotify credentials; disaster-recovery import can retain the encrypted row but still requires the separately restored data key | Extended portability roundtrip test; `deploy/README.md` |
-| Contracts and migration | Migration follows current main's thread migration; OpenAPI is generated from the real server; web and Swift snapshots consume shared Rust types | `0021_spotify.sql`; actual-binary schema regeneration; Swift schema check/build |
+| Contracts and migration | Migration follows current main's thread migration; OpenAPI is generated from the real server; web and Swift snapshots consume shared Rust types | `0021_spotify.sql`; actual-binary schema regeneration with 104 paths and 136 schemas; Swift schema check/build |
 
 ## Confirmed defects fixed before review
 
@@ -76,13 +76,16 @@ fixed there. No shipped-defect issue was filed for them.
 
 Green local checks:
 
-- `cargo fmt --check`
+- `cargo fmt --all -- --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`, including 97 server API tests
 - Five Spotify/Jam unit tests
 - Thirteen deterministic Spotify/Jam API integration tests
 - Portable export/import roundtrip
 - `npm run check --prefix apps/web` (one inherited unused-selector warning)
 - Eighty-eight web state/behavior tests
 - `npm run build --prefix apps/web`, including all authored contrast palettes
+- Three Electron security tests and a signed macOS package build
 - Actual-server OpenAPI regeneration for web and Swift
 - Swift client schema consistency check and package build
 - `scripts/run-spotify-jam-smoke.sh`
@@ -135,6 +138,8 @@ which matches Den's five-person scope but remains an operator prerequisite.
   [#46](https://github.com/nhclink16/den/issues/46). Those findings come from
   the unchanged web dependency baseline. The server declares `ring` directly
   for token encryption; that package was already present transitively.
-- AV must merge first. Spotify must then rebase onto that exact `main`, resolve
-  any new migration number, pass independent review, and make the exact rebased
-  PR head green before merge.
+- AV PR #50 and native threads PR #51 are included through `main` commit
+  `3a841048`. Spotify was rebased onto that exact commit; the migration sequence
+  is unique and contiguous through `0021_spotify.sql`, and the regenerated
+  contract contains AV, thread, Jam, and Spotify paths and schemas. Independent
+  review and exact-head CI remain the final merge gates.
