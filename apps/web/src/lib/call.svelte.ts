@@ -1,6 +1,6 @@
 import { sounds } from './sounds'
-import { MicrophoneGain, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints } from './av'
-import { RemoteAudioTrack, Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
+import { CameraBlur, MicrophoneGain, blurCaptureRate, blurSupported, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints, type CameraBackground } from './av'
+import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
@@ -41,6 +41,15 @@ class Call {
   held = $state(false)
   micOn = $state(false)
   cameraOn = $state(false)
+  /** A blur processor is attached to the published camera. Reactive because the
+   * Settings preview has to know which of the two camera tracks to show. */
+  blurActive = $state(false)
+  /** Why blur changed the camera or switched itself off. Not an error: the call
+   * carries on either way. */
+  blurNotice = $state('')
+  /** The capture rate blur's own measurements settled on, or 0 for no limit. */
+  blurRate = $state(0)
+  backgroundBusy = $state(false)
   screenOn = $state(false)
   screenAdding = $state(false)
   shares = new Shares(() => this.room, this.refreshShares.bind(this))
@@ -79,18 +88,145 @@ class Call {
   private micQueue = Promise.resolve()
   private avQueue = Promise.resolve()
   gain = new MicrophoneGain((id) => (this.owner || store).voice.microphones[id] || defaultMicrophone)
-  get cameraTrack() { return this.room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track?.mediaStreamTrack }
-  get cameraSettings() { return (this.owner || store).voice.cameras[deviceId(this.cameraTrack)] || defaultCamera }
+  // Annotated because the type would otherwise be circular: the blur's target rate
+  // reads cameraSettings, which reads cameraTrack, which reads the blur's source.
+  blur: CameraBlur = new CameraBlur(() => this.cameraSettings.frame_rate, () => this.cameraSettings.background, (rate) => this.strained(rate))
+  private get cameraPublication() {
+    const track = this.room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track
+    return track instanceof LocalVideoTrack ? track : undefined
+  }
+  /** The camera itself, never the processed output. With blur on, the published
+   * track is a generator or canvas track with no device and no capabilities, so
+   * reading it here would empty the resolution and picture controls and collapse
+   * every camera onto the `default` preferences key. */
+  get cameraTrack() {
+    const track = this.cameraPublication
+    return (this.blurActive ? this.blur.source : track?.mediaStreamTrack) ?? undefined
+  }
+  get cameraPreferenceId() { return this.cameraTrack?.getSettings().deviceId || this.prefs.camera || 'default' }
+  get cameraSettings() { return (this.owner || store).voice.cameras[this.cameraPreferenceId] || defaultCamera }
+  private async applyCamera() {
+    const track = this.cameraTrack
+    const active = this.cameraPublication?.getProcessor() === this.blur
+    const cap = active ? this.blurRate || this.blur.rate : undefined
+    if (track?.readyState === 'live') await track.applyConstraints(cameraConstraints(this.cameraSettings, track, cap))
+  }
   applyAV() {
     const room = this.room
     const update = this.avQueue.then(async () => {
       if (!room || this.room !== room) return
       await this.gain.update()
-      const track = this.cameraTrack
-      if (track?.readyState === 'live') await track.applyConstraints(cameraConstraints(this.cameraSettings, track))
+      await this.applyBackground(room, this.cameraSettings.background)
+      await this.applyCamera()
     })
     this.avQueue = update.catch((err) => this.report(err))
     return this.avQueue
+  }
+  /** Blur reports it cannot hold its rate. A lower rate caps the capture instead of
+   * dropping the effect; `null` means even the slowest step failed, so blur goes
+   * rather than the call. */
+  private strained(rate: number | null) {
+    if (rate) {
+      this.blurRate = rate
+      this.blurNotice = `Background blur is holding your camera at ${rate} fps.`
+      void this.applyAV()
+    } else void this.setBackground('none', 'Background blur was turned off: this device could not keep up with it.')
+  }
+  private lastBackground: Exclude<CameraBackground, 'none'> = 'blur'
+  async setBackground(requested: CameraBackground, notice = '') {
+    const background = requested !== 'none' && !blurSupported() ? 'none' : requested
+    if (background !== 'none') this.lastBackground = background
+    const room = this.room, owner = this.owner || instances.active
+    const id = this.cameraPreferenceId
+    const previous = owner.voice.cameras[id] || defaultCamera
+    const next = { ...previous, background }
+    this.backgroundBusy = true; this.blurRate = 0
+    const update = this.avQueue.then(async () => {
+      if (!room || this.room !== room) return
+      await this.applyBackground(room, background)
+      await this.applyCamera()
+    })
+    this.avQueue = update.catch(() => {})
+    try {
+      await update
+      await owner.saveVoice({ microphones: {}, cameras: { [id]: next } })
+      this.blurNotice = requested !== background
+        ? 'Background blur is unavailable in this browser, so your camera is unblurred.'
+        : notice
+    } catch (error) {
+      const rollback = this.avQueue.then(async () => {
+        if (!room || this.room !== room) return
+        await this.applyBackground(room, previous.background)
+        await this.applyCamera()
+      })
+      this.avQueue = rollback.catch(() => {})
+      await rollback.catch(() => {})
+      this.report(error)
+      throw error
+    } finally { this.backgroundBusy = false }
+  }
+  toggleBackground() {
+    return this.setBackground(this.cameraSettings.background === 'none' ? this.lastBackground : 'none')
+  }
+  private async applyBackground(room: Room, background: CameraBackground) {
+    const enabled = background !== 'none' && blurSupported()
+    this.captureDefaults(room, background)
+    const track = this.cameraPublication
+    if (!track) return
+    const active = track.getProcessor() === this.blur
+    if (enabled && active) await this.blur.setBackground(background)
+    else if (enabled) {
+      try {
+        // ProcessorWrapper.maxFps is fallback-only in track-processors 0.8.0.
+        // Cap the real camera before modern processing starts, then keep applying
+        // that cap in applyCamera as the performance ladder moves down.
+        await track.mediaStreamTrack.applyConstraints(cameraConstraints(this.cameraSettings, track.mediaStreamTrack, blurCaptureRate(this.cameraSettings.frame_rate)))
+        await track.setProcessor(this.blur)
+      } catch (error) {
+        // setProcessor stores the processor before its final sender/simulcast swaps.
+        // Detach through LiveKit when that partial registration happened so a
+        // stopped generated track cannot remain on the sender.
+        if (track.getProcessor() === this.blur) await track.stopProcessor(false).catch(() => {})
+        else await this.blur.destroy().catch(() => {})
+        throw error
+      }
+    } else if (active) await track.stopProcessor(false)
+    this.refresh()
+  }
+  /** The capture defaults are the single hook for the processor: `setCameraEnabled`
+   * merges them into every camera it creates, including the ones the SDK recreates
+   * on its own after a device change or a republish. */
+  private captureDefaults(room: Room, background: CameraBackground) {
+    const enabled = background !== 'none' && blurSupported()
+    room.options.videoCaptureDefaults = {
+      ...room.options.videoCaptureDefaults,
+      frameRate: enabled ? blurCaptureRate(this.cameraSettings.frame_rate) : undefined,
+      processor: enabled ? this.blur : undefined,
+    }
+  }
+  private async enableCamera(room: Room, enabled: boolean) {
+    const background = this.cameraSettings.background
+    this.captureDefaults(room, background)
+    try { await room.localParticipant.setCameraEnabled(enabled) } catch (err) {
+      // The capability probe can pass on a machine where the segmenter still fails
+      // to start, so bring the camera up unblurred instead of failing over a
+      // decoration. A denied camera rethrows from the retry.
+      if (!enabled || background === 'none' || !blurSupported()) throw err
+      this.blurRate = 0
+      this.captureDefaults(room, 'none')
+      await this.blur.destroy().catch(() => { /* Never started. */ })
+      try { await room.localParticipant.setCameraEnabled(enabled) } catch (retryError) {
+        // The plain camera also failed, so this was permission/capture/publish,
+        // not proof that the effect is broken. Preserve the user's preference.
+        this.captureDefaults(room, background)
+        throw retryError
+      }
+      this.refresh()
+      this.blurNotice = 'Background blur could not start on this device, so your camera is unblurred.'
+      const id = this.cameraPreferenceId, owner = this.owner || instances.active
+      const current = owner.voice.cameras[id] || defaultCamera
+      await owner.saveVoice({ microphones: {}, cameras: { [id]: { ...current, background: 'none' } } }).catch(saveError => this.report(saveError))
+    }
   }
 
   save(patch: Partial<Preferences>) {
@@ -104,7 +240,7 @@ class Call {
   report(err: unknown) {
     if (!(err instanceof HttpError)) void sounds.play('error', this.owner || store)
     if (err instanceof HttpError && err.status === 503) this.error = "Voice isn't set up on this server yet."
-    else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = `Allow microphone access in your browser’s site settings.`
+    else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = `Allow camera and microphone access in your browser’s site settings.`
     else this.error = err instanceof Error ? err.message : 'The call could not connect. Try again.'
   }
   private refresh = () => {
@@ -130,6 +266,7 @@ class Call {
     this.duckMusic(this.participants.some(p => !p.music && p.speaking))
     this.micOn = room.localParticipant.isMicrophoneEnabled
     this.cameraOn = room.localParticipant.isCameraEnabled
+    this.blurActive = this.cameraPublication?.getProcessor() === this.blur
     this.screenOn = room.localParticipant.isScreenShareEnabled
   }
   private sound(join: boolean) {
@@ -143,10 +280,11 @@ class Call {
     const generation = ++this.generation
     this.joining = channel.id; this.error = ''
     const prefs = this.prefs
+    const camera = owner.voice.cameras[prefs.camera || 'default'] || defaultCamera
     const room = new Room({
       adaptiveStream: true, dynacast: true,
       audioCaptureDefaults: { ...microphoneConstraints(owner.voice.microphones[prefs.microphone || 'default'] || defaultMicrophone), deviceId: prefs.microphone || undefined },
-      videoCaptureDefaults: { deviceId: prefs.camera || undefined },
+      videoCaptureDefaults: { deviceId: prefs.camera || undefined, processor: camera.background !== 'none' && blurSupported() ? this.blur : undefined },
       audioOutput: { deviceId: prefs.speaker || 'default' },
     })
     try {
@@ -195,7 +333,7 @@ class Call {
       if (!this.outputMuted) await room.startAudio()
       await this.enableMicrophone(room, prefs.mode === 'activity' && this.prefs.micOn)
       if (generation !== this.generation) { await room.disconnect(); return }
-      if (prefs.cameraOn) await room.localParticipant.setCameraEnabled(true)
+      if (prefs.cameraOn) await this.enableCamera(room, true)
       await this.applyAV()
       this.refresh(); this.sound(true)
     } catch (err) {
@@ -209,6 +347,9 @@ class Call {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
     void this.gain.destroy()
+    // LiveKit owns a published processor and destroys it with the track. Destroying
+    // the same instance here before room.disconnect can stop the sender early.
+    this.blurActive = false; this.blurNotice = ''; this.blurRate = 0; this.backgroundBusy = false
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
@@ -270,7 +411,7 @@ class Call {
   async toggleCamera() {
     const room = this.room
     if (!room) return
-    try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
+    try { await this.enableCamera(room, !room.localParticipant.isCameraEnabled); await this.applyAV(); this.refresh(); this.save({ cameraOn: this.cameraOn }) } catch (err) { this.report(err) }
   }
   async addScreen() {
     if (this.screenAdding) return
@@ -288,6 +429,9 @@ class Call {
     try { await this.shares.quality(name, mode); this.refresh() } catch (err) { this.report(err) }
   }
   async device(kind: MediaDeviceKind, id: string) {
+    // A new camera restarts the track, which restarts the processor on it. Its rate
+    // ladder starts over, so the cap the old camera earned must not linger.
+    if (kind === 'videoinput') { this.blurRate = 0; this.blurNotice = '' }
     try {
       if (this.room && kind === 'audioinput') {
         const preferences = (this.owner || store).voice.microphones[id || 'default'] || defaultMicrophone

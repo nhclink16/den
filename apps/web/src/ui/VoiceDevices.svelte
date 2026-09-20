@@ -3,12 +3,16 @@
   import { Track } from 'livekit-client'
   import { store, instances } from '../lib/store.svelte'
   import { call } from '../lib/call.svelte'
-  import { MicrophoneGain, defaultMicrophone, defaultCamera, deviceId, capabilities, supports, cameraConstraints, microphoneConstraints, type CameraCapabilities } from '../lib/av'
+  import { CameraBlur, MicrophoneGain, blurCaptureRate, blurSupported, defaultMicrophone, defaultCamera, deviceId, capabilities, startPreviewBlur, supports, cameraConstraints, microphoneConstraints, type CameraBackground, type CameraCapabilities } from '../lib/av'
   import type { CameraSettings, MicrophoneSettings } from '../lib/types'
 
   let devices = $state<MediaDeviceInfo[]>([])
   let audio = $state.raw<MediaStreamTrack | null>(null)
+  // Two roles, deliberately apart. `camera` is the real device: capabilities,
+  // constraints, getSettings and the device ID that keys saved settings all read it.
+  // `preview` is what the element shows, which is the processed track once blur runs.
   let camera = $state.raw<MediaStreamTrack | null>(null)
+  let preview = $state.raw<MediaStreamTrack | null>(null)
   let caps = $state<CameraCapabilities>({})
   let actual = $state<MediaTrackSettings>({})
   let video = $state<HTMLVideoElement>()
@@ -26,13 +30,22 @@
   let generation = 0
   let disposed = false
   let ownsCamera = false
+  // Blur for an owned capture. Settings gets a separate processor from the call's,
+  // never a share: the owned case only happens when no camera is published, so the
+  // two never segment at once, and a shared instance would be re-initialised out
+  // from under the preview the moment a call camera came up.
+  let ownedBlur: CameraBlur | null = null
+  let ownedBlurElement: HTMLVideoElement | null = null
+  let ownedRate = 0
+  const blurAvailable = blurSupported()
+  const fpsCap = () => ownsCamera ? ownedRate || ownedBlur?.rate || 0 : call.blurRate
   const micId = $derived(deviceId(audio))
   const camId = $derived(deviceId(camera))
   const mic = $derived(store.voice.microphones[micId] || defaultMicrophone)
   const cam = $derived(store.voice.cameras[camId] || defaultCamera)
   const requestedHeight = $derived(cam.resolution === '720p' ? 720 : cam.resolution === '1080p' ? 1080 : 0)
   const supportedRates = $derived([24, 30, 60].filter(rate => supports(caps.frameRate, rate)))
-  const liveCamera = $derived(call.origin === store.origin ? call.participants.find(p => p.local)?.camera?.mediaStreamTrack : undefined)
+  const livePublication = $derived(call.origin === store.origin ? call.participants.find(p => p.local)?.camera : undefined)
   const speakerSupported = 'setSinkId' in HTMLMediaElement.prototype
   const processing = [ ['echo_cancellation', 'echoCancellation', 'Echo cancellation'], ['noise_suppression', 'noiseSuppression', 'Noise suppression'], ['auto_gain_control', 'autoGainControl', 'Auto gain'] ] as const
   async function enumerate() { if (!disposed) devices = await navigator.mediaDevices.enumerateDevices() }
@@ -40,7 +53,25 @@
     clearInterval(timer); audio?.stop(); audio = null
     void gain?.destroy(); gain = null; void context?.close(); context = null; level = 0
   }
-  function stopCamera() { if (ownsCamera) camera?.stop(); camera = null; ownsCamera = false }
+  function stopCamera() {
+    // Only an owned capture is Den's to release here. Destroying a processor
+    // borrowed from the published track would end blur for the whole call.
+    if (ownsCamera) { void ownedBlur?.destroy(); camera?.stop() }
+    if (ownedBlurElement) { ownedBlurElement.srcObject = null; ownedBlurElement = null }
+    ownedBlur = null; ownedRate = 0; camera = null; preview = null; ownsCamera = false
+  }
+  /** The owned preview's own frame-rate fallback, the same ladder the call uses. */
+  function strain(track: MediaStreamTrack, rate: number | null) {
+    if (camera !== track) return
+    if (!rate) {
+      call.blurNotice = 'Background blur was turned off: this device could not keep up with it.'
+      void changeCamera({ background: 'none' })
+      return
+    }
+    ownedRate = rate
+    status = `Background blur is holding the preview at ${rate} fps.`
+    void track.applyConstraints(cameraConstraints(cam, track, rate)).then(() => { if (camera === track) actual = track.getSettings() }).catch(() => { /* The preview keeps its current rate. */ })
+  }
   async function startAudio() {
     const current = ++generation
     stopAudio()
@@ -73,23 +104,68 @@
   }
   let cameraRequested = $state(false)
   $effect(() => {
-    const live = liveCamera, selected = call.prefs.camera, requested = cameraRequested, pause = paused
+    const live = livePublication, selected = call.prefs.camera, requested = cameraRequested, pause = paused
+    // blurActive flips only once setProcessor has finished swapping the published
+    // track, which is the moment there is a processed track worth showing.
+    void call.blurActive
     if (!requested || pause) { stopCamera(); return }
     let cancelled = false
     stopCamera()
     void (async () => {
       try {
-        const track = live || (await navigator.mediaDevices.getUserMedia({ video: { deviceId: selected ? { exact: selected } : undefined } })).getVideoTracks()[0]
+        // Borrowed: call.cameraTrack already resolves past the processor to the
+        // camera, and the SDK has swapped the published track for the processed one.
+        const track = live ? call.cameraTrack : (await navigator.mediaDevices.getUserMedia({ video: { deviceId: selected ? { exact: selected } : undefined } })).getVideoTracks()[0]
+        if (!track) return
         if (cancelled || disposed) { if (!live) track.stop(); return }
-        camera = track; ownsCamera = !live; caps = capabilities(track)
-        await track.applyConstraints(cameraConstraints(store.voice.cameras[deviceId(track)] || defaultCamera, track))
+        camera = track; preview = live ? live.mediaStreamTrack : track; ownsCamera = !live; caps = capabilities(track)
+        await track.applyConstraints(cameraConstraints(store.voice.cameras[deviceId(track)] || defaultCamera, track, fpsCap()))
         actual = track.getSettings(); await enumerate()
       } catch (err) { if (!cancelled && !disposed) error = message(err) }
     })()
     return () => { cancelled = true; stopCamera() }
   })
   $effect(() => {
-    const element = video, track = camera
+    const track = camera, owned = ownsCamera, background = cam.background
+    if (!track || !owned) return
+    preview = track; ownedRate = 0
+    if (background === 'none' || !blurAvailable) return
+    let cancelled = false, element: HTMLVideoElement | null = null
+    const processor = new CameraBlur(
+      () => (store.voice.cameras[deviceId(track)] || defaultCamera).frame_rate,
+      () => (store.voice.cameras[deviceId(track)] || defaultCamera).background,
+      rate => { if (ownedBlur === processor) strain(track, rate) },
+    )
+    ownedBlur = processor
+    void (async () => {
+      try {
+        await track.applyConstraints(cameraConstraints(cam, track, blurCaptureRate(cam.frame_rate)))
+        if (camera === track) actual = track.getSettings()
+        element = await startPreviewBlur(processor, track)
+        if (cancelled || disposed || camera !== track || ownedBlur !== processor) {
+          element.srcObject = null; await processor.destroy(); return
+        }
+        ownedBlurElement = element
+        preview = processor.processedTrack ?? track
+      } catch (err) {
+        await processor.destroy().catch(() => {})
+        if (cancelled || disposed || camera !== track || ownedBlur !== processor) return
+        ownedBlur = null
+        error = `Background blur was not turned on. ${message(err)}`
+        call.blurNotice = 'Background blur could not start on this device, so your camera is unblurred.'
+        void changeCamera({ background: 'none' })
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (element) element.srcObject = null
+      if (ownedBlur === processor) { ownedBlur = null; ownedBlurElement = null }
+      if (camera === track) preview = track
+      void processor.destroy()
+    }
+  })
+  $effect(() => {
+    const element = video, track = preview
     if (element && track) { element.srcObject = new MediaStream([track]); void element.play().catch(() => {}); return () => { element.srcObject = null } }
   })
   $effect(() => {
@@ -99,7 +175,7 @@
   })
   $effect(() => {
     const value = cam, track = camera
-    if (track) void track.applyConstraints(cameraConstraints(value, track)).then(() => { if (camera === track) actual = track.getSettings() }).catch(err => { error = message(err) })
+    if (track) void track.applyConstraints(cameraConstraints(value, track, fpsCap())).then(() => { if (camera === track) actual = track.getSettings() }).catch(err => { error = message(err) })
   })
   async function changeMic(patch: Partial<MicrophoneSettings>) {
     if (!audio) return
@@ -122,14 +198,24 @@
     error = ''; busy = true
     const next = { ...cam, ...patch }, track = camera, owner = instances.active
     try {
-      await track.applyConstraints(cameraConstraints(next, track))
+      await track.applyConstraints(cameraConstraints(next, track, fpsCap()))
       actual = track.getSettings()
       await owner.saveVoice({ microphones: {}, cameras: { [camId]: next } })
       status = 'Camera settings saved to your account.'
     } catch (err) {
       error = `Camera setting was not saved. ${message(err)}`
-      await track.applyConstraints(cameraConstraints(cam, track)).catch(() => {})
+      await track.applyConstraints(cameraConstraints(cam, track, fpsCap())).catch(() => {})
     } finally { busy = false }
+  }
+  async function changeBackground(background: CameraBackground) {
+    if (!camera) return
+    if (!livePublication) { await changeCamera({ background }); return }
+    error = ''; busy = true
+    try {
+      await call.setBackground(background)
+      status = 'Camera settings saved to your account.'
+    } catch (err) { error = `Camera setting was not saved. ${message(err)}` }
+    finally { busy = false }
   }
   function adjustGain(value: number) {
     draftGain = value; gain?.setGain(value)
@@ -174,6 +260,14 @@
       <label class="device">Frame rate<select aria-label="Frame rate" class="field" value={cam.frame_rate} disabled={!camera || busy || !supportedRates.length} onchange={e => { const el = e.currentTarget; void changeCamera({ frame_rate: +el.value }).then(() => { el.value = String(cam.frame_rate) }) }}>{#if !supportedRates.includes(cam.frame_rate)}<option value={cam.frame_rate} disabled>{Math.round(actual.frameRate || 0)} fps · device default</option>{/if}{#each supportedRates as rate}<option value={rate}>{rate} fps</option>{/each}</select></label>
     </div>
     <label class="switch"><input type="checkbox" checked={cam.mirror} disabled={!camera || busy} onchange={e => changeCamera({ mirror: e.currentTarget.checked })} /> Mirror my preview</label>
+    <fieldset class="background" disabled={!camera || busy}>
+      <legend>Background</legend>
+      {#each [['none', 'None'], ['blur', 'Blur'], ['light_blur', 'Light blur']] as [value, label]}
+        <label><input type="radio" name="camera-background" value={value} checked={(blurAvailable ? cam.background : 'none') === value} disabled={value !== 'none' && !blurAvailable} onchange={() => { void changeBackground(value as CameraBackground) }} /> {label}</label>
+      {/each}
+    </fieldset>
+    {#if !blurAvailable}<p class="muted hint">Background blur needs modern frame processing and WebGL2, which this browser does not have.</p>{/if}
+    {#if call.blurNotice}<p class="muted hint">{call.blurNotice}</p>{/if}
     {#each ['brightness', 'contrast', 'saturation'] as key}
       {@const control = key as 'brightness' | 'contrast' | 'saturation'}
       {@const range = caps[control]}
@@ -201,6 +295,10 @@
   .hint { font-size: 11px; line-height: 1.5; margin: 6px 0 12px; }
   .switch { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
+  .background { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; border: 0; font-size: 13px; }
+  .background legend { margin: 0 0 8px; padding: 0; font: inherit; }
+  .background label { display: flex; align-items: center; gap: 6px; min-height: 32px; }
+  .background input { accent-color: var(--lamp); width: 16px; height: 16px; }
   .preview { aspect-ratio: 16/9; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r-lg); overflow: hidden; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .mirror { transform: scaleX(-1); }

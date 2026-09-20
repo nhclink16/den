@@ -1,6 +1,6 @@
 <script lang="ts">
   // A handful of 16px line icons. Stroke inherits color.
-  let { name, size = 16 }: { name: 'music' | 'monitor' | 'window' | 'browser' | 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off'; size?: number } = $props()
+  let { name, size = 16 }: { name: 'music' | 'monitor' | 'window' | 'browser' | 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off' | 'blur'; size?: number } = $props()
   const paths: Record<string, string> = {
     music: 'M6 11V3l8-2v9M6 6l8-2M6 11a2 2 0 1 1-2-2c1 0 2 1 2 2M14 10a2 2 0 1 1-2-2c1 0 2 1 2 2',
     monitor: 'M2 2h12v9H2zM8 11v3M5 14h6',
@@ -15,6 +15,7 @@
     mic: 'M6 3a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0zM4 7v1a4 4 0 0 0 8 0V7M8 12v3M5 15h6',
     'mic-off': 'M6 3a2 2 0 0 1 4 0v4M6 6v2a2 2 0 0 0 3 1.7M4 7v1a4 4 0 0 0 6.8 2.8M12 7v1M8 12v3M5 15h6M1 1l14 14',
     camera: 'M2 4h8v8H2zM10 6l4-2v8l-4-2',
+    blur: 'M8 8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM4 14a4 4 0 0 1 8 0M1.5 4h.01M14.5 4h.01M1.5 7.5h.01M14.5 7.5h.01M1.5 11h.01M14.5 11h.01M4.5 1.5h.01M11.5 1.5h.01',
     'camera-off': 'M5 4h5v3M2 4v8h8v-2M10 6l4-2v8l-2-1M1 1l14 14',
     screen: 'M2 2h12v9H2zM8 11v3M5 14h6M5 6l3-2 3 2M8 4v5',
     phone: 'M3 2h3l1 3-2 1c1 2 3 4 5 5l1-2 3 1v3c-6 2-13-5-11-11z',
