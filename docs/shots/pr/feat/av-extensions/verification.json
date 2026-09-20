@@ -1,0 +1,92 @@
+{
+  "backgroundBlur": {
+    "ownedPreview": true,
+    "sameOriginAssets": true,
+    "accountSync": true,
+    "lightRadius": 5,
+    "fullRadius": 10,
+    "sameParticipant": true,
+    "samePublication": true,
+    "sameSource": true,
+    "savedLightRestored": true,
+    "cameraResume": true,
+    "freshProcessorAfterResume": true,
+    "remoteContinuity": [
+      {
+        "label": "saved light blur",
+        "before": 1,
+        "after": 3
+      },
+      {
+        "label": "saved light blur off",
+        "before": 5,
+        "after": 8
+      },
+      {
+        "label": "saved light blur restored",
+        "before": 14,
+        "after": 15
+      },
+      {
+        "label": "full blur",
+        "before": 19,
+        "after": 20
+      },
+      {
+        "label": "settings blur off",
+        "before": 24,
+        "after": 26
+      },
+      {
+        "label": "toolbar full blur",
+        "before": 31,
+        "after": 33
+      },
+      {
+        "label": "camera resume",
+        "before": 43,
+        "after": 44
+      },
+      {
+        "label": "final blur off",
+        "before": 44,
+        "after": 46
+      }
+    ]
+  },
+  "microphoneProcessing": {
+    "Echo cancellation": "synthetic device rejected live change; UI reported and reverted",
+    "Noise suppression": "synthetic device rejected live change; UI reported and reverted",
+    "Auto gain": "synthetic device rejected live change; UI reported and reverted"
+  },
+  "zeroGainRms": 0,
+  "doubleGainRms": 0.017642230348325266,
+  "microphoneSwitch": {
+    "exactConstraint": true,
+    "hardwareSwitch": "not claimed: fixture exposes one physical microphone"
+  },
+  "resolutionContinuity": {
+    "sameParticipant": true,
+    "sameTrack": true,
+    "samePublication": true,
+    "settings": {
+      "width": 1920,
+      "height": 1080,
+      "frameRate": 30
+    }
+  },
+  "remoteMedia": [
+    {
+      "kind": "audio",
+      "bytesReceived": 45049,
+      "totalAudioEnergy": 0.0020394796759826716
+    },
+    {
+      "kind": "video",
+      "bytesReceived": 93194,
+      "framesDecoded": 123
+    }
+  ],
+  "browserErrors": [],
+  "passed": true
+}
