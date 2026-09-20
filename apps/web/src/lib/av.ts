@@ -122,6 +122,14 @@ export const blurAccelerated = () => blurSupported()
 let backgroundProcessors: Promise<typeof import('@livekit/track-processors')> | undefined
 const importBackgroundProcessors = () => import('@livekit/track-processors')
 const loadBackgroundProcessors = () => backgroundProcessors ??= importBackgroundProcessors()
+// MediaPipe's GPU delegate is process-global in practice. Closing one segmenter
+// while another initializes can leave Chromium's renderer spinning at 100% CPU.
+let blurLifecycle: Promise<void> = Promise.resolve()
+function serializeBlur<T>(work: () => Promise<T>): Promise<T> {
+  const result = blurLifecycle.then(work)
+  blurLifecycle = result.then(() => {}, () => {})
+  return result
+}
 
 export type CameraBackground = CameraSettings['background']
 export const backgroundBlurRadius = (background: CameraBackground) => background === 'light_blur' ? 5 : 10
@@ -163,32 +171,33 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
       if (generation === this.generation) this.source = undefined
       throw error
     }
-    if (generation !== this.generation) return
-    const input = options.track.clone()
-    this.input = input
-    const inner = BackgroundProcessor({
-      mode: 'background-blur', blurRadius: backgroundBlurRadius(this.background()), maxFps: this.rate, assetPaths: blurAssets,
-      // track-processors 0.8.0's processingTimeMs adds segmentationTimeMs to
-      // filterTimeMs even though filterTimeMs already spans segmentation + draw.
-      // Its modern path also ignores maxFps, so this total drives a real capture
-      // constraint in call.svelte.ts rather than relying on the wrapper to throttle.
-      onFrameProcessed: ({ filterTimeMs }) => this.measure(filterTimeMs),
-    }, this.name)
-    this.inner = inner
-    try {
-      await inner.init({ ...options, track: input })
-      if (generation !== this.generation || this.inner !== inner) {
-        await this.dispose(inner, input)
-        return
+    await serializeBlur(async () => {
+      if (generation !== this.generation) return
+      const input = options.track.clone()
+      this.input = input
+      const inner = BackgroundProcessor({
+        mode: 'background-blur', blurRadius: backgroundBlurRadius(this.background()), maxFps: this.rate, assetPaths: blurAssets,
+        // track-processors 0.8.0's processingTimeMs adds segmentationTimeMs to
+        // filterTimeMs even though filterTimeMs already spans segmentation + draw.
+        // Its modern path also ignores maxFps, so this total drives a real capture
+        // constraint in call.svelte.ts rather than relying on the wrapper to throttle.
+        onFrameProcessed: ({ filterTimeMs }) => this.measure(filterTimeMs),
+      }, this.name)
+      this.inner = inner
+      try {
+        await inner.init({ ...options, track: input })
+        // destroy() captured these resources and queued their cleanup behind this
+        // initialization; do not overlap a second release with it here.
+        if (generation !== this.generation || this.inner !== inner) return
+      } catch (error) {
+        const owned = this.inner === inner
+        if (owned) { this.inner = undefined; this.input = undefined }
+        // track-processors 0.8.0 ignores destroy() while `initializing`. The modern
+        // path exposes enough state to release everything it created before failing.
+        if (owned) await this.release(inner, input)
+        throw error
       }
-    } catch (error) {
-      if (this.inner === inner) this.inner = undefined
-      if (this.input === input) this.input = undefined
-      // track-processors 0.8.0 ignores destroy() while `initializing`. The modern
-      // path exposes enough state to release everything it created before failing.
-      await this.release(inner, input)
-      throw error
-    }
+    })
   }
   async setBackground(background: Exclude<CameraBackground, 'none'>) {
     await this.inner?.switchTo({ mode: 'background-blur', blurRadius: backgroundBlurRadius(background) })
@@ -232,7 +241,7 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     const input = this.input
     this.inner = undefined; this.input = undefined; this.source = undefined; this.samples = []
     if (!inner) return
-    await this.dispose(inner, input)
+    await serializeBlur(() => this.dispose(inner, input))
   }
 }
 

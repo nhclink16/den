@@ -108,9 +108,10 @@ try {
       const element = await av.startPreviewBlur(blur, source)
       const output = blur.processedTrack
       const input = blur.input
+      let closeCalls = 0
       Object.defineProperty(blur.inner.processor, 'writableControl', {
         configurable: true,
-        value: { close: () => new Promise(() => {}) },
+        value: { close: () => { closeCalls++; return new Promise(() => {}) } },
       })
       const started = performance.now()
       await blur.destroy()
@@ -119,6 +120,7 @@ try {
         source: source.readyState,
         input: input?.readyState,
         output: output?.readyState,
+        closeCalls,
         canvases: document.querySelectorAll('canvas[data-livekit-processor]').length,
       }
       element.srcObject = null
@@ -129,7 +131,42 @@ try {
     assert.equal(report.stuckTeardown.source, 'live')
     assert.equal(report.stuckTeardown.input, 'ended')
     assert.equal(report.stuckTeardown.output, 'ended')
+    assert.equal(report.stuckTeardown.closeCalls, 1)
     assert.equal(report.stuckTeardown.canvases, 0)
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  {
+    const { context, page, errors } = await pageWithCamera()
+    report.serializedLifecycle = await page.evaluate(async () => {
+      const av = await import('/src/lib/av.ts?smoke=serialized-lifecycle')
+      const source = (await navigator.mediaDevices.getUserMedia({ video: true })).getVideoTracks()[0]
+      const first = new av.CameraBlur(() => 30, () => 'blur', () => {})
+      const firstElement = await av.startPreviewBlur(first, source)
+      const destroy = first.inner.transformer.destroy.bind(first.inner.transformer)
+      first.inner.transformer.destroy = async (...args) => {
+        await new Promise(resolve => setTimeout(resolve, 250))
+        return destroy(...args)
+      }
+      const closing = first.destroy()
+      const second = new av.CameraBlur(() => 30, () => 'blur', () => {})
+      const starting = av.startPreviewBlur(second, source)
+      await new Promise(resolve => setTimeout(resolve, 50))
+      const secondStartedDuringDestroy = Boolean(second.inner)
+      const secondElement = await starting
+      await closing
+      const output = second.processedTrack
+      await second.destroy()
+      firstElement.srcObject = null
+      secondElement.srcObject = null
+      const result = { secondStartedDuringDestroy, source: source.readyState, output: output?.readyState }
+      source.stop()
+      return result
+    })
+    assert.equal(report.serializedLifecycle.secondStartedDuringDestroy, false)
+    assert.equal(report.serializedLifecycle.source, 'live')
+    assert.equal(report.serializedLifecycle.output, 'ended')
     assert.deepEqual(errors, [])
     await context.close()
   }
