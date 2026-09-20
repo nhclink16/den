@@ -45,6 +45,7 @@ const globals = {
   $state: cell, apiFor: () => api, PAGE, native: false,
   Uploads: class { clear() {} }, Drafts: class { token = 0; clear() { this.token++ } },
   cachedAppearance: () => ({}), loadLayout: () => ({}),
+  noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,

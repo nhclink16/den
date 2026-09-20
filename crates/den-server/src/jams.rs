@@ -142,9 +142,6 @@ pub(crate) async fn start(
         .await?;
     tx.commit().await?;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
-    if jam.host_id != a.user.id {
-        a.admin()?;
-    }
     broadcast(&s, &room, Some(jam.clone())).await;
     Ok(Json(jam))
 }
@@ -183,6 +180,9 @@ pub(crate) async fn end(
     authorize(&s, &a, &room).await?;
     let _guard = s.writes.lock().await;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
+    if jam.host_id != a.user.id {
+        a.admin()?;
+    }
     sqlx::query("UPDATE jams SET ended_at=? WHERE id=?")
         .bind(now())
         .bind(&jam.id)
