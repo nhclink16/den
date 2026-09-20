@@ -180,15 +180,21 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
       if (this.inner === inner) this.inner = undefined
       // track-processors 0.8.0 ignores destroy() while `initializing`. The modern
       // path exposes enough state to release everything it created before failing.
-      inner.processedTrack?.stop()
-      inner.trackGenerator?.stop()
-      inner.displayCanvas?.remove()
-      await inner.transformer.destroy().catch(() => {})
+      await this.release(inner)
       throw error
     }
   }
   async setBackground(background: Exclude<CameraBackground, 'none'>) {
     await this.inner?.switchTo({ mode: 'background-blur', blurRadius: backgroundBlurRadius(background) })
+  }
+  /** Release the public resources exposed by 0.8.0 when its own control-stream
+   * close stalls. The generated track is no longer on the sender by the time this
+   * fallback returns, and destroying the transformer closes MediaPipe/WebGL. */
+  private async release(inner: BackgroundProcessorWrapper) {
+    inner.processedTrack?.stop()
+    inner.trackGenerator?.stop()
+    inner.displayCanvas?.remove()
+    await inner.transformer.destroy().catch(() => {})
   }
   /** The package times its own frames and then only logs the estimate, so the
    * fallback is Den's to write. Over a window of frames: if segmentation costs more
@@ -214,7 +220,22 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     ++this.generation
     const inner = this.inner
     this.inner = undefined; this.source = undefined; this.samples = []
-    await inner?.destroy()
+    if (!inner) return
+    // After a camera mute/resume, ProcessorWrapper 0.8.0 can wait forever for
+    // MediaStreamTrackProcessor.writableControl.close(). Bound that SDK bug so
+    // turning blur off and leaving a call cannot wedge the AV queue.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const stalled = Symbol('processor teardown stalled')
+      const result = await Promise.race([
+        inner.destroy(),
+        new Promise<typeof stalled>(resolve => { timer = setTimeout(() => resolve(stalled), 1_000) }),
+      ])
+      if (result === stalled) await this.release(inner)
+    } catch (error) {
+      await this.release(inner)
+      throw error
+    } finally { clearTimeout(timer) }
   }
 }
 

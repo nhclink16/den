@@ -101,6 +101,38 @@ try {
 
   {
     const { context, page, errors } = await pageWithCamera()
+    report.stuckTeardown = await page.evaluate(async () => {
+      const av = await import('/src/lib/av.ts?smoke=stuck-teardown')
+      const source = (await navigator.mediaDevices.getUserMedia({ video: true })).getVideoTracks()[0]
+      const blur = new av.CameraBlur(() => 30, () => 'blur', () => {})
+      const element = await av.startPreviewBlur(blur, source)
+      const output = blur.processedTrack
+      Object.defineProperty(blur.inner.processor, 'writableControl', {
+        configurable: true,
+        value: { close: () => new Promise(() => {}) },
+      })
+      const started = performance.now()
+      await blur.destroy()
+      const result = {
+        elapsed: performance.now() - started,
+        source: source.readyState,
+        output: output?.readyState,
+        canvases: document.querySelectorAll('canvas[data-livekit-processor]').length,
+      }
+      element.srcObject = null
+      source.stop()
+      return result
+    })
+    assert(report.stuckTeardown.elapsed < 1_500, `stuck teardown took ${report.stuckTeardown.elapsed} ms`)
+    assert.equal(report.stuckTeardown.source, 'live')
+    assert.equal(report.stuckTeardown.output, 'ended')
+    assert.equal(report.stuckTeardown.canvases, 0)
+    assert.deepEqual(errors, [])
+    await context.close()
+  }
+
+  {
+    const { context, page, errors } = await pageWithCamera()
     await page.route('**/blur/selfie_segmenter.tflite*', async route => {
       await new Promise(resolve => setTimeout(resolve, 1_200))
       await route.continue()
