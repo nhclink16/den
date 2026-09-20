@@ -5,6 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:5178'
 const observer = process.env.DEN_SMOKE_OBSERVER || 'av_observer'
 const shots = 'docs/shots/pr/feat/av-extensions'
+const smokeStarted = performance.now()
 await mkdir(shots,{recursive:true})
 const gpuArgs=process.env.DEN_SMOKE_VULKAN==='1'?['--use-angle=vulkan','--enable-gpu','--ignore-gpu-blocklist']:[]
 const browser = await chromium.launch({executablePath:'/usr/bin/chromium',headless:!process.env.DISPLAY,args:['--no-sandbox','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream=fps=60','--autoplay-policy=no-user-gesture-required',...gpuArgs,...(process.env.DEN_SMOKE_AUDIO ? [`--use-file-for-fake-audio-capture=${process.env.DEN_SMOKE_AUDIO}`] : [])]})
@@ -163,22 +164,47 @@ try {
    results.microphoneProcessing[label]=changed?'applied live':'synthetic device rejected live change; UI reported and reverted'
    if(changed) {await box.click();await until(()=>box.isEnabled(),'processing restored')}
  }
- await slider.focus(); await slider.press('Home')
- await until(async()=>+(await meter.getAttribute('aria-valuenow'))===0,'zero gain meter')
- async function rms() {return a.evaluate(async()=>{
+ async function callTrackSample(label) {
+  const sample=await a.evaluate(async label=>{
    const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/call.svelte.ts').name
    const {call}=await import(url)
-   const ctx=new AudioContext(); await ctx.resume()
+   const track=call.gain.processedTrack,raw=call.gain.source
+   const trackState=t=>t?{id:t.id,readyState:t.readyState,enabled:t.enabled,muted:t.muted,settings:t.getSettings(),constraints:t.getConstraints()}:null
+   const ctx=new AudioContext(),contextBefore=ctx.state;await ctx.resume()
    const analyser=ctx.createAnalyser();analyser.fftSize=2048
-   ctx.createMediaStreamSource(new MediaStream([call.gain.processedTrack])).connect(analyser)
-   await new Promise(r=>setTimeout(r,250))
-   const data=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(data)
-   const rms=Math.sqrt(data.reduce((s,n)=>s+n*n,0)/data.length);await ctx.close();return rms
- })}
- results.zeroGainRms=await rms();assert(results.zeroGainRms<0.0001)
+   const stream=new MediaStream([track]),source=ctx.createMediaStreamSource(stream);source.connect(analyser)
+   const contextTimeBefore=ctx.currentTime,started=performance.now(),windows=[]
+   let previous
+   for(const wait of [250,100,100]) {
+    await new Promise(r=>setTimeout(r,wait))
+    const data=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(data)
+    windows.push({
+     atMs:performance.now()-started,
+     rms:Math.sqrt(data.reduce((s,n)=>s+n*n,0)/data.length),
+     peak:data.reduce((m,n)=>Math.max(m,Math.abs(n)),0),
+     nonzeroSamples:data.reduce((n,v)=>n+(Math.abs(v)>1e-7?1:0),0),
+     changedSamples:previous?data.reduce((n,v,i)=>n+(v!==previous[i]?1:0),0):null,
+    })
+    previous=data
+   }
+   const result={label,browserNowMs:performance.now(),contextBefore,contextDuring:ctx.state,contextTimeBefore,contextTimeAfter:ctx.currentTime,
+    streamActive:stream.active,sourceNode:{channelCount:source.channelCount,channelCountMode:source.channelCountMode,inputs:source.numberOfInputs,outputs:source.numberOfOutputs},
+    processed:trackState(track),raw:trackState(raw),gainValue:call.gain.gain?.gain?.value??null,windows}
+   source.disconnect();await ctx.close();return {...result,contextAfter:ctx.state}
+  },label)
+  sample.smokeElapsedMs=performance.now()-smokeStarted
+  console.log(`Call gain diagnostic ${label} ${JSON.stringify(sample)}`)
+  return sample
+ }
+ results.callGainDiagnostic={baseline:await callTrackSample('baseline')}
+ await slider.focus(); await slider.press('Home')
+ await until(async()=>+(await meter.getAttribute('aria-valuenow'))===0,'zero gain meter')
+ results.callGainDiagnostic.zero=await callTrackSample('zero')
+ results.zeroGainRms=results.callGainDiagnostic.zero.windows[0].rms;assert(results.zeroGainRms<0.0001)
  await until(()=>slider.isEnabled(),'gain save complete');await slider.press('End')
  await until(async()=>+(await meter.getAttribute('aria-valuenow'))>0,'gain meter returns')
- results.doubleGainRms=await rms();assert(results.doubleGainRms>0.001)
+ results.callGainDiagnostic.double=await callTrackSample('double')
+ results.doubleGainRms=results.callGainDiagnostic.double.windows[0].rms;assert(results.doubleGainRms>0.001)
  assert.equal((await inspect(a)).processorId,source.processorId)
  // Same-account second browser receives private mic preferences over the real WebSocket.
  const sync=await login();await voice(sync)
