@@ -55,6 +55,7 @@ async function inspect(p) {return p.evaluate(async()=>{
   background:call.cameraSettings.background,backgroundBusy:call.backgroundBusy,blurNotice:call.blurNotice,blurActive:call.blurActive,blurProcessor:camera?.getProcessor?.()?.name,
   blurRadius:call.blur?.inner?.transformer?.options?.blurRadius,blurSourceId:call.blur?.source?.id,outputId:camera?.mediaStreamTrack?.id,
   audio:call.gain.source?.getSettings(),audioId:call.gain.source?.id,processorId:call.gain.processedTrack?.id,sourceState:call.gain.source?.readyState,
+  sourceEnabled:call.gain.source?.enabled,processedEnabled:call.gain.processedTrack?.enabled,micOn:call.micOn,
   pcs:window.__pcs.map(pc=>pc.connectionState)}
 })}
 let a, b
@@ -88,9 +89,9 @@ try {
  await a.screenshot({path:`${shots}/after.png`})
  await a.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
  await until(async()=>(await inspect(a)).state==='connected','call connected')
- if(await a.getByRole('button',{name:'Unmute microphone',exact:true}).count()) await a.getByRole('button',{name:'Unmute microphone',exact:true}).click()
- await until(async()=>(await inspect(a)).processorId,'gain processor publishing')
  await until(async()=>(await inspect(a)).joining===null,'join finished')
+ if(!(await inspect(a)).micOn) await a.getByRole('button',{name:'Unmute microphone',exact:true}).click()
+ await until(async()=>{const live=await inspect(a);return live.micOn&&live.sourceEnabled&&live.processedEnabled&&live.processorId},'unmuted gain processor publishing')
  b=await login(observer)
  await b.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
  await until(async()=>(await inspect(b)).participants===2,'remote participant joined')
