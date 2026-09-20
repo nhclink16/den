@@ -1,5 +1,7 @@
 mod music;
 pub use music::*;
+mod spotify;
+pub use spotify::*;
 mod sounds;
 pub use sounds::*;
 mod voice;
@@ -129,6 +131,16 @@ pub struct Message {
 pub enum Event {
     MusicQueueUpdated {
         queue: MusicQueue,
+    },
+    /// `jam` is absent when the Jam ended. Gated behind `?jam=true` on `/ws`.
+    JamUpdated {
+        channel_id: Id,
+        #[schema(schema_with = nullable_object_schema::<Jam>)]
+        jam: Option<Jam>,
+    },
+    SpotifyAccountUpdated {
+        user_id: Id,
+        account: SpotifyAccount,
     },
     SoundsUpdated {
         user_id: Option<String>,

@@ -227,6 +227,30 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
     .await;
     t.post("/hosts/enroll", &t.admin.token, json!({})).await;
     sqlx::query("INSERT INTO grants(id,host_id,grantee_id,capability,created_by,created_at) VALUES(?,?,?,'terminal_control',?,1)").bind(ulid::Ulid::new().to_string()).bind(host_id).bind(&t.admin.user.id).bind(&t.admin.user.id).execute(&t.state.db).await.unwrap();
+    // Jam history is ordinary portable content. The encrypted refresh token is
+    // a credential: default import drops it, while disaster recovery keeps it.
+    let jam_id = ulid::Ulid::new().to_string();
+    sqlx::query("INSERT INTO jams(id,channel_id,url,host_id,started_at) VALUES(?,?,?,?,1)")
+        .bind(&jam_id)
+        .bind(&channel)
+        .bind("https://spotify.link/portable")
+        .bind(&t.admin.user.id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO jam_joins(jam_id,user_id,joined_at) VALUES(?,?,1)")
+        .bind(&jam_id)
+        .bind(&t.admin.user.id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO spotify_accounts(user_id,refresh_nonce,refresh_ciphertext,key_version,account_name,scopes,connected_at,expires_at,needs_reauth) VALUES(?,?,?,1,'Portable listener','user-read-playback-state user-read-currently-playing',1,4000000000,0)")
+        .bind(&t.admin.user.id)
+        .bind(vec![1u8; 12])
+        .bind(vec![2u8; 32])
+        .execute(&t.state.db)
+        .await
+        .unwrap();
     drop(socket);
     t.stop_for_export().await;
     fs::write(t.dir.join("uploads/host.toml"), "not archive data").unwrap();
@@ -300,7 +324,13 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
         .unwrap(),
         card_thread
     );
-    for table in ["sessions", "tokens", "invites", "host_enrollments"] {
+    for table in [
+        "sessions",
+        "tokens",
+        "invites",
+        "host_enrollments",
+        "spotify_accounts",
+    ] {
         assert_eq!(
             // sqlx 0.9 only accepts `&'static str`; the table name is interpolated
             // from the literal list above, so the assertion is required.
@@ -325,6 +355,22 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
         .await
         .unwrap();
     assert!(hash.starts_with("invalidated:"));
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM jams WHERE id=?")
+            .bind(&jam_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM jam_joins WHERE jam_id=?")
+            .bind(&jam_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
     assert_eq!(
         sqlx::query_scalar::<_, String>(
             "SELECT t.root_message_id||' '||t.title||' '||m.id||' '||r.last_read_id||' '||k.task_id
@@ -502,6 +548,21 @@ async fn portable_roundtrip_preserves_uploads_recordings_and_revokes_credentials
         .await
         .unwrap();
     assert!(!hash.starts_with("invalidated:"));
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM spotify_accounts")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM jams WHERE id=?")
+            .bind(&jam_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
     pool.close().await;
 }
 

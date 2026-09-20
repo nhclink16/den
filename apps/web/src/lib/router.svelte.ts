@@ -1,6 +1,5 @@
 import { parse, type Route } from './routes'
 export type { Route }
-
 // Tiny history router. The URL shapes themselves live in routes.ts so they can
 // be pinned by tests without a browser.
 //

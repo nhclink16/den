@@ -12,6 +12,8 @@ services:
       DEN_LIVEKIT_URL: wss://rtc.${DEN_DOMAIN}
       DEN_LIVEKIT_API_KEY: ${DEN_LIVEKIT_API_KEY}
       DEN_LIVEKIT_API_SECRET: ${DEN_LIVEKIT_API_SECRET}
+      DEN_SPOTIFY_CLIENT_SECRET: ${DEN_SPOTIFY_CLIENT_SECRET:-}
+      DEN_SPOTIFY_KEY_FILE: /data/spotify.key
     volumes:
       - ./data/den:/data
 

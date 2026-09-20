@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
+import { endJam } from '../apps/web/src/lib/jam.ts'
 
 // These tests reach the ACTUAL Store, not a helper that mirrors it.
 //
@@ -45,6 +46,7 @@ const globals = {
   $state: cell, apiFor: () => api, PAGE, native: false,
   Uploads: class { clear() {} }, Drafts: class { token = 0; clear() { this.token++ } },
   cachedAppearance: () => ({}), loadLayout: () => ({}),
+  noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
@@ -164,4 +166,122 @@ test('logout leaves no paging flag for the next account', async () => {
   assert.equal(r.store.loadingOlder.size, 0, 'a paging flag survived logout and would wedge the next account')
   r.pages[0]!.release([room('020'), room('030')])
   await pending
+})
+
+test('a Jam read from the previous account cannot land in the next account', async () => {
+  const old = held()
+  const fresh = held()
+  let reads = 0
+  api = {
+    get: async () => (++reads === 1 ? old.promise : fresh.promise),
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const oldRead = s.loadJam('c')
+
+  // These are the synchronous account-boundary changes made by logout. The
+  // next account can see the same room id and starts its own first read.
+  s.generation++
+  s.jamSeq.clear()
+  s.jams = new Map()
+  const freshRead = s.loadJam('c')
+
+  old.release({ jam: { id: 'old-account-jam' } })
+  await oldRead
+  assert.equal(s.jams.size, 0, 'the previous account populated the new account cache')
+
+  fresh.release({ jam: { id: 'new-account-jam' } })
+  await freshRead
+  assert.equal(s.jams.get('c')?.id, 'new-account-jam')
+})
+
+test('a Spotify account read from the previous account cannot land in the next account', async () => {
+  const old = held()
+  api = {
+    get: async () => old.promise,
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const oldRead = s.loadSpotify()
+
+  s.generation++
+  s.spotify = { connection: 'unavailable' }
+  old.release({ connection: 'connected', account_name: 'old-account' })
+  await oldRead
+
+  assert.equal(s.spotify.connection, 'unavailable', 'the previous account repopulated Spotify state')
+})
+
+test('a Spotify socket update beats a read that started before it', async () => {
+  const stale = held()
+  api = {
+    get: async () => stale.promise,
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const read = s.loadSpotify()
+
+  await s.handle({ type: 'spotify_account_updated', account: { connection: 'disconnected' } })
+  stale.release({ connection: 'connected', account_name: 'stale-account' })
+  await read
+
+  assert.equal(s.spotify.connection, 'disconnected', 'a stale read overwrote the socket update')
+})
+
+test('a Jam mutation response cannot overwrite a newer socket event', async () => {
+  const stale = held()
+  api = { get: async () => null, post: async () => null }
+  const s = new Store('fixture')
+  const write = s.mutateJam('c', () => stale.promise)
+
+  s.receiveJam('c', { id: 'newer-socket-jam' })
+  stale.release({ id: 'stale-http-jam' })
+  assert.equal(await write, true)
+  assert.equal(s.jams.get('c')?.id, 'newer-socket-jam')
+})
+
+test('Jam and Spotify mutation responses cannot cross an account boundary', async () => {
+  const jam = held()
+  const spotify = held()
+  api = { get: async () => null, post: async () => null }
+  const s = new Store('fixture')
+  const jamWrite = s.mutateJam('c', () => jam.promise)
+  const spotifyWrite = s.mutateSpotify(() => spotify.promise)
+
+  s.generation++
+  s.jams = new Map()
+  s.jamSeq.clear()
+  s.receiveSpotify({ connection: 'unavailable' })
+  jam.release({ id: 'previous-account-jam' })
+  spotify.release({ connection: 'connected', account_name: 'previous-account' })
+
+  assert.equal(await jamWrite, false)
+  assert.equal(await spotifyWrite, false)
+  assert.equal(s.jams.size, 0)
+  assert.equal(s.spotify.connection, 'unavailable')
+})
+
+test('a Jam completion stays with the concrete instance that sent it', async () => {
+  const ended = held()
+  api = { get: async () => null, post: async () => null, del: async () => ended.promise }
+  const a = new Store('instance-a')
+  api = { get: async () => null, post: async () => null, del: async () => null }
+  const b = new Store('instance-b')
+  a.receiveJam('same-room', { id: 'jam-a' })
+  b.receiveJam('same-room', { id: 'jam-b' })
+
+  let active = a
+  const proxy = new Proxy({} as any, {
+    get(_target, key: keyof typeof a) {
+      const value = active[key]
+      return typeof value === 'function' ? value.bind(active) : value
+    },
+  })
+  const pending = endJam(proxy, 'same-room')
+  active = b
+  ended.release(null)
+  assert.equal(await pending, true)
+
+  assert.equal(a.jams.has('same-room'), false)
+  assert.equal(b.jams.get('same-room')?.id, 'jam-b')
 })
