@@ -389,7 +389,10 @@ pub(crate) async fn authorize(
 ) -> Result<Json<SpotifyAuthorization>> {
     credentials(&s)?;
     // Starting a new authorization supersedes every older attempt for this
-    // account, including a callback already waiting on Spotify.
+    // account, including a callback already waiting on Spotify. Serialize the
+    // generation change with final callback/refresh writes so none can land
+    // after this authorization returns.
+    let _refresh = s.spotify.refresh.lock().await;
     let attempt_epoch = advance_epoch(&s, &a.user.id).await;
     let state = auth::secret();
     {

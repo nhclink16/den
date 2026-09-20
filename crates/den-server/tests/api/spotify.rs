@@ -459,6 +459,69 @@ async fn disconnect_cancels_an_oauth_callback_already_in_flight() {
 }
 
 #[tokio::test]
+async fn a_new_authorization_waits_for_older_account_work() {
+    let provider = StubSpotify::start(ProviderMode::Slow).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let member = t.member("spotify_authorize_race").await;
+    let (_, state) = authorization(&t, &member.token).await;
+    t.post(
+        "/users/me/spotify/callback",
+        &member.token,
+        json!({"code":"initial-code","state":state}),
+    )
+    .await;
+    let room = voice_room(&t).await;
+    t.post(
+        &format!("/rooms/{room}/jam"),
+        &member.token,
+        json!({"url":"https://spotify.link/authorize-race"}),
+    )
+    .await;
+
+    // The initial one-minute access token expires at the refresh margin. Hold
+    // the provider refresh in flight while a new authorization starts. The new
+    // attempt must not return until older account work can no longer land.
+    let client = t.http.clone();
+    let url = format!("{}/rooms/{room}/jam", t.url);
+    let token = member.token.clone();
+    let refresh = tokio::spawn(async move {
+        client.get(url).bearer_auth(token).send().await.unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while provider.state.token_calls.load(Ordering::SeqCst) < 2 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("older refresh reached the provider");
+
+    let client = t.http.clone();
+    let url = format!("{}/users/me/spotify/authorize", t.url);
+    let token = member.token.clone();
+    let mut newer = tokio::spawn(async move {
+        client
+            .post(url)
+            .bearer_auth(token)
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap()
+    });
+    assert!(
+        tokio::time::timeout(Duration::from_millis(75), &mut newer)
+            .await
+            .is_err(),
+        "new authorization returned while older account work could still write"
+    );
+    assert_eq!(refresh.await.unwrap().status(), StatusCode::OK);
+    assert_eq!(newer.await.unwrap().status(), StatusCode::OK);
+    assert_eq!(
+        account(&t, &member.token).await.connection,
+        SpotifyConnection::Connected
+    );
+}
+
+#[tokio::test]
 async fn an_authorize_state_is_single_use_and_bound_to_the_user_who_started_it() {
     let provider = StubSpotify::start(ProviderMode::Healthy).await;
     let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
