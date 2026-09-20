@@ -60,13 +60,13 @@ import Testing
 
         try await store.receive(event(renamed))
         let afterFirst = store.users
-        store.typing["room-general"] = ["user-bo": Date(timeIntervalSince1970: 10)]
+        store.typing[.room("room-general")] = ["user-bo": Date(timeIntervalSince1970: 10)]
         try await store.receive(event(renamed))
         try await store.receive(event(renamed))
 
         #expect(store.users == afterFirst)
         #expect(store.users.count == 3)
-        #expect(store.typing["room-general"]?["user-bo"] == Date(timeIntervalSince1970: 10))
+        #expect(store.typing[.room("room-general")]?["user-bo"] == Date(timeIntervalSince1970: 10))
         #expect(store.presence == ["user-ann"])
     }
 
@@ -114,6 +114,10 @@ import Testing
         // rejects a plain reorder; this pins the bytes against a regeneration, a generator
         // change, or a later adaptation of the call that still builds but emits something else.
         #expect(value == ["type": "typing", "channel_id": "room-general"])
+
+        let threadFrame = try #require(AppStore.typingFrame(channelId: "room-general", threadId: "thread-1"))
+        let threadValue = try #require(try JSONSerialization.jsonObject(with: Data(threadFrame.utf8)) as? [String: String])
+        #expect(threadValue == ["type": "typing", "channel_id": "room-general", "thread_id": "thread-1"])
     }
 
     @Test @MainActor func aRenameBeforeTheJoinSurvivesTheCredentialSnapshotAndALaterOneStillRetitles() async throws {

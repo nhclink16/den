@@ -30,7 +30,7 @@ struct SendCommitTests {
         let local = try AttachmentFiles.directory().appendingPathComponent("clip.mp4")
         try Data([1, 2, 3, 4]).write(to: local)
         defer { AttachmentFiles.remove(local) }
-        store.pendingUploads = [.init(id: UUID(), channelId: "room", filename: "clip.mp4", localURL: local,
+        store.pendingUploads = [.init(id: UUID(), conversation: .room("room"), filename: "clip.mp4", localURL: local,
             progress: 1, upload: upload)]
 
         var failure: Error?

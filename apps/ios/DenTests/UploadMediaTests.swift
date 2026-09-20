@@ -55,7 +55,7 @@ import Testing
         let store = AppStore(), service = makeService()
         store.service = service
         defer { service.close() }
-        do { try await store.attach(url: source, channelId: "room"); Issue.record("The lost response should leave a retryable upload") }
+        do { try await store.attach(url: source, conversation: .room("room")); Issue.record("The lost response should leave a retryable upload") }
         catch { #expect(!(error is CancellationError)) }
         let pending = try #require(store.pendingUploads.first)
         #expect(pending.error != nil)
