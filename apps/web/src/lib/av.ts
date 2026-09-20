@@ -193,9 +193,9 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
   async setBackground(background: Exclude<CameraBackground, 'none'>) {
     await this.inner?.switchTo({ mode: 'background-blur', blurRadius: backgroundBlurRadius(background) })
   }
-  /** Release the public resources exposed by 0.8.0 when its own control-stream
-   * close stalls. The generated track is no longer on the sender by the time this
-   * fallback returns, and destroying the transformer closes MediaPipe/WebGL. */
+  /** ProcessorWrapper.destroy() awaits Chromium's non-standard writableControl
+   * before it releases anything. That close can block the renderer after repeated
+   * camera transitions, so Den tears down the public resources it owns directly. */
   private async release(inner: BackgroundProcessorWrapper, input?: MediaStreamTrack) {
     input?.stop()
     inner.processedTrack?.stop()
@@ -204,22 +204,7 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     await inner.transformer.destroy().catch(() => {})
   }
   private async dispose(inner: BackgroundProcessorWrapper, input?: MediaStreamTrack) {
-    // Draining a processor that owns a camera track depends on a Chromium-specific
-    // writableControl close. Feed it a clone instead, then end that clone first so
-    // the readable stream has a standards-based reason to finish.
-    input?.stop()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      const stalled = Symbol('processor teardown stalled')
-      const result = await Promise.race([
-        inner.destroy(),
-        new Promise<typeof stalled>(resolve => { timer = setTimeout(() => resolve(stalled), 1_000) }),
-      ])
-      if (result === stalled) await this.release(inner, input)
-    } catch (error) {
-      await this.release(inner, input)
-      throw error
-    } finally { clearTimeout(timer) }
+    await this.release(inner, input)
   }
   /** The package times its own frames and then only logs the estimate, so the
    * fallback is Den's to write. Over a window of frames: if segmentation costs more

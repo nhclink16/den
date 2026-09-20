@@ -125,7 +125,7 @@ try {
       source.stop()
       return result
     })
-    assert(report.stuckTeardown.elapsed < 1_500, `stuck teardown took ${report.stuckTeardown.elapsed} ms`)
+    assert(report.stuckTeardown.elapsed < 500, `stuck teardown took ${report.stuckTeardown.elapsed} ms`)
     assert.equal(report.stuckTeardown.source, 'live')
     assert.equal(report.stuckTeardown.input, 'ended')
     assert.equal(report.stuckTeardown.output, 'ended')
