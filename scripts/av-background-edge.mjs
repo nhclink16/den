@@ -109,6 +109,7 @@ try {
       return state.cameraOn && state.processor === null
     }, 'plain camera fallback')
     await page.getByRole('status').filter({ hasText: 'Background blur could not start' }).waitFor()
+    await until(async () => await savedBackground(page, selectedCamera) === 'none', 'failed effect cleared from account')
     assert.equal(await savedBackground(page, selectedCamera), 'none')
     report.modelFailure = { plainCamera: true, visibleNotice: true, failedEffectCleared: true }
     await page.getByRole('button', { name: 'Leave call', exact: true }).click()
