@@ -17,6 +17,7 @@ const browser = await chromium.launch({
     '--use-fake-ui-for-media-stream',
     '--use-fake-device-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
+    ...(process.env.DEN_SMOKE_VULKAN === '1' ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : []),
   ],
 })
 const report = {}

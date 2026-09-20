@@ -5,7 +5,8 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:5178'
 const shots = 'docs/shots/pr/feat/av-extensions'
 await mkdir(shots,{recursive:true})
-const browser = await chromium.launch({executablePath:'/usr/bin/chromium',headless:!process.env.DISPLAY,args:['--no-sandbox','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream=fps=60','--autoplay-policy=no-user-gesture-required',...(process.env.DEN_SMOKE_AUDIO ? [`--use-file-for-fake-audio-capture=${process.env.DEN_SMOKE_AUDIO}`] : [])]})
+const gpuArgs=process.env.DEN_SMOKE_VULKAN==='1'?['--use-angle=vulkan','--enable-gpu','--ignore-gpu-blocklist']:[]
+const browser = await chromium.launch({executablePath:'/usr/bin/chromium',headless:!process.env.DISPLAY,args:['--no-sandbox','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream=fps=60','--autoplay-policy=no-user-gesture-required',...gpuArgs,...(process.env.DEN_SMOKE_AUDIO ? [`--use-file-for-fake-audio-capture=${process.env.DEN_SMOKE_AUDIO}`] : [])]})
 const errors = [], results = {}
 async function until(check, label, timeout=20000) {
  const end=Date.now()+timeout

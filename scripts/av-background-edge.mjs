@@ -14,7 +14,10 @@ assert(process.env.DEN_SMOKE_PASSWORD, 'Set DEN_SMOKE_PASSWORD')
 const browser = await chromium.launch({
   executablePath: browserPath,
   headless: !process.env.DISPLAY,
-  args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
+  args: [
+    '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
+    ...(process.env.DEN_SMOKE_VULKAN === '1' ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : []),
+  ],
 })
 
 async function until(check, label, timeout = 30_000) {
