@@ -813,6 +813,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{id}/jam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__rooms__id__jam"];
+        put?: never;
+        post: operations["post__rooms__id__jam"];
+        delete: operations["delete__rooms__id__jam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rooms/{id}/jam/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__rooms__id__jam_join"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{id}/music": {
         parameters: {
             query?: never;
@@ -1533,6 +1565,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/spotify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__users_me_spotify"];
+        put?: never;
+        post?: never;
+        delete: operations["delete__users_me_spotify"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/spotify/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__users_me_spotify_authorize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/spotify/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__users_me_spotify_callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/voice": {
         parameters: {
             query?: never;
@@ -1837,6 +1917,10 @@ export interface components {
             /** @enum {string} */
             type: "typing";
         };
+        CompleteSpotifyAuth: {
+            code: string;
+            state: string;
+        };
         CreateBot: {
             display_name: string;
             username: string;
@@ -1926,6 +2010,44 @@ export interface components {
             queue: components["schemas"]["MusicQueue"];
             /** @enum {string} */
             type: "music_queue_updated";
+        } | {
+            channel_id: components["schemas"]["String"];
+            /** @description A Spotify Jam someone started for a room. Pinned, not a message. */
+            jam?: {
+                channel_id: components["schemas"]["String"];
+                host_id: components["schemas"]["String"];
+                id: components["schemas"]["String"];
+                /**
+                 * @description Den members who pressed Join. Spotify never reports who is listening, so
+                 *     this is a count of Den clicks and nothing more.
+                 */
+                joined_user_ids: components["schemas"]["String"][];
+                now_playing?: {
+                    album_art?: string | null;
+                    artists: string;
+                    /** Format: int64 */
+                    duration_ms?: number | null;
+                    is_playing: boolean;
+                    /** Format: int64 */
+                    progress_ms?: number | null;
+                    /**
+                     * Format: int64
+                     * @description Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`.
+                     */
+                    sampled_at: number;
+                    track: string;
+                } | null;
+                /** Format: int64 */
+                started_at: number;
+                url: string;
+            } | null;
+            /** @enum {string} */
+            type: "jam_updated";
+        } | {
+            account: components["schemas"]["SpotifyAccount"];
+            /** @enum {string} */
+            type: "spotify_account_updated";
+            user_id: components["schemas"]["String"];
         } | {
             /** @enum {string} */
             type: "sounds_updated";
@@ -2231,6 +2353,35 @@ export interface components {
             /** Format: int32 */
             uses_left: number;
         };
+        /** @description A Spotify Jam someone started for a room. Pinned, not a message. */
+        Jam: {
+            channel_id: components["schemas"]["String"];
+            host_id: components["schemas"]["String"];
+            id: components["schemas"]["String"];
+            /**
+             * @description Den members who pressed Join. Spotify never reports who is listening, so
+             *     this is a count of Den clicks and nothing more.
+             */
+            joined_user_ids: components["schemas"]["String"][];
+            now_playing?: {
+                album_art?: string | null;
+                artists: string;
+                /** Format: int64 */
+                duration_ms?: number | null;
+                is_playing: boolean;
+                /** Format: int64 */
+                progress_ms?: number | null;
+                /**
+                 * Format: int64
+                 * @description Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`.
+                 */
+                sampled_at: number;
+                track: string;
+            } | null;
+            /** Format: int64 */
+            started_at: number;
+            url: string;
+        };
         Login: {
             password: string;
             username: string;
@@ -2461,6 +2612,42 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "member";
+        /**
+         * @description A room's Jam, or none. Wrapped rather than returned as a bare nullable
+         *     object, because Apple's Swift generator rejects a standalone null branch in
+         *     `oneOf`. Mirrors the shape of `Event::JamUpdated`.
+         */
+        RoomJam: {
+            /** @description A Spotify Jam someone started for a room. Pinned, not a message. */
+            jam?: {
+                channel_id: components["schemas"]["String"];
+                host_id: components["schemas"]["String"];
+                id: components["schemas"]["String"];
+                /**
+                 * @description Den members who pressed Join. Spotify never reports who is listening, so
+                 *     this is a count of Den clicks and nothing more.
+                 */
+                joined_user_ids: components["schemas"]["String"][];
+                now_playing?: {
+                    album_art?: string | null;
+                    artists: string;
+                    /** Format: int64 */
+                    duration_ms?: number | null;
+                    is_playing: boolean;
+                    /** Format: int64 */
+                    progress_ms?: number | null;
+                    /**
+                     * Format: int64
+                     * @description Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`.
+                     */
+                    sampled_at: number;
+                    track: string;
+                } | null;
+                /** Format: int64 */
+                started_at: number;
+                url: string;
+            } | null;
+        };
         SaveCategory: {
             name: string;
             /** Format: int64 */
@@ -2552,6 +2739,48 @@ export interface components {
                 [key: string]: components["schemas"]["ResolvedSound"];
             };
             server_pack: components["schemas"]["SoundPack"];
+        };
+        SpotifyAccount: {
+            /** @description Spotify display name, for "Connected as …". Absent unless connected. */
+            account_name?: string | null;
+            /** Format: int64 */
+            connected_at?: number | null;
+            connection: components["schemas"]["SpotifyConnection"];
+            /**
+             * Format: int64
+             * @description Unix seconds when the refresh token is assumed dead, so the UI can warn
+             *     before the cliff. Advisory: a rejection from Spotify is authoritative.
+             */
+            expires_at?: number | null;
+        };
+        SpotifyAuthorization: {
+            /** Format: int32 */
+            expires_in: number;
+            /** @description Send the browser here. The code comes back to `/spotify/callback`. */
+            url: string;
+        };
+        /**
+         * @description Whether a user's Spotify account is attached to Den, and whether it still works.
+         * @enum {string}
+         */
+        SpotifyConnection: "unavailable" | "disconnected" | "connected" | "reauthorize";
+        SpotifyNowPlaying: {
+            album_art?: string | null;
+            artists: string;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            is_playing: boolean;
+            /** Format: int64 */
+            progress_ms?: number | null;
+            /**
+             * Format: int64
+             * @description Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`.
+             */
+            sampled_at: number;
+            track: string;
+        };
+        StartJam: {
+            url: string;
         };
         Status: {
             /** @description Exactly one extended grapheme cluster when set. */
@@ -4769,6 +4998,129 @@ export interface operations {
             };
         };
     };
+    get__rooms__id__jam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomJam"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__jam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartJam"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jam"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__rooms__id__jam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jam ended */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__rooms__id__jam_join: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jam"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__rooms__id__music: {
         parameters: {
             query?: never;
@@ -6926,6 +7278,121 @@ export interface operations {
             };
         };
     };
+    get__users_me_spotify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotifyAccount"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users_me_spotify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__users_me_spotify_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotifyAuthorization"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__users_me_spotify_callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteSpotifyAuth"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotifyAccount"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_voice: {
         parameters: {
             query?: never;
@@ -7133,6 +7600,8 @@ export interface operations {
                 music?: boolean;
                 /** @description Opt in to sound preference events; omitted for older clients */
                 sounds?: boolean;
+                /** @description Opt in to Spotify Jam and account events; omitted for older clients */
+                jam?: boolean;
             };
             header?: never;
             path?: never;

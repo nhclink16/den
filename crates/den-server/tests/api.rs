@@ -49,6 +49,21 @@ impl Test {
         Self::with_music(voice, music.map(|r| (r, "ffmpeg".into(), "den-dj".into()))).await
     }
     async fn with_music(voice: Option<&str>, music: Option<(String, String, String)>) -> Self {
+        Self::built(voice, music, None).await
+    }
+    /// A server that holds a Spotify client secret. Tests never read process
+    /// environment, and the real secret is not on any developer machine.
+    async fn with_spotify() -> Self {
+        Self::built(None, None, Some((None, Duration::from_secs(10)))).await
+    }
+    async fn with_spotify_provider(base_url: String, timeout: Duration) -> Self {
+        Self::built(None, None, Some((Some(base_url), timeout))).await
+    }
+    async fn built(
+        voice: Option<&str>,
+        music: Option<(String, String, String)>,
+        spotify: Option<(Option<String>, Duration)>,
+    ) -> Self {
         trace();
         let dir = std::env::temp_dir().join(format!("den-test-{}", ulid::Ulid::new()));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -75,6 +90,20 @@ impl Test {
             state.with_music_tools(resolver, ffmpeg, publisher)
         } else {
             state
+        };
+        let state = match spotify {
+            Some((Some(base_url), timeout)) => state
+                .with_spotify_test_endpoint(
+                    "test-client-secret".into(),
+                    [3u8; 32],
+                    base_url,
+                    timeout,
+                )
+                .unwrap(),
+            Some((None, _)) => state
+                .with_spotify("test-client-secret".into(), [3u8; 32])
+                .unwrap(),
+            None => state,
         };
         let app = den_server::router_with_web(state.clone(), dir.join("spa"));
         let task = tokio::spawn(async move {
@@ -560,6 +589,8 @@ mod music;
 mod sounds;
 #[path = "api/sounds_ws.rs"]
 mod sounds_ws;
+#[path = "api/spotify.rs"]
+mod spotify;
 
 #[cfg(unix)]
 #[path = "api/terminal_reconciliation.rs"]

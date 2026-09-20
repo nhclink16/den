@@ -71,8 +71,10 @@ pub(crate) struct Options {
     music: bool,
     #[serde(default)]
     sounds: bool,
+    #[serde(default)]
+    jam: bool,
 }
-#[utoipa::path(get,path="/ws",params(("music"=Option<bool>,Query,description="Opt in to music queue events; omitted for older clients"),("sounds"=Option<bool>,Query,description="Opt in to sound preference events; omitted for older clients")),responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
+#[utoipa::path(get,path="/ws",params(("music"=Option<bool>,Query,description="Opt in to music queue events; omitted for older clients"),("sounds"=Option<bool>,Query,description="Opt in to sound preference events; omitted for older clients"),("jam"=Option<bool>,Query,description="Opt in to Spotify Jam and account events; omitted for older clients")),responses((status=101,description="Event stream; first event requires resync"),(status=401,body=ApiError)))]
 pub(crate) async fn connect(
     State(s): State<AppState>,
     a: Auth,
@@ -105,6 +107,8 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
     let channel = match v {
         Event::Unknown => return false, // Receive-only; never broadcast the fallback.
         Event::MusicQueueUpdated { queue } => Some(&queue.room_id),
+        Event::JamUpdated { channel_id, .. } => Some(channel_id),
+        Event::SpotifyAccountUpdated { user_id, .. } => return user_id == &a.user.id,
         Event::TerminalOutput { .. } => return false,
         Event::TerminalState { session } => {
             return terminal::can_view(s, &a.user.id, &session.id).await
@@ -296,6 +300,7 @@ async fn run(
                     Ok(v)=>{
                         if matches!(&v, Event::MusicQueueUpdated { .. }) && !options.music {continue;}
                         if matches!(v, Event::SoundsUpdated { .. }) && !options.sounds {continue;}
+                        if matches!(&v, Event::JamUpdated { .. } | Event::SpotifyAccountUpdated { .. }) && !options.jam {continue;}
                         let permitted = if let Event::TerminalOutput{session_id,connection_id,..} = &v {
                             terminals.contains(session_id) && connection_id.as_ref().is_none_or(|id|id==&connection) && terminal::can_view(&s,&a.user.id,session_id).await
                         } else if let Event::ObjectCursor { id, user_id, .. } = &v {

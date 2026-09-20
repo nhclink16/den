@@ -32,6 +32,8 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("DEN_LIVEKIT_API_SECRET").unwrap_or_default(),
     )
     .with_apns_from_env()
+    .await?
+    .with_spotify_from_env()
     .await?;
     state.cleanup().await?;
     state.run_invitation_expiry();

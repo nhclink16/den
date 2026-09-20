@@ -285,7 +285,14 @@ pub async fn import(input: &Path, target: &Path, keep: bool) -> Result<()> {
     }
     let mut invalidated = Vec::new();
     if !keep {
-        for table in ["sessions", "tokens", "invites", "host_enrollments"] {
+        for table in [
+            "sessions",
+            "tokens",
+            "invites",
+            "host_enrollments",
+            // Importing someone else's archive must not resurrect live Spotify grants.
+            "spotify_accounts",
+        ] {
             // sqlx 0.9 only accepts `&'static str` as a query; the table name is
             // interpolated, so the assertion is required. The list above is literal.
             let count = sqlx::query(AssertSqlSafe(format!("DELETE FROM {table}")))

@@ -2608,6 +2608,165 @@
         }
       }
     },
+    "/rooms/{id}/jam": {
+      "get": {
+        "tags": [
+          "jams"
+        ],
+        "operationId": "get__rooms__id__jam",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomJam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "jams"
+        ],
+        "operationId": "post__rooms__id__jam",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartJam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Jam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jams"
+        ],
+        "operationId": "delete__rooms__id__jam",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Jam ended"
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{id}/jam/join": {
+      "post": {
+        "tags": [
+          "jams"
+        ],
+        "operationId": "post__rooms__id__jam_join",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Jam"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/rooms/{id}/music": {
       "get": {
         "tags": [
@@ -5490,6 +5649,127 @@
         }
       }
     },
+    "/users/me/spotify": {
+      "get": {
+        "tags": [
+          "spotify"
+        ],
+        "operationId": "get__users_me_spotify",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotifyAccount"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "spotify"
+        ],
+        "operationId": "delete__users_me_spotify",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/spotify/authorize": {
+      "post": {
+        "tags": [
+          "spotify"
+        ],
+        "operationId": "post__users_me_spotify_authorize",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotifyAuthorization"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/spotify/callback": {
+      "post": {
+        "tags": [
+          "spotify"
+        ],
+        "operationId": "post__users_me_spotify_callback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteSpotifyAuth"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotifyAccount"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "API error; invalid input, authentication, permissions, conflict, throttling or storage failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me/voice": {
       "get": {
         "tags": [
@@ -5807,6 +6087,15 @@
             "name": "sounds",
             "in": "query",
             "description": "Opt in to sound preference events; omitted for older clients",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "jam",
+            "in": "query",
+            "description": "Opt in to Spotify Jam and account events; omitted for older clients",
             "required": false,
             "schema": {
               "type": "boolean"
@@ -6652,6 +6941,21 @@
           }
         ]
       },
+      "CompleteSpotifyAuth": {
+        "type": "object",
+        "required": [
+          "code",
+          "state"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
       "CreateBot": {
         "type": "object",
         "required": [
@@ -6960,6 +7264,135 @@
                 "enum": [
                   "music_queue_updated"
                 ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`jam` is absent when the Jam ended. Gated behind `?jam=true` on `/ws`.",
+            "required": [
+              "channel_id",
+              "type"
+            ],
+            "properties": {
+              "channel_id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "jam": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "A Spotify Jam someone started for a room. Pinned, not a message.",
+                "required": [
+                  "id",
+                  "channel_id",
+                  "url",
+                  "host_id",
+                  "started_at",
+                  "joined_user_ids"
+                ],
+                "properties": {
+                  "channel_id": {
+                    "$ref": "#/components/schemas/String"
+                  },
+                  "host_id": {
+                    "$ref": "#/components/schemas/String"
+                  },
+                  "id": {
+                    "$ref": "#/components/schemas/String"
+                  },
+                  "joined_user_ids": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/String"
+                    },
+                    "description": "Den members who pressed Join. Spotify never reports who is listening, so\nthis is a count of Den clicks and nothing more."
+                  },
+                  "now_playing": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "required": [
+                      "track",
+                      "artists",
+                      "is_playing",
+                      "sampled_at"
+                    ],
+                    "properties": {
+                      "album_art": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "artists": {
+                        "type": "string"
+                      },
+                      "duration_ms": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "format": "int64"
+                      },
+                      "is_playing": {
+                        "type": "boolean"
+                      },
+                      "progress_ms": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "format": "int64"
+                      },
+                      "sampled_at": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`."
+                      },
+                      "track": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "started_at": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "jam_updated"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_id",
+              "account",
+              "type"
+            ],
+            "properties": {
+              "account": {
+                "$ref": "#/components/schemas/SpotifyAccount"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "spotify_account_updated"
+                ]
+              },
+              "user_id": {
+                "$ref": "#/components/schemas/String"
               }
             }
           },
@@ -8254,6 +8687,91 @@
           }
         }
       },
+      "Jam": {
+        "type": "object",
+        "description": "A Spotify Jam someone started for a room. Pinned, not a message.",
+        "required": [
+          "id",
+          "channel_id",
+          "url",
+          "host_id",
+          "started_at",
+          "joined_user_ids"
+        ],
+        "properties": {
+          "channel_id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "host_id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "joined_user_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/String"
+            },
+            "description": "Den members who pressed Join. Spotify never reports who is listening, so\nthis is a count of Den clicks and nothing more."
+          },
+          "now_playing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "track",
+              "artists",
+              "is_playing",
+              "sampled_at"
+            ],
+            "properties": {
+              "album_art": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "artists": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "is_playing": {
+                "type": "boolean"
+              },
+              "progress_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "sampled_at": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`."
+              },
+              "track": {
+                "type": "string"
+              }
+            }
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "Login": {
         "type": "object",
         "required": [
@@ -9040,6 +9558,100 @@
           "member"
         ]
       },
+      "RoomJam": {
+        "type": "object",
+        "description": "A room's Jam, or none. Wrapped rather than returned as a bare nullable\nobject, because Apple's Swift generator rejects a standalone null branch in\n`oneOf`. Mirrors the shape of `Event::JamUpdated`.",
+        "properties": {
+          "jam": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "A Spotify Jam someone started for a room. Pinned, not a message.",
+            "required": [
+              "id",
+              "channel_id",
+              "url",
+              "host_id",
+              "started_at",
+              "joined_user_ids"
+            ],
+            "properties": {
+              "channel_id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "host_id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "id": {
+                "$ref": "#/components/schemas/String"
+              },
+              "joined_user_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/String"
+                },
+                "description": "Den members who pressed Join. Spotify never reports who is listening, so\nthis is a count of Den clicks and nothing more."
+              },
+              "now_playing": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "required": [
+                  "track",
+                  "artists",
+                  "is_playing",
+                  "sampled_at"
+                ],
+                "properties": {
+                  "album_art": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "artists": {
+                    "type": "string"
+                  },
+                  "duration_ms": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64"
+                  },
+                  "is_playing": {
+                    "type": "boolean"
+                  },
+                  "progress_ms": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64"
+                  },
+                  "sampled_at": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`."
+                  },
+                  "track": {
+                    "type": "string"
+                  }
+                }
+              },
+              "started_at": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "url": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "SaveCategory": {
         "type": "object",
         "required": [
@@ -9427,6 +10039,123 @@
           },
           "server_pack": {
             "$ref": "#/components/schemas/SoundPack"
+          }
+        }
+      },
+      "SpotifyAccount": {
+        "type": "object",
+        "required": [
+          "connection"
+        ],
+        "properties": {
+          "account_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Spotify display name, for \"Connected as \u2026\". Absent unless connected."
+          },
+          "connected_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/SpotifyConnection"
+          },
+          "expires_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Unix seconds when the refresh token is assumed dead, so the UI can warn\nbefore the cliff. Advisory: a rejection from Spotify is authoritative."
+          }
+        }
+      },
+      "SpotifyAuthorization": {
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in"
+        ],
+        "properties": {
+          "expires_in": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string",
+            "description": "Send the browser here. The code comes back to `/spotify/callback`."
+          }
+        }
+      },
+      "SpotifyConnection": {
+        "type": "string",
+        "description": "Whether a user's Spotify account is attached to Den, and whether it still works.",
+        "enum": [
+          "unavailable",
+          "disconnected",
+          "connected",
+          "reauthorize"
+        ]
+      },
+      "SpotifyNowPlaying": {
+        "type": "object",
+        "required": [
+          "track",
+          "artists",
+          "is_playing",
+          "sampled_at"
+        ],
+        "properties": {
+          "album_art": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "artists": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "is_playing": {
+            "type": "boolean"
+          },
+          "progress_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "sampled_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Server clock for `progress_ms`, Unix milliseconds. Mirrors `MusicQueue::updated_at`."
+          },
+          "track": {
+            "type": "string"
+          }
+        }
+      },
+      "StartJam": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
           }
         }
       },
