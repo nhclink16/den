@@ -12,6 +12,7 @@ export type Route =
   | { name: 'channel'; id: string; thread?: string; message?: string; reply?: string }
   | { name: 'inbox' }
   | { name: 'settings'; section?: string }
+  | { name: 'spotify-callback'; code: string; state: string; error: string }
   | { name: 'search'; q: string; channel?: string }
   | { name: 'home' }
 
@@ -21,6 +22,14 @@ export function parse(path: string, search = ''): Route {
   if (p === '/login') return { name: 'login' }
   if (p === '/inbox') return { name: 'inbox' }
   if (p.startsWith('/settings')) return { name: 'settings', section: p.split('/')[2] }
+  if (p === '/spotify/callback') {
+    return {
+      name: 'spotify-callback',
+      code: query.get('code') || '',
+      state: query.get('state') || '',
+      error: query.get('error') || '',
+    }
+  }
   if (p === '/find') return { name: 'search', q: query.get('q') || '', channel: query.get('in') || undefined }
   const c = p.match(/^\/c\/([A-Z0-9]+)(?:\/t\/([A-Z0-9]+))?$/)
   if (c) {

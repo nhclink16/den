@@ -11,12 +11,13 @@
   import InlineConfirm from './InlineConfirm.svelte'
   import SoundSettings from './SoundSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
+  import SpotifySettings from './SpotifySettings.svelte'
   import Icon from './Icon.svelte'
 
   let { section = 'appearance', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
+    ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let toc: HTMLElement
@@ -163,6 +164,8 @@
         <SoundSettings />
       {:else if section === 'voice'}
         <VoiceSettings />
+      {:else if section === 'spotify'}
+        <SpotifySettings />
       {:else if section === 'plugins' && admin}
         <h2 class="display">Plugins</h2>
         <label class="switch"><input type="checkbox" checked={store.settings.canvas_enabled} onchange={async (e) => { try { store.settings = await api.put('/settings', { canvas_enabled: e.currentTarget.checked }); agentErr = '' } catch (err) { agentErr = (err as Error).message } }} /> Canvas</label>
