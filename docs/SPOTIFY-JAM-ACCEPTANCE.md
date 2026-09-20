@@ -154,4 +154,5 @@ which matches Den's five-person scope but remains an operator prerequisite.
   `3a841048`. Spotify was rebased onto that exact commit; the migration sequence
   is unique and contiguous through `0021_spotify.sql`, and the regenerated
   contract contains AV, thread, Jam, and Spotify paths and schemas. Independent
-  review and exact-head CI remain the final merge gates.
+  review found no remaining P0-P2 defects after the three findings above were
+  fixed and verified. Exact-head CI remains the final merge gate.
