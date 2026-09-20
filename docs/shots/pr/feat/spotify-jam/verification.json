@@ -1,0 +1,16 @@
+{
+  "commit": "a80c6a62e1f5db163fc7b2c2fa369f19e640e966",
+  "checks": {
+    "sharedJoin": true,
+    "reconnectGap": true,
+    "mobileReflow": {
+      "x": 0,
+      "y": 63,
+      "width": 320,
+      "height": 75.640625
+    },
+    "invalidLinkRecovery": true,
+    "callbackRoute": true,
+    "logoutIsolation": true
+  }
+}

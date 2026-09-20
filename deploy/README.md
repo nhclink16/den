@@ -68,6 +68,31 @@ in `apps/web`. Vite proxies `/calls` and `/livekit` as well as the existing API.
 A browser on another tailnet device must use the HTTPS demo URL for microphone
 and camera access.
 
+## Spotify Jam account links
+
+Jam cards work without Spotify credentials. To show a host's current track, add
+these private values to the server environment:
+
+```ini
+DEN_SPOTIFY_CLIENT_SECRET=<Spotify developer app secret>
+DEN_SPOTIFY_KEY_FILE=/var/lib/den/spotify.key
+```
+
+The client ID is public and compiled into the server. The server creates the
+data key as a mode-0600 regular file and refuses an existing key readable by
+group or other users. Never commit either value. Production systemd reads the
+client secret from `/etc/den/den.env`; `ProtectHome=true` prevents it from
+reading a user's `~/.config` copy.
+
+Spotify has registered `https://denchat.app/spotify/callback` and
+`http://127.0.0.1:5173/spotify/callback`. Local OAuth therefore requires
+`DEN_ORIGIN=http://127.0.0.1:5173` and the browser must use that exact host.
+Spotify rejects `localhost` for this app.
+
+Offline exports include encrypted refresh-token rows. A normal import deletes
+them. `--keep-credentials` retains them for disaster recovery, which also
+requires restoring the same `DEN_SPOTIFY_KEY_FILE` separately with mode 0600.
+
 Migrations run automatically through `den-server`. Migration 0003 rebuilds the
 channel table to allow voice rooms. The startup migrator disables foreign keys
 on its migration connection, validates references, then re-enables them before
