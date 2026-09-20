@@ -1,7 +1,7 @@
 name: Electron desktop
 on:
   pull_request:
-    paths: ['apps/desktop/**', 'apps/web/**', 'deploy/electron-manifest.cjs', 'scripts/npm-ci.sh', '.github/workflows/electron.yml', '.github/workflows/release.yml']
+    paths: ['apps/desktop/**', 'apps/web/**', 'deploy/electron-manifest.cjs', 'scripts/blur-assets.mjs', 'scripts/npm-ci.sh', '.github/workflows/electron.yml', '.github/workflows/release.yml']
 permissions:
   contents: read
 jobs:

@@ -1,9 +1,9 @@
 name: Web client
 on:
   push:
-    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/blur-assets.mjs', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
   pull_request:
-    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'scripts/*.ts', 'scripts/blur-assets.mjs', 'scripts/m9-contrast.mjs', 'scripts/npm-ci.sh', '.github/workflows/web.yml']
 jobs:
   check-web:
     runs-on: ubuntu-latest

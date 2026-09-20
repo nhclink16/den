@@ -14,6 +14,9 @@ denchat.app {
 	request_body {
 		max_size 1100MB
 	}
+	# MediaPipe's selected loader, WASM and model are about 9.9 MB before
+	# compression. Caddy's default encoder matcher includes application/wasm.
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:7000
 }
 

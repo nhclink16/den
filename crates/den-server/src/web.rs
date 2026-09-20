@@ -5,6 +5,11 @@ use tower::ServiceExt;
 pub(crate) async fn serve(root: PathBuf, req: Request) -> Response {
     let path = req.uri().path().to_string();
     let method = req.method().clone();
+    // MediaPipe is large enough that re-downloading it for every preview is a
+    // visible regression. Only cache URLs whose version changes with their bytes;
+    // the global response layer keeps every unversioned static URL at no-store.
+    let immutable_blur = path.starts_with("/blur/wasm-0.10.14/")
+        || (path == "/blur/selfie_segmenter.tflite" && req.uri().query() == Some("v=191ac952"));
     if matches!(path.as_str(), "/install-host.sh" | "/install-host.ps1") {
         if !matches!(method, Method::GET | Method::HEAD) {
             return StatusCode::METHOD_NOT_ALLOWED.into_response();
@@ -50,11 +55,17 @@ pub(crate) async fn serve(root: PathBuf, req: Request) -> Response {
     if !matches!(method, Method::GET | Method::HEAD) {
         return StatusCode::METHOD_NOT_ALLOWED.into_response();
     }
-    let response = tower_http::services::ServeDir::new(&root)
+    let mut response = tower_http::services::ServeDir::new(&root)
         .oneshot(req)
         .await
         .unwrap_or_else(|never| match never {})
         .map(Body::new);
+    if immutable_blur && response.status().is_success() {
+        response.headers_mut().insert(
+            axum::http::header::CACHE_CONTROL,
+            "public, max-age=31536000, immutable".parse().unwrap(),
+        );
+    }
     if response.status() != StatusCode::NOT_FOUND
         || segment == "assets"
         || path.rsplit('/').next().unwrap_or("").contains('.')

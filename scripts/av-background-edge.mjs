@@ -1,0 +1,332 @@
+import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
+import { chromium } from 'playwright-core'
+
+const base = process.env.DEN_SMOKE_URL || 'http://localhost:5178'
+const channel = process.env.DEN_SMOKE_CHANNEL || 'av-verification'
+const browserPath = process.env.DEN_SMOKE_BROWSER || [
+  '/usr/bin/chromium',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].find(existsSync)
+assert(browserPath, 'Set DEN_SMOKE_BROWSER to Chrome or Chromium')
+assert(process.env.DEN_SMOKE_PASSWORD, 'Set DEN_SMOKE_PASSWORD')
+
+const browser = await chromium.launch({
+  executablePath: browserPath,
+  headless: !process.env.DISPLAY,
+  args: [
+    '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
+    ...(process.env.DEN_SMOKE_VULKAN === '1' ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : []),
+  ],
+})
+
+async function until(check, label, timeout = 30_000) {
+  const end = Date.now() + timeout
+  while (Date.now() < end) {
+    if (await check()) return
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  throw Error(`Timed out: ${label}`)
+}
+
+async function login(context) {
+  const page = await context.newPage()
+  await page.goto(base)
+  await page.getByLabel('Username', { exact: true }).fill('nicholas')
+  await page.getByLabel('Password', { exact: true }).fill(process.env.DEN_SMOKE_PASSWORD)
+  await page.getByRole('button', { name: 'Come in', exact: true }).click()
+  await page.locator('a[title="Settings"]').waitFor()
+  return page
+}
+
+async function voice(page) {
+  await page.locator('a[title="Settings"]').click()
+  await page.getByRole('link', { name: 'Voice', exact: true }).click()
+  await page.getByRole('meter').waitFor()
+}
+
+async function join(page) {
+  await page.locator('nav.side').getByRole('button', { name: `Join ${channel}`, exact: true }).click()
+  await until(async () => (await callState(page)).state === 'connected', 'call connected')
+}
+
+async function callState(page) {
+  return page.evaluate(async () => {
+    const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+    const { call } = await import(url)
+    const track = call.room?.localParticipant.getTrackPublication('camera')?.track
+    return {
+      state: call.room?.state,
+      cameraOn: call.cameraOn,
+      error: call.error,
+      background: call.cameraSettings.background,
+      backgroundBusy: call.backgroundBusy,
+      blurNotice: call.blurNotice,
+      processor: track?.getProcessor?.()?.name ?? null,
+      cameraTrack: track?.mediaStreamTrack?.readyState ?? null,
+      blurSource: call.blur.source?.readyState ?? null,
+      blurInput: call.blur.input?.readyState ?? null,
+    }
+  })
+}
+
+async function saveBackground(page, id, background) {
+  await page.evaluate(async ({ id, background }) => {
+    const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/store.svelte.ts').name
+    const { instances } = await import(url)
+    const current = instances.active.voice.cameras[id] || { resolution: 'auto', frame_rate: 30, mirror: true, background: 'none', brightness: null, contrast: null, saturation: null }
+    await instances.active.saveVoice({ microphones: {}, cameras: { [id]: { ...current, background } } })
+  }, { id, background })
+}
+
+async function savedBackground(page, id) {
+  return page.evaluate(async id => {
+    const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/store.svelte.ts').name
+    const { instances } = await import(url)
+    return instances.active.voice.cameras[id]?.background
+  }, id)
+}
+
+const report = {}
+let selectedCamera
+try {
+  // Camera-off cancels a processor that never finishes initializing. The visible
+  // control remains available for this privacy action, the cloned camera ends
+  // promptly, and the saved effect remains available for a later camera lifecycle.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'race setup preview')
+    const cameraId = await page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.srcObject.getVideoTracks()[0].getSettings().deviceId)
+    selectedCamera = cameraId
+    await saveBackground(page, 'default', 'none')
+    await saveBackground(page, cameraId, 'blur')
+    await page.getByRole('link', { name: 'Notifications', exact: true }).click()
+    let releaseModel
+    let modelRequested
+    const requested = new Promise(resolve => { modelRequested = resolve })
+    await page.route('**/blur/selfie_segmenter.tflite*', route => {
+      modelRequested()
+      return new Promise(resolve => {
+        releaseModel = async () => { await route.continue(); resolve() }
+      })
+    })
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await requested
+    await until(async () => (await callState(page)).cameraOn, 'camera enabled while blur initializes')
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__stalledCameraOffInput = call.blur.input
+    })
+    const during = {
+      busy: (await callState(page)).backgroundBusy,
+      disabled: await page.getByRole('button', { name: 'Turn camera off', exact: true }).isDisabled(),
+    }
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__cameraOffSettled = false
+      window.__cameraOff = call.toggleCamera().finally(() => { window.__cameraOffSettled = true })
+    })
+    const settledPromptly = await page.evaluate(() => Promise.race([
+      window.__cameraOff.then(() => true),
+      new Promise(resolve => setTimeout(() => resolve(false), 1_500)),
+    ]))
+    const inputAfterCancel = await page.evaluate(() => window.__stalledCameraOffInput?.readyState ?? null)
+    assert.deepEqual(during, { busy: true, disabled: false })
+    assert.equal(settledPromptly, true, 'camera-off settles without waiting for the model timeout')
+    assert.equal(inputAfterCancel, 'ended', 'camera-off ends the processor clone')
+    // The request is released only after measuring whether Den completed the
+    // privacy action. This lets MediaPipe drain without making the fixture the
+    // reason camera-off settled.
+    await releaseModel()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    await page.evaluate(() => window.__cameraOff)
+    await until(async () => !(await callState(page)).cameraOn, 'cancelled camera-off completed')
+    const after = await callState(page)
+    const preferenceAfterCancel = await savedBackground(page, cameraId)
+    assert.equal(preferenceAfterCancel, 'blur', 'cancellation does not clear the saved effect')
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await until(async () => (await callState(page)).processor === 'den-background-blur', 'blur usable after cancelled camera-off').catch(async error => {
+      throw Error(`${error.message}: ${JSON.stringify({ state: await callState(page), saved: await savedBackground(page, cameraId) })}`)
+    })
+    const reusable = await callState(page)
+    assert.equal(after.processor, null)
+    assert.equal(after.blurSource, null)
+    assert.equal(after.blurInput, null)
+    assert.equal(after.blurNotice, '')
+    assert.equal(reusable.processor, 'den-background-blur')
+    report.cameraOffDuringInit = { controlAvailable: true, prompt: true, cloneEnded: true, preferencePreserved: true, laterBlurUsable: true }
+    await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await context.close()
+  }
+
+  // Leaving cancels the same unregistered processor before disconnect. A late
+  // model failure belongs to the old call and cannot restore a notice or rewrite
+  // that camera's saved preference after the call has gone away.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'leave setup preview')
+    const cameraId = await page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.srcObject.getVideoTracks()[0].getSettings().deviceId)
+    await saveBackground(page, 'default', 'none')
+    await saveBackground(page, cameraId, 'blur')
+    await page.getByRole('link', { name: 'Notifications', exact: true }).click()
+    let abortModel
+    let modelRequested
+    const requested = new Promise(resolve => { modelRequested = resolve })
+    await page.route('**/blur/selfie_segmenter.tflite*', route => {
+      modelRequested()
+      return new Promise(resolve => {
+        abortModel = async () => { await route.abort('failed'); resolve() }
+      })
+    })
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await requested
+    await until(async () => (await callState(page)).cameraOn, 'camera enabled before stalled leave')
+    const leftPromptly = await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__stalledLeaveInput = call.blur.input
+      return Promise.race([
+        call.leave().then(() => true),
+        new Promise(resolve => setTimeout(() => resolve(false), 1_500)),
+      ])
+    })
+    const inputAfterLeave = await page.evaluate(() => window.__stalledLeaveInput?.readyState ?? null)
+    await abortModel()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    await page.waitForTimeout(300)
+    const after = await callState(page)
+    assert.equal(leftPromptly, true, 'leave settles without waiting for the model timeout')
+    assert.equal(after.state, undefined)
+    assert.equal(after.blurSource, null)
+    assert.equal(after.blurInput, null)
+    assert.equal(after.blurNotice, '', 'the old call cannot publish a late fallback notice')
+    assert.equal(await savedBackground(page, cameraId), 'blur', 'the old call cannot clear the saved effect')
+    assert.equal(inputAfterLeave, 'ended', 'leave ends the processor clone')
+    report.leaveDuringInit = { prompt: true, cloneEnded: true, noLateNotice: true, preferencePreserved: true }
+    await context.close()
+  }
+
+  // A MediaPipe-only failure retries the same capture without a processor, keeps
+  // the call usable, announces the fallback, and clears only this camera's effect.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'setup preview')
+    const picker = page.getByRole('combobox', { name: 'Camera', exact: true })
+    selectedCamera = await picker.locator('option').evaluateAll(options => options.map(option => option.value).find(Boolean))
+    assert(selectedCamera, 'synthetic camera has a stable device ID')
+    assert.equal(await picker.inputValue(), '', 'failure coverage starts from the Default camera choice')
+    await saveBackground(page, 'default', 'none')
+    await page.getByRole('radio', { name: 'Blur', exact: true }).check()
+    await until(() => page.getByRole('radio', { name: 'Blur', exact: true }).isChecked(), 'blur saved for failure test')
+    await page.getByRole('link', { name: 'Notifications', exact: true }).click()
+    await page.route('**/blur/selfie_segmenter.tflite*', route => route.abort('failed'))
+    await page.reload()
+    await page.locator('a[title="Settings"]').waitFor()
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await until(async () => {
+      const state = await callState(page)
+      return state.cameraOn && state.processor === null
+    }, 'plain camera fallback')
+    await page.getByRole('status').filter({ hasText: 'Background blur could not start' }).waitFor()
+    await until(async () => await savedBackground(page, selectedCamera) === 'none', 'failed effect cleared from account')
+    assert.equal(await savedBackground(page, selectedCamera), 'none')
+    report.modelFailure = { plainCamera: true, visibleNotice: true, failedEffectCleared: true }
+    await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    await saveBackground(page, selectedCamera, 'blur')
+    await context.close()
+  }
+
+  // Permission/capture failure happens before the effect exists. The plain retry
+  // fails too, so it must report permission and preserve the saved blur choice.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    await context.addInitScript(() => {
+      const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+      window.__videoAttempts = 0
+      navigator.mediaDevices.getUserMedia = async options => {
+        if (options.video) {
+          window.__videoAttempts++
+          throw new DOMException('Camera denied for blur preference test', 'NotAllowedError')
+        }
+        return getUserMedia(options)
+      }
+    })
+    const page = await context.newPage()
+    await page.goto(base)
+    await page.evaluate(id => localStorage.setItem('den.voice', JSON.stringify({ camera: id })), selectedCamera)
+    await page.reload()
+    await page.getByLabel('Username', { exact: true }).fill('nicholas')
+    await page.getByLabel('Password', { exact: true }).fill(process.env.DEN_SMOKE_PASSWORD)
+    await page.getByRole('button', { name: 'Come in', exact: true }).click()
+    await page.locator('a[title="Settings"]').waitFor()
+    await join(page)
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      const participant = call.room.localParticipant
+      const setCameraEnabled = participant.setCameraEnabled.bind(participant)
+      window.__enableAttempts = 0
+      participant.setCameraEnabled = async (...args) => {
+        if (args[0]) window.__enableAttempts++
+        return setCameraEnabled(...args)
+      }
+    })
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('alert').filter({ hasText: 'Allow camera and microphone access' }).waitFor()
+    assert.equal((await callState(page)).cameraOn, false)
+    assert.equal(await savedBackground(page, selectedCamera), 'blur')
+    assert.equal(await page.evaluate(() => window.__enableAttempts), 2, 'blur attempt and plain retry both ran')
+    assert((await page.evaluate(() => window.__videoAttempts)) >= 2, 'both attempts reached browser capture')
+    report.permissionFailure = { cameraOff: true, preferencePreserved: true, highLevelAttempts: 2 }
+    await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await context.close()
+  }
+
+  // A browser without insertable video transforms keeps the saved account value,
+  // presents truthful disabled controls, and publishes plain video without loading
+  // the processor chunk, model, or WASM.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    await context.addInitScript(() => {
+      Object.defineProperty(window, 'MediaStreamTrackGenerator', { value: undefined })
+      Object.defineProperty(window, 'MediaStreamTrackProcessor', { value: undefined })
+    })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'unsupported preview')
+    const cameraId = await page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.srcObject.getVideoTracks()[0].getSettings().deviceId)
+    await saveBackground(page, cameraId, 'blur')
+    await saveBackground(page, 'default', 'blur')
+    assert(await page.getByRole('radio', { name: 'Blur', exact: true }).isDisabled())
+    assert(await page.getByRole('radio', { name: 'Light blur', exact: true }).isDisabled())
+    assert(await page.getByRole('radio', { name: 'None', exact: true }).isChecked())
+    await page.getByText('Background blur needs modern frame processing', { exact: false }).waitFor()
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await until(async () => (await callState(page)).cameraOn, 'unsupported browser plain camera')
+    const state = await callState(page)
+    assert.equal(state.processor, null)
+    assert.equal(await page.getByRole('button', { name: /background blur/i }).count(), 0)
+    assert.equal(await savedBackground(page, cameraId), 'blur')
+    assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(entry => /track-processors|selfie_segmenter|vision_wasm/.test(entry.name))), false)
+    report.unsupported = { plainCamera: true, disabledWithReason: true, preferencePreserved: true, processorAssetsLoaded: false }
+    await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await context.close()
+  }
+
+  console.log(`Background edge smoke passed\n${JSON.stringify(report, null, 2)}`)
+} finally {
+  await browser.close()
+}

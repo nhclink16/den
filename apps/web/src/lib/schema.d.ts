@@ -1750,8 +1750,12 @@ export interface components {
             url: string;
         };
         /** @enum {string} */
+        CameraBackground: "none" | "blur" | "light_blur";
+        /** @enum {string} */
         CameraResolution: "auto" | "720p" | "1080p";
         CameraSettings: {
+            /** @default none */
+            background: components["schemas"]["CameraBackground"];
             /**
              * Format: double
              * @default null

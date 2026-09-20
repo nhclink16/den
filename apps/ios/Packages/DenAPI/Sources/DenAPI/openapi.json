@@ -6379,6 +6379,14 @@
           }
         }
       },
+      "CameraBackground": {
+        "type": "string",
+        "enum": [
+          "none",
+          "blur",
+          "light_blur"
+        ]
+      },
       "CameraResolution": {
         "type": "string",
         "enum": [
@@ -6390,6 +6398,14 @@
       "CameraSettings": {
         "type": "object",
         "properties": {
+          "background": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CameraBackground"
+              }
+            ],
+            "default": "none"
+          },
           "brightness": {
             "type": [
               "number",

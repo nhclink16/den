@@ -67,6 +67,7 @@
 
   <main class="main bg-host scope-chat">
     {#if call.error}<div class="call-status" role="alert"><span>{call.error}</span><button class="btn quiet" onclick={() => (call.error = '')}>Dismiss</button></div>{/if}
+    {#if call.blurNotice}<div class="call-status" role="status"><span>{call.blurNotice}</span><button class="btn quiet" onclick={() => (call.blurNotice = '')}>Dismiss</button></div>{/if}
     {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
     {#if call.audioBlocked}<div class="call-status" role="status"><span>Your browser blocked the call audio.</span><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
     {#if call.channel && router.route.name !== 'channel'}<CallView />{/if}

@@ -1,6 +1,31 @@
 use super::*;
 
 #[tokio::test]
+async fn legacy_camera_preferences_default_to_no_background_effect() {
+    let t = Test::new().await;
+    let alice = t.member("voice_legacy_camera").await;
+    sqlx::query("INSERT INTO user_voice_preferences(user_id,preferences) VALUES(?,?)")
+        .bind(&alice.user.id)
+        .bind(r#"{"cameras":{"old-camera":{"resolution":"720p","frame_rate":24,"mirror":false}}}"#)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+
+    let saved: VoicePreferences = t
+        .req(Method::GET, "/users/me/voice", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        saved.cameras["old-camera"].background,
+        CameraBackground::None
+    );
+}
+
+#[tokio::test]
 async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     let t = Test::new().await;
     let alice = t.member("voice_alice").await;
@@ -36,7 +61,7 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     }
     for patch in [
         json!({"microphones":{"mic-a":{"gain":0.5,"noise_suppression":false}}}),
-        json!({"cameras":{"cam-a":{"resolution":"1080p","frame_rate":60,"mirror":false}}}),
+        json!({"cameras":{"cam-a":{"resolution":"1080p","frame_rate":60,"mirror":false,"background":"light_blur"}}}),
         json!({"microphones":{"mic-b":{"gain":2}}}),
     ] {
         assert_eq!(
@@ -89,6 +114,10 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     assert!(!saved.microphones["mic-a"].noise_suppression);
     assert_eq!(saved.microphones["mic-b"].gain, 2.0);
     assert_eq!(saved.cameras["cam-a"].resolution, CameraResolution::FullHd);
+    assert_eq!(
+        saved.cameras["cam-a"].background,
+        CameraBackground::LightBlur
+    );
     let other: VoicePreferences = t
         .req(Method::GET, path, &bob.token)
         .send()
@@ -103,6 +132,7 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
         json!({"cameras":{"bad":{"frame_rate":17}}}),
         json!({"microphones":{"":{"gain":1}}}),
         json!({"cameras":{"bad":{"resolution":"4k"}}}),
+        json!({"cameras":{"bad":{"background":"sparkles"}}}),
     ] {
         assert!(t
             .req(Method::PUT, path, &alice.token)
