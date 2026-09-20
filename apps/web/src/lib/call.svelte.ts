@@ -12,6 +12,7 @@ type Preferences = {
   micOn: boolean; cameraOn: boolean; sounds: boolean; musicDucking: boolean
 }
 const accountId = (identity: string) => identity.split(':', 1)[0]
+const cancelled = (error: unknown) => error instanceof Error && error.name === 'AbortError'
 const defaults: Preferences = { mode: 'activity', pttKey: 'Backquote', pttLabel: '`', microphone: '', camera: '', speaker: '', micOn: true, cameraOn: false, sounds: true, musicDucking: true }
 function load(): Preferences {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem('den.voice') || '{}') } } catch { return defaults }
@@ -96,6 +97,15 @@ class Call {
   private get cameraPublication() {
     const track = this.room?.localParticipant.getTrackPublication(Track.Source.Camera)?.track
     return track instanceof LocalVideoTrack ? track : undefined
+  }
+  /** LiveKit does not expose a processor on LocalVideoTrack until init finishes.
+   * Keep a way to cancel that unregistered interval for privacy actions without
+   * double-destroying a processor the SDK already owns. */
+  private cancelPendingBlur(room: Room | null) {
+    if (!room || !this.blur.source) return Promise.resolve()
+    const track = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track
+    if (track instanceof LocalVideoTrack && track.getProcessor() === this.blur) return Promise.resolve()
+    return this.blur.destroy()
   }
   /** The camera itself, never the processed output. With blur on, the published
    * track is a generator or canvas track with no device and no capabilities, so
@@ -209,6 +219,7 @@ class Call {
         // stopped generated track cannot remain on the sender.
         if (track.getProcessor() === this.blur) await track.stopProcessor(false).catch(() => {})
         else await this.blur.destroy().catch(() => {})
+        if (this.room !== room || cancelled(error)) return
         if (fallback) { await this.backgroundFailed(room); return }
         throw error
       }
@@ -230,6 +241,7 @@ class Call {
    * capture-time processor startup and the post-capture path used when the Default
    * picker resolves to a physical camera with its own saved effect. */
   private async backgroundFailed(room: Room) {
+    if (this.room !== room) return
     this.blurRate = 0
     this.captureDefaults(room, 'none')
     this.refresh()
@@ -246,7 +258,7 @@ class Call {
       // The capability probe can pass on a machine where the segmenter still fails
       // to start, so bring the camera up unblurred instead of failing over a
       // decoration. A denied camera rethrows from the retry.
-      if (!enabled || background === 'none' || !blurSupported()) throw err
+      if (this.room !== room || cancelled(err) || !enabled || background === 'none' || !blurSupported()) throw err
       this.captureDefaults(room, 'none')
       await this.blur.destroy().catch(() => { /* Never started. */ })
       try { await room.localParticipant.setCameraEnabled(enabled) } catch (retryError) {
@@ -377,8 +389,10 @@ class Call {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
     void this.gain.destroy()
-    // LiveKit owns a published processor and destroys it with the track. Destroying
-    // the same instance here before room.disconnect can stop the sender early.
+    // LiveKit owns a registered processor and destroys it with the track. It does
+    // not own one that is still initializing, so cancel that clone before the room
+    // reference disappears. cancelPendingBlur leaves registered processors alone.
+    void this.cancelPendingBlur(this.room).catch(() => {})
     this.blurActive = false; this.blurNotice = ''; this.blurRate = 0; this.backgroundTasks.clear(); this.backgroundBusy = false
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
@@ -388,7 +402,9 @@ class Call {
   async leave() {
     ++this.generation; this.joining = null
     const room = this.room, quiet = this.outputMuted
+    const pendingBlur = this.cancelPendingBlur(room)
     this.clear()
+    await pendingBlur.catch(() => {})
     if (room) { await room.disconnect(); if (!quiet) this.sound(false) }
   }
   async startAudio() {
@@ -441,13 +457,13 @@ class Call {
   toggleCamera() {
     const room = this.room
     if (!room) return Promise.resolve()
+    const enabled = !room.localParticipant.isCameraEnabled
+    // Do not wait behind the transition the user is trying to stop. CameraBlur's
+    // cancellation is synchronous up to its bounded owned-resource cleanup.
+    const pendingBlur = enabled ? Promise.resolve() : this.cancelPendingBlur(room)
     const update = this.cameraQueue.then(async () => {
-      // An automatic preference application may still be attaching a processor.
-      // Let it finish (or hit CameraBlur's bound) before deciding whether this is
-      // an on or off transition, so an unregistered clone cannot outlive camera-off.
-      await this.avQueue
+      await Promise.all([this.avQueue, pendingBlur])
       if (this.room !== room) return
-      const enabled = !room.localParticipant.isCameraEnabled
       try {
         // track-processors 0.8.0 can wedge its MediaStreamTrackProcessor when the
         // source is muted and resumed in place. Detach before mute; applyAV installs
@@ -457,7 +473,7 @@ class Call {
         await this.enableCamera(room, enabled)
         if (enabled) await this.applyAV()
         this.refresh(); this.save({ cameraOn: this.cameraOn })
-      } catch (err) { this.report(err) }
+      } catch (err) { if (!cancelled(err) && this.room === room) this.report(err) }
     })
     this.cameraQueue = update.catch(err => this.report(err))
     return this.cameraQueue

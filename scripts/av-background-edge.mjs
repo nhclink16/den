@@ -61,7 +61,9 @@ async function callState(page) {
       error: call.error,
       background: call.cameraSettings.background,
       backgroundBusy: call.backgroundBusy,
+      blurNotice: call.blurNotice,
       processor: track?.getProcessor?.()?.name ?? null,
+      cameraTrack: track?.mediaStreamTrack?.readyState ?? null,
       blurSource: call.blur.source?.readyState ?? null,
       blurInput: call.blur.input?.readyState ?? null,
     }
@@ -88,9 +90,9 @@ async function savedBackground(page, id) {
 const report = {}
 let selectedCamera
 try {
-  // Camera-off is serialized behind a processor that is still initializing. The
-  // visible control is disabled during that short transition, while keyboard or
-  // programmatic requests queue and finish with every blur resource released.
+  // Camera-off cancels a processor that never finishes initializing. The visible
+  // control remains available for this privacy action, the cloned camera ends
+  // promptly, and the saved effect remains available for a later camera lifecycle.
   {
     const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
     const page = await login(context)
@@ -114,6 +116,11 @@ try {
     await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
     await requested
     await until(async () => (await callState(page)).cameraOn, 'camera enabled while blur initializes')
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__stalledCameraOffInput = call.blur.input
+    })
     const during = {
       busy: (await callState(page)).backgroundBusy,
       disabled: await page.getByRole('button', { name: 'Turn camera off', exact: true }).isDisabled(),
@@ -124,20 +131,86 @@ try {
       window.__cameraOffSettled = false
       window.__cameraOff = call.toggleCamera().finally(() => { window.__cameraOffSettled = true })
     })
-    await page.waitForTimeout(250)
-    const settledDuringInit = await page.evaluate(() => window.__cameraOffSettled)
+    const settledPromptly = await page.evaluate(() => Promise.race([
+      window.__cameraOff.then(() => true),
+      new Promise(resolve => setTimeout(() => resolve(false), 1_500)),
+    ]))
+    const inputAfterCancel = await page.evaluate(() => window.__stalledCameraOffInput?.readyState ?? null)
+    assert.deepEqual(during, { busy: true, disabled: false })
+    assert.equal(settledPromptly, true, 'camera-off settles without waiting for the model timeout')
+    assert.equal(inputAfterCancel, 'ended', 'camera-off ends the processor clone')
+    // The request is released only after measuring whether Den completed the
+    // privacy action. This lets MediaPipe drain without making the fixture the
+    // reason camera-off settled.
     await releaseModel()
     await page.unroute('**/blur/selfie_segmenter.tflite*')
     await page.evaluate(() => window.__cameraOff)
-    await until(async () => !(await callState(page)).cameraOn, 'queued camera-off completed')
+    await until(async () => !(await callState(page)).cameraOn, 'cancelled camera-off completed')
     const after = await callState(page)
-    assert.deepEqual(during, { busy: true, disabled: true })
-    assert.equal(settledDuringInit, false, 'camera-off waits for processor initialization')
+    const preferenceAfterCancel = await savedBackground(page, cameraId)
+    assert.equal(preferenceAfterCancel, 'blur', 'cancellation does not clear the saved effect')
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await until(async () => (await callState(page)).processor === 'den-background-blur', 'blur usable after cancelled camera-off').catch(async error => {
+      throw Error(`${error.message}: ${JSON.stringify({ state: await callState(page), saved: await savedBackground(page, cameraId) })}`)
+    })
+    const reusable = await callState(page)
     assert.equal(after.processor, null)
     assert.equal(after.blurSource, null)
     assert.equal(after.blurInput, null)
-    report.cameraOffDuringInit = { disabled: true, serialized: true, resourcesReleased: true }
+    assert.equal(after.blurNotice, '')
+    assert.equal(reusable.processor, 'den-background-blur')
+    report.cameraOffDuringInit = { controlAvailable: true, prompt: true, cloneEnded: true, preferencePreserved: true, laterBlurUsable: true }
     await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await context.close()
+  }
+
+  // Leaving cancels the same unregistered processor before disconnect. A late
+  // model failure belongs to the old call and cannot restore a notice or rewrite
+  // that camera's saved preference after the call has gone away.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'leave setup preview')
+    const cameraId = await page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.srcObject.getVideoTracks()[0].getSettings().deviceId)
+    await saveBackground(page, 'default', 'none')
+    await saveBackground(page, cameraId, 'blur')
+    await page.getByRole('link', { name: 'Notifications', exact: true }).click()
+    let abortModel
+    let modelRequested
+    const requested = new Promise(resolve => { modelRequested = resolve })
+    await page.route('**/blur/selfie_segmenter.tflite*', route => {
+      modelRequested()
+      return new Promise(resolve => {
+        abortModel = async () => { await route.abort('failed'); resolve() }
+      })
+    })
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await requested
+    await until(async () => (await callState(page)).cameraOn, 'camera enabled before stalled leave')
+    const leftPromptly = await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__stalledLeaveInput = call.blur.input
+      return Promise.race([
+        call.leave().then(() => true),
+        new Promise(resolve => setTimeout(() => resolve(false), 1_500)),
+      ])
+    })
+    const inputAfterLeave = await page.evaluate(() => window.__stalledLeaveInput?.readyState ?? null)
+    await abortModel()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    await page.waitForTimeout(300)
+    const after = await callState(page)
+    assert.equal(leftPromptly, true, 'leave settles without waiting for the model timeout')
+    assert.equal(after.state, undefined)
+    assert.equal(after.blurSource, null)
+    assert.equal(after.blurInput, null)
+    assert.equal(after.blurNotice, '', 'the old call cannot publish a late fallback notice')
+    assert.equal(await savedBackground(page, cameraId), 'blur', 'the old call cannot clear the saved effect')
+    assert.equal(inputAfterLeave, 'ended', 'leave ends the processor clone')
+    report.leaveDuringInit = { prompt: true, cloneEnded: true, noLateNotice: true, preferencePreserved: true }
     await context.close()
   }
 
