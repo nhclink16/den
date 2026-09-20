@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:5178'
-const shots = 'docs/shots/pr/feat/av-settings'
+const shots = 'docs/shots/pr/feat/av-extensions'
 await mkdir(shots,{recursive:true})
 const browser = await chromium.launch({executablePath:'/usr/bin/chromium',headless:!process.env.DISPLAY,args:['--no-sandbox','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream=fps=60','--autoplay-policy=no-user-gesture-required',...(process.env.DEN_SMOKE_AUDIO ? [`--use-file-for-fake-audio-capture=${process.env.DEN_SMOKE_AUDIO}`] : [])]})
 const errors = [], results = {}
@@ -30,11 +30,18 @@ async function login(username='nicholas') {
  return p
 }
 async function voice(p) {await p.locator('a[title="Settings"]').click();await p.getByRole('link',{name:'Voice',exact:true}).click(); await p.getByRole('meter').waitFor()}
+async function remoteVideoFrames(p) {return p.evaluate(async()=>{
+ const reports=await Promise.all(window.__pcs.filter(pc=>pc.connectionState==='connected').map(pc=>pc.getStats()))
+ return reports.flatMap(r=>[...r.values()]).filter(s=>s.type==='inbound-rtp'&&s.kind==='video').reduce((sum,s)=>sum+(s.framesDecoded||0),0)
+})}
 async function inspect(p) {return p.evaluate(async()=>{
  const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/call.svelte.ts').name
  const {call}=await import(url)
- return {error:call.error,joining:call.joining,state:call.room?.state,identity:call.room?.localParticipant.identity,participants:call.participants.length,
+ const camera=call.room?.localParticipant.getTrackPublication('camera')?.track
+ return {error:call.error,joining:call.joining,state:call.room?.state,identity:call.room?.localParticipant.identity,participants:call.participants.length,cameraOn:call.cameraOn,
   camera:call.cameraTrack?.getSettings(),cameraId:call.cameraTrack?.id,cameraSid:call.room?.localParticipant.getTrackPublication('camera')?.trackSid,
+  background:call.cameraSettings.background,blurActive:call.blurActive,blurProcessor:camera?.getProcessor?.()?.name,
+  blurRadius:call.blur?.inner?.transformer?.options?.blurRadius,blurSourceId:call.blur?.source?.id,outputId:camera?.mediaStreamTrack?.id,
   audio:call.gain.source?.getSettings(),audioId:call.gain.source?.id,processorId:call.gain.processedTrack?.id,sourceState:call.gain.source?.readyState,
   pcs:window.__pcs.map(pc=>pc.connectionState)}
 })}
@@ -43,6 +50,25 @@ try {
  a=await login(); await voice(a)
  await until(()=>a.getByLabel('Camera preview',{exact:true}).evaluate(v=>v.videoWidth>0).catch(()=>false),'settings preview')
  console.log('Preview ready', await a.getByLabel('Resolution',{exact:true}).innerText(),await a.getByLabel('Frame rate',{exact:true}).innerText())
+ const cameraPicker=a.getByRole('combobox',{name:'Camera',exact:true})
+ const selectedCamera=await cameraPicker.locator('option').evaluateAll(options=>options.map(o=>o.value).find(Boolean))
+ if(selectedCamera) {
+   await cameraPicker.selectOption(selectedCamera)
+   await until(()=>a.getByLabel('Camera preview',{exact:true}).evaluate(v=>v.videoWidth>0),'selected camera preview')
+ }
+ const lightBlur=a.getByRole('radio',{name:'Light blur',exact:true})
+ assert(await lightBlur.isEnabled(),'modern Chromium offers background blur')
+ await lightBlur.check()
+ await until(()=>lightBlur.isChecked(),'light blur saved')
+ await until(()=>a.getByLabel('Camera preview',{exact:true}).evaluate(v=>{
+   const shown=v.srcObject?.getVideoTracks()[0]
+   return shown?.readyState==='live' && !window.__tracks.includes(shown)
+ }),'owned preview uses processed track')
+ await until(()=>a.evaluate(()=>performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname.endsWith('/blur/selfie_segmenter.tflite'))),'self-hosted model loaded')
+ assert(await a.evaluate(()=>performance.getEntriesByType('resource').filter(e=>/mediapipe|selfie_segmenter|vision_wasm/.test(e.name)).every(e=>new URL(e.name).origin===location.origin)),'blur assets stay same-origin')
+ const backgroundSync=await login();await voice(backgroundSync)
+ await until(()=>backgroundSync.getByRole('radio',{name:'Light blur',exact:true}).isChecked(),'background preference synced to same account')
+ await backgroundSync.context().close()
  await a.screenshot({path:`${shots}/after.png`})
  await a.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
  await until(async()=>(await inspect(a)).state==='connected','call connected')
@@ -54,6 +80,42 @@ try {
  await a.getByRole('button',{name:'Turn camera on',exact:true}).click()
  await until(async()=>(await inspect(a)).cameraId,'camera publishing')
  await until(()=>b.locator('[data-local="false"] video').evaluateAll(v=>v.some(e=>e.videoWidth>0)),'remote camera decodes')
+ const blurFramesBefore=await remoteVideoFrames(b)
+ await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===5},'saved light blur publishes')
+ const blurInitial=await inspect(a)
+ assert.equal(blurInitial.background,'light_blur')
+ assert.notEqual(blurInitial.outputId,blurInitial.blurSourceId)
+ assert((blurInitial.camera?.frameRate||0)<=30,'blur caps modern processing at 30 fps')
+ const fullBlur=a.getByRole('radio',{name:'Blur',exact:true})
+ await fullBlur.check()
+ await until(async()=>{const live=await inspect(a);return live.background==='blur'&&live.blurRadius===10},'switch to full blur')
+ const blurSwitched=await inspect(a)
+ assert.equal(blurSwitched.identity,blurInitial.identity)
+ assert.equal(blurSwitched.cameraSid,blurInitial.cameraSid)
+ assert.equal(blurSwitched.blurSourceId,blurInitial.blurSourceId)
+ await a.getByRole('radio',{name:'None',exact:true}).check()
+ await until(async()=>!(await inspect(a)).blurProcessor,'remove blur')
+ const unblurred=await inspect(a)
+ assert.equal(unblurred.identity,blurInitial.identity)
+ assert.equal(unblurred.cameraSid,blurInitial.cameraSid)
+ const quickBlur=a.getByRole('button',{name:'Blur my background',exact:true}).first()
+ await quickBlur.click()
+ await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===10},'toolbar restores last blur')
+ await a.getByRole('button',{name:'Turn camera off',exact:true}).click()
+ await until(async()=>!(await inspect(a)).cameraOn,'camera muted with blur preference retained')
+ await a.getByRole('button',{name:'Turn camera on',exact:true}).click()
+ await until(async()=>{const live=await inspect(a);return live.cameraOn&&live.blurProcessor==='den-background-blur'&&live.background==='blur'},'camera resumes with blur')
+ await a.getByRole('button',{name:'Turn background blur off',exact:true}).first().click()
+ await until(async()=>!(await inspect(a)).blurProcessor,'toolbar removes blur for camera controls')
+ await until(async()=>await remoteVideoFrames(b)>blurFramesBefore,'remote frames continue across blur transitions')
+ results.backgroundBlur={
+   ownedPreview:true,sameOriginAssets:true,accountSync:true,
+   lightRadius:blurInitial.blurRadius,fullRadius:blurSwitched.blurRadius,
+   sameParticipant:blurSwitched.identity===blurInitial.identity,
+   samePublication:blurSwitched.cameraSid===blurInitial.cameraSid,
+   sameSource:blurSwitched.blurSourceId===blurInitial.blurSourceId,
+   cameraResume:true,
+ }
  const meter=a.getByRole('meter',{name:'Microphone level'})
  const slider=a.getByRole('slider',{name:'Input gain',exact:true})
  const source=await inspect(a)
