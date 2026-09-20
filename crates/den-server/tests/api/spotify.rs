@@ -330,6 +330,68 @@ async fn disconnecting_deletes_the_stored_refresh_token() {
 }
 
 #[tokio::test]
+async fn disconnect_wins_over_a_refresh_already_in_flight() {
+    let provider = StubSpotify::start(ProviderMode::Slow).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let member = t.member("spotify_disconnect_race").await;
+    let (_, state) = authorization(&t, &member.token).await;
+    t.post(
+        "/users/me/spotify/callback",
+        &member.token,
+        json!({"code":"stub-code","state":state}),
+    )
+    .await;
+    let room = voice_room(&t).await;
+    t.post(
+        &format!("/rooms/{room}/jam"),
+        &member.token,
+        json!({"url":"https://spotify.link/disconnect-race"}),
+    )
+    .await;
+
+    // The stub's one-minute token expires at the refresh margin. Hold its slow
+    // refresh open, then disconnect while that provider request is in flight.
+    let client = t.http.clone();
+    let url = format!("{}/rooms/{room}/jam", t.url);
+    let token = member.token.clone();
+    let pending = tokio::spawn(async move {
+        client
+            .get(url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap()
+            .json::<RoomJam>()
+            .await
+            .unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while provider.state.token_calls.load(Ordering::SeqCst) < 2 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("refresh reached the provider");
+
+    assert_eq!(
+        t.req(Method::DELETE, "/users/me/spotify", &member.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    assert!(
+        pending.await.unwrap().jam.unwrap().now_playing.is_none(),
+        "the completed refresh resurrected playback after disconnect"
+    );
+    assert_eq!(
+        account(&t, &member.token).await.connection,
+        SpotifyConnection::Disconnected
+    );
+}
+
+#[tokio::test]
 async fn an_authorize_state_is_single_use_and_bound_to_the_user_who_started_it() {
     let provider = StubSpotify::start(ProviderMode::Healthy).await;
     let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;

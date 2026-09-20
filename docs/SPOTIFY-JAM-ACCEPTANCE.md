@@ -33,6 +33,9 @@ clients that predate Jam events. Production deployment is not part of this work.
   visible room.
 - Missing OAuth scopes, expired or revoked grants, rotated refresh tokens, and
   `429 Retry-After` were not covered end to end. Each now has a provider-stub test.
+- A token refresh already in flight could finish after Disconnect and restore an
+  access token and playback sample. Account generations now make older provider
+  work ineligible, and Disconnect clears on both sides of the refresh lock.
 - Refresh-token rotation initially extended the grant. Spotify documents that
   access-token refresh does not extend the six-month lifetime, so rotation now
   replaces only the encrypted token material.
@@ -64,7 +67,7 @@ Green local checks:
 
 - `cargo fmt --check`
 - Four Spotify/Jam unit tests
-- Eleven deterministic Spotify/Jam API integration tests
+- Twelve deterministic Spotify/Jam API integration tests
 - Portable export/import roundtrip
 - `npm run check --prefix apps/web` (one inherited unused-selector warning)
 - Eighty-five web state/behavior tests
@@ -77,7 +80,8 @@ Every new automated test was mutation-proven before the mutation was removed:
 
 - One temporary crypto/URL/key-permission mutation made all four unit tests fail.
 - Temporary authorization, refresh, timeout, scope, ownership, privacy, rate-limit,
-  and event-gate regressions made all eleven Spotify/Jam integrations fail.
+  disconnect-race, and event-gate regressions made all twelve Spotify/Jam
+  integrations fail.
 - Retaining Spotify credentials in a default import made the portability test fail.
 - Dropping Jam socket handling made the browser smoke fail on shared state.
 - Allowing a prior account's Jam read to resolve after logout made the account

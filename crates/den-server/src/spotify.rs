@@ -49,6 +49,9 @@ pub(crate) struct Spotify {
     states: Mutex<HashMap<String, (String, Instant)>>,
     access: Mutex<HashMap<String, (String, Instant)>>,
     playback: Mutex<HashMap<String, (Option<SpotifyNowPlaying>, Instant)>>,
+    /// Account lifecycle generation. A disconnect or a new authorization makes
+    /// provider work already in flight for the previous grant ineligible.
+    epochs: Mutex<HashMap<String, u64>>,
     /// Refresh and playback cache misses are rare. Serializing each kind keeps a
     /// reconnect burst from spending the same refresh token or Spotify quota in
     /// parallel, without a per-user lock registry for five people.
@@ -188,6 +191,22 @@ fn unavailable() -> Error {
         "Spotify is not set up on this server.".into(),
     )
 }
+
+async fn epoch(s: &AppState, user: &str) -> u64 {
+    s.spotify
+        .epochs
+        .lock()
+        .await
+        .get(user)
+        .copied()
+        .unwrap_or(0)
+}
+
+async fn advance_epoch(s: &AppState, user: &str) {
+    let mut epochs = s.spotify.epochs.lock().await;
+    *epochs.entry(user.into()).or_default() += 1;
+}
+
 fn credentials(s: &AppState) -> Result<&Credentials> {
     s.spotify.credentials.as_ref().ok_or_else(unavailable)
 }
@@ -435,6 +454,9 @@ pub(crate) async fn callback(
     })?;
     let name = display_name(c, &granted.access_token).await;
     let (nonce, ciphertext) = seal(c, &a.user.id, refresh)?;
+    // Invalidate provider work for a previous connection before replacing it.
+    advance_epoch(&s, &a.user.id).await;
+    let _refresh = s.spotify.refresh.lock().await;
     let time = now();
     sqlx::query("INSERT INTO spotify_accounts(user_id,refresh_nonce,refresh_ciphertext,key_version,account_name,scopes,connected_at,expires_at,needs_reauth) VALUES(?,?,?,1,?,?,?,?,0) ON CONFLICT(user_id) DO UPDATE SET refresh_nonce=excluded.refresh_nonce,refresh_ciphertext=excluded.refresh_ciphertext,key_version=1,account_name=excluded.account_name,scopes=excluded.scopes,connected_at=excluded.connected_at,expires_at=excluded.expires_at,needs_reauth=0")
         .bind(&a.user.id)
@@ -459,10 +481,19 @@ pub(crate) async fn callback(
 #[utoipa::path(delete,path="/users/me/spotify",responses((status=204,description="Disconnected")))]
 pub(crate) async fn disconnect(State(s): State<AppState>, a: Auth) -> Result<StatusCode> {
     // Actually delete the grant. There is no disabled-but-retained state.
+    // Advance first so a provider response already in flight cannot repopulate
+    // either token cache after this request begins.
+    advance_epoch(&s, &a.user.id).await;
+    s.spotify.access.lock().await.remove(&a.user.id);
+    s.spotify.playback.lock().await.remove(&a.user.id);
+    let _refresh = s.spotify.refresh.lock().await;
     sqlx::query("DELETE FROM spotify_accounts WHERE user_id=?")
         .bind(&a.user.id)
         .execute(&s.db)
         .await?;
+    // A refresh that won the lock before disconnect may have filled these after
+    // the first clear. The account epoch prevents playback from using it, and
+    // this second clear removes the stale material for good.
     s.spotify.access.lock().await.remove(&a.user.id);
     s.spotify.playback.lock().await.remove(&a.user.id);
     announce(&s, &a.user.id).await;
@@ -491,6 +522,7 @@ async fn access_token(s: &AppState, user: &str) -> Option<String> {
         }
     }
     let _refresh = s.spotify.refresh.lock().await;
+    let grant_epoch = epoch(s, user).await;
     // Another request may have renewed it while this one waited.
     if let Some((token, expiry)) = s.spotify.access.lock().await.get(user) {
         if *expiry > Instant::now() {
@@ -530,6 +562,11 @@ async fn access_token(s: &AppState, user: &str) -> Option<String> {
         let _ = reauthorize(s, user).await;
         return None;
     }
+    // Disconnect/reconnect may have happened during the provider request. Its
+    // response belongs to the old grant and must not rotate or cache anything.
+    if epoch(s, user).await != grant_epoch {
+        return None;
+    }
     // Spotify may hand back a rotated refresh token; the old one stops working.
     // Rotation does not restart Spotify's six-month lifetime: refreshing an
     // access token never extends the original authorization grant.
@@ -544,6 +581,7 @@ async fn access_token(s: &AppState, user: &str) -> Option<String> {
     Some(granted.access_token)
 }
 async fn reauthorize(s: &AppState, user: &str) -> Result<()> {
+    advance_epoch(s, user).await;
     sqlx::query("UPDATE spotify_accounts SET needs_reauth=1 WHERE user_id=?")
         .bind(user)
         .execute(&s.db)
@@ -596,6 +634,7 @@ pub(crate) async fn cached(s: &AppState, user: &str) -> Option<SpotifyNowPlaying
 pub(crate) async fn now_playing(s: &AppState, user: &str) -> Option<SpotifyNowPlaying> {
     s.spotify.credentials.as_ref()?;
     {
+        let _epochs = s.spotify.epochs.lock().await;
         let playback = s.spotify.playback.lock().await;
         if let Some((value, expiry)) = playback.get(user) {
             if *expiry > Instant::now() {
@@ -605,18 +644,27 @@ pub(crate) async fn now_playing(s: &AppState, user: &str) -> Option<SpotifyNowPl
     }
     let _sample = s.spotify.sample.lock().await;
     // A concurrent room read may have filled the cache while this one waited.
-    {
+    let sample_epoch = {
+        let epochs = s.spotify.epochs.lock().await;
+        let sample_epoch = epochs.get(user).copied().unwrap_or(0);
         let playback = s.spotify.playback.lock().await;
         if let Some((value, expiry)) = playback.get(user) {
             if *expiry > Instant::now() {
                 return value.clone();
             }
         }
-    }
+        sample_epoch
+    };
     let value = match access_token(s, user).await {
         Some(token) => fetch_playing(s, user, &token).await,
         None => PlaybackFetch::default(),
     };
+    // Compare and publish under the account-generation lock. A disconnect that
+    // already advanced the epoch wins; one that follows clears this cache.
+    let epochs = s.spotify.epochs.lock().await;
+    if epochs.get(user).copied().unwrap_or(0) != sample_epoch {
+        return None;
+    }
     s.spotify.playback.lock().await.insert(
         user.into(),
         (value.value.clone(), Instant::now() + value.ttl),
