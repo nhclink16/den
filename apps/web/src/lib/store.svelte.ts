@@ -90,7 +90,19 @@ export class Store {
   }
   /** This account's Spotify link. `unavailable` until the server says otherwise. */
   spotify = $state<SpotifyAccount>(noSpotify())
-  async loadSpotify() { this.spotify = await this.api.get<SpotifyAccount>('/users/me/spotify') }
+  private spotifySeq = 0
+  receiveSpotify(account: SpotifyAccount) {
+    this.spotifySeq++
+    this.spotify = account
+  }
+  async loadSpotify() {
+    const generation = this.generation
+    const seq = ++this.spotifySeq
+    const account = await this.api.get<SpotifyAccount>('/users/me/spotify')
+    // A socket event, a newer read, or another account owns the view now.
+    if (generation !== this.generation || seq !== this.spotifySeq) return
+    this.receiveSpotify(account)
+  }
   calls = $state<CallState[]>([])
   private connecting = false
   private generation = 0
@@ -572,7 +584,7 @@ export class Store {
     this.loadingOlder = new Set()
     this.jams = new Map()
     this.jamSeq.clear()
-    this.spotify = noSpotify()
+    this.receiveSpotify(noSpotify())
     // Logout cancels every open fetch, so no response and no finally can touch
     // the next account's state.
     this.fetches.clear()
@@ -600,6 +612,7 @@ export class Store {
     // The conversation owner keeps its own counter; they are reset together but
     // they are not the same number, so the follow-up gets the one it compares.
     const threadEpoch = this.threadReads.epoch
+    const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify] = await Promise.all([
       this.api.get<User[]>('/users'),
@@ -622,7 +635,7 @@ export class Store {
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) return
     this.receiveAppearance(appearance)
     this.sounds = sounds
-    this.spotify = spotify
+    if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)
     this.settings = settings
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
@@ -1136,7 +1149,7 @@ export class Store {
     switch (ev.type) {
       case 'music_queue_updated': this.receiveMusic(ev.queue); break
       case 'jam_updated': this.receiveJam(ev.channel_id, ev.jam ?? null); break
-      case 'spotify_account_updated': this.spotify = ev.account; break
+      case 'spotify_account_updated': this.receiveSpotify(ev.account); break
       case 'sounds_updated': void this.loadSounds(); break
       case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break
       case 'appearance_updated': this.receiveAppearance(ev.appearance); break

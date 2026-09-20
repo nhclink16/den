@@ -193,3 +193,36 @@ test('a Jam read from the previous account cannot land in the next account', asy
   await freshRead
   assert.equal(s.jams.get('c')?.id, 'new-account-jam')
 })
+
+test('a Spotify account read from the previous account cannot land in the next account', async () => {
+  const old = held()
+  api = {
+    get: async () => old.promise,
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const oldRead = s.loadSpotify()
+
+  s.generation++
+  s.spotify = { connection: 'unavailable' }
+  old.release({ connection: 'connected', account_name: 'old-account' })
+  await oldRead
+
+  assert.equal(s.spotify.connection, 'unavailable', 'the previous account repopulated Spotify state')
+})
+
+test('a Spotify socket update beats a read that started before it', async () => {
+  const stale = held()
+  api = {
+    get: async () => stale.promise,
+    post: async () => null,
+  }
+  const s = new Store('fixture')
+  const read = s.loadSpotify()
+
+  await s.handle({ type: 'spotify_account_updated', account: { connection: 'disconnected' } })
+  stale.release({ connection: 'connected', account_name: 'stale-account' })
+  await read
+
+  assert.equal(s.spotify.connection, 'disconnected', 'a stale read overwrote the socket update')
+})
