@@ -55,6 +55,11 @@ import DenAPI
     @ObservationIgnored private let requestAuthorization: @MainActor () async throws -> Bool
     @ObservationIgnored private let registerRemote: @MainActor () -> Void
     private var pendingTap: (channel: String, message: String?, thread: String?)?
+    private enum PushConversation {
+        case room
+        case thread(String)
+        case unknown
+    }
     init(store: AppStore,
          authorizationStatus: @escaping @MainActor () async -> UNAuthorizationStatus = {
              await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
@@ -77,7 +82,7 @@ import DenAPI
     }
     func requestAfterLogin() async {
         acceptingRegistration = true
-        consumePendingTap()
+        await consumePendingTap()
         guard let store, store.user != nil else { return }
         let expected = store.generation
         do {
@@ -93,7 +98,7 @@ import DenAPI
         }
     }
     func registerIfAuthorized(retryImmediately: Bool = false) async {
-        consumePendingTap()
+        await consumePendingTap()
         guard acceptingRegistration, let store, store.user != nil, store.service != nil else { return }
         let expected = store.generation
         let authorization = await authorizationStatus()
@@ -136,21 +141,20 @@ import DenAPI
         registrationTask = task
         await task.value
     }
-    func handleTap(channel: String, message: String?, thread: String? = nil) {
-        if let store, store.user != nil {
-            if let thread { store.selectThread(channelId: channel, threadId: thread, messageId: message) }
-            else { store.selectChannel(channel, messageId: message) }
-        } else { pendingTap = (channel, message, thread) }
+    func handleTap(channel: String, message: String?, thread: String? = nil) async {
+        guard let store, store.user != nil else {
+            pendingTap = (channel, message, thread)
+            return
+        }
+        open(channel: channel, message: message,
+             conversation: await resolve(channel: channel, message: message, hint: thread), store: store)
     }
-    private func consumePendingTap() {
+    private func consumePendingTap() async {
         guard let pendingTap, let store, store.user != nil else { return }
         self.pendingTap = nil
-        if let thread = pendingTap.thread {
-            store.selectThread(channelId: pendingTap.channel, threadId: thread,
-                               messageId: pendingTap.message)
-        } else {
-            store.selectChannel(pendingTap.channel, messageId: pendingTap.message)
-        }
+        open(channel: pendingTap.channel, message: pendingTap.message,
+             conversation: await resolve(channel: pendingTap.channel, message: pendingTap.message,
+                                         hint: pendingTap.thread), store: store)
     }
     func unregister() async throws {
         guard let store else { return }
@@ -187,24 +191,47 @@ import DenAPI
         guard let channel = info["channel_id"] as? String else { return }
         let message = info["message_id"] as? String
         let thread = info["thread_id"] as? String
-        await MainActor.run { handleTap(channel: channel, message: message, thread: thread) }
+        await handleTap(channel: channel, message: message, thread: thread)
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
         willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         let info = notification.request.content.userInfo
         let channel = info["channel_id"] as? String
         let thread = info["thread_id"] as? String
-        return await MainActor.run {
-            presentationOptions(channel: channel, thread: thread)
-        }
+        let message = info["message_id"] as? String
+        return await presentationOptions(channel: channel, message: message, thread: thread)
     }
-    func presentationOptions(channel: String?, thread: String?) -> UNNotificationPresentationOptions {
+    func presentationOptions(channel: String?, message: String? = nil,
+                             thread: String?) async -> UNNotificationPresentationOptions {
+        guard let store else { return [.banner, .sound, .badge] }
+        let conversation = await resolve(channel: channel, message: message, hint: thread)
         let showingExactConversation: Bool
-        if let thread {
-            showingExactConversation = store?.selectedThread?.threadId == thread
-        } else {
-            showingExactConversation = store?.selectedChannelId == channel && store?.selectedThread == nil
+        switch conversation {
+        case let .thread(id): showingExactConversation = store.selectedThread?.threadId == id
+        case .room: showingExactConversation = store.selectedChannelId == channel && store.selectedThread == nil
+        case .unknown: showingExactConversation = false
         }
         return showingExactConversation ? [.badge] : [.banner, .sound, .badge]
+    }
+
+    private func resolve(channel: String?, message: String?, hint: String?) async -> PushConversation {
+        guard let channel else { return .unknown }
+        if let hint { return .thread(hint) }
+        guard let message else { return .room }
+        if let cached = store?.cachedMessage(id: message, channelId: channel) {
+            return cached.threadId.map(PushConversation.thread) ?? .room
+        }
+        if let store, let fetched = try? await store.fetchMessage(id: message, channelId: channel) {
+            return fetched.threadId.map(PushConversation.thread) ?? .room
+        }
+        return .unknown
+    }
+
+    private func open(channel: String, message: String?, conversation: PushConversation, store: AppStore) {
+        if case let .thread(id) = conversation {
+            store.selectThread(channelId: channel, threadId: id, messageId: message)
+        } else {
+            store.selectChannel(channel, messageId: message)
+        }
     }
 }

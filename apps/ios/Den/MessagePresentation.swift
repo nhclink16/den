@@ -35,6 +35,12 @@ enum MessagePresentation {
         return !calendar.isDate(date, inSameDayAs: prior)
     }
 
+    static func firstUnread(in messages: [API.Message], after lastReadId: String?, excluding userId: String?) -> String? {
+        messages.first { message in
+            (lastReadId.map { $0 < message.id } ?? true) && message.authorId != userId
+        }?.id
+    }
+
     /// Backtick code fences stay literal, including names that happen to begin with @.
     static func blocks(_ source: String) -> [Block] {
         source.components(separatedBy: "```").enumerated().compactMap { index, part in

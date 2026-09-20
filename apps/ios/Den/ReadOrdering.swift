@@ -51,10 +51,13 @@ enum ReadKey: Hashable, Sendable {
         return true
     }
 
-    /// An authoritative snapshot of everything. Every in-flight response is now
-    /// older than what this replaced it with.
-    func invalidateAll() {
-        for key in versions.keys { versions[key] = (versions[key] ?? 0) + 1 }
+    /// A channel snapshot supersedes only channel requests. Thread reads arrive
+    /// from a separate endpoint and keep their own in-flight ordering.
+    func invalidateChannels() {
+        for key in versions.keys {
+            guard case .channel = key else { continue }
+            versions[key] = (versions[key] ?? 0) + 1
+        }
     }
 
     /// Cleared synchronously with the account, so a response from the previous

@@ -142,6 +142,7 @@ struct ThreadConversationView: View {
     @State private var visible = false
     @State private var initialPositionSet = false
     @State private var openedAt: String?
+    @State private var capturedReadMarker = false
     @State private var showRename = false
     @State private var renameDraft = ""
     @State private var acting = false
@@ -161,8 +162,8 @@ struct ThreadConversationView: View {
     private var conversation: Conversation? { rootId.map { .thread(channelId: channel.id, rootId: $0) } }
     private var resolved: Bool { summary?.resolvedAt != nil }
     private var firstUnread: String? {
-        guard let openedAt else { return nil }
-        return replies.first { $0.id > openedAt && $0.authorId != store.user?.id }?.id
+        guard capturedReadMarker else { return nil }
+        return MessagePresentation.firstUnread(in: replies, after: openedAt, excluding: store.user?.id)
     }
 
     var body: some View {
@@ -174,6 +175,7 @@ struct ThreadConversationView: View {
                         Text("Started from").font(theme.monoFont(.caption)).foregroundStyle(theme.ink3)
                             .padding(.horizontal, 16).padding(.top, 12)
                         MessageRow(message: root, grouped: false, store: store) { reply = root }
+                            .id(root.id)
                         Rectangle().fill(theme.line).frame(height: 1).padding(.horizontal, 16).padding(.vertical, 8)
                     } else if loading {
                         ProgressView().frame(maxWidth: .infinity).padding(40)
@@ -199,7 +201,18 @@ struct ThreadConversationView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             if message.id == firstUnread { unreadSeparator }
                             MessageRow(message: message,
-                                grouped: MessagePresentation.groups(message, after: prior), store: store) {
+                                grouped: MessagePresentation.groups(message, after: prior), store: store,
+                                onOpenReference: { target in
+                                    guard let id = threadId else { return }
+                                    Task {
+                                        do {
+                                            guard try await store.prepareThreadReference(
+                                                threadId: id, parentId: target) else { return }
+                                            await Task.yield()
+                                            proxy.scrollTo(target, anchor: .center)
+                                        } catch { store.report(error) }
+                                    }
+                                }) {
                                 reply = message
                             }
                         }.id(message.id)
@@ -240,7 +253,7 @@ struct ThreadConversationView: View {
                     }
                 }.background(theme.bg)
             }
-            .task(id: "\(selection.threadId ?? ""):\(selection.rootId ?? ""):\(selection.targetMessageId ?? "")") {
+            .task(id: "\(threadId ?? ""):\(selection.rootId ?? ""):\(selection.targetMessageId ?? "")") {
                 await load(proxy: proxy)
             }
             .onChange(of: replies.last?.id) { _, _ in
@@ -297,23 +310,21 @@ struct ThreadConversationView: View {
         defer { loading = false }
         do {
             var id = threadId
-            if let known = id {
-                let view = try await store.loadThread(id: known)
-                id = view.thread.id
-                if store.rootMessage(view.thread.rootMessageId) == nil { _ = try await store.loadThreadRoot(id: known) }
-                openedAt = store.threadReadStates[known]?.lastReadId
-                try await store.loadThreadConversation(id: known, target: selection.targetMessageId)
-            } else if let rootId, let existing = store.threadForRoot(rootId) {
+            if id == nil, let rootId, let existing = store.threadForRoot(rootId) {
                 store.selectThread(channelId: channel.id, rootId: rootId, threadId: existing.id)
                 id = existing.id
-                openedAt = store.threadReadStates[existing.id]?.lastReadId
-                try await store.loadThreadConversation(id: existing.id, target: selection.targetMessageId)
+            }
+            if let id {
+                let target = selection.targetMessageId == rootId ? nil : selection.targetMessageId
+                try await store.hydrateThread(id: id, target: target)
+                openedAt = store.threadReadStates[id]?.lastReadId
+                capturedReadMarker = true
             }
             let destination = selection.targetMessageId ?? firstUnread
             if let destination { proxy.scrollTo(destination, anchor: .top) }
             else { proxy.scrollTo("thread-bottom", anchor: .bottom) }
             initialPositionSet = true
-            if destination == nil || nearBottom { markTailRead() }
+            if destination == nil || destination == replies.last?.id { markTailRead() }
         } catch { store.report(error) }
     }
 

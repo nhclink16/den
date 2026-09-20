@@ -154,14 +154,17 @@ import UIKit
         presence = Set(result.7.onlineUserIds); callStates = result.8; instanceName = result.9.instanceName
         refreshCallNames()
         let visible = Set(channels.map(\.id))
-        messages = messages.filter { visible.contains($0.key) }
-        if let selectedChannelId, !visible.contains(selectedChannelId) { self.selectedChannelId = nil }
+        pruneConversationCaches(visibleChannelIds: visible)
+        if let selectedChannelId, !visible.contains(selectedChannelId) {
+            self.selectedChannelId = nil
+            selectedThread = nil
+        }
         if let selectedChannelId, channels.first(where: { $0.id == selectedChannelId })?.kind != .voice {
             try await loadConversation(channelId: selectedChannelId, duringRefresh: true)
             _ = try await loadThreads(channelId: selectedChannelId, resolved: false)
             if let id = selectedThread?.threadId {
-                _ = try await loadThread(id: id)
-                try await loadThreadMessages(id: id)
+                try await hydrateThread(id: id, target: selectedThread?.targetMessageId,
+                                        duringRefresh: true)
             }
         }
         syncProblem = nil
@@ -398,10 +401,10 @@ import UIKit
         readStates.removeAll { $0.channelId == state.channelId }
         readStates.append(state)
     }
-    /// A full refresh is authoritative, so every response still in flight is now
-    /// stale regardless of which key it belongs to.
+    /// The channel snapshot supersedes channel responses already in flight.
+    /// Thread reads come from their own endpoint and retain independent ordering.
     func replaceReadStates(_ states: [API.ChannelReadState]) {
-        readOrder.invalidateAll()
+        readOrder.invalidateChannels()
         readStates = states
     }
     func search(query: String, channelId: String?) async throws -> [API.Message] {
@@ -473,6 +476,20 @@ import UIKit
           threadRoots: threadRoots), origin: origin)
     }
     func userName(_ id: String) -> String { users.first { $0.id == id }?.displayName ?? "Someone" }
+
+    func pruneConversationCaches(visibleChannelIds: Set<String>) {
+        messages = messages.filter { visibleChannelIds.contains($0.key) }
+        threadMetadata = threadMetadata.filter { visibleChannelIds.contains($0.value.channelId) }
+        threadReadStates = threadReadStates.filter { visibleChannelIds.contains($0.value.channelId) }
+        threadRoots = threadRoots.filter { visibleChannelIds.contains($0.value.channelId) }
+        threadMessages = threadMessages.filter { id, values in
+            if let channelId = values.first?.channelId { return visibleChannelIds.contains(channelId) }
+            return threadMetadata[id] != nil || threadReadStates[id] != nil
+        }
+        let retained = Set(threadMetadata.keys).union(threadReadStates.keys).union(threadMessages.keys)
+        threadHasNewer = threadHasNewer.filter { retained.contains($0.key) }
+        typing = typing.filter { visibleChannelIds.contains($0.key.channelId) }
+    }
     /// Every name label reads `users` or `user`, so one upsert carries a profile change into
     /// message authors, DM titles, People, Settings, mentions and initials already on screen.
     /// The event carries the whole user, so this never refetches: a rename must not discard

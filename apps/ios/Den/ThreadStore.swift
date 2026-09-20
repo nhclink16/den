@@ -19,6 +19,23 @@ import Foundation
         threadRoots[rootId] ?? messages.values.lazy.flatMap { $0 }.first { $0.id == rootId }
     }
 
+    func cachedMessage(id: String, channelId: String) -> API.Message? {
+        if let value = messages[channelId]?.first(where: { $0.id == id }) { return value }
+        if let value = threadRoots[id], value.channelId == channelId { return value }
+        return threadMessages.values.lazy.flatMap { $0 }
+            .first { $0.id == id && $0.channelId == channelId }
+    }
+
+    func openReplyReference(from message: API.Message, parentId: String) {
+        if let threadId = message.threadId {
+            selectThread(channelId: message.channelId,
+                         rootId: threadMetadata[threadId]?.rootMessageId,
+                         threadId: threadId, messageId: parentId)
+        } else {
+            selectChannel(message.channelId, messageId: parentId)
+        }
+    }
+
     @discardableResult
     func loadThreads(channelId: String, resolved: Bool? = nil, unreadOnly: Bool? = nil,
                      before: String? = nil, limit: Int32 = 50) async throws -> [API.ThreadView] {
@@ -36,6 +53,19 @@ import Foundation
         }
         saveCache()
         return views
+    }
+
+    func loadAllThreads(channelId: String, resolved: Bool? = nil,
+                        unreadOnly: Bool? = nil) async throws -> [API.ThreadView] {
+        var result: [API.ThreadView] = []
+        var before: String?
+        while true {
+            let page = try await loadThreads(channelId: channelId, resolved: resolved,
+                                             unreadOnly: unreadOnly, before: before, limit: 50)
+            result.append(contentsOf: page)
+            guard page.count == 50, let cursor = page.last?.thread.id, cursor != before else { return result }
+            before = cursor
+        }
     }
 
     @discardableResult
@@ -104,6 +134,26 @@ import Foundation
         saveCache()
     }
 
+    func prepareThreadReference(threadId: String, parentId: String) async throws -> Bool {
+        if threadMetadata[threadId]?.rootMessageId == parentId {
+            if rootMessage(parentId) != nil { return true }
+            guard !offline else { return false }
+            _ = try await loadThreadRoot(id: threadId)
+            return rootMessage(parentId) != nil
+        }
+        if threadMessages[threadId]?.contains(where: { $0.id == parentId }) == true { return true }
+        guard !offline else { return false }
+        try await loadThreadConversation(id: threadId, target: parentId)
+        return threadMessages[threadId]?.contains { $0.id == parentId } == true
+    }
+
+    func hydrateThread(id: String, target: String?, duringRefresh: Bool = false) async throws {
+        guard duringRefresh || !offline else { return }
+        let view = try await loadThread(id: id)
+        if rootMessage(view.thread.rootMessageId) == nil { _ = try await loadThreadRoot(id: id) }
+        try await loadThreadConversation(id: id, target: target)
+    }
+
     func loadNewerThreadMessages(id: String) async throws {
         let expected = generation
         let values = try await activeService().threadMessages(id: id,
@@ -124,9 +174,11 @@ import Foundation
     func mergeMessage(_ message: API.Message) {
         if let threadId = message.threadId { mergeThreadMessages([message], threadId: threadId) }
         else {
-            merge([message], channelId: message.channelId)
+            let roomContainsMessage = messages[message.channelId]?.contains { $0.id == message.id } == true
+            let cachedAsThreadRoot = threadRoots[message.id] != nil
+            if roomContainsMessage || !cachedAsThreadRoot { merge([message], channelId: message.channelId) }
             mergeInlineThread(message)
-            if threadMetadata.values.contains(where: { $0.rootMessageId == message.id }) {
+            if cachedAsThreadRoot || threadMetadata.values.contains(where: { $0.rootMessageId == message.id }) {
                 threadRoots[message.id] = message
             }
         }
@@ -135,11 +187,13 @@ import Foundation
     func applyThreadMetadata(_ summary: API.ThreadSummary, token: Int? = nil) {
         guard metadataOrder.accept(.thread(summary.id), token: token) else { return }
         threadMetadata[summary.id] = summary
+        bindSelection(to: summary)
     }
 
     func applyThreadMetadata(_ summary: API.ThreadSummary, snapshot: [ReadKey: Int]) {
         guard metadataOrder.accept(.thread(summary.id), from: snapshot) else { return }
         threadMetadata[summary.id] = summary
+        bindSelection(to: summary)
     }
 
     func applyThreadRead(_ state: API.ThreadReadState, token: Int? = nil) {
@@ -153,7 +207,11 @@ import Foundation
     }
 
     func mergeInlineThread(_ message: API.Message) {
-        guard let value = message.thread, threadMetadata[value.id] == nil else { return }
+        guard let value = message.thread else { return }
+        if let existing = threadMetadata[value.id] {
+            bindSelection(to: existing)
+            return
+        }
         applyThreadMetadata(.init(channelId: value.channelId, createdAt: value.createdAt,
             createdBy: value.createdBy, id: value.id, lastActivityAt: value.lastActivityAt,
             lastReplyId: value.lastReplyId, replyCount: value.replyCount,
@@ -209,5 +267,12 @@ import Foundation
         threadMetadata = [:]; threadReadStates = [:]; threadMessages = [:]
         threadRoots = [:]; threadHasNewer = [:]
         metadataOrder.reset()
+    }
+
+    private func bindSelection(to summary: API.ThreadSummary) {
+        guard selectedThread?.channelId == summary.channelId,
+              selectedThread?.threadId == summary.id || selectedThread?.rootId == summary.rootMessageId else { return }
+        selectedThread?.rootId = summary.rootMessageId
+        selectedThread?.threadId = summary.id
     }
 }

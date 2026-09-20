@@ -8,11 +8,13 @@ struct MessageRow: View {
     let store: AppStore
     let onReply: () -> Void
     var thread: API.ThreadSummary?
+    var onOpenReference: ((String) -> Void)?
 
     init(message: API.Message, grouped: Bool, store: AppStore,
-         thread: API.ThreadSummary? = nil, onReply: @escaping () -> Void) {
+         thread: API.ThreadSummary? = nil, onOpenReference: ((String) -> Void)? = nil,
+         onReply: @escaping () -> Void) {
         self.message = message; self.grouped = grouped; self.store = store
-        self.thread = thread; self.onReply = onReply
+        self.thread = thread; self.onOpenReference = onOpenReference; self.onReply = onReply
     }
     @State private var parent: API.Message?
     @State private var parentUnavailable = false
@@ -90,7 +92,8 @@ struct MessageRow: View {
         .task(id: message.replyTo) {
             guard let id = message.replyTo else { return }
             parentUnavailable = false
-            if let cached = store.messages[message.channelId]?.first(where: { $0.id == id }) { parent = cached }
+            if let cached = store.cachedMessage(id: id, channelId: message.channelId) { parent = cached }
+            else if store.offline { parentUnavailable = true }
             else {
                 do { parent = try await store.fetchMessage(id: id, channelId: message.channelId) }
                 catch { parentUnavailable = true }
@@ -130,7 +133,10 @@ struct MessageRow: View {
 
     private var replyReference: some View {
         Button {
-            if let id = message.replyTo { store.selectChannel(message.channelId, messageId: id) }
+            if let id = message.replyTo {
+                if let onOpenReference { onOpenReference(id) }
+                else { store.openReplyReference(from: message, parentId: id) }
+            }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "arrowshape.turn.up.left")

@@ -130,7 +130,7 @@ struct InboxView: View {
         for channel in unread {
             do {
                 if store.messages[channel.id] == nil { try await store.loadMessages(channelId: channel.id) }
-                let views = try await store.loadThreads(channelId: channel.id, unreadOnly: true)
+                let views = try await store.loadAllThreads(channelId: channel.id, unreadOnly: true)
                 for id in views.map(\.thread.id) where !unreadThreadIds.contains(id) {
                     unreadThreadIds.append(id)
                 }

@@ -118,6 +118,7 @@ extension AppStore {
                 }
             } else {
                 let loaded = messages[message.channelId]?.contains(where: { $0.id == message.id }) == true
+                    || threadRoots[message.id] != nil
                 if loaded || (type == "message_created" && messageHasNewer[message.channelId] != true) {
                     mergeMessage(message)
                 }
@@ -134,6 +135,9 @@ extension AppStore {
             if let channel = value["channel_id"] as? String, let id = value["message_id"] as? String,
                let index = messages[channel]?.firstIndex(where: { $0.id == id }) {
                 messages[channel]?[index].reactions = try field("reactions", as: [API.Reaction].self)
+                if threadRoots[id] != nil { threadRoots[id]?.reactions = messages[channel]?[index].reactions }
+            } else if let id = value["message_id"] as? String, threadRoots[id] != nil {
+                threadRoots[id]?.reactions = try field("reactions", as: [API.Reaction].self)
             } else if let id = value["message_id"] as? String {
                 for threadId in Array(threadMessages.keys) {
                     if let index = threadMessages[threadId]?.firstIndex(where: { $0.id == id }) {
