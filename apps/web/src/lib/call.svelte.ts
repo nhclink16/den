@@ -445,7 +445,9 @@ class Call {
     try {
       if (this.room && kind === 'audioinput') {
         const preferences = (this.owner || store).voice.microphones[id || 'default'] || defaultMicrophone
-        const options = { ...microphoneConstraints(preferences), deviceId: id || 'default' }
+        // This is an explicit picker choice, not a hint: a plain string lets the
+        // browser keep its default microphone while Den saves a different device.
+        const options = { ...microphoneConstraints(preferences), deviceId: id ? { exact: id } : 'default' }
         const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack
         // Device changes reacquire capture. Start with that device's processing
         // constraints, since browsers can reject changing them after capture.
