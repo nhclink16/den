@@ -142,12 +142,24 @@ try {
     await page.getByRole('button', { name: 'Come in', exact: true }).click()
     await page.locator('a[title="Settings"]').waitFor()
     await join(page)
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      const participant = call.room.localParticipant
+      const setCameraEnabled = participant.setCameraEnabled.bind(participant)
+      window.__enableAttempts = 0
+      participant.setCameraEnabled = async (...args) => {
+        if (args[0]) window.__enableAttempts++
+        return setCameraEnabled(...args)
+      }
+    })
     await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
     await page.getByRole('alert').filter({ hasText: 'Allow camera and microphone access' }).waitFor()
     assert.equal((await callState(page)).cameraOn, false)
     assert.equal(await savedBackground(page, selectedCamera), 'blur')
-    assert.equal(await page.evaluate(() => window.__videoAttempts), 2, 'blur attempt and plain retry both reached capture')
-    report.permissionFailure = { cameraOff: true, preferencePreserved: true, attempts: 2 }
+    assert.equal(await page.evaluate(() => window.__enableAttempts), 2, 'blur attempt and plain retry both ran')
+    assert((await page.evaluate(() => window.__videoAttempts)) >= 2, 'both attempts reached browser capture')
+    report.permissionFailure = { cameraOff: true, preferencePreserved: true, highLevelAttempts: 2 }
     await page.getByRole('button', { name: 'Leave call', exact: true }).click()
     await context.close()
   }
