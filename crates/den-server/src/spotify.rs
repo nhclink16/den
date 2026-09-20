@@ -1,4 +1,4 @@
-//! Spotify account linking. Read only: the two scopes below let Den see what
+//! Spotify account linking. Read only: the scope below lets Den see what
 //! the host is playing and nothing else. No playback control, no writes.
 //!
 //! Only refresh tokens are persisted, encrypted, per user. Access tokens live in
@@ -16,7 +16,7 @@ use std::path::Path;
 
 /// Client IDs are public and travel in the authorize URL.
 const CLIENT_ID: &str = "9efa4ca0d79a4be5a934a22c229ad656";
-const SCOPES: &str = "user-read-playback-state user-read-currently-playing";
+const SCOPES: &str = "user-read-currently-playing";
 const AUTHORIZE: &str = "https://accounts.spotify.com/authorize";
 const TOKEN: &str = "https://accounts.spotify.com/api/token";
 const PROFILE: &str = "https://api.spotify.com/v1/me";
@@ -459,7 +459,7 @@ pub(crate) async fn callback(
     .ok_or_else(|| Error::bad("Spotify rejected that sign-in. Try connecting again."))?;
     if !has_required_scopes(&granted) {
         return Err(Error::bad(
-            "Spotify did not grant both read-only playback permissions. Connect again.",
+            "Spotify did not grant the read-only playback permission. Connect again.",
         ));
     }
     let refresh = granted.refresh_token.as_deref().ok_or_else(|| {

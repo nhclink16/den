@@ -93,15 +93,15 @@ async fn stub_token(
                 "access_token":"stub-access-rotated",
                 "refresh_token":"stub-refresh-rotated",
                 "expires_in":3600,
-                "scope":"user-read-playback-state user-read-currently-playing"
+                "scope":"user-read-currently-playing"
             })),
         )
             .into_response();
     }
     let scope = if matches!(state.mode, ProviderMode::MissingScope) {
-        "user-read-currently-playing"
+        "user-read-playback-state"
     } else {
-        "user-read-playback-state user-read-currently-playing"
+        "user-read-currently-playing"
     };
     let expires = if matches!(state.mode, ProviderMode::Limited) {
         3600
@@ -488,11 +488,9 @@ async fn an_authorize_state_is_single_use_and_bound_to_the_user_who_started_it()
         "the public client id travels in the authorize URL"
     );
     assert_eq!(params["response_type"], "code");
-    // Read only. No playback control, no writes.
-    assert_eq!(
-        params["scope"],
-        "user-read-playback-state user-read-currently-playing"
-    );
+    // This is the only permission Spotify documents for the sole playback
+    // endpoint Den calls. Do not ask for device or broader playback state.
+    assert_eq!(params["scope"], "user-read-currently-playing");
     // Derived from DEN_ORIGIN, which the tests bind to a loopback IP. Spotify
     // refuses `localhost`, and a mismatch breaks the callback or the cookie.
     assert_eq!(
@@ -584,10 +582,7 @@ async fn oauth_exchange_refresh_and_now_playing_use_the_stub_provider() {
             .any(|window| window == b"stub-refresh-initial"),
         "the refresh token must not be plaintext in SQLite"
     );
-    assert_eq!(
-        scopes,
-        "user-read-playback-state user-read-currently-playing"
-    );
+    assert_eq!(scopes, "user-read-currently-playing");
 
     let room = voice_room(&t).await;
     t.post(
