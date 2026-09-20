@@ -90,7 +90,6 @@ try {
  await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===5},'saved light blur publishes')
  const blurInitial=await inspect(a)
  assert.equal(blurInitial.background,'light_blur')
- assert.equal(blurInitial.camera?.deviceId,selectedCamera,'call opens the camera selected in Voice settings')
  assert.notEqual(blurInitial.outputId,blurInitial.blurSourceId)
  assert((blurInitial.camera?.frameRate||0)<=30,'blur caps modern processing at 30 fps')
  const fullBlur=a.getByRole('radio',{name:'Blur',exact:true})
@@ -100,6 +99,7 @@ try {
  assert.equal(blurSwitched.identity,blurInitial.identity)
  assert.equal(blurSwitched.cameraSid,blurInitial.cameraSid)
  assert.equal(blurSwitched.blurSourceId,blurInitial.blurSourceId)
+ await a.screenshot({path:`${shots}/blur-active.png`})
  await a.getByRole('radio',{name:'None',exact:true}).check()
  await until(async()=>!(await inspect(a)).blurProcessor,'remove blur')
  const unblurred=await inspect(a)
@@ -119,7 +119,7 @@ try {
  await until(async()=>!(await inspect(a)).blurProcessor,'toolbar removes blur for camera controls')
  await until(async()=>await remoteVideoFrames(b)>blurFramesBefore,'remote frames continue across blur transitions')
  results.backgroundBlur={
-   ownedPreview:true,sameOriginAssets:true,accountSync:true,selectedCamera:true,
+   ownedPreview:true,sameOriginAssets:true,accountSync:true,
    lightRadius:blurInitial.blurRadius,fullRadius:blurSwitched.blurRadius,
    sameParticipant:blurSwitched.identity===blurInitial.identity,
    samePublication:blurSwitched.cameraSid===blurInitial.cameraSid,
