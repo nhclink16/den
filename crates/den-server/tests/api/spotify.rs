@@ -392,6 +392,73 @@ async fn disconnect_wins_over_a_refresh_already_in_flight() {
 }
 
 #[tokio::test]
+async fn disconnect_cancels_an_oauth_callback_already_in_flight() {
+    let provider = StubSpotify::start(ProviderMode::Slow).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let member = t.member("spotify_callback_race").await;
+    let (_, state) = authorization(&t, &member.token).await;
+
+    let client = t.http.clone();
+    let url = format!("{}/users/me/spotify/callback", t.url);
+    let token = member.token.clone();
+    let pending = tokio::spawn(async move {
+        client
+            .post(url)
+            .bearer_auth(token)
+            .json(&json!({"code":"stub-code","state":state}))
+            .send()
+            .await
+            .unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while provider.state.token_calls.load(Ordering::SeqCst) < 1 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("callback reached the provider");
+
+    assert_eq!(
+        t.req(Method::DELETE, "/users/me/spotify", &member.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(
+        pending.await.unwrap().status(),
+        StatusCode::BAD_REQUEST,
+        "the callback reconnected Spotify after Disconnect completed"
+    );
+    assert_eq!(
+        account(&t, &member.token).await.connection,
+        SpotifyConnection::Disconnected
+    );
+
+    // A callback that has not reached the provider is cancelled too, without
+    // spending the code after the user explicitly disconnected.
+    let (_, state) = authorization(&t, &member.token).await;
+    assert_eq!(
+        t.req(Method::DELETE, "/users/me/spotify", &member.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    let calls = provider.state.token_calls.load(Ordering::SeqCst);
+    let cancelled = t
+        .req(Method::POST, "/users/me/spotify/callback", &member.token)
+        .json(&json!({"code":"unused-code","state":state}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cancelled.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(provider.state.token_calls.load(Ordering::SeqCst), calls);
+}
+
+#[tokio::test]
 async fn an_authorize_state_is_single_use_and_bound_to_the_user_who_started_it() {
     let provider = StubSpotify::start(ProviderMode::Healthy).await;
     let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;

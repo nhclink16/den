@@ -46,7 +46,7 @@ pub(crate) struct Credentials {
 pub(crate) struct Spotify {
     credentials: Option<Credentials>,
     /// SHA-256 of a pending `state`, exactly as `tickets.rs` stores its tickets.
-    states: Mutex<HashMap<String, (String, Instant)>>,
+    states: Mutex<HashMap<String, (String, Instant, u64)>>,
     access: Mutex<HashMap<String, (String, Instant)>>,
     playback: Mutex<HashMap<String, (Option<SpotifyNowPlaying>, Instant)>>,
     /// Account lifecycle generation. A disconnect or a new authorization makes
@@ -202,9 +202,11 @@ async fn epoch(s: &AppState, user: &str) -> u64 {
         .unwrap_or(0)
 }
 
-async fn advance_epoch(s: &AppState, user: &str) {
+async fn advance_epoch(s: &AppState, user: &str) -> u64 {
     let mut epochs = s.spotify.epochs.lock().await;
-    *epochs.entry(user.into()).or_default() += 1;
+    let epoch = epochs.entry(user.into()).or_default();
+    *epoch += 1;
+    *epoch
 }
 
 fn credentials(s: &AppState) -> Result<&Credentials> {
@@ -386,13 +388,19 @@ pub(crate) async fn authorize(
     a: Auth,
 ) -> Result<Json<SpotifyAuthorization>> {
     credentials(&s)?;
+    // Starting a new authorization supersedes every older attempt for this
+    // account, including a callback already waiting on Spotify.
+    let attempt_epoch = advance_epoch(&s, &a.user.id).await;
     let state = auth::secret();
     {
         let at = Instant::now();
         let mut states = s.spotify.states.lock().await;
         // One pending authorization per user; this also bounds the map.
-        states.retain(|_, (user, expiry)| *expiry > at && user != &a.user.id);
-        states.insert(auth::hash(&state), (a.user.id.clone(), at + STATE_TTL));
+        states.retain(|_, (user, expiry, _)| *expiry > at && user != &a.user.id);
+        states.insert(
+            auth::hash(&state),
+            (a.user.id.clone(), at + STATE_TTL, attempt_epoch),
+        );
     }
     let redirect = redirect_uri(&s);
     let url = reqwest::Url::parse_with_params(
@@ -425,10 +433,15 @@ pub(crate) async fn callback(
         .lock()
         .await
         .remove(&auth::hash(&v.state))
-        .filter(|(_, expiry)| *expiry > Instant::now())
-        .map(|(user, _)| user);
+        .filter(|(_, expiry, _)| *expiry > Instant::now())
+        .map(|(user, _, attempt)| (user, attempt));
     // Single use, and bound to the user who started it.
-    if owner.as_deref() != Some(a.user.id.as_str()) {
+    let Some((owner, attempt_epoch)) = owner else {
+        return Err(Error::bad(
+            "That Spotify link expired. Start again from Settings.",
+        ));
+    };
+    if owner != a.user.id || epoch(&s, &a.user.id).await != attempt_epoch {
         return Err(Error::bad(
             "That Spotify link expired. Start again from Settings.",
         ));
@@ -454,9 +467,14 @@ pub(crate) async fn callback(
     })?;
     let name = display_name(c, &granted.access_token).await;
     let (nonce, ciphertext) = seal(c, &a.user.id, refresh)?;
-    // Invalidate provider work for a previous connection before replacing it.
-    advance_epoch(&s, &a.user.id).await;
     let _refresh = s.spotify.refresh.lock().await;
+    // Disconnect or a newer authorization may have happened while Spotify was
+    // answering. Check again under the refresh lock before writing the grant.
+    if epoch(&s, &a.user.id).await != attempt_epoch {
+        return Err(Error::bad(
+            "That Spotify link expired. Start again from Settings.",
+        ));
+    }
     let time = now();
     sqlx::query("INSERT INTO spotify_accounts(user_id,refresh_nonce,refresh_ciphertext,key_version,account_name,scopes,connected_at,expires_at,needs_reauth) VALUES(?,?,?,1,?,?,?,?,0) ON CONFLICT(user_id) DO UPDATE SET refresh_nonce=excluded.refresh_nonce,refresh_ciphertext=excluded.refresh_ciphertext,key_version=1,account_name=excluded.account_name,scopes=excluded.scopes,connected_at=excluded.connected_at,expires_at=excluded.expires_at,needs_reauth=0")
         .bind(&a.user.id)
@@ -484,6 +502,11 @@ pub(crate) async fn disconnect(State(s): State<AppState>, a: Auth) -> Result<Sta
     // Advance first so a provider response already in flight cannot repopulate
     // either token cache after this request begins.
     advance_epoch(&s, &a.user.id).await;
+    s.spotify
+        .states
+        .lock()
+        .await
+        .retain(|_, (user, _, _)| user != &a.user.id);
     s.spotify.access.lock().await.remove(&a.user.id);
     s.spotify.playback.lock().await.remove(&a.user.id);
     let _refresh = s.spotify.refresh.lock().await;
@@ -683,6 +706,19 @@ impl Default for PlaybackFetch {
         }
     }
 }
+
+fn playback_retry_after(headers: &reqwest::header::HeaderMap) -> Duration {
+    let seconds = headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(PLAYBACK_TTL.as_secs())
+        // A nonsensical value must not overflow `Instant`, but there is no
+        // reason to retry before this grant's entire remaining lifetime.
+        .clamp(PLAYBACK_TTL.as_secs(), REFRESH_LIFETIME as u64);
+    Duration::from_secs(seconds)
+}
+
 async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch {
     #[derive(Deserialize)]
     struct Playing {
@@ -735,16 +771,9 @@ async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch 
         return PlaybackFetch::default();
     }
     if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-        let seconds = response
-            .headers()
-            .get(reqwest::header::RETRY_AFTER)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(PLAYBACK_TTL.as_secs())
-            .clamp(PLAYBACK_TTL.as_secs(), 60);
         return PlaybackFetch {
             value: None,
-            ttl: Duration::from_secs(seconds),
+            ttl: playback_retry_after(response.headers()),
         };
     }
     if !response.status().is_success() {
@@ -843,5 +872,12 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
         assert!(data_key(&path).await.is_err());
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn playback_backoff_keeps_the_providers_full_retry_after() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(reqwest::header::RETRY_AFTER, "120".parse().unwrap());
+        assert_eq!(playback_retry_after(&headers), Duration::from_secs(120));
     }
 }
