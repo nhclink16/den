@@ -54,7 +54,7 @@ import DenAPI
     @ObservationIgnored private let authorizationStatus: @MainActor () async -> UNAuthorizationStatus
     @ObservationIgnored private let requestAuthorization: @MainActor () async throws -> Bool
     @ObservationIgnored private let registerRemote: @MainActor () -> Void
-    private var pendingTap: (channel: String, message: String?)?
+    private var pendingTap: (channel: String, message: String?, thread: String?)?
     init(store: AppStore,
          authorizationStatus: @escaping @MainActor () async -> UNAuthorizationStatus = {
              await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
@@ -136,14 +136,21 @@ import DenAPI
         registrationTask = task
         await task.value
     }
-    func handleTap(channel: String, message: String?) {
-        if let store, store.user != nil { store.selectChannel(channel, messageId: message) }
-        else { pendingTap = (channel, message) }
+    func handleTap(channel: String, message: String?, thread: String? = nil) {
+        if let store, store.user != nil {
+            if let thread { store.selectThread(channelId: channel, threadId: thread, messageId: message) }
+            else { store.selectChannel(channel, messageId: message) }
+        } else { pendingTap = (channel, message, thread) }
     }
     private func consumePendingTap() {
         guard let pendingTap, let store, store.user != nil else { return }
         self.pendingTap = nil
-        store.selectChannel(pendingTap.channel, messageId: pendingTap.message)
+        if let thread = pendingTap.thread {
+            store.selectThread(channelId: pendingTap.channel, threadId: thread,
+                               messageId: pendingTap.message)
+        } else {
+            store.selectChannel(pendingTap.channel, messageId: pendingTap.message)
+        }
     }
     func unregister() async throws {
         guard let store else { return }
@@ -179,13 +186,25 @@ import DenAPI
         let info = response.notification.request.content.userInfo
         guard let channel = info["channel_id"] as? String else { return }
         let message = info["message_id"] as? String
-        await MainActor.run { handleTap(channel: channel, message: message) }
+        let thread = info["thread_id"] as? String
+        await MainActor.run { handleTap(channel: channel, message: message, thread: thread) }
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
         willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        let channel = notification.request.content.userInfo["channel_id"] as? String
+        let info = notification.request.content.userInfo
+        let channel = info["channel_id"] as? String
+        let thread = info["thread_id"] as? String
         return await MainActor.run {
-            store?.selectedChannelId == channel ? [.badge] : [.banner, .sound, .badge]
+            presentationOptions(channel: channel, thread: thread)
         }
+    }
+    func presentationOptions(channel: String?, thread: String?) -> UNNotificationPresentationOptions {
+        let showingExactConversation: Bool
+        if let thread {
+            showingExactConversation = store?.selectedThread?.threadId == thread
+        } else {
+            showingExactConversation = store?.selectedChannelId == channel && store?.selectedThread == nil
+        }
+        return showingExactConversation ? [.badge] : [.banner, .sound, .badge]
     }
 }

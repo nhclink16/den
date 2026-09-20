@@ -4,7 +4,10 @@ import DenAPI
 
 struct PendingUpload: Identifiable {
     let id: UUID
-    let channelId: String
+    /// Which composer staged it. The room and a thread in the same channel keep
+    /// separate queues; the server upload below still belongs to the channel.
+    let conversation: Conversation
+    var channelId: String { conversation.channelId }
     let filename: String
     let localURL: URL
     var progress: Double = 0
@@ -64,13 +67,13 @@ enum AttachmentFiles {
 }
 
 @MainActor extension AppStore {
-    func attach(url: URL, channelId: String) async throws {
+    func attach(url: URL, conversation: Conversation) async throws {
         _ = try activeService()
         let expected = generation, id = UUID()
         let owned = try await Task.detached { try AttachmentFiles.copy(url, id: id) }.value
         do { try check(expected); try Task.checkCancellation() }
         catch { AttachmentFiles.remove(owned); throw error }
-        pendingUploads.append(.init(id: id, channelId: channelId, filename: url.lastPathComponent, localURL: owned))
+        pendingUploads.append(.init(id: id, conversation: conversation, filename: url.lastPathComponent, localURL: owned))
         try await retryUpload(id: id)
     }
 

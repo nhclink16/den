@@ -27,6 +27,7 @@ struct RootView: View {
                 }
                 .onChange(of: store.selectedChannelId) { _, value in if value != nil { tab = 0 } }
                 .onChange(of: store.targetMessageId) { _, value in if value != nil { tab = 0 } }
+                .onChange(of: store.selectedThread) { _, value in if value != nil { tab = 0 } }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
