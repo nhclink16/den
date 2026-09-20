@@ -60,7 +60,10 @@ async function callState(page) {
       cameraOn: call.cameraOn,
       error: call.error,
       background: call.cameraSettings.background,
+      backgroundBusy: call.backgroundBusy,
       processor: track?.getProcessor?.()?.name ?? null,
+      blurSource: call.blur.source?.readyState ?? null,
+      blurInput: call.blur.input?.readyState ?? null,
     }
   })
 }
@@ -85,6 +88,59 @@ async function savedBackground(page, id) {
 const report = {}
 let selectedCamera
 try {
+  // Camera-off is serialized behind a processor that is still initializing. The
+  // visible control is disabled during that short transition, while keyboard or
+  // programmatic requests queue and finish with every blur resource released.
+  {
+    const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
+    const page = await login(context)
+    await voice(page)
+    await until(() => page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.videoWidth > 0), 'race setup preview')
+    const cameraId = await page.getByLabel('Camera preview', { exact: true }).evaluate(video => video.srcObject.getVideoTracks()[0].getSettings().deviceId)
+    selectedCamera = cameraId
+    await saveBackground(page, 'default', 'none')
+    await saveBackground(page, cameraId, 'blur')
+    await page.getByRole('link', { name: 'Notifications', exact: true }).click()
+    let releaseModel
+    let modelRequested
+    const requested = new Promise(resolve => { modelRequested = resolve })
+    await page.route('**/blur/selfie_segmenter.tflite*', route => {
+      modelRequested()
+      return new Promise(resolve => {
+        releaseModel = async () => { await route.continue(); resolve() }
+      })
+    })
+    await join(page)
+    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await requested
+    await until(async () => (await callState(page)).cameraOn, 'camera enabled while blur initializes')
+    const during = {
+      busy: (await callState(page)).backgroundBusy,
+      disabled: await page.getByRole('button', { name: 'Turn camera off', exact: true }).isDisabled(),
+    }
+    await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
+      const { call } = await import(url)
+      window.__cameraOffSettled = false
+      window.__cameraOff = call.toggleCamera().finally(() => { window.__cameraOffSettled = true })
+    })
+    await page.waitForTimeout(250)
+    const settledDuringInit = await page.evaluate(() => window.__cameraOffSettled)
+    await releaseModel()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    await page.evaluate(() => window.__cameraOff)
+    await until(async () => !(await callState(page)).cameraOn, 'queued camera-off completed')
+    const after = await callState(page)
+    assert.deepEqual(during, { busy: true, disabled: true })
+    assert.equal(settledDuringInit, false, 'camera-off waits for processor initialization')
+    assert.equal(after.processor, null)
+    assert.equal(after.blurSource, null)
+    assert.equal(after.blurInput, null)
+    report.cameraOffDuringInit = { disabled: true, serialized: true, resourcesReleased: true }
+    await page.getByRole('button', { name: 'Leave call', exact: true }).click()
+    await context.close()
+  }
+
   // A MediaPipe-only failure retries the same capture without a processor, keeps
   // the call usable, announces the fallback, and clears only this camera's effect.
   {
@@ -95,7 +151,8 @@ try {
     const picker = page.getByRole('combobox', { name: 'Camera', exact: true })
     selectedCamera = await picker.locator('option').evaluateAll(options => options.map(option => option.value).find(Boolean))
     assert(selectedCamera, 'synthetic camera has a stable device ID')
-    await picker.selectOption(selectedCamera)
+    assert.equal(await picker.inputValue(), '', 'failure coverage starts from the Default camera choice')
+    await saveBackground(page, 'default', 'none')
     await page.getByRole('radio', { name: 'Blur', exact: true }).check()
     await until(() => page.getByRole('radio', { name: 'Blur', exact: true }).isChecked(), 'blur saved for failure test')
     await page.getByRole('link', { name: 'Notifications', exact: true }).click()

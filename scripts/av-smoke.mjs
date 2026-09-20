@@ -17,11 +17,15 @@ async function until(check, label, timeout=20000) {
 async function login(username='nicholas') {
  const context=await browser.newContext({viewport:{width:1440,height:1000},permissions:['microphone','camera'],colorScheme:'dark'})
  await context.addInitScript(()=> {
-  window.__pcs=[]; window.__tracks=[]
+  window.__pcs=[]; window.__tracks=[]; window.__gum=[]
   const PC=window.RTCPeerConnection
   window.RTCPeerConnection=class extends PC { constructor(...args){super(...args);window.__pcs.push(this)} }
   const gum=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
-  navigator.mediaDevices.getUserMedia=async (...args)=>{const s=await gum(...args);window.__tracks.push(...s.getTracks());return s}
+  navigator.mediaDevices.getUserMedia=async (...args)=>{
+   const options=args[0],audio=typeof options?.audio==='object'?options.audio:null,deviceId=audio?.deviceId
+   window.__gum.push({audio:audio?{deviceId:typeof deviceId==='object'?{exact:deviceId.exact,ideal:deviceId.ideal}:deviceId}:options?.audio,video:Boolean(options?.video)})
+   const s=await gum(...args);window.__tracks.push(...s.getTracks());return s
+  }
  })
  const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message))
  await p.goto(base)
@@ -36,13 +40,18 @@ async function remoteVideoFrames(p) {return p.evaluate(async()=>{
  const reports=await Promise.all(window.__pcs.filter(pc=>pc.connectionState==='connected').map(pc=>pc.getStats()))
  return reports.flatMap(r=>[...r.values()]).filter(s=>s.type==='inbound-rtp'&&s.kind==='video').reduce((sum,s)=>sum+(s.framesDecoded||0),0)
 })}
+async function requireRemoteVideo(p,label) {
+ const before=await remoteVideoFrames(p)
+ await until(async()=>await remoteVideoFrames(p)>before,`remote video after ${label}`,5_000)
+ return {label,before,after:await remoteVideoFrames(p)}
+}
 async function inspect(p) {return p.evaluate(async()=>{
  const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/call.svelte.ts').name
  const {call}=await import(url)
  const camera=call.room?.localParticipant.getTrackPublication('camera')?.track
  return {error:call.error,joining:call.joining,state:call.room?.state,identity:call.room?.localParticipant.identity,participants:call.participants.length,cameraOn:call.cameraOn,
   camera:call.cameraTrack?.getSettings(),cameraId:call.cameraTrack?.id,cameraSid:call.room?.localParticipant.getTrackPublication('camera')?.trackSid,
-  background:call.cameraSettings.background,blurActive:call.blurActive,blurProcessor:camera?.getProcessor?.()?.name,
+  background:call.cameraSettings.background,backgroundBusy:call.backgroundBusy,blurNotice:call.blurNotice,blurActive:call.blurActive,blurProcessor:camera?.getProcessor?.()?.name,
   blurRadius:call.blur?.inner?.transformer?.options?.blurRadius,blurSourceId:call.blur?.source?.id,outputId:camera?.mediaStreamTrack?.id,
   audio:call.gain.source?.getSettings(),audioId:call.gain.source?.id,processorId:call.gain.processedTrack?.id,sourceState:call.gain.source?.readyState,
   pcs:window.__pcs.map(pc=>pc.connectionState)}
@@ -78,6 +87,7 @@ try {
  await a.screenshot({path:`${shots}/after.png`})
  await a.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
  await until(async()=>(await inspect(a)).state==='connected','call connected')
+ if(await a.getByRole('button',{name:'Unmute microphone',exact:true}).count()) await a.getByRole('button',{name:'Unmute microphone',exact:true}).click()
  await until(async()=>(await inspect(a)).processorId,'gain processor publishing')
  await until(async()=>(await inspect(a)).joining===null,'join finished')
  b=await login(observer)
@@ -86,12 +96,19 @@ try {
  await a.getByRole('button',{name:'Turn camera on',exact:true}).click()
  await until(async()=>(await inspect(a)).cameraId,'camera publishing')
  await until(()=>b.locator('[data-local="false"] video').evaluateAll(v=>v.some(e=>e.videoWidth>0)),'remote camera decodes')
- const blurFramesBefore=await remoteVideoFrames(b)
  await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===5},'saved light blur publishes')
  const blurInitial=await inspect(a)
  assert.equal(blurInitial.background,'light_blur')
  assert.notEqual(blurInitial.outputId,blurInitial.blurSourceId)
  assert((blurInitial.camera?.frameRate||0)<=30,'blur caps modern processing at 30 fps')
+ const remoteContinuity=[]
+ remoteContinuity.push(await requireRemoteVideo(b,'saved light blur'))
+ await a.getByRole('button',{name:'Turn background blur off',exact:true}).first().click()
+ await until(async()=>!(await inspect(a)).blurProcessor,'toolbar removes saved light blur')
+ remoteContinuity.push(await requireRemoteVideo(b,'saved light blur off'))
+ await a.getByRole('button',{name:'Blur my background',exact:true}).first().click()
+ await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===5},'toolbar restores saved light blur')
+ remoteContinuity.push(await requireRemoteVideo(b,'saved light blur restored'))
  const fullBlur=a.getByRole('radio',{name:'Blur',exact:true})
  await fullBlur.check()
  await until(async()=>{const live=await inspect(a);return live.background==='blur'&&live.blurRadius===10},'switch to full blur')
@@ -99,15 +116,18 @@ try {
  assert.equal(blurSwitched.identity,blurInitial.identity)
  assert.equal(blurSwitched.cameraSid,blurInitial.cameraSid)
  assert.equal(blurSwitched.blurSourceId,blurInitial.blurSourceId)
+ remoteContinuity.push(await requireRemoteVideo(b,'full blur'))
  await a.screenshot({path:`${shots}/blur-active.png`})
  await a.getByRole('radio',{name:'None',exact:true}).check()
  await until(async()=>!(await inspect(a)).blurProcessor,'remove blur')
  const unblurred=await inspect(a)
  assert.equal(unblurred.identity,blurInitial.identity)
  assert.equal(unblurred.cameraSid,blurInitial.cameraSid)
+ remoteContinuity.push(await requireRemoteVideo(b,'settings blur off'))
  const quickBlur=a.getByRole('button',{name:'Blur my background',exact:true}).first()
  await quickBlur.click()
  await until(async()=>{const live=await inspect(a);return live.blurProcessor==='den-background-blur'&&live.blurRadius===10},'toolbar restores last blur')
+ remoteContinuity.push(await requireRemoteVideo(b,'toolbar full blur'))
  const beforeCameraMute=await inspect(a)
  await a.getByRole('button',{name:'Turn camera off',exact:true}).click()
  await until(async()=>!(await inspect(a)).cameraOn,'camera muted with blur preference retained')
@@ -115,16 +135,17 @@ try {
  await until(async()=>{const live=await inspect(a);return live.cameraOn&&live.blurProcessor==='den-background-blur'&&live.background==='blur'},'camera resumes with blur')
  const resumed=await inspect(a)
  assert.notEqual(resumed.outputId,beforeCameraMute.outputId,'camera resume installs a fresh blur pipeline')
+ remoteContinuity.push(await requireRemoteVideo(b,'camera resume'))
  await a.getByRole('button',{name:'Turn background blur off',exact:true}).first().click()
  await until(async()=>!(await inspect(a)).blurProcessor,'toolbar removes blur for camera controls')
- await until(async()=>await remoteVideoFrames(b)>blurFramesBefore,'remote frames continue across blur transitions')
+ remoteContinuity.push(await requireRemoteVideo(b,'final blur off'))
  results.backgroundBlur={
    ownedPreview:true,sameOriginAssets:true,accountSync:true,
    lightRadius:blurInitial.blurRadius,fullRadius:blurSwitched.blurRadius,
    sameParticipant:blurSwitched.identity===blurInitial.identity,
    samePublication:blurSwitched.cameraSid===blurInitial.cameraSid,
    sameSource:blurSwitched.blurSourceId===blurInitial.blurSourceId,
-   cameraResume:true,freshProcessorAfterResume:true,
+   savedLightRestored:true,cameraResume:true,freshProcessorAfterResume:true,remoteContinuity,
  }
  const meter=a.getByRole('meter',{name:'Microphone level'})
  const slider=a.getByRole('slider',{name:'Input gain',exact:true})
@@ -172,17 +193,21 @@ try {
  await until(()=>b.locator('[data-local="false"]').getByTestId('muted-mic').count().then(n=>n===0),'remote unmute')
 
  const inputPicker=a.getByRole('combobox',{name:'Microphone',exact:true})
- // Chromium exposes the same fake microphone as both `default` and a hashed ID.
- // Only claim a switch when the fixture has a genuinely different device group.
- const alternate=await a.evaluate(async currentGroup=>(await navigator.mediaDevices.enumerateDevices()).find(device=>device.kind==='audioinput'&&device.deviceId&&!['default','communications'].includes(device.deviceId)&&device.groupId!==currentGroup)?.deviceId,source.audio.groupId)
- if(alternate) {
-   await inputPicker.selectOption(alternate)
-   await until(async()=>(await inspect(a)).audio?.deviceId===alternate,'switch microphone')
-   assert.equal((await inspect(a)).state,'connected')
-   await inputPicker.selectOption('')
-   await until(async()=>(await inspect(a)).audio?.deviceId==='default','restore microphone')
-   results.microphoneSwitch='verified'
- } else results.microphoneSwitch='fixture has no second physical microphone'
+ // Fake-device Chromium may expose only aliases for one physical input. The
+ // browser result cannot prove a hardware switch, but the capture request can
+ // deterministically prove that an explicit picker choice uses an exact ID.
+ const selectedMicrophone=await inputPicker.locator('option').evaluateAll(options=>options.map(option=>option.value).find(value=>value&&!['default','communications'].includes(value)))
+ assert(selectedMicrophone,'synthetic microphone has a stable non-default ID')
+ const gumBefore=await a.evaluate(()=>window.__gum.length)
+ await inputPicker.selectOption(selectedMicrophone)
+ await until(()=>a.evaluate(start=>window.__gum.slice(start).some(options=>typeof options.audio==='object'),gumBefore),'microphone reacquisition')
+ const selectedCapture=await a.evaluate(start=>window.__gum.slice(start).find(options=>typeof options.audio==='object'),gumBefore)
+ assert.equal(selectedCapture.audio.deviceId?.exact,selectedMicrophone,'the call microphone reacquisition uses the exact selected ID')
+ assert.equal((await inspect(a)).state,'connected')
+ results.microphoneSwitch={exactConstraint:true,hardwareSwitch:'not claimed: fixture exposes one physical microphone'}
+ const restoreBefore=await a.evaluate(()=>window.__gum.length)
+ await inputPicker.selectOption('')
+ await until(()=>a.evaluate(start=>window.__gum.slice(start).some(options=>options.audio?.deviceId==='default'),restoreBefore),'restore default microphone request')
  const initial=await inspect(a)
  let recording=false, capture, encoder
  if(process.env.DEN_SMOKE_RECORD) {
