@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 const base = process.env.DEN_SMOKE_URL || 'http://localhost:5178'
+const observer = process.env.DEN_SMOKE_OBSERVER || 'av_observer'
 const shots = 'docs/shots/pr/feat/av-extensions'
 await mkdir(shots,{recursive:true})
 const gpuArgs=process.env.DEN_SMOKE_VULKAN==='1'?['--use-angle=vulkan','--enable-gpu','--ignore-gpu-blocklist']:[]
@@ -79,7 +80,7 @@ try {
  await until(async()=>(await inspect(a)).state==='connected','call connected')
  await until(async()=>(await inspect(a)).processorId,'gain processor publishing')
  await until(async()=>(await inspect(a)).joining===null,'join finished')
- b=await login('av_observer')
+ b=await login(observer)
  await b.locator('nav.side').getByRole('button',{name:'Join '+(process.env.DEN_SMOKE_CHANNEL || 'av-verification'),exact:true}).click()
  await until(async()=>(await inspect(b)).participants===2,'remote participant joined')
  await a.getByRole('button',{name:'Turn camera on',exact:true}).click()
