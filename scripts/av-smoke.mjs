@@ -171,14 +171,17 @@ try {
  await until(()=>b.locator('[data-local="false"]').getByTestId('muted-mic').count().then(n=>n===0),'remote unmute')
 
  const inputPicker=a.getByRole('combobox',{name:'Microphone',exact:true})
- const alternate=await inputPicker.locator('option').evaluateAll(options=>options.map(o=>o.value).find(id=>id && id!=='default' && id!=='communications'))
+ // Chromium exposes the same fake microphone as both `default` and a hashed ID.
+ // Only claim a switch when the fixture has a genuinely different device group.
+ const alternate=await a.evaluate(async currentGroup=>(await navigator.mediaDevices.enumerateDevices()).find(device=>device.kind==='audioinput'&&device.deviceId&&!['default','communications'].includes(device.deviceId)&&device.groupId!==currentGroup)?.deviceId,source.audio.groupId)
  if(alternate) {
    await inputPicker.selectOption(alternate)
    await until(async()=>(await inspect(a)).audio?.deviceId===alternate,'switch microphone')
    assert.equal((await inspect(a)).state,'connected')
    await inputPicker.selectOption('')
    await until(async()=>(await inspect(a)).audio?.deviceId==='default','restore microphone')
- }
+   results.microphoneSwitch='verified'
+ } else results.microphoneSwitch='fixture has no second physical microphone'
  const initial=await inspect(a)
  let recording=false, capture, encoder
  if(process.env.DEN_SMOKE_RECORD) {
