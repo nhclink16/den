@@ -134,6 +134,10 @@ function serializeBlur<T>(work: () => Promise<T>): Promise<T> {
 export type CameraBackground = CameraSettings['background']
 export const backgroundBlurRadius = (background: CameraBackground) => background === 'light_blur' ? 5 : 10
 export const blurCaptureRate = (target: number) => blurRates.find(rate => rate <= target) ?? blurRates[0]
+/** MediaPipe does not expose an AbortSignal for model/GPU initialization. Bound
+ * how long it may own Den's serialized GPU lane even when the underlying request
+ * never settles. The eventual late result is still drained below. */
+export const blurInitTimeoutMs = 10_000
 
 /** Background blur for a camera track.
  *
@@ -156,6 +160,7 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
   private input?: MediaStreamTrack
   private samples: number[] = []
   private generation = 0
+  private cancelInitialization?: () => void
   /** @param target the saved capture rate blur should try to hold.
    * @param strained called when segmentation cannot hold `rate`: a number is the
    * lower rate to capture at, `null` means this machine cannot run blur at all. */
@@ -184,18 +189,44 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
         onFrameProcessed: ({ filterTimeMs }) => this.measure(filterTimeMs),
       }, this.name)
       this.inner = inner
+      const initialization = inner.init({ ...options, track: input })
+      let interrupted = false
+      let cancel: (() => void) | undefined
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      const interruption = new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          interrupted = true
+          reject(Error('Background blur took too long to start.'))
+        }, blurInitTimeoutMs)
+        cancel = () => {
+          clearTimeout(timeout)
+          interrupted = true
+          reject(new DOMException('Background blur initialization was cancelled.', 'AbortError'))
+        }
+      })
+      this.cancelInitialization = cancel
       try {
-        await inner.init({ ...options, track: input })
+        await Promise.race([initialization, interruption])
         // destroy() captured these resources and queued their cleanup behind this
         // initialization; do not overlap a second release with it here.
         if (generation !== this.generation || this.inner !== inner) return
       } catch (error) {
         const owned = this.inner === inner
-        if (owned) { this.inner = undefined; this.input = undefined }
+        if (owned) { this.inner = undefined; this.input = undefined; this.source = undefined }
         // track-processors 0.8.0 ignores destroy() while `initializing`. The modern
         // path exposes enough state to release everything it created before failing.
         if (owned) await this.release(inner, input)
+        // MediaPipe's initialization has no cancellation API. If Den stopped
+        // waiting, drain anything it creates when it eventually settles; serialize
+        // that late cleanup so it cannot overlap another segmenter lifecycle.
+        if (interrupted) void initialization.then(
+          () => serializeBlur(() => this.release(inner, input)),
+          () => serializeBlur(() => this.release(inner, input)),
+        ).catch(() => {})
         throw error
+      } finally {
+        clearTimeout(timeout)
+        if (this.cancelInitialization === cancel) this.cancelInitialization = undefined
       }
     })
   }
@@ -244,6 +275,8 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     const inner = this.inner
     const input = this.input
     this.inner = undefined; this.input = undefined; this.source = undefined; this.samples = []
+    this.cancelInitialization?.()
+    this.cancelInitialization = undefined
     if (!inner) return
     await serializeBlur(() => this.dispose(inner, input))
   }

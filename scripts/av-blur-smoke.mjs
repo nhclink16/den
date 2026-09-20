@@ -178,29 +178,59 @@ try {
 
   {
     const { context, page, errors } = await pageWithCamera()
-    await page.route('**/blur/selfie_segmenter.tflite*', async route => {
-      await new Promise(resolve => setTimeout(resolve, 1_200))
-      await route.continue()
+    let releaseModel
+    let modelRequested
+    const requested = new Promise(resolve => { modelRequested = resolve })
+    await page.route('**/blur/selfie_segmenter.tflite*', route => {
+      modelRequested()
+      return new Promise(resolve => {
+        releaseModel = async () => { await route.abort('failed'); resolve() }
+      })
     })
-    report.cancelled = await page.evaluate(async () => {
+    await page.evaluate(async () => {
       const av = await import('/src/lib/av.ts?smoke=cancelled')
       const source = (await navigator.mediaDevices.getUserMedia({ video: true })).getVideoTracks()[0]
       const blur = new av.CameraBlur(() => 30, () => 'blur', () => {})
-      const starting = av.startPreviewBlur(blur, source)
-      await new Promise(resolve => setTimeout(resolve, 50))
-      await blur.destroy()
-      const element = await starting
-      await new Promise(resolve => setTimeout(resolve, 100))
+      window.__cancelledBlur = blur
+      window.__cancelledSource = source
+      window.__cancelledStarting = av.startPreviewBlur(blur, source)
+      window.__cancelledStarting.catch(() => {})
+    })
+    await requested
+    report.cancelled = await page.evaluate(async () => {
+      window.__cancelledDestroy = window.__cancelledBlur.destroy()
+      return Promise.race([
+        window.__cancelledDestroy.then(() => true),
+        new Promise(resolve => setTimeout(() => resolve(false), 750)),
+      ])
+    })
+    await releaseModel()
+    await page.unroute('**/blur/selfie_segmenter.tflite*')
+    const cleaned = await page.evaluate(async () => {
+      await window.__cancelledStarting.catch(() => {})
+      await window.__cancelledDestroy
       const result = {
-        source: source.readyState,
-        output: blur.processedTrack?.readyState ?? null,
+        source: window.__cancelledSource.readyState,
+        output: window.__cancelledBlur.processedTrack?.readyState ?? null,
         canvases: document.querySelectorAll('canvas[data-livekit-processor]').length,
       }
-      element.srcObject = null
-      source.stop()
+      window.__cancelledSource.stop()
       return result
     })
-    assert.deepEqual(report.cancelled, { source: 'live', output: null, canvases: 0 })
+    const reused = await page.evaluate(async () => {
+      const av = await import('/src/lib/av.ts?smoke=cancelled')
+      const source = (await navigator.mediaDevices.getUserMedia({ video: true })).getVideoTracks()[0]
+      const blur = new av.CameraBlur(() => 30, () => 'blur', () => {})
+      const element = await av.startPreviewBlur(blur, source)
+      const output = blur.processedTrack
+      await blur.destroy()
+      element.srcObject = null
+      source.stop()
+      return { output: output?.readyState, canvases: document.querySelectorAll('canvas[data-livekit-processor]').length }
+    })
+    assert.equal(report.cancelled, true, 'destroy must cancel a permanently stalled initialization')
+    assert.deepEqual(cleaned, { source: 'live', output: null, canvases: 0 })
+    assert.deepEqual(reused, { output: 'ended', canvases: 0 })
     assert.deepEqual(errors, [])
     await context.close()
   }
