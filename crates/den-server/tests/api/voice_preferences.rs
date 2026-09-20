@@ -36,7 +36,7 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     }
     for patch in [
         json!({"microphones":{"mic-a":{"gain":0.5,"noise_suppression":false}}}),
-        json!({"cameras":{"cam-a":{"resolution":"1080p","frame_rate":60,"mirror":false}}}),
+        json!({"cameras":{"cam-a":{"resolution":"1080p","frame_rate":60,"mirror":false,"background":"light_blur"}}}),
         json!({"microphones":{"mic-b":{"gain":2}}}),
     ] {
         assert_eq!(
@@ -89,6 +89,10 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
     assert!(!saved.microphones["mic-a"].noise_suppression);
     assert_eq!(saved.microphones["mic-b"].gain, 2.0);
     assert_eq!(saved.cameras["cam-a"].resolution, CameraResolution::FullHd);
+    assert_eq!(
+        saved.cameras["cam-a"].background,
+        CameraBackground::LightBlur
+    );
     let other: VoicePreferences = t
         .req(Method::GET, path, &bob.token)
         .send()
@@ -103,6 +107,7 @@ async fn voice_preferences_merge_devices_validate_and_sync_only_to_owner() {
         json!({"cameras":{"bad":{"frame_rate":17}}}),
         json!({"microphones":{"":{"gain":1}}}),
         json!({"cameras":{"bad":{"resolution":"4k"}}}),
+        json!({"cameras":{"bad":{"background":"sparkles"}}}),
     ] {
         assert!(t
             .req(Method::PUT, path, &alice.token)

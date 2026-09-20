@@ -151,6 +151,7 @@ use utoipa::OpenApi;
         MicrophoneSettings,
         CameraSettings,
         CameraResolution,
+        CameraBackground,
         Appearance,
         Background,
         BackgroundSource,

@@ -30,12 +30,21 @@ pub enum CameraResolution {
     #[serde(rename = "1080p")]
     FullHd,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CameraBackground {
+    #[default]
+    None,
+    Blur,
+    LightBlur,
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct CameraSettings {
     pub resolution: CameraResolution,
     pub frame_rate: u32,
     pub mirror: bool,
+    pub background: CameraBackground,
     pub brightness: Option<f64>,
     pub contrast: Option<f64>,
     pub saturation: Option<f64>,
@@ -46,6 +55,7 @@ impl Default for CameraSettings {
             resolution: CameraResolution::Auto,
             frame_rate: 30,
             mirror: true,
+            background: CameraBackground::None,
             brightness: None,
             contrast: None,
             saturation: None,
