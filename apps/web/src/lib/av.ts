@@ -210,6 +210,10 @@ export class CameraBlur implements TrackProcessor<Track.Kind.Video, VideoProcess
     inner.processedTrack?.stop()
     inner.trackGenerator?.stop()
     inner.displayCanvas?.remove()
+    // Let pipeThrough observe the ended input and start its control-stream close
+    // before closing the GPU segmenter. Closing MediaPipe while segmentForVideo is
+    // still unwinding can leave Chromium's renderer in a permanent CPU spin.
+    await new Promise(resolve => setTimeout(resolve, 100))
     await inner.transformer.destroy().catch(() => {})
   }
   private async dispose(inner: BackgroundProcessorWrapper, input?: MediaStreamTrack) {

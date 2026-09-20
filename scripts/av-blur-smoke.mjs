@@ -109,10 +109,13 @@ try {
       const output = blur.processedTrack
       const input = blur.input
       let closeCalls = 0
+      const events = []
       Object.defineProperty(blur.inner.processor, 'writableControl', {
         configurable: true,
-        value: { close: () => { closeCalls++; return new Promise(() => {}) } },
+        value: { close: () => { closeCalls++; events.push('close'); return new Promise(() => {}) } },
       })
+      const destroy = blur.inner.transformer.destroy.bind(blur.inner.transformer)
+      blur.inner.transformer.destroy = async (...args) => { events.push('transformer'); return destroy(...args) }
       const started = performance.now()
       await blur.destroy()
       const result = {
@@ -121,6 +124,7 @@ try {
         input: input?.readyState,
         output: output?.readyState,
         closeCalls,
+        events,
         canvases: document.querySelectorAll('canvas[data-livekit-processor]').length,
       }
       element.srcObject = null
@@ -132,6 +136,7 @@ try {
     assert.equal(report.stuckTeardown.input, 'ended')
     assert.equal(report.stuckTeardown.output, 'ended')
     assert.equal(report.stuckTeardown.closeCalls, 1)
+    assert.deepEqual(report.stuckTeardown.events, ['close', 'transformer'])
     assert.equal(report.stuckTeardown.canvases, 0)
     assert.deepEqual(errors, [])
     await context.close()
