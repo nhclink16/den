@@ -10,5 +10,13 @@ export const isJamLink = (text: string) => JAM_LINK.test(text.trim())
 
 /** Pin a Jam to a room. The server ends any Jam already live there. */
 export async function startJam(owner: Store, channelId: string, url: string) {
-  owner.receiveJam(channelId, await owner.api.post<Jam>(`/rooms/${channelId}/jam`, { url: url.trim() }))
+  return owner.mutateJam(channelId, () => owner.api.post<Jam>(`/rooms/${channelId}/jam`, { url: url.trim() }))
+}
+
+export async function joinJam(owner: Store, channelId: string) {
+  return owner.mutateJam(channelId, () => owner.api.post<Jam>(`/rooms/${channelId}/jam/join`, {}))
+}
+
+export async function endJam(owner: Store, channelId: string) {
+  return owner.mutateJam(channelId, async () => { await owner.api.del(`/rooms/${channelId}/jam`); return null })
 }

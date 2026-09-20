@@ -18,8 +18,10 @@
     if (!code || !state) { error = 'That Spotify link was incomplete. Start again from Settings.'; return }
     void (async () => {
       try {
-        store.receiveSpotify(await store.api.post<SpotifyAccount>('/users/me/spotify/callback', { code, state }))
-        router.go('/settings/spotify', true)
+        const current = await store.mutateSpotify(
+          () => store.api.post<SpotifyAccount>('/users/me/spotify/callback', { code, state }),
+        )
+        if (current) router.go('/settings/spotify', true)
       } catch (e) { error = e instanceof Error ? e.message : 'Could not finish connecting Spotify.' }
     })()
   })

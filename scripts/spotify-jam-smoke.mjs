@@ -65,11 +65,34 @@ try {
 
   await hostPage.goto(`${base}/c/${textRoom.id}`, { waitUntil: 'domcontentloaded' })
   const composer = hostPage.getByLabel(`Say something in #${textRoom.name}`)
+  let releasePin
+  let markPinStarted
+  const pinGate = new Promise(resolve => { releasePin = resolve })
+  const pinStarted = new Promise(resolve => { markPinStarted = resolve })
+  const pinRoute = `**/rooms/${textRoom.id}/jam`
+  await hostPage.route(pinRoute, async route => {
+    if (route.request().method() === 'POST') {
+      markPinStarted()
+      await pinGate
+    }
+    await route.continue()
+  })
   await composer.fill('https://spotify.link/first-smoke')
   await hostPage.getByText(`Pin this Spotify Jam to the top of #${textRoom.name}?`).waitFor()
-  await hostPage.getByRole('button', { name: 'Pin the Jam' }).click()
+  const pinClick = hostPage.getByRole('button', { name: 'Pin the Jam' }).click()
+  await pinStarted
+  await composer.fill('This draft was typed while the Jam was pinning.')
+  releasePin()
+  await pinClick
   const hostCard = hostPage.getByRole('region', { name: 'Spotify Jam' })
   await hostCard.waitFor()
+  assert.equal(
+    await composer.inputValue(),
+    'This draft was typed while the Jam was pinning.',
+    'pin completion erased a newer draft',
+  )
+  await hostPage.unroute(pinRoute)
+  results.checks.draftDuringPin = true
   assert.match(await hostCard.innerText(), /Listening together/)
   assert.match(await hostCard.innerText(), /Started by jam_host/)
   assert.equal(await hostCard.getByRole('link', { name: /Open Spotify Jam in a new window/ }).count(), 1)

@@ -6,7 +6,7 @@
   // The faces are Den members who pressed Join. The copy says exactly that.
   import { store, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
-  import type { Jam } from '../lib/types'
+  import { endJam, joinJam } from '../lib/jam'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
@@ -68,8 +68,8 @@
     finally { busy = false }
   }
   // The anchor navigates on its own; this only records the click for the count.
-  function join() { if (!mine) void act(async () => owner.receiveJam(channelId, await owner.api.post<Jam>(`/rooms/${channelId}/jam/join`, {}))) }
-  async function end() { await act(async () => { await owner.api.del(`/rooms/${channelId}/jam`); owner.receiveJam(channelId, null) }) }
+  function join() { if (!mine) void act(() => joinJam(owner, channelId)) }
+  async function end() { await act(() => endJam(owner, channelId)) }
 
   const hint = $derived(
     !isHost || playing ? null

@@ -88,8 +88,19 @@
   const offerJam = $derived(!here.rootId && !jamDismissed && isJamLink(text))
   async function pinJam() {
     if (jamBusy) return
+    const conversation = here
+    const owner = store.drafts
+    const token = owner.token
+    const submitted = draft(owner, conversation)
+    const content = text
     jamBusy = true; error = ''
-    try { await startJam(store, channel.id, text); setText(''); requestAnimationFrame(grow) }
+    try {
+      const current = await startJam(store, channel.id, content)
+      if (current && store.drafts === owner && owner.holds(token) && shouldClearDraft(submitted, draft(owner, conversation))) {
+        owner.setText(conversation, '')
+        if (alive && sameConversation(conversation, here)) requestAnimationFrame(grow)
+      }
+    }
     catch (err) { error = (err as Error).message }
     finally { jamBusy = false }
   }

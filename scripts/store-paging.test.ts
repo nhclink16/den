@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
+import { endJam } from '../apps/web/src/lib/jam.ts'
 
 // These tests reach the ACTUAL Store, not a helper that mirrors it.
 //
@@ -225,4 +226,62 @@ test('a Spotify socket update beats a read that started before it', async () => 
   await read
 
   assert.equal(s.spotify.connection, 'disconnected', 'a stale read overwrote the socket update')
+})
+
+test('a Jam mutation response cannot overwrite a newer socket event', async () => {
+  const stale = held()
+  api = { get: async () => null, post: async () => null }
+  const s = new Store('fixture')
+  const write = s.mutateJam('c', () => stale.promise)
+
+  s.receiveJam('c', { id: 'newer-socket-jam' })
+  stale.release({ id: 'stale-http-jam' })
+  assert.equal(await write, true)
+  assert.equal(s.jams.get('c')?.id, 'newer-socket-jam')
+})
+
+test('Jam and Spotify mutation responses cannot cross an account boundary', async () => {
+  const jam = held()
+  const spotify = held()
+  api = { get: async () => null, post: async () => null }
+  const s = new Store('fixture')
+  const jamWrite = s.mutateJam('c', () => jam.promise)
+  const spotifyWrite = s.mutateSpotify(() => spotify.promise)
+
+  s.generation++
+  s.jams = new Map()
+  s.jamSeq.clear()
+  s.receiveSpotify({ connection: 'unavailable' })
+  jam.release({ id: 'previous-account-jam' })
+  spotify.release({ connection: 'connected', account_name: 'previous-account' })
+
+  assert.equal(await jamWrite, false)
+  assert.equal(await spotifyWrite, false)
+  assert.equal(s.jams.size, 0)
+  assert.equal(s.spotify.connection, 'unavailable')
+})
+
+test('a Jam completion stays with the concrete instance that sent it', async () => {
+  const ended = held()
+  api = { get: async () => null, post: async () => null, del: async () => ended.promise }
+  const a = new Store('instance-a')
+  api = { get: async () => null, post: async () => null, del: async () => null }
+  const b = new Store('instance-b')
+  a.receiveJam('same-room', { id: 'jam-a' })
+  b.receiveJam('same-room', { id: 'jam-b' })
+
+  let active = a
+  const proxy = new Proxy({} as any, {
+    get(_target, key: keyof typeof a) {
+      const value = active[key]
+      return typeof value === 'function' ? value.bind(active) : value
+    },
+  })
+  const pending = endJam(proxy, 'same-room')
+  active = b
+  ended.release(null)
+  assert.equal(await pending, true)
+
+  assert.equal(a.jams.has('same-room'), false)
+  assert.equal(b.jams.get('same-room')?.id, 'jam-b')
 })

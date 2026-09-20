@@ -88,6 +88,17 @@ export class Store {
     if (generation !== this.generation || this.jamSeq.get(room) !== seq) return
     this.receiveJam(room, jam ?? null)
   }
+  async mutateJam(room: string, request: () => Promise<Jam | null>) {
+    const generation = this.generation
+    const seq = (this.jamSeq.get(room) ?? 0) + 1
+    this.jamSeq.set(room, seq)
+    const jam = await request()
+    if (generation !== this.generation) return false
+    // The request still succeeded for this account when a socket event or a
+    // newer mutation won the cache. Do not overwrite that newer room state.
+    if (this.jamSeq.get(room) === seq) this.receiveJam(room, jam)
+    return true
+  }
   /** This account's Spotify link. `unavailable` until the server says otherwise. */
   spotify = $state<SpotifyAccount>(noSpotify())
   private spotifySeq = 0
@@ -102,6 +113,14 @@ export class Store {
     // A socket event, a newer read, or another account owns the view now.
     if (generation !== this.generation || seq !== this.spotifySeq) return
     this.receiveSpotify(account)
+  }
+  async mutateSpotify(request: () => Promise<SpotifyAccount>) {
+    const generation = this.generation
+    const seq = ++this.spotifySeq
+    const account = await request()
+    if (generation !== this.generation) return false
+    if (seq === this.spotifySeq) this.receiveSpotify(account)
+    return true
   }
   calls = $state<CallState[]>([])
   private connecting = false
