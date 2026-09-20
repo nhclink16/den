@@ -15,42 +15,42 @@
       {
         "label": "saved light blur",
         "before": 1,
-        "after": 3
+        "after": 2
       },
       {
         "label": "saved light blur off",
-        "before": 5,
-        "after": 8
+        "before": 4,
+        "after": 5
       },
       {
         "label": "saved light blur restored",
-        "before": 14,
-        "after": 15
+        "before": 13,
+        "after": 14
       },
       {
         "label": "full blur",
-        "before": 19,
-        "after": 20
+        "before": 17,
+        "after": 18
       },
       {
         "label": "settings blur off",
-        "before": 24,
-        "after": 26
+        "before": 21,
+        "after": 25
       },
       {
         "label": "toolbar full blur",
-        "before": 31,
-        "after": 33
+        "before": 39,
+        "after": 40
       },
       {
         "label": "camera resume",
-        "before": 43,
-        "after": 44
+        "before": 44,
+        "after": 46
       },
       {
         "label": "final blur off",
-        "before": 44,
-        "after": 46
+        "before": 47,
+        "after": 48
       }
     ]
   },
@@ -59,8 +59,262 @@
     "Noise suppression": "synthetic device rejected live change; UI reported and reverted",
     "Auto gain": "synthetic device rejected live change; UI reported and reverted"
   },
+  "callGainDiagnostic": {
+    "baseline": {
+      "label": "baseline",
+      "browserNowMs": 28873.30000001192,
+      "contextBefore": "running",
+      "contextDuring": "running",
+      "contextTimeBefore": 0,
+      "contextTimeAfter": 0.4266666666666667,
+      "streamActive": true,
+      "sourceNode": {
+        "channelCount": 2,
+        "channelCountMode": "max",
+        "inputs": 0,
+        "outputs": 1
+      },
+      "processed": {
+        "id": "064f6c4d-6527-4510-8429-5546c33afc08",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "channelCount": 2,
+          "deviceId": "WebAudio-a84af1af-f4d7-47fe-ac78-760111c90796",
+          "latency": 0.01,
+          "sampleRate": 48000,
+          "sampleSize": 16
+        },
+        "constraints": {}
+      },
+      "raw": {
+        "id": "e06ae5a7-8585-4ded-8e02-ae2efc824d26",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "autoGainControl": true,
+          "channelCount": 1,
+          "deviceId": "default",
+          "echoCancellation": true,
+          "groupId": "806ee7cd9eecfd73c90061ccf183b5729cad01fe237968437c2ea2f772afa3f5",
+          "latency": 0.01,
+          "noiseSuppression": true,
+          "sampleRate": 48000,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "constraints": {
+          "autoGainControl": {
+            "exact": true
+          },
+          "echoCancellation": {
+            "exact": true
+          },
+          "noiseSuppression": {
+            "exact": true
+          }
+        }
+      },
+      "gainValue": 0.800000011920929,
+      "windows": [
+        {
+          "atMs": 253.19999998807907,
+          "rms": 0.007041524331886048,
+          "peak": 0.010010071098804474,
+          "nonzeroSamples": 2045,
+          "changedSamples": null
+        },
+        {
+          "atMs": 355.09999999403954,
+          "rms": 0.007098740497895674,
+          "peak": 0.010010071098804474,
+          "nonzeroSamples": 2044,
+          "changedSamples": 2048
+        },
+        {
+          "atMs": 456.7999999821186,
+          "rms": 0.007093484316765736,
+          "peak": 0.010010071098804474,
+          "nonzeroSamples": 2045,
+          "changedSamples": 2048
+        }
+      ],
+      "contextAfter": "closed",
+      "smokeElapsedMs": 29186.964275000002
+    },
+    "zero": {
+      "label": "zero",
+      "browserNowMs": 29510,
+      "contextBefore": "running",
+      "contextDuring": "running",
+      "contextTimeBefore": 0,
+      "contextTimeAfter": 0.45866666666666667,
+      "streamActive": true,
+      "sourceNode": {
+        "channelCount": 2,
+        "channelCountMode": "max",
+        "inputs": 0,
+        "outputs": 1
+      },
+      "processed": {
+        "id": "064f6c4d-6527-4510-8429-5546c33afc08",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "channelCount": 2,
+          "deviceId": "WebAudio-a84af1af-f4d7-47fe-ac78-760111c90796",
+          "latency": 0.01,
+          "sampleRate": 48000,
+          "sampleSize": 16
+        },
+        "constraints": {}
+      },
+      "raw": {
+        "id": "e06ae5a7-8585-4ded-8e02-ae2efc824d26",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "autoGainControl": true,
+          "channelCount": 1,
+          "deviceId": "default",
+          "echoCancellation": true,
+          "groupId": "806ee7cd9eecfd73c90061ccf183b5729cad01fe237968437c2ea2f772afa3f5",
+          "latency": 0.01,
+          "noiseSuppression": true,
+          "sampleRate": 48000,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "constraints": {
+          "autoGainControl": {
+            "exact": true
+          },
+          "echoCancellation": {
+            "exact": true
+          },
+          "noiseSuppression": {
+            "exact": true
+          }
+        }
+      },
+      "gainValue": 0,
+      "windows": [
+        {
+          "atMs": 250.40000000596046,
+          "rms": 0,
+          "peak": 0,
+          "nonzeroSamples": 0,
+          "changedSamples": null
+        },
+        {
+          "atMs": 351.30000001192093,
+          "rms": 0,
+          "peak": 0,
+          "nonzeroSamples": 0,
+          "changedSamples": 0
+        },
+        {
+          "atMs": 452.10000002384186,
+          "rms": 0,
+          "peak": 0,
+          "nonzeroSamples": 0,
+          "changedSamples": 0
+        }
+      ],
+      "contextAfter": "closed",
+      "smokeElapsedMs": 29822.352977000002
+    },
+    "double": {
+      "label": "double",
+      "browserNowMs": 30128.40000000596,
+      "contextBefore": "running",
+      "contextDuring": "running",
+      "contextTimeBefore": 0,
+      "contextTimeAfter": 0.4693333333333333,
+      "streamActive": true,
+      "sourceNode": {
+        "channelCount": 2,
+        "channelCountMode": "max",
+        "inputs": 0,
+        "outputs": 1
+      },
+      "processed": {
+        "id": "064f6c4d-6527-4510-8429-5546c33afc08",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "channelCount": 2,
+          "deviceId": "WebAudio-a84af1af-f4d7-47fe-ac78-760111c90796",
+          "latency": 0.01,
+          "sampleRate": 48000,
+          "sampleSize": 16
+        },
+        "constraints": {}
+      },
+      "raw": {
+        "id": "e06ae5a7-8585-4ded-8e02-ae2efc824d26",
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "autoGainControl": true,
+          "channelCount": 1,
+          "deviceId": "default",
+          "echoCancellation": true,
+          "groupId": "806ee7cd9eecfd73c90061ccf183b5729cad01fe237968437c2ea2f772afa3f5",
+          "latency": 0.01,
+          "noiseSuppression": true,
+          "sampleRate": 48000,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "constraints": {
+          "autoGainControl": {
+            "exact": true
+          },
+          "echoCancellation": {
+            "exact": true
+          },
+          "noiseSuppression": {
+            "exact": true
+          }
+        }
+      },
+      "gainValue": 2,
+      "windows": [
+        {
+          "atMs": 253.2000000178814,
+          "rms": 0.017662306142473463,
+          "peak": 0.025025177747011185,
+          "nonzeroSamples": 2045,
+          "changedSamples": null
+        },
+        {
+          "atMs": 355.59999999403954,
+          "rms": 0.017611518254448157,
+          "peak": 0.025025177747011185,
+          "nonzeroSamples": 2044,
+          "changedSamples": 2048
+        },
+        {
+          "atMs": 456.2000000178814,
+          "rms": 0.0177408132233745,
+          "peak": 0.025025177747011185,
+          "nonzeroSamples": 2045,
+          "changedSamples": 2048
+        }
+      ],
+      "contextAfter": "closed",
+      "smokeElapsedMs": 30440.742968000002
+    }
+  },
   "zeroGainRms": 0,
-  "doubleGainRms": 0.017642230348325266,
+  "doubleGainRms": 0.017662306142473463,
   "microphoneSwitch": {
     "exactConstraint": true,
     "hardwareSwitch": "not claimed: fixture exposes one physical microphone"
@@ -78,13 +332,13 @@
   "remoteMedia": [
     {
       "kind": "audio",
-      "bytesReceived": 45049,
-      "totalAudioEnergy": 0.0020394796759826716
+      "bytesReceived": 132723,
+      "totalAudioEnergy": 0.003664592429124607
     },
     {
       "kind": "video",
-      "bytesReceived": 93194,
-      "framesDecoded": 123
+      "bytesReceived": 206136,
+      "framesDecoded": 141
     }
   ],
   "browserErrors": [],

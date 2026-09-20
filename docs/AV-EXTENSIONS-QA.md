@@ -2,7 +2,7 @@
 
 This is the durable acceptance record for `finish/av-extensions`. **Blocked** and
 **Pending** are not passes. The last exact product head exercised on codexbox is
-`2366623`; the final documentation commit and pull-request checks must still be
+`849493e`; the final evidence commit and pull-request checks must still be
 recorded before merge.
 
 ## Acceptance inventory
@@ -16,13 +16,13 @@ recorded before merge.
 | Initialization race | A permanently stalled model request cannot own the global GPU lane forever; camera-off and leave cancel the unregistered processor promptly, end its cloned track, and leave later blur usable | Pass | Permanent-stall primitive; in-flight camera-off and leave edge scenarios |
 | Unsupported browser/device | No canvas fallback runs; controls explain the unavailable feature; plain preview/call remain usable; processor assets never load | Pass | Modern transform APIs removed in the edge and primitive smokes |
 | Performance fallback | Processing pressure steps the unsaved cap 30 → 24 → 15, then reports that the effect cannot continue; saved requested rate is untouched | Pass | Deterministic 60-frame windows in `av-blur-smoke.mjs`; published camera is capped at 30 fps while blurred |
-| Existing A/V touched paths | Gain, DSP apply-or-visible-rollback, exact selected-mic constraint, mute/unmute, 720/1080, 24/60/30 fps, mirror, pause/reopen/reload, mobile layout, and remote audio/video remain usable | **Blocked on final rerun** | The full `248d16c` run passed. Both `2366623` runs passed the affected camera/blur section, then repeated the synthetic-audio RMS failure described below. Fake Chromium exposed only one physical microphone, so no hardware-to-hardware switch is claimed |
+| Existing A/V touched paths | Gain, DSP apply-or-visible-rollback, exact selected-mic constraint, mute/unmute, 720/1080, 24/60/30 fps, mirror, pause/reopen/reload, mobile layout, and remote audio/video remain usable | Pass | The exact `849493e` run passed. It established live, enabled, unmuted raw and processed tracks before sampling, measured the persisted 0.8 baseline → zero → 2.0, and retained all eight transition-local camera checks. Fake Chromium exposed only one physical microphone, so no hardware-to-hardware switch is claimed |
 | Cleanup | Normal destroy, stuck SDK teardown, permanent init stall, model failure, effect off, camera off/on, Settings close, and call leave end owned input/output resources and leave no processor canvas | Pass | Primitive, edge, permission, and integrated smokes |
 | Accessibility and responsive UI | Native named radios expose selection/disabled state; failure/status text is announced; camera cannot be activated mid-effect transition but can always be turned off; controls remain keyboard-operable and fit 390×844 | Pass | Code/accessibility review plus inspected desktop/mobile screenshots |
 | Web and Electron assets | Production build is local-only; lazy processor chunk stays out of initial JS; signed macOS app contains model, WASM, license, attribution, and provenance files | Pass | `npm run build`; `npm run pack`; deep strict codesign; packaged-file inspection |
 | Supply chain | Exact installed versions reviewed; model origin/hash recorded; licenses/attribution ship; no new advisory belongs to the MediaPipe/LiveKit path | Pass | Independent supply-chain review, lockfile audit, packaged-file inspection |
 | Browser/platform scope | Modern Chromium path is exercised. Browsers/webviews without insertable video transforms degrade to unblurred video without loading the unsafe canvas implementation | Pass for declared scope | Capability-gate run. Native Safari/iOS blur is intentionally not claimed |
-| Repository regression | Workspace tests and checks pass at the exact PR head | **Blocked** | See “Current blockers”: one existing music integration test repeated a SQLite lock; the final two-account smoke repeated an unrelated synthetic-audio RMS failure after the affected camera checks passed |
+| Repository regression | Workspace tests and checks pass at the exact PR head | Pending | The prior exact-head GitHub checks were green. The final rebased head is running normal pull-request checks; local affected checks are recorded below |
 | Pull request / CI | Non-draft PR is linked and every required exact-head job is green | Pending | PR #50 is open; the first CI run for the final head is pending |
 
 Screen evidence is under `docs/shots/pr/feat/av-extensions/`. `blur-active.png`
@@ -70,8 +70,14 @@ No temporary break remains in the branch.
   Removing the old-room guards as well produced a fallback notice after leave.
   Restoring both made leave bounded and prevented the old call from changing the
   notice or saved preference.
+- The gain smoke twice reached its unchanged `doubleGainRms > 0.001` assertion
+  with a muted raw call source. The instrumented red run measured zero in every
+  baseline/zero/double window and recorded `source.enabled: false`. Establishing
+  an unmuted raw and processed track before the A/V sequence retained the same
+  thresholds and passed with a nonzero baseline, double near `0.0177`, and zero
+  exactly `0`.
 
-## Exact product evidence (`2366623`, 2026-09-19)
+## Exact product evidence (`849493e`, 2026-09-20)
 
 - Installed versions verified before API decisions: `livekit-client` 2.15.6,
   `@livekit/track-processors` 0.8.0, `@mediapipe/tasks-vision` 0.10.14,
@@ -87,16 +93,37 @@ No temporary break remains in the branch.
   preserved it; the unsupported path loaded no assets. Pass.
 - Permission/owned-track cleanup smoke at synthetic 60 fps and unsupported 20 fps:
   pass.
-- Two-account smoke at `248d16c`: owned preview, account sync, Light/full/off
+- Two-account smoke at `849493e`: owned preview, account sync, Light/full/off
   transitions, camera restart, exact mic constraint, gain/DSP/mute, video
   resolution/rate/mirror, responsive/reload/Settings cleanup, remote audio/video,
   and zero browser errors. Pass. All eight transition-local remote frame samples
-  increased. Both `2366623` reruns again passed every affected blur transition and
-  remote-frame sample, then failed at `doubleGainRms > 0.001`; see the blocker.
+  increased. Remote audio received 132,723 bytes with total energy 0.00366459.
+- The authorized diagnostic red run proved the earlier RMS failure sampled a
+  LiveKit-muted raw call track: it was `live` but `enabled: false`, while the
+  processed output was live/enabled and each running AudioContext advanced about
+  0.46 seconds. All three baseline, zero, and double windows were exactly silent
+  around 32.4–33.6 seconds into the 180-second fixture. The harness had waited for
+  processor creation but had not established that the asynchronous call unmute
+  was complete and live.
+- The changed-head green run first required `micOn`, raw enabled, processed
+  enabled, both tracks live and unmuted, and a processor. Its 250/100/100 ms
+  windows measured the persisted baseline gain 0.8 at 0.00704152 / 0.00709874 /
+  0.00709348 RMS, zero gain at exactly 0 / 0 / 0, and double gain 2 at
+  0.01766231 / 0.01761152 / 0.01774081. The later windows
+  changed all 2,048 samples, both tracks stayed live/enabled/unmuted at 48 kHz,
+  and the sampling contexts advanced by 0.426667–0.469333 seconds. The full smoke
+  passed at about 30.4 seconds, well inside the fixture. The committed
+  `verification.json` is this run's machine-readable result.
 - Web: `npm run check` has zero errors and one pre-existing unused Login CSS
-  warning. Production build passes; initial app JS is 737.08 kB / 213.11 kB gzip;
+  warning. Production build passes; initial app JS is 737.62 kB / 213.25 kB gzip;
   the lazy processor chunk is 161.22 kB / 47.96 kB gzip. Existing large-chunk
   advisories remain.
+- Rebased local checks pass `cargo fmt --all -- --check`, Clippy with warnings
+  denied, and all 82 web script tests. A local `cargo test --workspace` attempt
+  compiled the workspace but could not link the server test binary because the
+  host volume reached `ENOSPC`; generated build artifacts were removed and that
+  unchanged environment failure was not rerun. Exact-head GitHub CI is the clean
+  workspace verdict.
 - Electron: unit tests 3/3 pass. `npm run pack` produced signed mac-arm64 `Den.app`;
   `codesign --verify --deep --strict` passes. The package contains model, four
   versioned WASM files, MediaPipe/LiveKit licenses, LiveKit attribution, and
@@ -113,64 +140,53 @@ No temporary break remains in the branch.
   defect fixed by this branch. #49 was closed after the supposed selected-camera
   defect was disproved: the synthetic fixture has one physical camera and aliases
   are not a real device switch. Closed #20 documents an older SQLx pool-close lock,
-  not the live music-test lock below.
+  not the historical local music-test lock below.
 - Independent supply-chain review passed model provenance, exact pins, licenses,
   package contents, CSP/offline asset handling, and advisory scope.
 - Independent code review found six initial material items: Default-picker fallback,
   stalled init cancellation, camera-off/init race, saved-Light toolbar drift,
   nondeterministic mic evidence, and weak remote-frame continuity. All six have
   red → green evidence above. Follow-up review found one call-level cancellation
-  defect; `2366623` fixes it with the red → green evidence above. Final review is
-  pending.
+  defect; rebased commit `8be4075` fixes it with the red → green evidence above.
+  Follow-up review approved that product delta with no remaining P0–P2 finding.
 - Decisions: canvas fallback remains disabled because its renderer/lifecycle
   behavior is unsafe; device preferences remain account-backed and keyed by the
   resolved physical ID; a different browser/profile device ID starts at None;
   frames stay local and no runtime CDN request is allowed.
 
-## Commits and current blocker
+## Commits and final-check status
 
 Relevant final review commits:
 
-- `1d55d51` — bound stalled blur initialization.
-- `038dabc` — serialize camera/effect transitions and strengthen integrated proof.
-- `248d16c` — add legacy compatibility proof and correct attribution wording.
-- `2366623` — cancel an unregistered blur on camera-off or leave and reject stale
+- `5ef9d25` — bound stalled blur initialization.
+- `9637662` — serialize camera/effect transitions and strengthen integrated proof.
+- `52d6c00` — add legacy compatibility proof and correct attribution wording.
+- `8be4075` — cancel an unregistered blur on camera-off or leave and reject stale
   fallback work.
+- `5c55b99` — record exact call-track gain diagnostics.
+- `2408f38` — establish an active call microphone before gain checks.
+- `849493e` — require both call tracks to be live, enabled, and unmuted.
 
-The full workspace run compiled and passed the AV legacy test, but its 84-test
-server binary finished **79 passed / 5 failed** under concurrent load. Failures
+An earlier codexbox workspace run compiled and passed the AV legacy test, but its
+84-test server binary finished **79 passed / 5 failed** under concurrent load. Failures
 were SQLite lock/pool exhaustion or wall-clock lifecycle timeouts. Per the one-rerun
 rule, the five failures were retried once sequentially. Two iOS tests passed; the
 third, `music::a_failed_first_track_advances_to_the_next_one`, failed again after
 86.1 seconds with SQLite code 5 (`database is locked`), and the loop stopped before
-the last two. This test and music code are unchanged by the A/V branch, but the
-repeat means the full-check requirement is not green. No further rerun or workflow
-change is authorized. Do not merge until the owner decides how to handle this
-existing exact-head blocker and required CI is green.
+the last two. This test and music code are unchanged by the A/V branch. The same
+base passed in a clean GitHub runner that day, and every check on the previous
+exact PR head was green. Per direction, no further local rerun or workflow change
+was made. This remains disclosed as environment evidence; the current rebased
+exact-head CI must still pass and becomes a blocker if it repeats the failure.
 
-The affected two-account rerun on `2366623` passed all blur and camera transitions,
-including eight remote-frame advances, before its synthetic-audio check. The call
-microphone track then failed `doubleGainRms > 0.001`. The one allowed no-change
-rerun repeated at the same assertion. The processes exited at 35.07 and 34.50
-seconds, well inside the 180-second fixture. The harness asserts a Boolean rather
-than printing the failed RMS, so retained evidence only bounds zero gain below
-`0.0001` and double gain at or below `0.001`; it does not contain the exact failed
-samples. Immediately before each failed sample, the separate Settings preview
-meter had returned above zero. The WAV is non-silent at 0–40, 30–40, and 170–180
-seconds (`-41.1 dB` mean, `-38.1 dB` max), but that preview does not prove that the
-call's separate processed track was advancing.
+The explicitly authorized instrumented rerun resolved the synthetic-audio blocker.
+It captured exact zero values together with the disabled raw source, rather than
+inferring fixture exhaustion from the separate Settings meter. The only behavior
+change was test setup: wait for join completion, request unmute when needed, and
+require the raw and processed call tracks to be live, enabled, and unmuted before
+measuring them. No product gain code or assertion threshold changed. The changed
+test then passed the full two-account scenario with the measurements above.
 
-The last passing exact-head artifact recorded zero gain `0` and double gain
-`0.017642230348325266`, plus remote audio bytes and energy. It did not record a
-monotonic elapsed time, so no exact passing sample time can be recovered without a
-new run. `2366623` changes `cameraQueue` waiting/cancellation and stale blur work;
-it does not change `micQueue`, `MicrophoneGain`, microphone capture/reacquisition,
-or the gain test. Camera-on still calls the same `applyAV()` gain update as before.
-The most specific current diagnosis is a repeatable split between the nonzero
-Settings preview fixture track and the call's separately captured processed track,
-not a demonstrated camera-change regression. No further rerun was made. This is
-recorded as a blocker rather than relabeled as a pass.
-
-PR #50 is open. The normal pull-request checks on the final pushed head are the
-clean-environment verdict for the Rust failure. If they repeat it, stop rather than
-rerun. The synthetic-audio failure also needs an explicit disposition before merge.
+PR #50 is open and non-draft. The normal pull-request checks on the final pushed
+head remain the clean-environment verdict for the unrelated local SQLite-lock
+failure. If they repeat it, stop rather than rerun.
