@@ -33,6 +33,9 @@ clients that predate Jam events. Production deployment is not part of this work.
   visible room.
 - Missing OAuth scopes, expired or revoked grants, rotated refresh tokens, and
   `429 Retry-After` were not covered end to end. Each now has a provider-stub test.
+- The authorization request asked for broader Spotify playback-state access even
+  though Den only calls the currently-playing endpoint. It now requests only
+  `user-read-currently-playing`, the scope Spotify documents for that endpoint.
 - Playback backoff truncated Spotify's requested delay to 60 seconds. It now
   preserves the full `Retry-After` up to the connection's remaining lifetime.
 - A token refresh already in flight could finish after Disconnect and restore an
@@ -41,9 +44,15 @@ clients that predate Jam events. Production deployment is not part of this work.
 - An OAuth callback already exchanging its code could reconnect after Disconnect.
   Authorization attempts now carry the account generation, and Disconnect
   cancels both pending and in-flight attempts before they can store a grant.
+- A callback could pass its final generation check, then write after a newer
+  authorization returned. Authorization changes now serialize with callback and
+  refresh writes, so older account work cannot land after the new attempt returns.
 - Refresh-token rotation initially extended the grant. Spotify documents that
   access-token refresh does not extend the six-month lifetime, so rotation now
   replaces only the encrypted token material.
+- A failed database write could discard a rotated refresh token while caching its
+  paired access token. Den now refuses that access token unless the replacement
+  refresh credential is durable first.
 - The Spotify data key accepted exposed or non-regular files. Startup now rejects
   both cases and creates a new Unix key file with mode `0600`.
 - Spotify and Jam state survived client logout. Both are cleared synchronously
@@ -78,9 +87,9 @@ Green local checks:
 
 - `cargo fmt --all -- --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`, including 97 server API tests
+- `cargo test --workspace`, including 99 server API tests
 - Five Spotify/Jam unit tests
-- Thirteen deterministic Spotify/Jam API integration tests
+- Fifteen deterministic Spotify/Jam API integration tests
 - Portable export/import roundtrip
 - `npm run check --prefix apps/web` (one inherited unused-selector warning)
 - Eighty-eight web state/behavior tests
@@ -95,8 +104,11 @@ Every new automated test was mutation-proven before the mutation was removed:
 - One temporary crypto/URL/key-permission mutation made all four original unit
   tests fail; the backoff test separately failed against the 60-second cap.
 - Temporary authorization, refresh, timeout, scope, ownership, privacy, rate-limit,
-  disconnect/callback races, and event-gate regressions made all thirteen Spotify/Jam
-  integrations fail.
+  disconnect/callback races, and event-gate regressions made the original thirteen
+  Spotify/Jam integrations fail.
+- The least-privilege assertion failed against the broader scope; allowing a new
+  authorization to return during older account work failed its lifecycle test;
+  and using a rotated grant after its database write failed the durability test.
 - Retaining Spotify credentials in a default import made the portability test fail.
 - Dropping Jam socket handling made the browser smoke fail on shared state.
 - Allowing a prior account's Jam read to resolve after logout made the account
