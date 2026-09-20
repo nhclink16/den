@@ -7,6 +7,15 @@ struct MessageRow: View {
     let grouped: Bool
     let store: AppStore
     let onReply: () -> Void
+    var thread: API.ThreadSummary?
+    var onOpenReference: ((String) -> Void)?
+
+    init(message: API.Message, grouped: Bool, store: AppStore,
+         thread: API.ThreadSummary? = nil, onOpenReference: ((String) -> Void)? = nil,
+         onReply: @escaping () -> Void) {
+        self.message = message; self.grouped = grouped; self.store = store
+        self.thread = thread; self.onOpenReference = onOpenReference; self.onReply = onReply
+    }
     @State private var parent: API.Message?
     @State private var parentUnavailable = false
     @State private var showReactions = false
@@ -47,6 +56,7 @@ struct MessageRow: View {
                     ForEach(message.attachments, id: \.id) { upload in
                         AuthenticatedAttachmentView(upload: upload, store: store)
                     }
+                    if let thread { threadButton(thread) }
                     if !(message.reactions ?? []).isEmpty { reactions }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,7 +92,8 @@ struct MessageRow: View {
         .task(id: message.replyTo) {
             guard let id = message.replyTo else { return }
             parentUnavailable = false
-            if let cached = store.messages[message.channelId]?.first(where: { $0.id == id }) { parent = cached }
+            if let cached = store.cachedMessage(id: id, channelId: message.channelId) { parent = cached }
+            else if store.offline { parentUnavailable = true }
             else {
                 do { parent = try await store.fetchMessage(id: id, channelId: message.channelId) }
                 catch { parentUnavailable = true }
@@ -122,7 +133,10 @@ struct MessageRow: View {
 
     private var replyReference: some View {
         Button {
-            if let id = message.replyTo { store.selectChannel(message.channelId, messageId: id) }
+            if let id = message.replyTo {
+                if let onOpenReference { onOpenReference(id) }
+                else { store.openReplyReference(from: message, parentId: id) }
+            }
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "arrowshape.turn.up.left")
@@ -142,10 +156,30 @@ struct MessageRow: View {
     }
 
     private var reactions: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) { reactionButtons }
-            ScrollView(.horizontal) { HStack(spacing: 6) { reactionButtons } }.scrollIndicators(.hidden)
+        ScrollView(.horizontal) { HStack(spacing: 6) { reactionButtons } }
+            .scrollIndicators(.hidden)
+    }
+
+    private func threadButton(_ thread: API.ThreadSummary) -> some View {
+        Button(action: onReply) {
+            HStack(spacing: 7) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                Text(thread.title).lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(thread.replyCount)").font(theme.monoFont(.caption))
+                if let state = store.threadReadStates[thread.id], state.unreadCount > 0 {
+                    Text(state.mentionCount > 0 ? "@" : "\(state.unreadCount)")
+                        .font(theme.monoFont(.caption).weight(.semibold))
+                        .foregroundStyle(theme.accent)
+                }
+            }
+            .font(theme.bodyFont(.caption)).foregroundStyle(theme.ink2)
+            .frame(minHeight: 44).padding(.horizontal, 10)
+            .background(theme.bg2, in: RoundedRectangle(cornerRadius: theme.radius))
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open conversation \(thread.title), \(thread.replyCount) replies")
+        .accessibilityIdentifier("thread-root-\(thread.id)")
     }
 
     private var reactionButtons: some View {
@@ -166,7 +200,6 @@ struct MessageRow: View {
             .accessibilityHint(selected ? "Remove your reaction" : "Add your reaction")
             .accessibilityIdentifier("reaction-\(message.id)-\(reaction.emoji)")
             .accessibilityAddTraits(selected ? [.isSelected] : [])
-            .onLongPressGesture { showReactions = true }
         }
     }
 

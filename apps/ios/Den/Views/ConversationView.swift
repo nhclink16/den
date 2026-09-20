@@ -60,8 +60,10 @@ struct ConversationView: View {
         // Lazy rows may outlive a store update or a channel transition. Their
         // neighboring message must come from the same immutable render snapshot.
         let messages = self.messages
-        return ScrollViewReader { proxy in
-            ScrollView {
+        return VStack(spacing: 0) {
+            ThreadStripView(channel: channel, store: store)
+            ScrollViewReader { proxy in
+                ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if store.offline { SyncStatusView(store: store).padding(.horizontal, 16).padding(.bottom, 8) }
                     if !messages.isEmpty && !exhausted {
@@ -95,7 +97,13 @@ struct ConversationView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             if MessagePresentation.startsDay(message, after: prior) { daySeparator(message.createdAt) }
                             if message.id == firstUnread { newSeparator }
-                            MessageRow(message: message, grouped: MessagePresentation.groups(message, after: prior), store: store) { reply = message }
+                            let summary = store.threadForRoot(message.id)
+                            MessageRow(message: message,
+                                       grouped: MessagePresentation.groups(message, after: prior),
+                                       store: store, thread: summary) {
+                                store.selectThread(channelId: channel.id, rootId: message.id,
+                                                   threadId: summary?.id)
+                            }
                         }
                         .id(message.id)
                         .background(message.id == store.targetMessageId ? theme.accentGlow : Color.clear)
@@ -177,7 +185,8 @@ struct ConversationView: View {
                 proxy.scrollTo("timeline-bottom", anchor: .bottom)
                 markTailRead()
             }
-            .onChange(of: scenePhase) { _, value in if value == .active && nearBottom { markTailRead() } }
+                .onChange(of: scenePhase) { _, value in if value == .active && nearBottom { markTailRead() } }
+            }
         }
     }
 
@@ -208,7 +217,7 @@ struct ConversationView: View {
     @ViewBuilder private var typingIndicator: some View {
         if store.dictationChannelId != channel.id {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                let names = (store.typing[channel.id] ?? [:]).filter {
+                let names = (store.typing[.room(channel.id)] ?? [:]).filter {
                     $0.key != store.user?.id && context.date.timeIntervalSince($0.value) < 6
                 }.keys.sorted().map(store.userName)
                 if !names.isEmpty {

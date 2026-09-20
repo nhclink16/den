@@ -81,7 +81,7 @@ import UserNotifications
             requestAuthorization: { permissionRequests += 1; return false },
             registerRemote: { Issue.record("Denied permission must not register with APNs.") })
         // This is the same app-level handler used by the notification-center delegate.
-        controller.handleTap(channel: "requested-room", message: "requested-message")
+        await controller.handleTap(channel: "requested-room", message: "requested-message")
         #expect(store.selectedChannelId == nil)
         store.user = user()
         await controller.requestAfterLogin()

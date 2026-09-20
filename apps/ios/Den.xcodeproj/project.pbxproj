@@ -12,6 +12,7 @@
 		07A0CDC7CCE7346CBC65E5ED /* DictationInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACFBA832FC1960D5281474F1 /* DictationInsertion.swift */; };
 		0C7483AB6E63ED032E72CF9C /* CallControllerAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A4BC2B4AA77A25B28AC5F0 /* CallControllerAPI.swift */; };
 		100EFF7BEB8685FEBEBD4303 /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFE52542DC902158574C8B0 /* Notifications.swift */; };
+		10FD3527408C872EE2D58947 /* ThreadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAABDC0E456B08884C143AB3 /* ThreadStore.swift */; };
 		117762BE6FB19E3231E4D37A /* TextFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D079E37358D1957B176430A6 /* TextFlowTests.swift */; };
 		11A26DEEFA4E718202635681 /* DenAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E82902D6832931954188C60E /* DenAPI */; };
 		11B4FE5A798F5BC5B938036C /* DictationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD738E6917D4F6BE0F0D86C1 /* DictationController.swift */; };
@@ -37,6 +38,7 @@
 		5DA0407BDCD46AEF019E3E87 /* MessageInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B1B8272F1BD313251E624DF /* MessageInput.swift */; };
 		5E4E3C8812CCD18BE41E3448 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 311BDF7CBC23F6C68F1BD465 /* PrivacyInfo.xcprivacy */; };
 		67B285DBDD4F3D2C8B63E51B /* NotificationRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 931E3C498C24B0E5BD776A30 /* NotificationRecoveryTests.swift */; };
+		6A2E7D2020D2CE418F606443 /* ThreadBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3528D831E93D230303A87444 /* ThreadBehaviorTests.swift */; };
 		6FA0E2FA77DE3CD2F9F77D5E /* DictationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C1795DAFC5F51CE224F96F /* DictationEngineTests.swift */; };
 		7095753A16EDAB8F1E98C5DC /* ResponseCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25F5002B46FE9545A3ACDDF /* ResponseCompatibilityTests.swift */; };
 		70B291C8918441071544E0B7 /* SessionAndMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE7132C192CBBE405AE8BD9 /* SessionAndMessagesTests.swift */; };
@@ -52,6 +54,7 @@
 		A839CC5B0A9C4A31B09257EC /* CallControllerPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF15AF355BFCCC38B791EA7C /* CallControllerPolicyTests.swift */; };
 		A9FB855C8974C6F44F0D5B1E /* VoIPPushControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA4C8AF9B8D6A04BA0D4C34 /* VoIPPushControllerTests.swift */; };
 		B397F47A92E384B9F3BF2B8E /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09DF3594F0D16B6827AC5BF0 /* MessageRow.swift */; };
+		B8D96D8FD1BF5F1048DA70AE /* ReadOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF3886A83738E6F227627EF2 /* ReadOrdering.swift */; };
 		BABB1F1C14C3E885F6A85525 /* Uploads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22406EE69BD3E19BC185B1FF /* Uploads.swift */; };
 		BD616473EF9E6486AA7C79FF /* DictationRecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2790B14571060F68BB047888 /* DictationRecordingView.swift */; };
 		C8DF6B456D7238B918029C58 /* DenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2090BBE6491B82B6CCD3D7E /* DenApp.swift */; };
@@ -63,7 +66,9 @@
 		E14128B8107D696F042FCFA2 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1EF898447BD8B862CE34D3 /* SharedViews.swift */; };
 		E310D1A30491D9E7D17844EF /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585B96EE921347A565B4A780 /* Appearance.swift */; };
 		E89FC78E3858046DDD7F5E2E /* DictationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9B288EBD4659BF2EF0FC11 /* DictationEngine.swift */; };
+		E8D9DF7ACBA4785FB60D3354 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC3FA6148895384C28C8A49 /* Conversation.swift */; };
 		F1E42DDBA45CD9601B75BC3C /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = EF681CFBD07831151F15826E /* LiveKit */; };
+		F3257B759D3E5FD07162DFF6 /* ThreadViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3809B8C2BD2965DC93935DC6 /* ThreadViews.swift */; };
 		F4F68C02CC8F5013B0D7CF38 /* CallControllerPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812C297CF977F7E6FB4B10B8 /* CallControllerPolicy.swift */; };
 		F50AA12626023D00D029156D /* DenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA76DE55B29D24F2EE456D8A /* DenService.swift */; };
 		F6DFE6D081309B89958A2930 /* CallSession+Delegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E70A0D8CEC14BA5A37889205 /* CallSession+Delegate.swift */; };
@@ -104,6 +109,8 @@
 		311BDF7CBC23F6C68F1BD465 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3151C8C54D5C93DFDE74DB65 /* DenUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DenUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		34DC58E0CE17335F968336F5 /* CompatibilityRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilityRecoveryTests.swift; sourceTree = "<group>"; };
+		3528D831E93D230303A87444 /* ThreadBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadBehaviorTests.swift; sourceTree = "<group>"; };
+		3809B8C2BD2965DC93935DC6 /* ThreadViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadViews.swift; sourceTree = "<group>"; };
 		3A81BF3FC601CD6C43FEA9CC /* CallPictureInPicture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallPictureInPicture.swift; sourceTree = "<group>"; };
 		3AEE5F2502BEA24D267BEF7C /* SessionSecurity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSecurity.swift; sourceTree = "<group>"; };
 		3F727F7CE78EA8446B93C7E8 /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
@@ -135,6 +142,7 @@
 		A26459DDCB829400A010A610 /* Realtime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Realtime.swift; sourceTree = "<group>"; };
 		A5DE20C012A882FF5A492D17 /* OfflineCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCache.swift; sourceTree = "<group>"; };
 		A94387E5ECB54C3C215807B8 /* DebugFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugFixture.swift; sourceTree = "<group>"; };
+		AAABDC0E456B08884C143AB3 /* ThreadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadStore.swift; sourceTree = "<group>"; };
 		ACFBA832FC1960D5281474F1 /* DictationInsertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationInsertion.swift; sourceTree = "<group>"; };
 		AF15AF355BFCCC38B791EA7C /* CallControllerPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallControllerPolicyTests.swift; sourceTree = "<group>"; };
 		AF30419CABF7489A5EB99BFF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -147,6 +155,8 @@
 		C54DB6C51AB00DC2ED552546 /* RoomsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomsView.swift; sourceTree = "<group>"; };
 		C74718A87B4DE7122B8DEF56 /* Den.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Den.entitlements; sourceTree = "<group>"; };
 		CA76DE55B29D24F2EE456D8A /* DenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenService.swift; sourceTree = "<group>"; };
+		CCC3FA6148895384C28C8A49 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
+		CF3886A83738E6F227627EF2 /* ReadOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadOrdering.swift; sourceTree = "<group>"; };
 		D079E37358D1957B176430A6 /* TextFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFlowTests.swift; sourceTree = "<group>"; };
 		D264559A0028655F8CF43549 /* CallPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallPolicy.swift; sourceTree = "<group>"; };
 		DFDA886BE8BAFB2E2459412F /* DictationTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTranscript.swift; sourceTree = "<group>"; };
@@ -193,6 +203,7 @@
 				241DE37D9A042F183B3CA901 /* RootView.swift */,
 				2619A1F16EF2881719476BAF /* SettingsView.swift */,
 				BD1EF898447BD8B862CE34D3 /* SharedViews.swift */,
+				3809B8C2BD2965DC93935DC6 /* ThreadViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -222,6 +233,7 @@
 				D264559A0028655F8CF43549 /* CallPolicy.swift */,
 				854B166BA860659F802106F6 /* CallSession.swift */,
 				E70A0D8CEC14BA5A37889205 /* CallSession+Delegate.swift */,
+				CCC3FA6148895384C28C8A49 /* Conversation.swift */,
 				A94387E5ECB54C3C215807B8 /* DebugFixture.swift */,
 				C74718A87B4DE7122B8DEF56 /* Den.entitlements */,
 				C2090BBE6491B82B6CCD3D7E /* DenApp.swift */,
@@ -236,8 +248,10 @@
 				4CFE52542DC902158574C8B0 /* Notifications.swift */,
 				A5DE20C012A882FF5A492D17 /* OfflineCache.swift */,
 				311BDF7CBC23F6C68F1BD465 /* PrivacyInfo.xcprivacy */,
+				CF3886A83738E6F227627EF2 /* ReadOrdering.swift */,
 				A26459DDCB829400A010A610 /* Realtime.swift */,
 				3AEE5F2502BEA24D267BEF7C /* SessionSecurity.swift */,
+				AAABDC0E456B08884C143AB3 /* ThreadStore.swift */,
 				22406EE69BD3E19BC185B1FF /* Uploads.swift */,
 				2CF80F8940F1ADBC109472E1 /* VoIPPushController.swift */,
 				96E9EBDEA61F143D3368DBCA /* VoIPPushEnvelope.swift */,
@@ -295,6 +309,7 @@
 				E25F5002B46FE9545A3ACDDF /* ResponseCompatibilityTests.swift */,
 				5A2F615C6BE7FC4A2C935455 /* SendCommitTests.swift */,
 				EFE7132C192CBBE405AE8BD9 /* SessionAndMessagesTests.swift */,
+				3528D831E93D230303A87444 /* ThreadBehaviorTests.swift */,
 				88E13D8A437231DCCE6A8089 /* UploadMediaTests.swift */,
 				7DA4C8AF9B8D6A04BA0D4C34 /* VoIPPushControllerTests.swift */,
 			);
@@ -451,6 +466,7 @@
 				7095753A16EDAB8F1E98C5DC /* ResponseCompatibilityTests.swift in Sources */,
 				A64B273BBC6722F0C5B8CB1A /* SendCommitTests.swift in Sources */,
 				70B291C8918441071544E0B7 /* SessionAndMessagesTests.swift in Sources */,
+				6A2E7D2020D2CE418F606443 /* ThreadBehaviorTests.swift in Sources */,
 				45AF435D04354D0F039FA6A8 /* UploadMediaTests.swift in Sources */,
 				A9FB855C8974C6F44F0D5B1E /* VoIPPushControllerTests.swift in Sources */,
 			);
@@ -475,6 +491,7 @@
 				F6DFE6D081309B89958A2930 /* CallSession+Delegate.swift in Sources */,
 				4B249A7E0D2913FCE600A5BF /* CallSession.swift in Sources */,
 				21ABA2B6495D8233D6209174 /* ComposerView.swift in Sources */,
+				E8D9DF7ACBA4785FB60D3354 /* Conversation.swift in Sources */,
 				2006909B02AB693B5BBD4CDB /* ConversationView.swift in Sources */,
 				41E268DBBD0198D4219B87C7 /* DebugFixture.swift in Sources */,
 				C8DF6B456D7238B918029C58 /* DenApp.swift in Sources */,
@@ -491,12 +508,15 @@
 				B397F47A92E384B9F3BF2B8E /* MessageRow.swift in Sources */,
 				100EFF7BEB8685FEBEBD4303 /* Notifications.swift in Sources */,
 				DFF7AD7ACEAD215698556608 /* OfflineCache.swift in Sources */,
+				B8D96D8FD1BF5F1048DA70AE /* ReadOrdering.swift in Sources */,
 				A17E4B680AF59603512F5E90 /* Realtime.swift in Sources */,
 				37895B59277A0F2997A31494 /* RoomsView.swift in Sources */,
 				7B007E422A714BC8323861C2 /* RootView.swift in Sources */,
 				8AD96BA93278118F65D1F6C2 /* SessionSecurity.swift in Sources */,
 				1391F46BC6886DC44FF6F4E1 /* SettingsView.swift in Sources */,
 				E14128B8107D696F042FCFA2 /* SharedViews.swift in Sources */,
+				10FD3527408C872EE2D58947 /* ThreadStore.swift in Sources */,
+				F3257B759D3E5FD07162DFF6 /* ThreadViews.swift in Sources */,
 				BABB1F1C14C3E885F6A85525 /* Uploads.swift in Sources */,
 				55FC6BE47A426ACC12D6F218 /* VoIPPushController.swift in Sources */,
 				2523EEED7292116EF5C5DF62 /* VoIPPushEnvelope.swift in Sources */,

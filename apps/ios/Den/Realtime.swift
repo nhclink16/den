@@ -71,10 +71,17 @@ extension AppStore {
         Task { await notifications?.registerIfAuthorized(retryImmediately: true) }
         Task { await voip?.sessionRestored(); await calls?.reconcileInvitations() }
     }
-    func sendTyping(channelId: String) {
+    func sendTyping(conversation: Conversation) {
         guard Date().timeIntervalSince(lastTyping) >= 3, let socket else { return }
+        let threadId: String?
+        switch conversation {
+        case .room: threadId = nil
+        case let .thread(_, rootId):
+            guard let id = threadForRoot(rootId)?.id else { return }
+            threadId = id
+        }
         lastTyping = Date()
-        guard let frame = AppStore.typingFrame(channelId: channelId) else { return }
+        guard let frame = AppStore.typingFrame(channelId: conversation.channelId, threadId: threadId) else { return }
         Task { try? await socket.send(.string(frame)) }
     }
     /// ClientEvent is generated from the shared schema; typing is the only event iOS emits.
@@ -83,8 +90,8 @@ extension AppStore {
     /// alone, so a plain reorder would fail to compile rather than emit the wrong event. A
     /// test pins the bytes for what compilation would not catch: a later regeneration, a
     /// generator or naming-strategy change, or an adaptation of this call that still builds.
-    static func typingFrame(channelId: String) -> String? {
-        let event = API.ClientEvent.case4(.init(channelId: channelId, _type: .typing))
+    static func typingFrame(channelId: String, threadId: String? = nil) -> String? {
+        let event = API.ClientEvent.case4(.init(channelId: channelId, threadId: threadId, _type: .typing))
         guard let data = try? JSONEncoder().encode(event) else { return nil }
         return String(decoding: data, as: UTF8.self)
     }
@@ -101,24 +108,52 @@ extension AppStore {
         case "message_created", "message_edited":
             let message = try JSONDecoder().decode(API.Message.self, from: data)
             if !channels.contains(where: { $0.id == message.channelId }) { try await refresh() }
-            let loaded = messages[message.channelId]?.contains(where: { $0.id == message.id }) == true
-            if loaded || (type == "message_created" && messageHasNewer[message.channelId] != true) {
-                merge([message], channelId: message.channelId)
+            if let threadId = message.threadId {
+                let loaded = threadMessages[threadId]?.contains(where: { $0.id == message.id }) == true
+                if loaded || (type == "message_created" && threadHasNewer[threadId] != true) {
+                    mergeThreadMessages([message], threadId: threadId)
+                }
+                if let rootId = threadMetadata[threadId]?.rootMessageId {
+                    typing[.thread(channelId: message.channelId, rootId: rootId)]?[message.authorId] = nil
+                }
+            } else {
+                let loaded = messages[message.channelId]?.contains(where: { $0.id == message.id }) == true
+                    || threadRoots[message.id] != nil
+                if loaded || (type == "message_created" && messageHasNewer[message.channelId] != true) {
+                    mergeMessage(message)
+                }
+                typing[.room(message.channelId)]?[message.authorId] = nil
             }
-            typing[message.channelId]?[message.authorId] = nil
             saveCache()
         case "message_deleted":
             if let channel = value["channel_id"] as? String, let id = value["id"] as? String {
-                messages[channel]?.removeAll { $0.id == id }; saveCache()
+                messages[channel]?.removeAll { $0.id == id }
+                for threadId in Array(threadMessages.keys) { threadMessages[threadId]?.removeAll { $0.id == id } }
+                saveCache()
             }
         case "reactions_updated":
             if let channel = value["channel_id"] as? String, let id = value["message_id"] as? String,
                let index = messages[channel]?.firstIndex(where: { $0.id == id }) {
                 messages[channel]?[index].reactions = try field("reactions", as: [API.Reaction].self)
+                if threadRoots[id] != nil { threadRoots[id]?.reactions = messages[channel]?[index].reactions }
+            } else if let id = value["message_id"] as? String, threadRoots[id] != nil {
+                threadRoots[id]?.reactions = try field("reactions", as: [API.Reaction].self)
+            } else if let id = value["message_id"] as? String {
+                for threadId in Array(threadMessages.keys) {
+                    if let index = threadMessages[threadId]?.firstIndex(where: { $0.id == id }) {
+                        threadMessages[threadId]?[index].reactions = try field("reactions", as: [API.Reaction].self)
+                        break
+                    }
+                }
             }
         case "typing":
             if let channel = value["channel_id"] as? String, let id = value["user_id"] as? String, id != user?.id {
-                typing[channel, default: [:]][id] = Date()
+                if let threadId = value["thread_id"] as? String,
+                   let rootId = threadMetadata[threadId]?.rootMessageId {
+                    typing[.thread(channelId: channel, rootId: rootId), default: [:]][id] = Date()
+                } else if value["thread_id"] == nil || value["thread_id"] is NSNull {
+                    typing[.room(channel), default: [:]][id] = Date()
+                }
             }
         case "presence":
             if let id = value["user_id"] as? String, let online = value["online"] as? Bool {
@@ -137,12 +172,21 @@ extension AppStore {
         case "notification_preferences_updated": preferences = try field("preferences", as: API.NotificationPreferences.self)
         case "read_state_updated":
             let state = try field("state", as: API.ChannelReadState.self)
-            readStates.removeAll { $0.channelId == state.channelId }; readStates.append(state)
+            // Pushed, so authoritative: it supersedes any read response of ours
+            // still in flight for this channel.
+            applyChannelRead(state)
+            saveCache(); await notifications?.updateBadge()
+        case "thread_updated":
+            applyThreadMetadata(try field("thread", as: API.ThreadSummary.self))
+            saveCache()
+        case "thread_read_state_updated":
+            let state = try field("state", as: API.ThreadReadState.self)
+            applyThreadRead(state)
             saveCache(); await notifications?.updateBadge()
         case "notification":
             if let service {
                 let expected = generation
-                let reads = try await service.readStates(); try check(expected); readStates = reads
+                let reads = try await service.readStates(); try check(expected); replaceReadStates(reads)
                 await notifications?.updateBadge()
             }
         case "settings_updated", "resync": try await refresh()

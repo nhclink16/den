@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import DenAPI
 
 struct CachedSession: Codable {
     var user: API.User
@@ -9,6 +10,10 @@ struct CachedSession: Codable {
     var readStates: [API.ChannelReadState]
     var messages: [String: [API.Message]]
     var instanceName: String
+    var threadMetadata: [String: API.ThreadSummary]?
+    var threadReadStates: [String: API.ThreadReadState]?
+    var threadMessages: [String: [API.Message]]?
+    var threadRoots: [String: API.Message]?
 }
 
 enum OfflineCache {

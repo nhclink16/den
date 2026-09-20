@@ -9,8 +9,38 @@ struct RoomsView: View {
     @Environment(\.colorScheme) private var colorScheme
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
     private var selected: API.Channel? { store.channels.first { $0.id == store.selectedChannelId } }
-    private var path: Binding<[String]> {
-        Binding(get: { store.selectedChannelId.map { [$0] } ?? [] }, set: { store.selectedChannelId = $0.last })
+    private enum Route: Hashable {
+        case channel(String)
+        case thread(ThreadSelection)
+    }
+    private var compactPath: Binding<[Route]> {
+        Binding {
+            guard let channelId = store.selectedChannelId else { return [] }
+            var value: [Route] = [.channel(channelId)]
+            if let thread = store.selectedThread { value.append(.thread(thread)) }
+            return value
+        } set: { value in
+            switch value.last {
+            case let .thread(thread):
+                store.selectedChannelId = thread.channelId
+                store.targetMessageId = nil
+                store.selectedThread = thread
+            case let .channel(channelId):
+                store.selectedChannelId = channelId
+                store.targetMessageId = nil
+                store.selectedThread = nil
+            case nil:
+                store.selectedChannelId = nil
+                store.targetMessageId = nil
+                store.selectedThread = nil
+            }
+        }
+    }
+    private var regularThreadPath: Binding<[ThreadSelection]> {
+        Binding(get: { store.selectedThread.map { [$0] } ?? [] }, set: { value in
+            store.selectedThread = value.last
+            if let thread = value.last { store.selectedChannelId = thread.channelId }
+        })
     }
 
     var body: some View {
@@ -19,14 +49,28 @@ struct RoomsView: View {
                 NavigationSplitView {
                     roomList
                 } detail: {
-                    if let selected { ConversationView(channel: selected, store: store).id(selected.id) }
+                    if let selected {
+                        NavigationStack(path: regularThreadPath) {
+                            ConversationView(channel: selected, store: store).id(selected.id)
+                                .navigationDestination(for: ThreadSelection.self) { thread in
+                                    ThreadConversationView(route: thread, channel: selected, store: store)
+                                }
+                        }
+                    }
                     else { ContentUnavailableView("Make yourself at home", systemImage: "number", description: Text("Choose a room or a direct message.")) }
                 }
             } else {
-                NavigationStack(path: path) {
-                    roomList.navigationDestination(for: String.self) { id in
-                        if let channel = store.channels.first(where: { $0.id == id }) {
-                            ConversationView(channel: channel, store: store).id(id)
+                NavigationStack(path: compactPath) {
+                    roomList.navigationDestination(for: Route.self) { route in
+                        switch route {
+                        case let .channel(id):
+                            if let channel = store.channels.first(where: { $0.id == id }) {
+                                ConversationView(channel: channel, store: store).id(id)
+                            }
+                        case let .thread(thread):
+                            if let channel = store.channels.first(where: { $0.id == thread.channelId }) {
+                                ThreadConversationView(route: thread, channel: channel, store: store)
+                            }
                         }
                     }
                 }
@@ -67,11 +111,19 @@ struct RoomsView: View {
         }
     }
 
-    private func channelRows(_ channels: [API.Channel]) -> some View {
+    @ViewBuilder private func channelRows(_ channels: [API.Channel]) -> some View {
         ForEach(channels.sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }, id: \.id) { channel in
-            Button { store.selectChannel(channel.id) } label: { RoomLabel(channel: channel, store: store) }
-                .listRowBackground(store.selectedChannelId == channel.id ? theme.accentGlow : theme.bg2)
+            if sizeClass == .regular && !dynamicTypeSize.isAccessibilitySize {
+                Button { store.selectChannel(channel.id) } label: { RoomLabel(channel: channel, store: store) }
+                    .listRowBackground(store.selectedChannelId == channel.id ? theme.accentGlow : theme.bg2)
+                    .accessibilityIdentifier("room-\(channel.id)")
+            } else {
+                NavigationLink(value: Route.channel(channel.id)) {
+                    RoomLabel(channel: channel, store: store)
+                }
+                .listRowBackground(theme.bg2)
                 .accessibilityIdentifier("room-\(channel.id)")
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ struct InboxView: View {
     let store: AppStore
     var onNavigate: () -> Void = {}
     @State private var markingAll = false
+    @State private var unreadThreadIds: [String] = []
     @Environment(\.colorScheme) private var colorScheme
     private var theme: DenTheme { store.theme.resolve(colorScheme) }
     private var unread: [API.Channel] {
@@ -25,9 +26,29 @@ struct InboxView: View {
             }
             ForEach(unread, id: \.id) { channel in
                 let previews = previewMessages(channel)
+                let threads = unreadThreads(channel)
                 Section {
                     Button { open(channel) } label: { RoomLabel(channel: channel, store: store) }
                         .accessibilityIdentifier("inbox-room-\(channel.id)")
+                    ForEach(threads, id: \.id) { thread in
+                        let state = store.threadReadStates[thread.id]
+                        Button { open(thread) } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: thread.resolvedAt == nil ? "bubble.left.and.bubble.right" : "checkmark.circle")
+                                    .foregroundStyle(theme.accent).frame(width: 28)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(thread.title).fontWeight(.semibold).foregroundStyle(theme.ink)
+                                    Text(threadDescription(thread, state: state))
+                                        .font(theme.bodyFont(.caption)).foregroundStyle(theme.ink2)
+                                }
+                                Spacer()
+                                if (state?.mentionCount ?? 0) > 0 {
+                                    Image(systemName: "at").foregroundStyle(theme.accent)
+                                }
+                            }.padding(.vertical, 5)
+                        }
+                        .accessibilityIdentifier("inbox-thread-\(thread.id)")
+                    }
                     ForEach(Array(previews.suffix(4)), id: \.id) { message in
                         Button { open(channel) } label: {
                             HStack(alignment: .top, spacing: 10) {
@@ -46,7 +67,11 @@ struct InboxView: View {
                             }.padding(.vertical, 5).foregroundStyle(theme.ink)
                         }
                     }
-                    let earlier = Int(store.readState(channel.id)?.unreadCount ?? 0) - min(previews.count, 4)
+                    let threadUnread = threads.reduce(Int64(0)) {
+                        $0 + (store.threadReadStates[$1.id]?.unreadCount ?? 0)
+                    }
+                    let roomUnread = max(0, (store.readState(channel.id)?.unreadCount ?? 0) - threadUnread)
+                    let earlier = Int(roomUnread) - min(previews.count, 4)
                     if earlier > 0 {
                         Button("\(earlier) earlier \(earlier == 1 ? "message" : "messages")") { open(channel) }
                             .font(theme.bodyFont(.caption))
@@ -65,7 +90,9 @@ struct InboxView: View {
             }
         }
         .refreshable { await store.retrySync(); await loadPreviews() }
-        .task(id: unread.map(\.id)) { await loadPreviews() }
+        .task(id: unread.map { "\($0.id):\(store.readState($0.id)?.unreadCount ?? 0)" }) {
+            await loadPreviews()
+        }
     }
 
     private func previewMessages(_ channel: API.Channel) -> [API.Message] {
@@ -79,10 +106,35 @@ struct InboxView: View {
         store.selectChannel(channel.id)
     }
 
+    private func open(_ thread: API.ThreadSummary) {
+        onNavigate()
+        store.selectThread(channelId: thread.channelId, rootId: thread.rootMessageId,
+                           threadId: thread.id)
+    }
+
+    private func unreadThreads(_ channel: API.Channel) -> [API.ThreadSummary] {
+        unreadThreadIds.compactMap { store.threadMetadata[$0] }
+            .filter { $0.channelId == channel.id && (store.threadReadStates[$0.id]?.unreadCount ?? 0) > 0 }
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
+    }
+
+    private func threadDescription(_ thread: API.ThreadSummary, state: API.ThreadReadState?) -> String {
+        let unread = state?.unreadCount ?? 0
+        let noun = unread == 1 ? "reply" : "replies"
+        let status = thread.resolvedAt == nil ? "" : " · Resolved"
+        return "\(unread) unread \(noun)\(status)"
+    }
+
     private func loadPreviews() async {
         guard !store.offline else { return }
-        for channel in unread where store.messages[channel.id] == nil {
-            do { try await store.loadMessages(channelId: channel.id) }
+        for channel in unread {
+            do {
+                if store.messages[channel.id] == nil { try await store.loadMessages(channelId: channel.id) }
+                let views = try await store.loadAllThreads(channelId: channel.id, unreadOnly: true)
+                for id in views.map(\.thread.id) where !unreadThreadIds.contains(id) {
+                    unreadThreadIds.append(id)
+                }
+            }
             catch { store.report(error); return }
         }
     }
@@ -94,11 +146,9 @@ struct InboxView: View {
             defer { markingAll = false }
             do {
                 for channel in channels {
-                    try await store.loadMessages(channelId: channel.id)
-                    if let message = store.messages[channel.id]?.last {
-                        try await store.markRead(channelId: channel.id, messageId: message.id)
-                    }
+                    try await store.markAllRead(channelId: channel.id)
                 }
+                unreadThreadIds = []
             } catch { store.report(error) }
         }
     }
@@ -124,7 +174,10 @@ struct SearchView: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(theme.ink3).accessibilityHidden(true)
                     TextField("Search messages", text: $query)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .submitLabel(.search).focused($queryFocused).onSubmit { search() }
+                        .submitLabel(.search).focused($queryFocused).onSubmit {
+                            queryFocused = false
+                            search()
+                        }
                         .accessibilityLabel("Search messages").accessibilityIdentifier("search-query")
                     if !query.isEmpty {
                         Button { query = ""; queryFocused = true } label: {
@@ -151,7 +204,12 @@ struct SearchView: View {
                 Button {
                     queryFocused = false
                     onNavigate()
-                    store.selectChannel(message.channelId, messageId: message.id)
+                    if let threadId = message.threadId {
+                        store.selectThread(channelId: message.channelId, threadId: threadId,
+                                           messageId: message.id)
+                    } else {
+                        store.selectChannel(message.channelId, messageId: message.id)
+                    }
                 } label: {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -175,8 +233,19 @@ struct SearchView: View {
                 }.listRowBackground(theme.bg2).accessibilityIdentifier("search-result-\(message.id)")
             }
         }
+        .accessibilityIdentifier("search-list")
         .listStyle(.insetGrouped).scrollContentBackground(.hidden).background(theme.bg)
         .navigationTitle("Search")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Search") {
+                    queryFocused = false
+                    search()
+                }
+                .disabled(searching || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("search-submit")
+            }
+        }
         .onChange(of: scope) { _, _ in if submitted { search() } }
         .onChange(of: query) { _, value in
             if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
