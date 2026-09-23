@@ -1115,3 +1115,86 @@ async fn jams_in_a_dm_are_private_to_its_members() {
         host.user.id
     );
 }
+
+// Presence is registered after the Resync frame, so wait for the server to count a
+// socket before polling; otherwise the poll can run before the person is online.
+async fn online(t: &Test, user: &str) {
+    for _ in 0..100 {
+        let p: PresenceState = t
+            .req(Method::GET, "/presence", &t.admin.token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        if p.online_user_ids.iter().any(|id| id == user) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("{user} never came online");
+}
+
+#[tokio::test]
+async fn online_listeners_show_what_they_play_and_offline_ones_are_not_polled() {
+    let provider = StubSpotify::start(ProviderMode::Healthy).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let here = t.member("listener_here").await;
+    let away = t.member("listener_away").await;
+    for member in [&here, &away] {
+        let (_, state) = authorization(&t, &member.token).await;
+        t.post(
+            "/users/me/spotify/callback",
+            &member.token,
+            json!({"code":"stub-code","state":state}),
+        )
+        .await;
+    }
+    let _tab = socket(&t, &here.token, "").await;
+    online(&t, &here.user.id).await;
+    let before = provider.state.playback_calls.load(Ordering::SeqCst);
+
+    t.state.poll_spotify_activities().await;
+
+    let all: Vec<UserActivities> = t
+        .req(Method::GET, "/activities", &t.admin.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let mine = all
+        .iter()
+        .find(|u| u.user_id == here.user.id)
+        .expect("the online listener");
+    let song = &mine.activities[0];
+    assert_eq!(
+        (song.slot.as_str(), song.kind),
+        ("spotify", ActivityKind::Listening)
+    );
+    assert_eq!(
+        (song.name.as_str(), song.details.as_deref()),
+        ("Stub Song", Some("Stub Artist"))
+    );
+    assert!(song.image_url.is_some(), "album art rides along");
+    assert!(
+        all.iter().all(|u| u.user_id != away.user.id),
+        "nobody sees an offline account"
+    );
+    assert_eq!(
+        provider.state.playback_calls.load(Ordering::SeqCst) - before,
+        1,
+        "only the online account was asked"
+    );
+
+    // Clients cannot forge the server's slot.
+    let forged = t
+        .req(Method::PUT, "/users/me/activities/spotify", &here.token)
+        .json(&json!({"kind":"listening","name":"Fake"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(forged.status(), StatusCode::BAD_REQUEST);
+}

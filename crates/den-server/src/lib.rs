@@ -1,4 +1,5 @@
 mod access;
+mod activities;
 mod activity;
 mod appearance;
 mod auth;
@@ -79,6 +80,7 @@ pub struct Inner {
     pub(crate) tickets: Mutex<tickets::Tickets>,
     pub attempts: Mutex<HashMap<String, (Instant, u32)>>,
     pub presence: std::sync::Mutex<HashMap<String, usize>>,
+    pub(crate) activities: activities::Activities,
     pub object_presence: std::sync::Mutex<ObjectPresenceConnections>,
     pub thumbnails: Arc<tokio::sync::Semaphore>,
     pub ids: std::sync::Mutex<ulid::Generator>,
@@ -190,6 +192,7 @@ impl AppState {
             attempts: Mutex::new(HashMap::new()),
             tickets: Mutex::new(tickets::Tickets::default()),
             presence: std::sync::Mutex::new(HashMap::new()),
+            activities: std::sync::Mutex::new(HashMap::new()),
             object_presence: std::sync::Mutex::new(HashMap::new()),
             thumbnails: Arc::new(tokio::sync::Semaphore::new(1)),
             ids: std::sync::Mutex::new(ulid::Generator::new()),
@@ -427,6 +430,11 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         )
         .route("/search/messages", get(activity::search))
         .route("/presence", get(ws::presence))
+        .route("/activities", get(activities::list))
+        .route(
+            "/users/{id}/activities/{slot}",
+            axum::routing::put(activities::set).delete(activities::remove),
+        )
         .route("/calls", get(calls::list))
         .route("/calls/invitations", get(invitations::list))
         .route(

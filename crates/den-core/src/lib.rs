@@ -16,6 +16,8 @@ mod ios;
 pub use ios::*;
 mod threads;
 pub use threads::*;
+mod activity;
+pub use activity::*;
 // Shared API types. The server serializes these, the CLI and the web client
 // deserialize them. Keep this crate free of framework dependencies.
 
@@ -268,6 +270,12 @@ pub enum Event {
     ThreadReadStateUpdated {
         user_id: Id,
         state: ThreadReadState,
+    },
+    /// Everything one person is doing now, replacing what was sent before. Empty
+    /// means nothing. Everyone receives it, like presence.
+    ActivityUpdated {
+        user_id: Id,
+        activities: Vec<Activity>,
     },
     /// A future notification this client does not understand. Receive-only: ignore it.
     #[serde(other, skip_serializing)]
@@ -538,6 +546,9 @@ pub enum ClientEvent {
 pub struct PresenceState {
     pub objects: Vec<ObjectPresence>,
     pub online_user_ids: Vec<Id>,
+    /// Current activities. Absent from servers that predate them.
+    #[serde(default)]
+    pub activities: Vec<UserActivities>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

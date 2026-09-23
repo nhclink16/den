@@ -232,6 +232,8 @@ impl Test {
             .clone()
     }
 }
+#[path = "api/activities.rs"]
+mod activities;
 #[path = "api/auth.rs"]
 mod auth;
 #[path = "api/chat.rs"]
