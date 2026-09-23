@@ -140,6 +140,22 @@ kbd {
 :root[data-bg-scope='sidebar'] .bg-host:not(.scope-sidebar)::after,
 :root[data-bg-scope='chat'] .bg-host:not(.scope-chat)::before,
 :root[data-bg-scope='chat'] .bg-host:not(.scope-chat)::after { content: none; }
+/* The sidebar's own wallpaper, painted with the same layers from its --sb-* values.
+   Declared after the scope rules so it wins in the sidebar whatever the main one does. */
+:root[data-sidebar-bg] .bg-host.scope-sidebar { position: relative; isolation: isolate; overflow: clip; }
+:root[data-sidebar-bg] .bg-host.scope-sidebar::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--sb-image);
+  background-size: var(--sb-size, cover);
+  background-repeat: var(--sb-repeat, no-repeat);
+  background-position: center;
+  filter: blur(var(--sb-blur, 0px)) saturate(var(--sb-saturate, 1));
+  transform: scale(1.06);
+}
+:root[data-sidebar-bg] .bg-host.scope-sidebar::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(var(--sb-scrim, 0, 0, 0), var(--sb-dim, 0));
+}
 /* Panels sitting on a wallpaper go translucent so it reads through. */
 :root[data-bg-scope='app'] .sidebar, :root[data-bg-scope='app'] .members {
   background: color-mix(in srgb, var(--bg2) 82%, transparent);

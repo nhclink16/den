@@ -208,3 +208,73 @@ async fn a_single_background_from_before_the_library_moves_into_it() {
     );
     assert!(root.join(&alice.user.id).join(format!("{id}.jpg")).exists());
 }
+
+fn wallpaper(source: Value) -> Value {
+    json!({"source":source,"blur":0,"dim":20,"saturate":100,"scope":"app","fit":"cover"})
+}
+async fn put_appearance(t: &Test, token: &str, body: &Value) -> Appearance {
+    let r = t
+        .req(Method::PUT, "/users/me/appearance", token)
+        .json(body)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200, "{body}");
+    r.json().await.unwrap()
+}
+
+#[tokio::test]
+async fn the_sidebar_keeps_its_own_wallpaper_through_older_clients() {
+    let t = Test::new().await;
+    let alice = t.member("side_alice").await;
+    let main = upload(&t, &alice.token, png(40, 30)).await;
+    let side = upload(&t, &alice.token, png(40, 60)).await;
+    let mut body = json!(Appearance::default());
+    body["background"] = wallpaper(json!({"type":"upload","id":main.id}));
+    body["sidebar_background"] = wallpaper(json!({"type":"upload","id":side.id}));
+    let saved = put_appearance(&t, &alice.token, &body).await;
+    assert!(saved.sidebar_background.is_some());
+
+    // An app that predates the field saves a new theme without it: keep the sidebar.
+    let mut older = json!(Appearance::default());
+    older.as_object_mut().unwrap().remove("sidebar_background");
+    older["dark_theme"] = json!("moss");
+    older["background"] = body["background"].clone();
+    let kept = put_appearance(&t, &alice.token, &older).await;
+    assert_eq!(kept.dark_theme, "moss");
+    assert_eq!(kept.sidebar_background, saved.sidebar_background);
+
+    // Deleting the sidebar's image clears only the sidebar.
+    let r = t
+        .req(
+            Method::DELETE,
+            &format!("/users/me/backgrounds/{}", side.id),
+            &alice.token,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert!(r.status().is_success());
+    let now: Appearance = t
+        .req(Method::GET, "/users/me/appearance", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(now.sidebar_background.is_none());
+    assert!(now.background.is_some(), "the main wallpaper is untouched");
+
+    // A preset works for the sidebar too, and an explicit null clears it.
+    body["sidebar_background"] = wallpaper(json!({"type":"builtin","name":"plaid"}));
+    assert!(put_appearance(&t, &alice.token, &body)
+        .await
+        .sidebar_background
+        .is_some());
+    body["sidebar_background"] = Value::Null;
+    assert!(put_appearance(&t, &alice.token, &body)
+        .await
+        .sidebar_background
+        .is_none());
+}

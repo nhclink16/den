@@ -70,6 +70,12 @@ pub struct Appearance {
     #[serde(default)]
     #[schema(schema_with = crate::nullable_object_schema::<Background>)]
     pub background: Option<Background>,
+    /// A second wallpaper just for the sidebar. When set, `background` covers the
+    /// rest of the app and this one the sidebar; its `scope` is ignored. A client
+    /// that omits the field on save keeps the stored one (older apps predate it).
+    #[serde(default)]
+    #[schema(schema_with = crate::nullable_object_schema::<Background>)]
+    pub sidebar_background: Option<Background>,
     #[serde(
         default = "default_contrast",
         deserialize_with = "clamped::<_, 80, 120>"
@@ -85,6 +91,7 @@ impl Default for Appearance {
             light_theme: "den".into(),
             dark_theme: "den".into(),
             background: None,
+            sidebar_background: None,
             contrast: 100,
             custom_themes: vec![],
         }

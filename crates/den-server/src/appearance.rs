@@ -35,10 +35,23 @@ pub(crate) async fn get_appearance(State(s): State<AppState>, a: Auth) -> Result
 pub(crate) async fn put_appearance(
     State(s): State<AppState>,
     a: Auth,
-    ApiJson(mut v): ApiJson<Appearance>,
+    ApiJson(raw): ApiJson<serde_json::Value>,
 ) -> Result<Response> {
+    // Same answer the JSON extractor gives a body that does not fit the type.
+    let mut v: Appearance = serde_json::from_value(raw.clone()).map_err(|_| {
+        Error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_request",
+            "Invalid JSON request".into(),
+        )
+    })?;
     v.validate().map_err(Error::bad)?;
     let _guard = s.writes.lock().await;
+    // Clients that predate the sidebar wallpaper send the whole object without it.
+    // Absent means "leave it"; only an explicit null clears it.
+    if raw.get("sidebar_background").is_none() {
+        v.sidebar_background = load(&s, &a.user.id).await?.sidebar_background;
+    }
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;
     save(&s, &a.user.id, &v).await?;
     Ok(response(v, missing))

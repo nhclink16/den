@@ -90,6 +90,7 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   applyFavicon(colors)
   applyContrast(colors, a?.contrast ?? 100)
   applyBackground(a?.background ?? null, half, colors)
+  applySidebarBackground(a?.sidebar_background ?? null, half, colors)
 }
 
 /** Contrast pulls the two dimmer ink tones toward or away from the background. */
@@ -144,9 +145,22 @@ export function firstPaint() {
   try { const a=cachedAppearance(); applyTheme(activeTheme(a),appearanceHalf(a)) } catch { applyTheme(builtinThemes[0]!) }
 }
 
+/** Paints the wallpaper layer. Scope decides which region shows it; app.css does the rest. */
 export function applyBackground(b: AppearanceBackground | null | undefined, half: 'light'|'dark', colors?: ThemeColors) {
-  const root = document.documentElement, s = root.style
-  if (!b || !b.source) { delete root.dataset.bgScope; s.removeProperty('--bg-image'); return }
+  const root = document.documentElement
+  if (paint('bg', b, half, colors)) root.dataset.bgScope = b!.scope; else delete root.dataset.bgScope
+}
+
+/** The sidebar's own wallpaper, when it has one. It wins over the main one there. */
+export function applySidebarBackground(b: AppearanceBackground | null | undefined, half: 'light'|'dark', colors?: ThemeColors) {
+  const root = document.documentElement
+  if (paint('sb', b, half, colors)) root.dataset.sidebarBg = ''; else delete root.dataset.sidebarBg
+}
+
+/** Sets `--<prefix>-image` and its adjustments; false when there is nothing to paint. */
+function paint(prefix: 'bg' | 'sb', b: AppearanceBackground | null | undefined, half: 'light'|'dark', colors?: ThemeColors): boolean {
+  const s = document.documentElement.style
+  if (!b || !b.source) { s.removeProperty(`--${prefix}-image`); return false }
   // Presets mix every role, so a partial palette would emit `undefined` into a
   // color-mix() and invalidate the whole background-image.
   const c = colors || (colorRoles.reduce((acc, role) => {
@@ -156,16 +170,16 @@ export function applyBackground(b: AppearanceBackground | null | undefined, half
   const image = b.source.type === 'builtin'
     ? wallpaperImage(b.source.name, c)
     : `url("${uploadedBackgroundUrl(b.source.id)}")`
-  if (image === 'none') { delete root.dataset.bgScope; s.removeProperty('--bg-image'); return }
-  root.dataset.bgScope = b.scope
-  s.setProperty('--bg-image', image)
-  s.setProperty('--bg-blur', `${Math.max(0, Math.min(40, b.blur))}px`)
-  s.setProperty('--bg-dim', String(Math.max(0, Math.min(80, b.dim)) / 100))
-  s.setProperty('--bg-saturate', String(Math.max(50, Math.min(150, b.saturate)) / 100))
-  s.setProperty('--bg-size', b.fit === 'tile' ? 'auto' : b.fit)
-  s.setProperty('--bg-repeat', b.fit === 'tile' ? 'repeat' : 'no-repeat')
+  if (image === 'none') { s.removeProperty(`--${prefix}-image`); return false }
+  s.setProperty(`--${prefix}-image`, image)
+  s.setProperty(`--${prefix}-blur`, `${Math.max(0, Math.min(40, b.blur))}px`)
+  s.setProperty(`--${prefix}-dim`, String(Math.max(0, Math.min(80, b.dim)) / 100))
+  s.setProperty(`--${prefix}-saturate`, String(Math.max(50, Math.min(150, b.saturate)) / 100))
+  s.setProperty(`--${prefix}-size`, b.fit === 'tile' ? 'auto' : b.fit)
+  s.setProperty(`--${prefix}-repeat`, b.fit === 'tile' ? 'repeat' : 'no-repeat')
   // Photographs need the scrim to match the appearance, not the other way round.
-  s.setProperty('--bg-scrim', half === 'light' ? '255,255,255' : '0,0,0')
+  s.setProperty(`--${prefix}-scrim`, half === 'light' ? '255,255,255' : '0,0,0')
+  return true
 }
 
 /** Cache-busted so a replaced image shows immediately. */

@@ -146,8 +146,8 @@ async fn library(s: &AppState, user: &str) -> Result<Vec<BackgroundImage>> {
     Ok(images)
 }
 
-fn selected(value: &Appearance) -> Option<&str> {
-    match &value.background {
+fn upload_id(background: &Option<Background>) -> Option<&str> {
+    match background {
         Some(Background {
             source: BackgroundSource::Upload { id },
             ..
@@ -155,16 +155,33 @@ fn selected(value: &Appearance) -> Option<&str> {
         _ => None,
     }
 }
+fn selected(value: &Appearance) -> Option<&str> {
+    upload_id(&value.background)
+}
+/// Library images in use by either wallpaper, which pruning must keep.
+fn in_use(value: &Appearance) -> Vec<String> {
+    [
+        upload_id(&value.background),
+        upload_id(&value.sidebar_background),
+    ]
+    .into_iter()
+    .flatten()
+    .map(str::to_string)
+    .collect()
+}
 
 // IDs are checked against the owner's own library, never used as paths unvalidated.
 pub(crate) async fn resolve(s: &AppState, user: &str, value: &mut Appearance) -> Result<bool> {
-    if let Some(id) = selected(value) {
-        if !is_id(id) || tokio::fs::metadata(folder(s, user).join(id)).await.is_err() {
-            value.background = None;
-            return Ok(true);
+    let mut missing = false;
+    for slot in [&mut value.background, &mut value.sidebar_background] {
+        if let Some(id) = upload_id(slot) {
+            if !is_id(id) || tokio::fs::metadata(folder(s, user).join(id)).await.is_err() {
+                *slot = None;
+                missing = true;
+            }
         }
     }
-    Ok(false)
+    Ok(missing)
 }
 
 async fn remove_image(s: &AppState, user: &str, id: &str) -> Result<()> {
@@ -242,9 +259,9 @@ pub(crate) async fn put(
         *current = id.clone();
         appearance::save(&s, &a.user.id, &value).await?;
     }
-    let keep = selected(&value).map(str::to_string);
+    let keep = in_use(&value);
     for old in library(&s, &a.user.id).await?.into_iter().skip(LIBRARY) {
-        if Some(&old.id) != keep.as_ref() && old.id != id {
+        if !keep.contains(&old.id) && old.id != id {
             remove_image(&s, &a.user.id, &old.id).await?;
         }
     }
@@ -325,8 +342,14 @@ pub(crate) async fn remove(State(s): State<AppState>, a: Auth) -> Result<StatusC
 async fn forget(s: &AppState, user: &str, id: &str) -> Result<()> {
     remove_image(s, user, id).await?;
     let mut value = appearance::load(s, user).await?;
-    if selected(&value) == Some(id) {
-        value.background = None;
+    let mut changed = false;
+    for slot in [&mut value.background, &mut value.sidebar_background] {
+        if upload_id(slot) == Some(id) {
+            *slot = None;
+            changed = true;
+        }
+    }
+    if changed {
         appearance::save(s, user, &value).await?;
     }
     Ok(())
