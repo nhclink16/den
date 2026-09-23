@@ -145,6 +145,11 @@ kbd {
   background: color-mix(in srgb, var(--bg2) 82%, transparent);
   backdrop-filter: blur(8px);
 }
+/* Settings are forms, not a view of the wallpaper: give them a page to sit on. */
+:root[data-bg-scope='app'] .settings .body, :root[data-bg-scope='chat'] .settings .body {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
 
 /* One focus treatment for every text field. Three of them used to zero the outline
    and put back a border too faint to see. :where() keeps specificity at zero so a
