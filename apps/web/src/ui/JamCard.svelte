@@ -87,18 +87,26 @@
       <div class="wash" style="background-image:url({playing.album_art})" aria-hidden="true"></div>
     {/if}
 
-    <div class="art" aria-hidden="true">
-      {#if playing?.album_art && !artFailed}
-        <img src={playing.album_art} alt="" referrerpolicy="no-referrer" onerror={() => (artFailed = true)} />
-      {:else}
-        <Icon name="music" size={20} />
+    <!-- The sleeve, with the record sliding out of it while a track is up. The
+         record spins only while Spotify reports playback, so paused reads as paused. -->
+    <div class="sleeve" class:out={!!playing} class:spinning={!!playing?.is_playing} aria-hidden="true">
+      {#if playing}
+        <span class="record" style={playing.album_art && !artFailed ? `--label:url(${JSON.stringify(playing.album_art)})` : ''}></span>
       {/if}
+      <div class="art">
+        {#if playing?.album_art && !artFailed}
+          <img src={playing.album_art} alt="" referrerpolicy="no-referrer" onerror={() => (artFailed = true)} />
+        {:else}
+          <Icon name="music" size={22} />
+        {/if}
+      </div>
     </div>
 
     <div class="copy">
       <span class="eyebrow">
-        {#if playing}<span class="pulse" class:paused={!playing.is_playing} aria-hidden="true"></span>{/if}
-        {playing ? (playing.is_playing ? 'Jam · now playing' : 'Jam · paused') : 'Spotify Jam'}
+        <svg class="spotify" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor" /><path d="M4 6.2c2.7-.8 5.6-.5 8 .9M4.5 8.6c2.2-.6 4.6-.4 6.6.8M5 10.9c1.8-.4 3.6-.2 5.1.6" fill="none" stroke="var(--jam-bg)" stroke-width="1.2" stroke-linecap="round" /></svg>
+        <span class="brand" class:playing={!!playing}>Spotify Jam</span>
+        {#if playing}<span class="sep" aria-hidden="true">·</span><span class="state" class:paused={!playing.is_playing}>{playing.is_playing ? 'Now playing' : 'Paused'}</span>{/if}
       </span>
       <h2 class="display" title={playing ? `${playing.track} — ${playing.artists}` : undefined}>
         {playing ? playing.track : 'Listening together'}
@@ -106,6 +114,7 @@
       <p class="line" class:has-track={!!playing}>
         {#if playing}<span class="artists">{playing.artists}</span><span class="dot" aria-hidden="true">·</span>{/if}
         <span class="starter">Started by {owner.name(jam.host_id)}</span>
+        {#if duration > 0}<span class="clock mono" aria-hidden="true">{time(elapsed)} / {time(duration)}</span>{/if}
         {#if hint}<a class="hint" href="/settings/spotify" title={hint.title} onclick={settings}>{hint.label}</a>{/if}
       </p>
     </div>
@@ -113,7 +122,7 @@
     {#if joined.length}
       <div class="who" title="Den members who opened this Jam from here. Spotify does not say who is listening.">
         <span class="faces">
-          {#each joined.slice(0, FACES) as id (id)}<Avatar userId={id} size={24} instance={owner} />{/each}
+          {#each joined.slice(0, FACES) as id (id)}<Avatar userId={id} size={26} instance={owner} presence={false} />{/each}
           {#if overflow}<span class="more">+{overflow}</span>{/if}
         </span>
         <span class="who-label">Joined from Den</span>
@@ -142,82 +151,121 @@
 
 <style>
   .jam {
+    --jam-bg: var(--bg-2);
     position: relative; isolation: isolate; overflow: hidden;
-    display: flex; align-items: center; gap: 14px;
-    padding: 10px var(--gutter) 12px;
-    background: var(--bg-2);
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px var(--gutter) 14px;
+    background: var(--jam-bg);
     border-bottom: 1px solid var(--line);
   }
-  /* The art, blurred past recognition, fading out before the text starts. Pure
-     atmosphere: it carries no information and is hidden from assistive tech. */
+  /* The art, blurred past recognition, strongest behind the sleeve and gone by the
+     controls. Pure atmosphere: it carries no information and is hidden from AT. */
   .wash {
-    position: absolute; inset: -40%; z-index: -2;
+    position: absolute; inset: -60% 30% -60% -10%; z-index: -2;
     background-size: cover; background-position: center;
-    filter: blur(50px) saturate(1.6); opacity: 0.45;
+    filter: blur(44px) saturate(1.7); opacity: 0.75;
   }
-  /* The scrim sits between the wash and the content, thickening toward the
-     controls so every word on the strip keeps its contrast. */
+  /* The scrim thickens toward the text and controls so every word keeps its contrast. */
   .jam.with-art::before {
     content: ''; position: absolute; inset: 0; z-index: -1;
     background: linear-gradient(to right,
-      color-mix(in srgb, var(--bg-2) 66%, transparent),
-      color-mix(in srgb, var(--bg-2) 86%, transparent) 55%,
-      var(--bg-2));
+      color-mix(in srgb, var(--jam-bg) 35%, transparent),
+      color-mix(in srgb, var(--jam-bg) 78%, transparent) 150px,
+      color-mix(in srgb, var(--jam-bg) 90%, transparent) 55%,
+      var(--jam-bg));
   }
 
+  /* Sleeve and record. The record is a pressed disc: grooves, a sheen, and the
+     cover as its centre label. */
+  .sleeve { position: relative; flex: none; width: 58px; height: 58px; transition: margin-right .5s var(--ease-out); }
+  .sleeve.out { margin-right: 24px; }
   .art {
-    flex: none; width: 46px; height: 46px; border-radius: var(--r);
+    position: relative; z-index: 1; width: 100%; height: 100%; border-radius: var(--r);
     display: grid; place-items: center; overflow: hidden;
     background: var(--bg-3); color: var(--lamp);
-    box-shadow: 0 2px 10px var(--shadow);
+    box-shadow: 0 1px 0 color-mix(in srgb, #fff 12%, transparent) inset, 0 6px 18px -4px var(--shadow-lg);
   }
   .art img { width: 100%; height: 100%; object-fit: cover; }
+  .record {
+    position: absolute; inset: 3px; border-radius: 50%;
+    background: repeating-radial-gradient(circle, #151515 0 1.5px, #1f1f1f 1.5px 3px);
+    box-shadow: 0 4px 14px -4px rgba(0, 0, 0, .6);
+    -webkit-mask: radial-gradient(circle, transparent 0 3%, #000 3.5%);
+    mask: radial-gradient(circle, transparent 0 3%, #000 3.5%);
+    transition: transform .6s var(--ease-out);
+  }
+  /* A sheen across the grooves; the cover, cropped round, is the centre label. */
+  .record::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 30deg, transparent 0 10%, rgba(255, 255, 255, .09) 14%, transparent 22% 55%, rgba(255, 255, 255, .06) 60%, transparent 68%);
+  }
+  .record::after {
+    content: ''; position: absolute; inset: 28%; border-radius: 50%;
+    background: var(--label, var(--lamp)) center / cover no-repeat, var(--lamp);
+    box-shadow: 0 0 0 2px #0a0a0a;
+  }
+  .sleeve.out .record { transform: translateX(26px); }
+  @media (prefers-reduced-motion: no-preference) {
+    .sleeve.spinning .record::after, .sleeve.spinning .record::before { animation: spin 3.2s linear infinite; }
+  }
+  @keyframes spin { to { transform: rotate(1turn); } }
 
-  .copy { min-width: 0; flex: 1; display: grid; gap: 1px; }
+  .copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
   /* Grid items default to min-width:auto, which would stop the strip shrinking. */
   .copy > * { min-width: 0; }
-  .eyebrow { display: flex; align-items: center; gap: 6px; font-size: 10px; }
-  .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 0 2px var(--lamp-glow); }
-  .pulse.paused { background: var(--ink-3); box-shadow: none; }
+  .eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  .spotify { width: 13px; height: 13px; flex: none; color: var(--ink); }
+  .sep { color: var(--ink-3); }
+  .state { color: var(--lamp); }
+  .state.paused { color: var(--ink-3); }
 
-  h2 { margin: 0; font-size: 15px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  h2 { margin: 0; font-size: 17px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .line {
-    margin: 0; font-size: 12px; color: var(--ink-2);
+    margin: 0; font-size: 13px; color: var(--ink-2);
     display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden;
   }
-  .artists { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .artists { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--ink); }
   .dot { color: var(--ink-3); }
-  .starter { white-space: nowrap; color: var(--ink-3); }
+  .starter { white-space: nowrap; color: var(--ink-2); }
+  .clock { margin-left: auto; padding-left: 10px; white-space: nowrap; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .hint { white-space: nowrap; border-bottom: 1px dotted currentColor; }
   .hint:hover { text-decoration: none; }
 
-  .who { flex: none; display: grid; justify-items: center; gap: 2px; }
+  .who { flex: none; display: grid; justify-items: center; gap: 4px; }
   .faces { display: flex; }
-  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--bg-2); border-radius: var(--r-avatar, 35%); }
+  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--jam-bg); border-radius: var(--r-avatar, 35%); }
   .faces > :global(*:first-child) { margin-left: 0; }
   .more {
-    display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-avatar, 35%);
-    background: var(--bg-3); color: var(--ink-2); font: 11px/1 var(--mono);
+    display: grid; place-items: center; width: 26px; height: 26px; margin-left: -7px; border-radius: var(--r-avatar, 35%);
+    background: var(--bg-3); color: var(--ink-2); font: 11px/1 var(--mono); box-shadow: 0 0 0 2px var(--jam-bg);
   }
-  .who-label { font: 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+  .who-label { font: 11px var(--mono); letter-spacing: 0.04em; color: var(--ink-2); }
 
   .actions { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; }
   .open { text-decoration: none; }
   .open:hover { text-decoration: none; }
 
-  /* Progress sits on the card's own bottom edge, replacing the hairline there. */
-  .rail { position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: var(--line); }
+  /* Progress sits on the card's own bottom edge, replacing the hairline there,
+     and the playhead carries the glow. */
+  .rail { position: absolute; inset-inline: 0; bottom: 0; height: 3px; background: color-mix(in srgb, var(--ink) 10%, transparent); }
   .rail span {
     display: block; height: 100%; width: 100%; transform-origin: left;
-    background: var(--lamp); transition: transform 0.5s linear;
+    background: linear-gradient(90deg, var(--lamp-dim), var(--lamp)); box-shadow: var(--glow);
+    transition: transform 0.5s linear;
   }
   .jam-error { margin: 0; padding: 6px var(--gutter); font-size: 12px; color: var(--danger); background: var(--bg-2); border-bottom: 1px solid var(--line); }
 
   @media (max-width: 760px) {
-    .jam { gap: 10px; padding-inline: 10px; }
+    .jam { gap: 12px; padding-inline: 10px; }
+    .sleeve { width: 48px; height: 48px; }
+    .sleeve.out { margin-right: 12px; }
+    .sleeve.out .record { transform: translateX(14px); }
+    h2 { font-size: 15px; }
     /* With a track showing, the artists earn the room; without one the host line
        is all there is, so it stays. */
-    .line.has-track .starter, .line.has-track .dot { display: none; }
+    .line.has-track .starter, .line.has-track .dot, .clock { display: none; }
+    /* The icon still says Spotify; the words give way to the playing state. */
+    .brand.playing, .brand.playing + .sep { display: none; }
     /* Same prompt lives in Settings; the strip does not have room for it here. */
     .hint { display: none; }
   }
