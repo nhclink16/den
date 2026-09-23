@@ -10,6 +10,7 @@
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
+  import { anchor, type Anchor } from '../lib/jam-clock'
 
   let { channelId, owner = store }: { channelId: string; owner?: Store } = $props()
 
@@ -28,15 +29,18 @@
   $effect(() => { void playing?.album_art; artFailed = false })
 
   // --- live progress -------------------------------------------------------
-  // `sampled_at` is the server's clock. Comparing it to Date.now() would bake in
-  // any skew, so anchor on when this browser received the sample instead, the way
-  // MusicPanel anchors on musicReceivedAt.
+  // `sampled_at` is the server's clock, so it is never compared to Date.now().
+  // The server re-serves a cached sample for a few seconds; anchor() keeps the
+  // running clock for a repeat and places a newer sample by the gap between them.
   let clock = $state(Date.now())
-  let base = $state({ at: Date.now(), ms: 0 })
-  $effect(() => { base = { at: Date.now(), ms: playing?.progress_ms ?? 0 } })
+  let base = $state<Anchor | null>(null)
+  $effect(() => {
+    const p = playing
+    base = p ? anchor(base, { track: `${p.track}\u0000${p.artists}`, sampled_at: p.sampled_at, progress_ms: p.progress_ms ?? 0 }, Date.now()) : null
+  })
   const duration = $derived(playing?.duration_ms ?? 0)
   const elapsed = $derived(
-    Math.max(0, Math.min(duration || Infinity, base.ms + (playing?.is_playing ? clock - base.at : 0))),
+    Math.max(0, Math.min(duration || Infinity, base ? base.ms + (playing?.is_playing ? clock - base.at : 0) : 0)),
   )
   const fraction = $derived(duration > 0 ? Math.min(1, elapsed / duration) : 0)
   const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`

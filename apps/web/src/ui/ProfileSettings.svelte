@@ -2,6 +2,7 @@
   // Your profile, edited beside the card everyone else sees. Text fields save
   // together; pictures upload as soon as they are chosen, because the server
   // needs the bytes to answer with the new URL anyway.
+  import { untrack as untracked } from 'svelte'
   import { store } from '../lib/store.svelte'
   import type { User, UserStatus } from '../lib/types'
   import UserCard from './UserCard.svelte'
@@ -16,12 +17,21 @@
 
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
-    emoji = me.status?.emoji ?? ''; statusText = me.status?.text ?? ''; clearAfter = 'never'
+    emoji = me.status?.emoji ?? ''; statusText = me.status?.text ?? ''
+    // A status that already clears later keeps that time unless you pick another.
+    clearAfter = me.status?.expires_at ? 'keep' : 'never'
     error = ''
   }
-  // Load once, and again only if the saved profile changes underneath an untouched form.
+  // Load once, and again only if the saved profile changes underneath an untouched
+  // form: an edit from another device, or a status timing out, must not wipe typing.
   let loadedFor = ''
-  $effect(() => { const key = JSON.stringify([me.display_name, me.bio, me.accent, me.status]); if (key !== loadedFor) { loadedFor = key; reset() } })
+  $effect(() => {
+    const key = JSON.stringify([me.display_name, me.bio, me.accent, me.status])
+    if (key === loadedFor) return
+    if (!loadedFor || !untracked(() => dirty)) reset()
+    loadedFor = key
+  })
+  const keepUntil = $derived(me.status?.expires_at ? new Date(me.status.expires_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
   const graphemes = (s: string) => [...new Intl.Segmenter().segment(s)].length
   const BIO_MAX = 190, STATUS_MAX = 60
@@ -30,6 +40,7 @@
     if (clearAfter === '30m') return now + 1800
     if (clearAfter === '1h') return now + 3600
     if (clearAfter === '4h') return now + 4 * 3600
+    if (clearAfter === 'keep') return me.status?.expires_at ?? null
     if (clearAfter === 'today') { const d = new Date(); d.setHours(23, 59, 59, 0); return Math.floor(d.getTime() / 1000) }
     return null
   }
@@ -37,7 +48,7 @@
   const draft = $derived<Partial<User>>({ display_name: displayName.trim() || me.username, bio: bio.trim() || null, accent, status })
   const dirty = $derived(
     displayName !== me.display_name || (bio.trim() || null) !== (me.bio ?? null) || accent !== (me.accent ?? null)
-    || (emoji.trim() || null) !== (me.status?.emoji ?? null) || (statusText.trim() || null) !== (me.status?.text ?? null) || clearAfter !== 'never',
+    || (emoji.trim() || null) !== (me.status?.emoji ?? null) || (statusText.trim() || null) !== (me.status?.text ?? null) || clearAfter !== (me.status?.expires_at ? 'keep' : 'never'),
   )
   const problem = $derived(
     !displayName.trim() ? 'Your name can’t be empty.'
@@ -198,6 +209,7 @@
         <SettingRow label="Clear after" hint="Statuses go away on their own if you like.">
           {#snippet control()}
             <select class="field" bind:value={clearAfter} aria-label="Clear status after">
+              {#if keepUntil}<option value="keep">Keep current (clears {keepUntil})</option>{/if}
               <option value="never">Don't clear</option>
               <option value="30m">30 minutes</option>
               <option value="1h">1 hour</option>

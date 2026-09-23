@@ -4,6 +4,7 @@
   // where `draft` overlays unsaved edits on the saved profile.
   import { store, type Store } from '../lib/store.svelte'
   import { mediaUrl } from '../lib/native'
+  import { liveStatus } from '../lib/status'
   import { personHue } from '../lib/people.svelte'
   import type { User } from '../lib/types'
   import Avatar from './Avatar.svelte'
@@ -19,7 +20,10 @@
   const name = $derived(user ? user.display_name || user.username : 'Someone')
   const online = $derived(instance.online.has(userId))
   const hue = $derived(personHue(userId, user))
-  const status = $derived(user?.status && (user.status.emoji || user.status.text) ? user.status : null)
+  // Re-checked every half minute so a status that times out while the card is open goes.
+  let now = $state(Date.now())
+  $effect(() => { const id = setInterval(() => (now = Date.now()), 30_000); return () => clearInterval(id) })
+  const status = $derived(liveStatus(user?.status, now))
   const me = $derived(userId === instance.me?.id)
 </script>
 

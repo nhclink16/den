@@ -84,7 +84,9 @@
   <CallDock />
   <div class="me">
     {#if store.me}
-      <button class="me-card" aria-haspopup="dialog" onclick={(e) => profileCard.open(store.me!.id, e.currentTarget, instances.active)}>
+      <!-- In the phone drawer (a modal dialog) a popover outside it would be inert,
+           so there the row goes straight to your profile instead. -->
+      <button class="me-card" aria-haspopup={narrow ? undefined : 'dialog'} onclick={(e) => narrow ? router.go('/settings/profile') : profileCard.open(store.me!.id, e.currentTarget, instances.active)}>
         <Avatar userId={store.me.id} size={28} />
         <span class="name">{store.me.display_name || store.me.username}</span>
       </button>
