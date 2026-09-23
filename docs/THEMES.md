@@ -189,12 +189,15 @@ M9's validation policy and are not silently modified to meet a contrast target.
 `background` is nullable. A built-in selection is stored as:
 
 ```json
-{"source":{"type":"builtin","name":"aurora"},"blur":8,"dim":20,"saturate":100,"scope":"app","fit":"cover"}
+{"source":{"type":"builtin","name":"lamplight"},"blur":8,"dim":20,"saturate":100,"scope":"app","fit":"cover"}
 ```
 
-The six names are `aurora`, `dunes`, `harbor`, `ember-sky`, `slate-mist`, and
-`grain`. Clients render these as CSS gradients using the active theme colors;
-the server stores names and has no preset image assets. An account image uses
+The six presets are `lamplight`, `doorway`, `contours`, `plaid`, `clearing` and
+`paper` (`apps/web/src/lib/wallpapers.ts`). Clients paint them as SVG or CSS
+gradients from the active theme's colors; the server stores names and has no
+preset image assets. The retired names `ember-sky`, `harbor`, `dunes`,
+`slate-mist`, `aurora` and `grain` are still accepted and load as those six, in
+that order. An account image uses
 `{"type":"upload","id":"<opaque content ID>"}` instead. Scope is `app`,
 `sidebar`, or `chat`; fit is `cover`, `contain`, or `tile`.
 
@@ -204,33 +207,41 @@ saturate 50–150 percent. Appearance's `contrast` defaults to 100 and clamps to
 stores the number without changing palette colors. Save responses and private
 `appearance_updated` events contain the clamped values.
 
-- `PUT /users/me/background/image` accepts a raw PNG, JPEG, WebP or GIF body,
-  with its matching `image/*` content type and an 8 MiB limit. It must decode
-  with the thumbnail limits: 8192 pixels on either axis, 16 million pixels total,
-  and a 64 MiB decoder allocation cap. Returns `{id,content_type,size,width,height}`;
-  dimensions account for image orientation. Invalid images return 400, oversized
-  bodies 413, and unsupported content types 415. Failed validation preserves the
-  previous file.
-- The ID is an opaque SHA-256 content ID, not an entity ULID or a download path.
-  Replacement changes it when bytes change. If an upload is already selected,
-  replacement updates its reference and emits the owner's appearance event.
-- `GET /users/me/background/image` serves only the authenticated account's image.
-  Another account without its own image receives 404. Responses carry an ETag,
+Each account keeps a library of its uploads: the newest 24, pruned oldest first.
+Uploading the same bytes twice stores them once.
+
+- `PUT /users/me/background/image` adds a raw PNG, JPEG, WebP or GIF body (its
+  matching `image/*` content type, at most 16 MiB) to the library and returns
+  `{id,content_type,size,width,height,uploaded_at}`. Images may be up to 12,000
+  pixels on a side and 40 megapixels, with a 256 MiB decoder allocation cap;
+  dimensions account for orientation. Refusals name the problem: the size and
+  the limit for oversized images, the 16-bit color hint when decoding would need
+  too much memory, a damaged-file message otherwise. 413 for bodies over the cap,
+  415 for other content types. If an upload is already selected, the selection
+  moves to the new image (the pre-library meaning of "replace").
+- The web client scales anything its browser can open to at most 3840 pixels on
+  the long edge and sends a JPEG, so phone photos and 5K screenshots never meet
+  those limits. GIFs are sent untouched to keep their animation.
+- `GET /users/me/backgrounds` lists the library, newest first.
+  `GET /users/me/backgrounds/{id}` serves an original and `/preview` a JPEG at most
+  480 pixels on its long edge; `DELETE /users/me/backgrounds/{id}` removes one and
+  clears the selection if it was in use. IDs are SHA-256 content hashes and only
+  ever resolve inside the caller's own library.
+- `GET /users/me/background/image` still serves the selected upload, or the newest
+  one, and `DELETE` removes that one. Responses carry an ETag,
   `Cache-Control: private, max-age=3600`, and `Vary: Authorization, Cookie`;
-  matching `If-None-Match` receives 304. Clients should include the returned ID
-  in a query parameter when displaying a replacement to avoid an old cached body.
-- `DELETE /users/me/background/image` returns 204, including when already absent.
-  It clears a selected upload background and sends the private appearance event.
+  matching `If-None-Match` receives 304.
 - Both appearance endpoints return `background: null` with
-  `X-Den-Background-Status: missing` if the requested upload ID does not match the
-  owner's existing file. A missing file never blocks loading the other settings.
-  Native and web clients can use the header to explain the missing image.
+  `X-Den-Background-Status: missing` if the selected upload is not in the owner's
+  library. A missing file never blocks loading the other settings.
 
 Cookie-authenticated image writes require the same CSRF and Origin checks as
-other writes. Images live at `DEN_UPLOADS/backgrounds/<user id>`, one file per
-account with atomic replacement, separate from channel uploads. Offline export
-and import include those files and check archive hashes and paths. Temporary
-replacement files are not archived.
+other writes. Images live at `DEN_UPLOADS/backgrounds/<user id>/<sha256>` with
+`<sha256>.jpg` previews beside them. Before the library each account had one file
+at `DEN_UPLOADS/backgrounds/<user id>`; startup moves it into the library, keeping
+it selected. Offline export and import carry both layouts and check archive
+hashes and paths. The desktop app loads these images, profile pictures and
+banners through its `den-media:` protocol with the stored session.
 
 ## Native clients
 

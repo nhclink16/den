@@ -1,5 +1,10 @@
 use super::*;
 
+fn content_id_of(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    format!("{:x}", sha2::Sha256::digest(bytes))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn backgrounds_are_private_bounded_and_portable() {
     use std::{io::Cursor, process::Command};
@@ -19,14 +24,17 @@ async fn backgrounds_are_private_bounded_and_portable() {
             .status(),
         404
     );
-    for name in [
-        "aurora",
-        "dunes",
-        "harbor",
-        "ember-sky",
-        "slate-mist",
-        "grain",
-        "unknown",
+    // Retired preset names still load, as the preset that replaced them.
+    for (name, now) in [
+        ("lamplight", "lamplight"),
+        ("paper", "paper"),
+        ("aurora", "clearing"),
+        ("dunes", "contours"),
+        ("harbor", "doorway"),
+        ("ember-sky", "lamplight"),
+        ("slate-mist", "plaid"),
+        ("grain", "paper"),
+        ("unknown", ""),
     ] {
         let mut preference = json!(Appearance::default());
         preference["background"] = json!({"source":{"type":"builtin","name":name},"blur":-1,"dim":999,"saturate":-1,"scope":"sidebar","fit":"tile"});
@@ -44,6 +52,7 @@ async fn backgrounds_are_private_bounded_and_portable() {
             assert_eq!(bounded["background"]["blur"], 0);
             assert_eq!(bounded["background"]["dim"], 80);
             assert_eq!(bounded["background"]["saturate"], 50);
+            assert_eq!(bounded["background"]["source"]["name"], now);
         }
     }
     let mut png = Cursor::new(Vec::new());
@@ -92,7 +101,7 @@ async fn backgrounds_are_private_bounded_and_portable() {
     assert_eq!(
         t.req(Method::PUT, path, &alice.token)
             .header("Content-Type", "image/png")
-            .body(vec![0; 8 * 1024 * 1024 + 1])
+            .body(vec![0; 16 * 1024 * 1024 + 1])
             .send()
             .await
             .unwrap()
@@ -141,20 +150,32 @@ async fn backgrounds_are_private_bounded_and_portable() {
             .status(),
         403
     );
-    let mut huge = Cursor::new(Vec::new());
-    image::DynamicImage::new_rgb8(8193, 1)
-        .write_to(&mut huge, image::ImageFormat::Png)
-        .unwrap();
-    assert_eq!(
-        t.req(Method::PUT, path, &alice.token)
+    // Wider than attachments allow is fine for a wallpaper; past 12,000 px is
+    // refused with the size and the limit, not a generic decoding error.
+    for (width, ok) in [(8193, true), (12_001, false)] {
+        let mut wide = Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(width, 1)
+            .write_to(&mut wide, image::ImageFormat::Png)
+            .unwrap();
+        let r = t
+            .req(Method::PUT, path, &alice.token)
             .header("Content-Type", "image/png")
-            .body(huge.into_inner())
+            .body(wide.into_inner())
             .send()
             .await
-            .unwrap()
-            .status(),
-        400
-    );
+            .unwrap();
+        if ok {
+            assert_eq!(r.status(), 200);
+        } else {
+            assert_eq!(r.status(), 400);
+            let e: ApiError = r.json().await.unwrap();
+            assert!(
+                e.message.contains("12001×1") && e.message.contains("40 megapixels"),
+                "{}",
+                e.message
+            );
+        }
+    }
     let mut value = json!(Appearance::default());
     value["contrast"] = json!(900);
     value["background"] = json!({"source":{"type":"upload","id":metadata.id},"blur":900,"dim":-20,"saturate":900,"scope":"app","fit":"cover"});
@@ -184,7 +205,12 @@ async fn backgrounds_are_private_bounded_and_portable() {
     assert!(missing["background"].is_null());
     assert_eq!(missing["contrast"], 80);
     // Missing files do not prevent loading an otherwise valid preference.
-    let file = t.state.uploads.join("backgrounds").join(&alice.user.id);
+    let file = t
+        .state
+        .uploads
+        .join("backgrounds")
+        .join(&alice.user.id)
+        .join(&metadata.id);
     std::fs::remove_file(&file).unwrap();
     let missing = t
         .req(Method::GET, "/users/me/appearance", &alice.token)
@@ -194,7 +220,7 @@ async fn backgrounds_are_private_bounded_and_portable() {
     assert_eq!(missing.status(), 200);
     assert_eq!(missing.headers()["x-den-background-status"], "missing");
     assert!(missing.json::<Value>().await.unwrap()["background"].is_null());
-    // Replacements retain one file and update an already-selected upload.
+    // New uploads join the library and move an already-selected upload along.
     for format in [
         image::ImageFormat::Jpeg,
         image::ImageFormat::WebP,
@@ -214,10 +240,15 @@ async fn backgrounds_are_private_bounded_and_portable() {
             .unwrap();
         assert_eq!(response.status(), 200);
     }
-    assert_eq!(
-        std::fs::read_dir(file.parent().unwrap()).unwrap().count(),
-        1
-    );
+    let library: Vec<BackgroundImage> = t
+        .req(Method::GET, "/users/me/backgrounds", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(library.len(), 5, "the 8193 px strip and four formats");
     let replacement = t
         .req(Method::GET, path, &alice.token)
         .header("If-None-Match", etag)
@@ -256,9 +287,24 @@ async fn backgrounds_are_private_bounded_and_portable() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    let selected = content_id_of(&replacement);
     assert_eq!(
-        std::fs::read(restored.join("uploads/backgrounds").join(&alice.user.id)).unwrap(),
+        std::fs::read(
+            restored
+                .join("uploads/backgrounds")
+                .join(&alice.user.id)
+                .join(&selected)
+        )
+        .unwrap(),
         replacement
+    );
+    assert!(
+        restored
+            .join("uploads/backgrounds")
+            .join(&alice.user.id)
+            .join(format!("{selected}.jpg"))
+            .exists(),
+        "previews travel too"
     );
     let state = AppState::open(
         restored.join("den.db"),
@@ -310,20 +356,23 @@ async fn backgrounds_are_private_bounded_and_portable() {
             .status(),
         204
     );
-    assert_eq!(
-        t.http
-            .get(format!("{restored_url}{path}"))
-            .bearer_auth(&alice.token)
-            .send()
-            .await
-            .unwrap()
-            .status(),
-        404
-    );
+    // Only the image in use goes; the rest of the library stays.
     assert!(!restored
         .join("uploads/backgrounds")
         .join(&alice.user.id)
+        .join(&selected)
         .exists());
+    let left: Vec<BackgroundImage> = t
+        .http
+        .get(format!("{restored_url}/users/me/backgrounds"))
+        .bearer_auth(&alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(left.len(), 4);
     let appearance: Value = t
         .http
         .get(format!("{restored_url}/users/me/appearance"))

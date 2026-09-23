@@ -173,12 +173,21 @@ fn clamped<'de, D: serde::Deserializer<'de>, const MIN: u8, const MAX: u8>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum BackgroundBuiltin {
-    Aurora,
-    Dunes,
-    Harbor,
-    EmberSky,
-    SlateMist,
-    Grain,
+    // Painted by clients from the active palette. The first six names were
+    // retired in the wallpaper redesign; saved choices still load as the nearest
+    // new preset, so nobody's background disappears.
+    #[serde(alias = "ember-sky")]
+    Lamplight,
+    #[serde(alias = "harbor")]
+    Doorway,
+    #[serde(alias = "dunes")]
+    Contours,
+    #[serde(alias = "slate-mist")]
+    Plaid,
+    #[serde(alias = "aurora")]
+    Clearing,
+    #[serde(alias = "grain")]
+    Paper,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -224,4 +233,7 @@ pub struct BackgroundImage {
     pub size: u64,
     pub width: u32,
     pub height: u32,
+    /// Unix seconds when it was uploaded. Absent from servers before the library.
+    #[serde(default)]
+    pub uploaded_at: i64,
 }

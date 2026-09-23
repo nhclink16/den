@@ -197,6 +197,7 @@ impl AppState {
         activity::backfill(&state)
             .await
             .map_err(|e| anyhow::anyhow!("Mention indexing failed: {}", e.2))?;
+        backgrounds::migrate(&state).await?;
         Ok(state)
     }
     /// Override the external music executables before starting the server.
@@ -348,6 +349,15 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             get(backgrounds::get)
                 .put(backgrounds::put)
                 .delete(backgrounds::remove),
+        )
+        .route("/users/me/backgrounds", get(backgrounds::list))
+        .route(
+            "/users/me/backgrounds/{id}",
+            get(backgrounds::image).delete(backgrounds::delete),
+        )
+        .route(
+            "/users/me/backgrounds/{id}/preview",
+            get(backgrounds::preview),
         )
         .route(
             "/users/me/voice",
