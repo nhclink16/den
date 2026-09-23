@@ -16,5 +16,5 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: bash scripts/npm-ci.sh --prefix apps/web
       - run: npm --prefix apps/web run check
-      - run: node --experimental-strip-types --test scripts/streams-source.test.ts scripts/m7c-layout.test.ts scripts/mentions.test.ts scripts/login-pattern.test.ts scripts/canvas-attachments.test.ts scripts/conversation-drafts.test.ts scripts/read-state.test.ts scripts/thread-state.test.ts scripts/thread-navigation.test.ts scripts/message-fetch.test.ts scripts/store-paging.test.ts scripts/message-display.test.ts scripts/jam-clock.test.ts
+      - run: node --experimental-strip-types --test scripts/streams-source.test.ts scripts/m7c-layout.test.ts scripts/mentions.test.ts scripts/login-pattern.test.ts scripts/canvas-attachments.test.ts scripts/conversation-drafts.test.ts scripts/read-state.test.ts scripts/thread-state.test.ts scripts/thread-navigation.test.ts scripts/message-fetch.test.ts scripts/store-paging.test.ts scripts/message-display.test.ts scripts/jam-clock.test.ts scripts/wallpapers.test.ts
       - run: npm --prefix apps/web run build
