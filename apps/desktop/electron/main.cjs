@@ -1,10 +1,11 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, desktopCapturer, dialog, Menu, shell, screen, safeStorage } = require('electron')
+const { app, BrowserWindow, ipcMain, protocol, net, session, desktopCapturer, dialog, Menu, shell, screen, safeStorage, powerMonitor } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
+const { activity } = require('./activity.cjs')
 app.setName('Den')
 app.setAppUserModelId('app.denchat.desktop')
 if (process.env.DEN_DESKTOP_DATA) app.setPath('userData', path.resolve(process.env.DEN_DESKTOP_DATA))
@@ -63,7 +64,7 @@ async function start() {
     if (Number.isInteger(saved.width) && Number.isInteger(saved.height) && saved.width >= 900 && saved.height >= 600 && screen.getAllDisplays().some(d => saved.x < d.workArea.x + d.workArea.width && saved.x + saved.width > d.workArea.x && saved.y < d.workArea.y + d.workArea.height && saved.y + saved.height > d.workArea.y)) bounds = saved
   } catch { /* first launch */ }
   window = new BrowserWindow({ ...bounds, minWidth: 900, minHeight: 600, title: 'Den', icon: path.join(__dirname, '../icons/icon.png'), ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}), webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } })
-  const native = features(window, emit, focus), updates = updater()
+  const native = features(window, emit, focus), updates = updater(), doing = activity(emit, powerMonitor)
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null)
   window.on('close', event => { fs.writeFileSync(boundsFile, JSON.stringify(window.getNormalBounds()), { mode: 0o600 }); if (!quitting) { event.preventDefault(); window.hide() } })
   window.on('blur', () => emit('window-background', null))
@@ -82,6 +83,7 @@ async function start() {
     instances_get: () => store.origins(), instances_set: a => store.remember(a.origins), api_request: a => apiRequest(store, a),
     ptt_register: a => native.pttRegister(a.key), tray_state: a => native.trayState(a), notify: a => native.notify(a), badge: a => native.badge(a.count),
     deep_links: () => pendingLinks.splice(0), update_check: () => app.isPackaged ? updates.check() : false, update_restart: () => updates.restart(),
+    activity_current: () => doing.current(),
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !trusted(event.senderFrame.url) || !Object.hasOwn(commands, command)) throw Error('Desktop command denied')
