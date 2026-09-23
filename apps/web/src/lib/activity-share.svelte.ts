@@ -2,16 +2,16 @@
 // it and keeps it alive on every signed-in server. Settings are per device, and
 // sharing starts on: the app name is all that ever leaves the machine.
 import { native, invoke, listen } from './native'
-import { instances } from './store.svelte'
+import { instances, store } from './store.svelte'
 import type { ActivityKind } from './types'
 
 type Detected = { kind: ActivityKind; name: string }
-type Prefs = { share: boolean; hidden: string[]; seen: string[] }
+type Prefs = { share: boolean; hidden: string[]; seen: string[]; noticed: boolean }
 const KEY = 'den.activity'
 const REFRESH = 60_000, TTL = 90
 
 function load(): Prefs {
-  const fallback: Prefs = { share: true, hidden: [], seen: [] }
+  const fallback: Prefs = { share: true, hidden: [], seen: [], noticed: false }
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(KEY) || '{}') } } catch { return fallback }
 }
 
@@ -31,6 +31,11 @@ class ActivityShare {
     this.attached = true
     const receive = (d: Detected | null) => {
       this.detected = d
+      // Sharing starts on, so say so once, the first time there is something to share.
+      if (d && this.prefs.share && !this.prefs.noticed) {
+        store.toast = `People can now see what you're playing or using, like "${d.kind === 'playing' ? 'Playing' : 'Using'} ${d.name}". Turn it off or hide apps in Settings › Profile › Activity.`
+        this.save({ noticed: true })
+      }
       if (d && !this.prefs.seen.includes(d.name)) this.save({ seen: [d.name, ...this.prefs.seen].slice(0, 20) })
       void this.push()
     }

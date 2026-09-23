@@ -1,7 +1,7 @@
 // What you're playing or using, for your Den profile. Only an app's name leaves
 // this machine. Window titles and command lines are read locally, and only to
 // recognise a game, because they carry documents, chats and URLs.
-const { execFile } = require('node:child_process')
+const { execFile, spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -54,20 +54,63 @@ async function macos() {
   return { ...app, title: '', hint }
 }
 
-// PowerShell is on every Windows install; the P/Invoke asks which process owns the
-// foreground window. FileVersionInfo gives the product's own name ("Google Chrome").
+// PowerShell is on every Windows install. One long-lived process loads the
+// P/Invoke once (Add-Type compiles C#, far too slow to repeat every sample) and
+// answers one tab-separated line per request on stdin. FileVersionInfo gives the
+// product's own name ("Google Chrome"); the command line tells java games apart.
 const WINDOWS_SCRIPT = [
   '$s=\'[DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(System.IntPtr h, out int p);\'',
   'Add-Type -Name W -Namespace DenFg -MemberDefinition $s',
-  '$p=0; [void][DenFg.W]::GetWindowThreadProcessId([DenFg.W]::GetForegroundWindow(), [ref]$p)',
-  '$x=Get-Process -Id $p -ErrorAction SilentlyContinue; if ($x) { "$($x.ProcessName)`t$($x.Path)`t$($x.MainWindowTitle)`t$($x.MainModule.FileVersionInfo.FileDescription)`t$p" }',
-].join('; ')
+  'while ($null -ne [Console]::In.ReadLine()) {',
+  '  $p=0; [void][DenFg.W]::GetWindowThreadProcessId([DenFg.W]::GetForegroundWindow(), [ref]$p)',
+  '  $x=Get-Process -Id $p -ErrorAction SilentlyContinue',
+  '  $c=(Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue).CommandLine -replace "[\t\r\n]", " "',
+  '  if ($x) { [Console]::Out.WriteLine("$($x.ProcessName)`t$($x.Path)`t`t$($x.MainModule.FileVersionInfo.FileDescription)`t$p`t$c") } else { [Console]::Out.WriteLine("") }',
+  '  [Console]::Out.Flush()',
+  '}',
+].join('\n')
 function parseWindows(line) {
-  const [process, exe = '', title = '', description = '', pid = '0'] = line.trim().split('\t')
-  return process ? { name: description.trim() || process, path: exe, title, hint: exe, pid: Number(pid) || 0 } : null
+  const [process, exe = '', title = '', description = '', pid = '0', command = ''] = line.trim().split('\t')
+  return process ? { name: description.trim() || process, process, path: exe, title, hint: `${exe} ${command}`.trim(), pid: Number(pid) || 0 } : null
 }
+
+/**
+ * Asks a long-lived helper for one line at a time. A helper that exits or goes
+ * quiet is replaced on the next request, so a hung PowerShell costs one sample.
+ * `start` is injectable so the protocol can be tested without Windows.
+ */
+function lineReader(start, timeout = 4000) {
+  let child = null, buffer = '', waiting = null
+  const restart = () => {
+    child?.kill(); child = start(); buffer = ''
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', chunk => {
+      buffer += chunk
+      let at
+      while ((at = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, at); buffer = buffer.slice(at + 1)
+        if (waiting) { const w = waiting; waiting = null; clearTimeout(w.timer); w.resolve(line) }
+      }
+    })
+    const gone = () => { child = null; if (waiting) { const w = waiting; waiting = null; clearTimeout(w.timer); w.resolve('') } }
+    child.on('exit', gone); child.on('error', gone)
+  }
+  return {
+    ask() {
+      if (!child) restart()
+      if (waiting) return Promise.resolve('')
+      return new Promise(resolve => {
+        waiting = { resolve, timer: setTimeout(() => { waiting = null; child?.kill(); child = null; resolve('') }, timeout) }
+        child.stdin.write('\n')
+      })
+    },
+    stop() { child?.kill(); child = null },
+  }
+}
+let powershell = null
 async function windows() {
-  return parseWindows(await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_SCRIPT]))
+  powershell ??= lineReader(() => spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-NoLogo', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_SCRIPT], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }))
+  return parseWindows(await powershell.ask())
 }
 
 // --- deciding what to say ----------------------------------------------------
@@ -86,6 +129,18 @@ const tidy = name => {
   return FRIENDLY[bare.toLowerCase()] || (bare === bare.toLowerCase() ? bare.charAt(0).toUpperCase() + bare.slice(1) : bare)
 }
 
+/**
+ * Minecraft, judged by the process alone. A window title is never enough: a wiki
+ * tab or a video about Minecraft is not playing it. Java Edition is a java process
+ * whose path or command line names the game; Bedrock is its own executable.
+ */
+function minecraft(win, where) {
+  const exe = (win.process || path.basename(win.path || '') || win.name).replace(/\.exe$/i, '').toLowerCase()
+  if (/^minecraft(\.windows)?$/.test(exe)) return true
+  if (!/^javaw?$/.test(exe)) return false
+  return /net\.minecraft|[\\/.]minecraft[\\/]|minecraft[\\/]runtime|--gamedir\s+\S*minecraft/i.test(where)
+}
+
 /** A focused window becomes "Playing X", "Using Y", nothing, or `self` (Den is focused). */
 function classify(win, self = { pid: process.pid, exe: process.execPath }) {
   if (!win || !win.name) return null
@@ -93,7 +148,7 @@ function classify(win, self = { pid: process.pid, exe: process.execPath }) {
   if ((win.pid && win.pid === self.pid) || (win.path && win.path === self.exe) || /^den$/i.test(win.name)) return 'self'
   const steam = where.match(/steamapps[\\/]common[\\/]([^\\/]+)/i)
   if (steam) return { kind: 'playing', name: steam[1].trim().slice(0, 64) }
-  if (/minecraft/i.test(`${win.title} ${where}`)) return { kind: 'playing', name: 'Minecraft' }
+  if (minecraft(win, where)) return { kind: 'playing', name: 'Minecraft' }
   const name = tidy(win.name)
   if (!name || IGNORED.has(name.toLowerCase()) || IGNORED.has(win.name.toLowerCase())) return null
   return { kind: 'using', name: name.slice(0, 64) }
@@ -129,4 +184,4 @@ function activity(emit, powerMonitor) {
   return { current: () => current, stop: () => clearInterval(timer) }
 }
 
-module.exports = { activity, classify, parseXprop, parseLsappinfo, parseWindows }
+module.exports = { activity, classify, parseXprop, parseLsappinfo, parseWindows, lineReader }
