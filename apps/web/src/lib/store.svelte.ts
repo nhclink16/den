@@ -143,6 +143,8 @@ export class Store {
   sendTerminal(event: TerminalFrame) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(new TextEncoder().encode(JSON.stringify(event))) }
   me = $state<User | null>(null)
   users = $state<Map<string, User>>(new Map())
+  /** What each person is doing now, newest first. Replaced whole on every update. */
+  activities = $state<Map<string, import('./types').Activity[]>>(new Map())
   channels = $state<Channel[]>([])
   categories = $state<Category[]>([])
   messages = $state<Map<string, Message[]>>(new Map())
@@ -694,6 +696,7 @@ export class Store {
     void this.reads.reconcile(read, epoch, versionsAt).catch(() => { /* a later resync repairs it */ })
     this.notif = notif
     this.online = new Set(presence.online_user_ids)
+    this.activities = new Map((presence.activities ?? []).map((u) => [u.user_id, u.activities]))
     this.calls = calls
     if (this.active) call.snapshot(calls)
     await Promise.all([...this.music.keys()].filter(id => channels.some(c => c.id === id)).map(id => this.loadMusic(id)))
@@ -1227,6 +1230,12 @@ export class Store {
       case 'notification': receiveAlert(this, ev); this.alerts = [...this.alerts, ev].slice(-100); if (native) window.dispatchEvent(new CustomEvent('den-alert', { detail: { origin: this.origin, alert: ev } })); break
       case 'call_state': this.calls = [...this.calls.filter(c => c.channel_id !== ev.channel_id), ev]; if (this.active) call.receive(ev); if (!this.channel(ev.channel_id)) await this.resync(); break
       case 'user_updated': this.receiveUser(ev.user); break
+      case 'activity_updated': {
+        const next = new Map(this.activities)
+        if (ev.activities.length) next.set(ev.user_id, ev.activities); else next.delete(ev.user_id)
+        this.activities = next
+        break
+      }
       case 'presence': {
         const s = new Set(this.online); ev.online ? s.add(ev.user_id) : s.delete(ev.user_id); this.online = s
         break

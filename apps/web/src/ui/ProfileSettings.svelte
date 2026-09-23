@@ -8,6 +8,10 @@
   import UserCard from './UserCard.svelte'
   import SettingRow from './SettingRow.svelte'
   import Icon from './Icon.svelte'
+  import { native } from '../lib/native'
+  import { router } from '../lib/router.svelte'
+  import { activityShare } from '../lib/activity-share.svelte'
+  import { activityVerb } from '../lib/activity'
 
   const me = $derived(store.me!)
   let displayName = $state(''), bio = $state(''), accent = $state<string | null>(null)
@@ -222,6 +226,43 @@
       </div>
     </section>
 
+    <section>
+      <h3>Activity</h3>
+      <div class="group">
+        {#if native}
+          <SettingRow label="Share what I'm playing or using" hint="Only the app's name is shared, never window titles. Steam games and Minecraft show as Playing. It clears after 10 idle minutes or when you lock your screen. This device only.">
+            {#snippet control()}
+              <label class="switch"><input type="checkbox" checked={activityShare.prefs.share} onchange={(e) => activityShare.save({ share: e.currentTarget.checked })} /><span class="sr-only">Share activity</span></label>
+            {/snippet}
+          </SettingRow>
+          <SettingRow label="Right now" hint={activityShare.detected ? (activityShare.shared ? 'Everyone can see this.' : 'Hidden. Nobody sees it.') : 'Nothing detected.'}>
+            {#snippet control()}
+              {#if activityShare.detected}<span class="now" class:off={!activityShare.shared}>{activityVerb(activityShare.detected.kind)} <b>{activityShare.detected.name}</b></span>{:else}<span class="faint small">—</span>{/if}
+            {/snippet}
+          </SettingRow>
+          {#if activityShare.prefs.seen.length}
+            <SettingRow label="Recently seen" hint="Hide any app you would rather not show." wide>
+              {#snippet control()}
+                <ul class="apps">
+                  {#each activityShare.prefs.seen as name (name)}
+                    {@const hidden = activityShare.prefs.hidden.includes(name)}
+                    <li><span class:off={hidden}>{name}</span><button type="button" class="btn quiet" onclick={() => activityShare.hide(name, !hidden)}>{hidden ? 'Show' : 'Hide'}</button></li>
+                  {/each}
+                </ul>
+              {/snippet}
+            </SettingRow>
+          {/if}
+        {:else}
+          <SettingRow label="Games and apps" hint="The Den desktop app shares what you're playing or using. Browsers can't see other apps.">
+            {#snippet control()}<a class="btn quiet" href="https://github.com/nhclink16/den/releases/latest" target="_blank" rel="noopener noreferrer">Get the desktop app</a>{/snippet}
+          </SettingRow>
+        {/if}
+        <SettingRow label="Music" hint="Connect Spotify and people see what you're listening to while you're here.">
+          {#snippet control()}<button type="button" class="btn quiet" onclick={() => router.go('/settings/spotify')}>Spotify settings</button>{/snippet}
+        </SettingRow>
+      </div>
+    </section>
+
     <div class="actions">
       <button class="btn lit" disabled={!dirty || !!problem || saving}>{saving ? 'Saving…' : 'Save profile'}</button>
       {#if dirty}<button type="button" class="btn quiet" onclick={reset}>Discard changes</button>{/if}
@@ -270,4 +311,9 @@
   .zoom { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
   .zoom input { accent-color: var(--lamp); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .switch input { width: 18px; height: 18px; accent-color: var(--lamp); }
+  .now { font-size: 14px; } .now b { font-weight: 700; } .now.off { color: var(--ink-3); text-decoration: line-through; }
+  .apps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; width: 100%; }
+  .apps li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .apps .off { color: var(--ink-3); text-decoration: line-through; }
 </style>

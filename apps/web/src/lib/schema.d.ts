@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__activities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/init": {
         parameters: {
             query?: never;
@@ -1677,6 +1693,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{id}/activities/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users__id__activities__slot_"];
+        post?: never;
+        delete: operations["delete__users__id__activities__slot_"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{id}/avatar": {
         parameters: {
             query?: never;
@@ -1760,6 +1792,38 @@ export interface components {
             standing: boolean;
             status: string;
         };
+        /**
+         * @description One thing a person is doing right now. A person can have several at once, one
+         *     per slot: the desktop app, Spotify, the Minecraft relay, an agent's CLI. Every
+         *     activity expires unless its source refreshes it, so a crashed source never
+         *     leaves someone "playing" forever.
+         */
+        Activity: {
+            /** @description A second line: the artist, a server, a file type. Never a window title. */
+            details?: string | null;
+            /**
+             * Format: int64
+             * @description Unix milliseconds after which the activity is gone unless refreshed.
+             */
+            expires_at: number;
+            /** @description Artwork for the activity. Only the server sets this (Spotify album art). */
+            image_url?: string | null;
+            kind: components["schemas"]["ActivityKind"];
+            /** @description The game, app, track or task. */
+            name: string;
+            /** @description Who set it: `desktop`, `spotify`, `minecraft`, `cli`, or another source's name. */
+            slot: string;
+            /**
+             * Format: int64
+             * @description Unix milliseconds when this activity began, kept across refreshes.
+             */
+            started_at: number;
+        };
+        /**
+         * @description What someone is doing, as a verb the client puts in front of the name.
+         * @enum {string}
+         */
+        ActivityKind: "playing" | "listening" | "watching" | "using" | "working";
         AddMusic: {
             url: string;
         };
@@ -2267,6 +2331,11 @@ export interface components {
             /** @enum {string} */
             type: "thread_read_state_updated";
             user_id: components["schemas"]["String"];
+        } | {
+            activities: components["schemas"]["Activity"][];
+            /** @enum {string} */
+            type: "activity_updated";
+            user_id: components["schemas"]["String"];
         };
         FollowThread: {
             following: boolean;
@@ -2617,6 +2686,8 @@ export interface components {
             paused: boolean;
         };
         PresenceState: {
+            /** @description Current activities. Absent from servers that predate them. */
+            activities?: components["schemas"]["UserActivities"][];
             objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
         };
@@ -2740,6 +2811,17 @@ export interface components {
             expires_at: number;
             token: string;
             user: components["schemas"]["User"];
+        };
+        /** @description Body for `PUT /users/{id}/activities/{slot}`. */
+        SetActivity: {
+            details?: string | null;
+            kind: components["schemas"]["ActivityKind"];
+            name: string;
+            /**
+             * Format: int32
+             * @description How long it lasts without a refresh. Defaults to 90 seconds, at most a day.
+             */
+            ttl_seconds?: number | null;
         };
         SetController: {
             user_id?: string | null;
@@ -3052,6 +3134,11 @@ export interface components {
             } | null;
             username: string;
         };
+        /** @description Everything one person is doing, newest first. */
+        UserActivities: {
+            activities: components["schemas"]["Activity"][];
+            user_id: components["schemas"]["String"];
+        };
         /** @description PUT merges device entries, preserving other devices on the account. */
         VoicePreferences: {
             /** @default {} */
@@ -3093,6 +3180,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessLog"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__activities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserActivities"][];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -7645,6 +7760,115 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoicePreferences"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users__id__activities__slot_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user id, or `me` */
+                id: string;
+                /** @description The source setting it, e.g. `desktop`, `cli`, `minecraft` */
+                slot: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetActivity"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserActivities"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users__id__activities__slot_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A user id, or `me` */
+                id: string;
+                slot: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserActivities"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
