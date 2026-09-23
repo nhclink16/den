@@ -45,14 +45,17 @@ async function apiRequest(store, args) {
   const r = await request(store, args.origin, args.method, args.path, args.body, args.headers)
   return { status: r.status, headers: Object.fromEntries([...r.headers].filter(([k]) => !['set-cookie', 'authorization'].includes(k))), body: Array.from(new Uint8Array(await r.arrayBuffer())) }
 }
+// Images the renderer may load with this device's stored session: attachments,
+// profile pictures and banners, and wallpapers. Nothing that changes state.
+const mediaPath = path => /^\/(uploads\/[^/]+\/(file|thumbnail)|users\/[^/]+\/(avatar|banner)|users\/me\/background\/image|users\/me\/backgrounds\/[0-9a-f]{64}(\/preview)?)$/.test(path)
 async function media(store, req) {
   try {
     const u = new URL(req.url)
-    if (!/^\/uploads\/[^/]+\/(file|thumbnail)$/.test(u.pathname) || !['GET', 'HEAD'].includes(req.method)) return new Response(null, { status: 400 })
+    if (!mediaPath(u.pathname) || !['GET', 'HEAD'].includes(req.method)) return new Response(null, { status: 400 })
     const r = await request(store, u.searchParams.get('origin'), req.method, u.pathname, null, Object.fromEntries(req.headers))
     const headers = { 'access-control-allow-origin': 'den://app', 'cache-control': 'no-store' }
     for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'content-disposition']) if (r.headers.has(key)) headers[key] = r.headers.get(key)
     return new Response(r.body, { status: r.status, headers })
   } catch { return new Response(null, { status: 502 }) }
 }
-module.exports = { origin, requestUrl, storage, request, apiRequest, media }
+module.exports = { origin, requestUrl, storage, request, apiRequest, media, mediaPath }

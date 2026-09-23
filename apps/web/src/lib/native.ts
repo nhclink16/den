@@ -16,7 +16,12 @@ export function originOf(input: string) {
 let origin = native ? localStorage.getItem('den.native.origin') || 'https://denchat.app' : location.origin
 export function activeOrigin() { return origin }
 export function setOrigin(value: string) { origin = value; if (native) localStorage.setItem('den.native.origin', value) }
+// Account images the desktop fetches with the stored session: attachments, profile
+// pictures and banners, and wallpapers. Anything else stays a plain path.
+const MEDIA = /^\/(uploads\/[^/]+\/(file|thumbnail)|users\/[^/]+\/(avatar|banner)|users\/me\/background\/image|users\/me\/backgrounds\/[0-9a-f]{64}(\/preview)?)(\?|$)/
 export function mediaUrl(path: string, server = origin) {
-  if (!native || !path.startsWith('/uploads/')) return path
-  return `${window.denDesktop ? 'den-media://app/' : window.__TAURI__!.core.convertFileSrc('', 'den-media')}${path.replace(/^\//, '')}?origin=${encodeURIComponent(server)}`
+  if (!native || !MEDIA.test(path)) return path
+  const [bare, query] = path.split('?')
+  // Keep ?v= so a replaced picture gets a new URL, and the browser a new fetch.
+  return `${window.denDesktop ? 'den-media://app/' : window.__TAURI__!.core.convertFileSrc('', 'den-media')}${bare!.replace(/^\//, '')}?origin=${encodeURIComponent(server)}${query ? `&${query}` : ''}`
 }

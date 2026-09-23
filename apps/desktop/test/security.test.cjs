@@ -31,3 +31,9 @@ test('keychain failures refuse writes; encrypted sessions are isolated by origin
     if (process.platform === 'linux') { safe.getSelectedStorageBackend = () => 'basic_text'; assert.throws(() => restored.get('https://two.test'), /keychain/) }
   } finally { rmSync(directory, { recursive: true }) }
 })
+test('the media protocol serves account images and nothing else', () => {
+  const { mediaPath } = require('../electron/session.cjs')
+  const hash = 'a'.repeat(64)
+  for (const ok of ['/uploads/01ABC/file', '/uploads/01ABC/thumbnail', '/users/01ABC/avatar', '/users/01ABC/banner', '/users/me/background/image', `/users/me/backgrounds/${hash}`, `/users/me/backgrounds/${hash}/preview`]) assert.ok(mediaPath(ok), ok)
+  for (const bad of ['/users/me', '/users/me/appearance', '/users/01ABC/avatar/../../tokens', '/users/me/backgrounds/../den.db', '/users/me/backgrounds/zzz', '/tokens', '/auth/logout', '/uploads/x/file/extra']) assert.ok(!mediaPath(bad), bad)
+})
