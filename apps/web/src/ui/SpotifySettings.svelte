@@ -29,6 +29,13 @@
       location.assign(auth.url)
     } catch (e) { error = e instanceof Error ? e.message : 'Could not start the Spotify sign-in.'; busy = false }
   }
+  let saving = $state(false)
+  async function share(on: boolean) {
+    saving = true; error = ''
+    try { await owner.api.put('/users/me/spotify/sharing', { share_listening: on }); await owner.loadSpotify() }
+    catch (e) { error = e instanceof Error ? e.message : 'Could not change that.' }
+    finally { saving = false }
+  }
   async function disconnect() {
     error = ''
     try { await owner.api.del('/users/me/spotify'); await owner.loadSpotify() }
@@ -39,8 +46,9 @@
 <h2 class="display">Spotify</h2>
 <p class="muted">
   Anyone can start a Jam by pasting its link into a room; nobody has to connect anything for that.
-  Connecting your account does one extra thing: a Jam you host shows the track you are playing,
-  with its art, on the card at the top of the room.
+  Connecting your account lets a Jam you host show the track you are playing, with its art, on
+  the card at the top of the room. Showing what you listen to the rest of the time is a separate
+  choice below, and it starts off.
 </p>
 
 {#if link === 'unavailable'}
@@ -58,9 +66,16 @@
     <span class="mark" aria-hidden="true"><Icon name={link === 'connected' ? 'check' : 'music'} size={14} /></span>
     <div>
       <b>{link === 'connected' ? `Connected as ${account.account_name || 'your Spotify account'}` : link === 'reauthorize' ? 'Connection expired' : 'Not connected'}</b>
-      {#if account.connected_at}<span class="faint small">Connected {when(account.connected_at)}{#if link === 'connected' && account.expires_at} · renew by {when(account.expires_at)}{/if}</span>{/if}
+      {#if account.connected_at}<span class="faint small">Connected {when(account.connected_at)}{#if link === 'connected' && account.expires_at}{' · '}renew by {when(account.expires_at)}{/if}</span>{/if}
     </div>
   </div>
+
+  {#if link === 'connected'}
+    <label class="share">
+      <input type="checkbox" checked={account.share_listening} disabled={saving} onchange={(e) => share(e.currentTarget.checked)} />
+      <span><b>Show what I'm listening to</b><span class="faint small">Everyone on this Den sees "Listening to …" under your name while you're here. Off by default.</span></span>
+    </label>
+  {/if}
 
   {#if link === 'connected' && daysLeft !== null && daysLeft <= 21}
     <p class="small warn">Spotify drops this connection in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}. Reconnect whenever you like; it takes one tap.</p>
@@ -84,18 +99,22 @@
   <ul class="scope">
     <li>Your Spotify account name, plus the track playing right now and its art.</li>
     <li>Den cannot play, pause, skip, or change your library.</li>
-    <li>Only while you are hosting a Jam, and only shown to people who can see that room.</li>
+    <li>While you host a Jam, the track shows on its card to people who can see that room.</li>
+    <li>If you turn on "Show what I'm listening to", the track also shows to everyone on this Den while you're online. Turn it off and it disappears at once.</li>
   </ul>
   <p class="faint small">
     Spotify never tells Den who is listening to a Jam, so the faces on a card are Den members who
     tapped Join and nothing more. This Den's Spotify app is in development mode, which allows five
-    connected accounts across the whole instance — only Jam hosts need one.
+    connected accounts across the whole instance: Jam hosts, and anyone who wants to show what they're listening to.
   </p>
 {/if}
 
 {#if error}<p role="alert" class="error">{error}</p>{/if}
 
 <style>
+  .share { display: flex; align-items: flex-start; gap: 10px; padding: 12px; margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; }
+  .share input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--lamp); }
+  .share > span { display: grid; gap: 2px; }
   .callout { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 14px 0; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg-2); font-size: 13px; }
   .status { display: flex; align-items: center; gap: 10px; padding: 12px; margin: 14px 0; border: 1px solid var(--line); border-radius: var(--r); }
   .status.on { border-color: var(--lamp-dim); }

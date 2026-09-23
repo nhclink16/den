@@ -1137,7 +1137,7 @@ async fn online(t: &Test, user: &str) {
 }
 
 #[tokio::test]
-async fn online_listeners_show_what_they_play_and_offline_ones_are_not_polled() {
+async fn listening_is_shared_only_by_online_people_who_chose_to() {
     let provider = StubSpotify::start(ProviderMode::Healthy).await;
     let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
     let here = t.member("listener_here").await;
@@ -1153,18 +1153,33 @@ async fn online_listeners_show_what_they_play_and_offline_ones_are_not_polled() 
     }
     let _tab = socket(&t, &here.token, "").await;
     online(&t, &here.user.id).await;
+    let activities = |t: &Test| t.req(Method::GET, "/activities", &t.admin.token).send();
+    let sharing = |t: &Test, token: &str, on: bool| {
+        t.req(Method::PUT, "/users/me/spotify/sharing", token)
+            .json(&json!({"share_listening": on}))
+            .send()
+    };
+
+    // Connected for Jams only: nothing shared, and Spotify is not even asked.
     let before = provider.state.playback_calls.load(Ordering::SeqCst);
-
     t.state.poll_spotify_activities().await;
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty(), "connecting is not consent to share");
+    assert_eq!(provider.state.playback_calls.load(Ordering::SeqCst), before);
+    assert!(!account(&t, &here.token).await.share_listening);
 
-    let all: Vec<UserActivities> = t
-        .req(Method::GET, "/activities", &t.admin.token)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    // Opting in shows the track to everyone while online; the offline account stays out.
+    for member in [&here, &away] {
+        let on: SpotifyAccount = sharing(&t, &member.token, true)
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert!(on.share_listening);
+    }
+    t.state.poll_spotify_activities().await;
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
     let mine = all
         .iter()
         .find(|u| u.user_id == here.user.id)
@@ -1183,10 +1198,24 @@ async fn online_listeners_show_what_they_play_and_offline_ones_are_not_polled() 
         all.iter().all(|u| u.user_id != away.user.id),
         "nobody sees an offline account"
     );
+
+    // Opting out takes it down at once, not at its expiry.
+    sharing(&t, &here.token, false).await.unwrap();
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty());
+
+    // So does disconnecting, and a disconnected account cannot opt in.
+    sharing(&t, &here.token, true).await.unwrap();
+    t.state.poll_spotify_activities().await;
+    t.req(Method::DELETE, "/users/me/spotify", &here.token)
+        .send()
+        .await
+        .unwrap();
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty());
     assert_eq!(
-        provider.state.playback_calls.load(Ordering::SeqCst) - before,
-        1,
-        "only the online account was asked"
+        sharing(&t, &here.token, true).await.unwrap().status(),
+        StatusCode::NOT_FOUND
     );
 
     // Clients cannot forge the server's slot.

@@ -150,7 +150,8 @@ use utoipa::OpenApi;
         ws::connect,
         activities::set,
         activities::remove,
-        activities::list
+        activities::list,
+        spotify::sharing
     ),
     components(schemas(
         ProfilePatch,
@@ -261,6 +262,7 @@ use utoipa::OpenApi;
         ActivityKind,
         SetActivity,
         UserActivities,
+        SpotifySharing,
         CallToken,
         CallState,
         MusicQueue,

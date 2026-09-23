@@ -34,7 +34,7 @@ function loadLayout(): Layout {
 
 const PAGE = 50
 const activeListeners = new Set<(event: Event) => void>()
-const noSpotify = (): SpotifyAccount => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null })
+const noSpotify = (): SpotifyAccount => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null, share_listening: false })
 
 export class Store {
   constructor(public origin: string) { this.api = apiFor(origin); this.uploads = new Uploads(origin); this.appearance = cachedAppearance(origin) }

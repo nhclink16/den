@@ -264,6 +264,10 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         )
         .route("/users/me/spotify/authorize", post(spotify::authorize))
         .route("/users/me/spotify/callback", post(spotify::callback))
+        .route(
+            "/users/me/spotify/sharing",
+            axum::routing::put(spotify::sharing),
+        )
         .route("/instance", get(objects::instance))
         .route("/auth/ws-ticket", post(tickets::issue))
         .route("/hosts", get(hosts::list))

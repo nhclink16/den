@@ -257,7 +257,7 @@
             {#snippet control()}<a class="btn quiet" href="https://github.com/nhclink16/den/releases/latest" target="_blank" rel="noopener noreferrer">Get the desktop app</a>{/snippet}
           </SettingRow>
         {/if}
-        <SettingRow label="Music" hint="Connect Spotify and people see what you're listening to while you're here.">
+        <SettingRow label="Music" hint={store.spotify.share_listening ? "People see what you're listening to on Spotify while you're here." : "Off. Connect Spotify and turn on sharing to show what you're listening to."}>
           {#snippet control()}<button type="button" class="btn quiet" onclick={() => router.go('/settings/spotify')}>Spotify settings</button>{/snippet}
         </SettingRow>
       </div>

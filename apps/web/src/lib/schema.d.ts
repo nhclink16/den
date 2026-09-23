@@ -1677,6 +1677,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/spotify/sharing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_spotify_sharing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/voice": {
         parameters: {
             query?: never;
@@ -2898,6 +2914,11 @@ export interface components {
              *     before the cliff. Advisory: a rejection from Spotify is authoritative.
              */
             expires_at?: number | null;
+            /**
+             * @description Whether everyone sees "Listening to …" while this person is online. Off
+             *     until they turn it on; connecting for Jams alone never shares it.
+             */
+            share_listening?: boolean;
         };
         SpotifyAuthorization: {
             /** Format: int32 */
@@ -2924,6 +2945,10 @@ export interface components {
              */
             sampled_at: number;
             track: string;
+        };
+        /** @description Body for `PUT /users/me/spotify/sharing`. */
+        SpotifySharing: {
+            share_listening: boolean;
         };
         StartJam: {
             url: string;
@@ -7699,6 +7724,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpotifyAccount"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_spotify_sharing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpotifySharing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotifyAccount"];
+                };
+            };
+            /** @description No Spotify connection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */

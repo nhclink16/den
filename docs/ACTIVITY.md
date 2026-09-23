@@ -37,14 +37,20 @@ and name keeps `started_at`. The server sweeps expired entries every 5 seconds.
   macOS (no permission prompt), PowerShell on Windows. Only the app's name is
   sent. Window titles and command lines are read locally, only to recognise a
   game: Steam's `steamapps/common/<Game>` and Minecraft become `playing`, anything
-  else `using`. Desktop shells and lock screens are ignored. When Den itself is
+  else `using`. Minecraft is judged by the process alone (a java process whose path
+  or command line names the game, or Bedrock's executable), never by a window
+  title, so a wiki tab about it is not "playing". On Windows one long-lived
+  PowerShell answers each sample, and is replaced if it exits or stalls. Desktop shells and lock screens are ignored. When Den itself is
   focused the previous answer stands, so alt-tabbing to chat mid-game keeps
   "Playing". Ten idle minutes, a locked screen or sleep clear it. Sharing is on
-  by default; Settings > Profile > Activity turns it off or hides individual apps,
-  per device. Native Wayland windows are not visible to `xprop`.
-- **Spotify.** Every 20 seconds the server polls "currently playing" for people who
-  are online and have Spotify connected, and fills the `spotify` slot with the
-  track, artists and album art.
+  by default, announced once with a notice the first time something is detected;
+  Settings > Profile > Activity turns it off or hides individual apps, per device. Native Wayland windows are not visible to `xprop`.
+- **Spotify.** Opt-in and off by default: connecting Spotify for Jams is not consent
+  to share. People who turn on "Show what I'm listening to"
+  (`PUT /users/me/spotify/sharing`, stored as `spotify_accounts.share_listening`,
+  migration 0022) are polled every 20 seconds while online, and the `spotify` slot
+  gets the track, artists and album art. Turning it off or disconnecting clears
+  the slot at once.
 - **Minecraft.** `integrations/minecraft/den-minecraft-activity` runs beside the
   Minecraft server, reads `list` through `mcrcon`, and sets a `minecraft` activity
   for each player it can match to a Den account.

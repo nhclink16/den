@@ -226,8 +226,8 @@ impl AppState {
         }
     }
 
-    /// "Listening to …" for everyone online with Spotify connected. Only online
-    /// people are polled, so an idle account costs nothing.
+    /// "Listening to …" for people online who connected Spotify and chose to share
+    /// it. Only they are polled, so an idle or private account costs nothing.
     #[doc(hidden)]
     pub async fn poll_spotify_activities(&self) {
         let online: Vec<String> = self
@@ -241,7 +241,7 @@ impl AppState {
             return;
         }
         let connected = sqlx::query_scalar::<_, String>(
-            "SELECT user_id FROM spotify_accounts WHERE needs_reauth=0",
+            "SELECT user_id FROM spotify_accounts WHERE needs_reauth=0 AND share_listening=1",
         )
         .fetch_all(&self.db)
         .await
