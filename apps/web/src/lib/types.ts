@@ -1,6 +1,8 @@
 import type { components } from './schema'
 type S = components['schemas']
 export type User = S['User']
+export type ProfilePatch = S['ProfilePatch']
+export type UserStatus = S['Status']
 export type Channel = S['Channel']
 export type Category = S['Category']
 export type Message = S['Message']

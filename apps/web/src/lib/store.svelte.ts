@@ -21,10 +21,14 @@ import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Cha
 
 const PREFS_KEY = 'den.layout'
 
-export type Layout = { sidebar: boolean; members: boolean; sounds: boolean }
+/** How avatars are drawn on this device. `theme` follows the theme's Corners. */
+export type AvatarShape = 'theme' | 'sharp' | 'soft' | 'round'
+/** How being online shows on an avatar. */
+export type PresenceStyle = 'dot' | 'ring' | 'off'
+export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle }
 
 function loadLayout(): Layout {
-  const fallback: Layout = { sidebar: true, members: true, sounds: false }
+  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot' }
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
 }
 
@@ -160,6 +164,21 @@ export class Store {
 
   channel(id: string) { return this.channels.find((c) => c.id === id) }
   user(id: string) { return this.users.get(id) }
+  /** A profile changed somewhere: a name, picture, bio or status. */
+  receiveUser(u: User) {
+    this.users = new Map(this.users).set(u.id, u)
+    if (u.id === this.me?.id) this.me = u
+  }
+  async saveProfile(patch: import('./types').ProfilePatch) {
+    this.receiveUser(await this.api.patch<User>('/users/me/profile', patch))
+  }
+  /** Avatars must be square; callers crop first. The server keeps the original. */
+  async setProfileImage(kind: 'avatar' | 'banner', image: Blob | null) {
+    const u = image
+      ? await this.api.putRaw<User>(`/users/me/${kind}`, image, { 'content-type': image.type })
+      : await this.api.del<User>(`/users/me/${kind}`)
+    this.receiveUser(u)
+  }
   name(id: string) { const u = this.users.get(id); return u ? u.display_name || u.username : 'someone' }
 
   get textChannels() { return this.channels.filter((c) => c.kind !== 'dm').sort((a, b) => a.position - b.position) }
@@ -1207,6 +1226,7 @@ export class Store {
       case 'notification_preferences_updated': this.notif = ev.preferences; break
       case 'notification': receiveAlert(this, ev); this.alerts = [...this.alerts, ev].slice(-100); if (native) window.dispatchEvent(new CustomEvent('den-alert', { detail: { origin: this.origin, alert: ev } })); break
       case 'call_state': this.calls = [...this.calls.filter(c => c.channel_id !== ev.channel_id), ev]; if (this.active) call.receive(ev); if (!this.channel(ev.channel_id)) await this.resync(); break
+      case 'user_updated': this.receiveUser(ev.user); break
       case 'presence': {
         const s = new Set(this.online); ev.online ? s.add(ev.user_id) : s.delete(ev.user_id); this.online = s
         break
