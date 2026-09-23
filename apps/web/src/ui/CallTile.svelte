@@ -24,11 +24,11 @@
   {:else if participant.music}
     <Icon name="music" size={32} />
   {:else}
-    <Avatar userId={participant.userId} size={44} />
+    <Avatar userId={participant.userId} size={56} presence={false} />
   {/if}
   <div class="label">
     {#if screen}<Icon name={share?.surface || 'monitor'} size={14} />{/if}
-    <span title={share?.label}>{#if share}{share.label} · {/if}{participant.name}{#if participant.device}<small> · {participant.device}</small>{/if}</span>
+    <span title={share?.label}>{#if share}{share.label}{' · '}{/if}{participant.name}{#if participant.device}<small> · {participant.device}</small>{/if}</span>
     <CallQuality {participant} {track} />
     {#if participant.muted}<span class="mute" data-testid="muted-mic" aria-label="Microphone muted"><Icon name="mic-off" size={14} /></span>{/if}
   </div>
@@ -54,15 +54,16 @@
 <style>
   .tile { container-type: inline-size; width: 216px; aspect-ratio: 16/9; flex: none; position: relative; display: grid; place-items: center; border-radius: var(--r-lg); background: var(--bg-3); overflow: hidden; transition: box-shadow 120ms; }
   .tile.screen { width: 384px; }
-  .tile.speaking { box-shadow: 0 0 0 2px var(--lamp), 0 0 12px var(--lamp-glow); }
+  .tile { background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--ink) 5%, var(--bg-3)), var(--bg-3)); }
+  .tile.speaking { box-shadow: 0 0 0 2px var(--lamp), 0 0 26px -4px color-mix(in srgb, var(--lamp) 70%, transparent); }
   video { width: 100%; height: 100%; min-height: 0; object-fit: cover; position: absolute; inset: 0; }
   .screen video { object-fit: contain; }
   .mirror { transform: scaleX(-1); }
-  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); font-size: 12px; color: var(--ink); }
+  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; color: var(--ink); }
   .label > span:first-of-type { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tile-controls { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: var(--r); background: var(--overlay); }
   .tile-controls:empty { display: none; }
-  .stop { padding: 0 6px; min-height: 24px; flex: none; font: 10px var(--mono); color: var(--ink-2); }
+  .stop { padding: 0 6px; min-height: 24px; flex: none; font: 11px var(--mono); color: var(--ink-2); }
   .stop:hover { color: var(--ember); }
   .volume-menu { flex: none; }
   .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); }
@@ -73,5 +74,7 @@
   @container (max-width: 260px) { .label :global(.sent) { display: none; } }
   .quality-menu button { display: block; padding: 6px 12px; font: 11px var(--mono); }
   .quality-menu button:hover { background: var(--bg-3); }
-  .mute { display: grid; flex: none; }
+  /* Muted is the call state people most need to read at a glance. */
+  .label .mute { display: grid; flex: none; color: var(--danger); }
+  .tile-controls .mute { display: grid; flex: none; }
 </style>

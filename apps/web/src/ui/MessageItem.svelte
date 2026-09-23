@@ -3,8 +3,8 @@
   import { instances, store } from '../lib/store.svelte'
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
-  import { render } from '../lib/markdown'
-  import { shortTime } from '../lib/time'
+  import { render, emojiOnly } from '../lib/markdown'
+  import { shortTime, clockTime } from '../lib/time'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
@@ -38,6 +38,12 @@
   })
   const mentionsMe = $derived(!!store.me && (m.mention_ids || []).includes(store.me.id))
   const QUICK = ['👍', '😂', '❤️', '🔥', '👀', '💀']
+  // A message that is nothing but a few emoji is a reaction said out loud: draw it big.
+  const jumbo = $derived(!m.attachments?.length && emojiOnly(m.content))
+  // Only messages that land while you watch animate in; history loads still.
+  // Read once on purpose: an edit must not replay the arrival.
+  // svelte-ignore state_referenced_locally
+  const fresh = Date.now() - new Date(m.created_at).getTime() < 8000
   let picker = $state(false)
 
   function startEdit() { draft = m.content; editing = true }
@@ -54,7 +60,7 @@
   }
 </script>
 
-<article class="msg" class:compact class:me={mentionsMe} id="{prefix}-{m.id}">
+<article class="msg" class:compact class:me={mentionsMe} class:fresh class:replying={!!parent} id="{prefix}-{m.id}">
   {#if parent}
     <!-- The quoted message may be outside the loaded page, or in another
          conversation entirely; the shared resolver finds it either way. -->
@@ -68,13 +74,13 @@
   {/if}
   <div class="row">
     <div class="gutter">
-      {#if compact}<span class="stamp">{shortTime(m.created_at)}</span>{:else}<Avatar userId={m.author_id} size={36} />{/if}
+      {#if compact}<span class="stamp" title={shortTime(m.created_at)}>{clockTime(m.created_at)}</span>{:else}<Avatar userId={m.author_id} size={36} />{/if}
     </div>
     <div class="body">
       {#if !compact}
         <div class="meta">
           <span class="author">{author?.display_name || author?.username || 'someone'}</span>
-          {#if author?.bot}<span class="bot" title="Agent"><Icon name="bot" size={11} /></span>{/if}
+          {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />agent</span>{/if}
           <span class="time">{shortTime(m.created_at)}</span>
         </div>
       {/if}
@@ -82,7 +88,7 @@
         <textarea class="field edit" bind:value={draft} onkeydown={saveEdit} rows="2"></textarea>
         <div class="faint hint">Enter to save · Esc to cancel</div>
       {:else}
-        <div class="text">{@html html}{#if m.edited_at}<span class="edited" title={m.edited_at}> (edited)</span>{/if}</div>
+        <div class="text" class:jumbo>{@html html}{#if m.edited_at}<span class="edited" title={m.edited_at}> (edited)</span>{/if}</div>
       {/if}
       {#each m.objects || [] as object (object.id)}
         {@const Card = objectKind(object.kind)?.card}
@@ -134,58 +140,84 @@
 <style>
   .thread-link {
     display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px 10px;
-    border: 1px solid var(--line); border-radius: 999px; color: var(--ink-2); font-size: 12px; max-width: 100%;
+    border: 1px solid var(--line); border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: 12px; max-width: 100%;
   }
-  .thread-link:hover { background: var(--hover); color: var(--ink); }
+  .thread-link:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
   .thread-link.lit { border-color: var(--lamp); color: var(--ink); }
   .thread-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .thread-link .count {
-    min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--lamp); color: var(--on-lamp, #000);
+    min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000);
     font-family: var(--mono); font-size: 11px; text-align: center;
   }
-  .msg { position: relative; padding: calc(2px * var(--density)) 20px; margin-top: calc(14px * var(--density)); }
+  .msg { position: relative; padding: calc(2px * var(--density)) var(--gutter); margin-top: calc(14px * var(--density)); transition: background-color var(--t-fast); }
   .msg.compact { margin-top: 0; }
   .msg:hover { background: var(--hover); }
-  .msg.me { box-shadow: inset 3px 0 0 var(--lamp); background: var(--lamp-glow); }
+  /* A mention is lit from the left edge and fades out, like light through a doorway. */
+  .msg.me { box-shadow: inset 3px 0 0 var(--lamp); background: linear-gradient(90deg, var(--lamp-glow), color-mix(in srgb, var(--lamp) 5%, transparent) 70%); }
+  .msg.me:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 24%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent) 70%); }
+  @media (prefers-reduced-motion: no-preference) {
+    .msg.fresh { animation: arrive .32s var(--ease-out) both; }
+  }
+  @keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
   .row { display: flex; gap: 12px; }
   .gutter { width: 36px; flex: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; }
   .msg.compact .gutter { height: 22px; }
-  .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; color: var(--ink-2); opacity: 0; }
+  .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; white-space: nowrap; color: var(--ink-2); opacity: 0; transition: opacity var(--t-fast); }
   .msg:hover .stamp { opacity: 1; }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
   .author { font-weight: 700; }
-  .bot { color: var(--lamp); display: inline-grid; align-self: center; }
+  .bot {
+    display: inline-flex; align-items: center; gap: 3px; align-self: center; padding: 1px 6px 1px 5px;
+    border-radius: var(--r-pill, 999px); font: 600 11px/1.45 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+    color: var(--lamp); background: var(--lamp-glow);
+  }
   .time { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   /* Prose ran 120-260 characters per line on a wide window. Attachments,
      code blocks and embeds stay full width. */
   .text { line-height: var(--leading); overflow-wrap: anywhere; max-width: 68ch; }
   .text :global(pre) { max-width: none; }
+  .text.jumbo { font-size: 2.4em; line-height: 1.2; letter-spacing: .04em; }
   .edited { color: var(--ink-3); font-size: 12px; }
   .edit { resize: vertical; margin-top: 2px; }
   .hint { font-size: 12px; margin-top: 2px; }
   .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .reply-ref {
-    display: flex; align-items: center; gap: 6px; margin: 0 0 2px 48px;
-    font-size: 12.5px; color: var(--ink-3); overflow: hidden; white-space: nowrap;
+    position: relative; display: flex; text-align: left; max-width: calc(100% - 48px); align-items: center; gap: 6px; margin: 0 0 2px 48px;
+    font-size: 13px; color: var(--ink-3); white-space: nowrap; min-width: 0;
   }
+  /* A spine from the avatar up to the quoted line ties the reply to its parent. */
+  .reply-ref::before {
+    content: ''; position: absolute; left: -30px; top: 50%; width: 24px; height: 10px;
+    border: 2px solid var(--line-strong); border-right: 0; border-bottom: 0; border-top-left-radius: 7px;
+  }
+  .reply-ref :global(svg) { display: none; }
+  .reply-ref:hover .who, .reply-ref:hover .snippet { color: var(--ink); }
   .reply-ref .who { color: var(--ink-2); font-weight: 700; }
-  .reply-ref .snippet { overflow: hidden; text-overflow: ellipsis; }
+  .reply-ref .snippet { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .tools {
-    opacity: 0; pointer-events: none; transition: opacity .12s;
-    position: absolute; right: var(--gutter); top: -12px; display: flex; gap: 2px;
-    background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 2px;
+    opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity var(--t-fast), transform var(--t) var(--ease-out);
+    position: absolute; right: var(--gutter); top: -14px; display: flex; gap: 2px; z-index: 2;
+    background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 2px;
+    box-shadow: var(--lift);
   }
-  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; }
-  .tools button { padding: 5px; border-radius: var(--r); color: var(--ink-2); display: grid; }
+  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; transform: none; }
+  .tools button { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   .tools button:hover { background: var(--bg-3); color: var(--ink); }
   .tools button.danger:hover { color: var(--ember); }
   .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .rx { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: var(--r); border: 1px solid var(--line-strong); background: var(--bg-2); font-size: 13px; }
-  .rx:hover { border-color: var(--ink-3); }
+  .rx {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: var(--r-pill, 999px);
+    border: 1px solid var(--line); background: var(--bg-2); font-size: 14px;
+    transition: border-color var(--t-fast), background-color var(--t-fast), transform var(--t) var(--ease-out);
+  }
+  .rx:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  .rx:active { transform: scale(.94); }
   .rx.mine { border-color: var(--lamp-dim); background: var(--lamp-glow); }
-  .rx .n { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .rx .n { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .rx.mine .n { color: var(--lamp); }
   .pick-wrap { position: relative; }
-  .picker { position: absolute; right: 0; top: 100%; margin-top: 4px; display: flex; gap: 2px; padding: 4px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); z-index: 3; }
-  .picker button { font-size: 17px; padding: 4px 6px; }
+  .picker { position: absolute; right: 0; top: 100%; margin-top: 6px; display: flex; gap: 2px; padding: 4px; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-pill, 999px); z-index: 3; box-shadow: var(--lift); }
+  .picker button { font-size: 19px; padding: 4px 6px; border-radius: var(--r-pill, 999px); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }
+  .picker button:hover { transform: scale(1.22); background: none; }
 </style>

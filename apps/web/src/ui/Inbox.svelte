@@ -6,6 +6,7 @@
   import { shortTime, dayLabel } from '../lib/time'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
+  import Mark from './Mark.svelte'
 
   let { onmenu, narrow }: { onmenu: () => void; narrow: boolean } = $props()
 
@@ -100,6 +101,7 @@
   <div class="scroll">
     {#if !groups.length}
       <div class="empty">
+        <span class="empty-mark" aria-hidden="true"><Mark size={56} /></span>
         <div class="display big">You're caught up.</div>
         <div class="muted">Mentions, direct messages, and rooms you follow land here.</div>
       </div>
@@ -147,27 +149,29 @@
 
 <style>
   .inbox { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
+  .head { display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }
   h1 { font-size: 19px; margin: 0; font-weight: 600; }
   .spacer { flex: 1; }
   .iconbtn { padding: 6px; }
-  .scroll { flex: 1; overflow-y: auto; padding: 16px; }
-  .empty { padding: 60px 20px; text-align: center; display: grid; gap: 6px; }
+  .scroll { flex: 1; overflow-y: auto; padding: 16px var(--gutter); }
+  .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
+  .empty-mark { color: var(--ink-3); margin-bottom: 10px; opacity: .8; }
   .big { font-size: 26px; }
-  .group { border: 1px solid var(--line); border-radius: var(--r-lg); margin-bottom: 12px; overflow: hidden; background: var(--bg-2); }
-  .group.mention { border-color: var(--lamp-dim); }
+  .group { border: 1px solid var(--line); border-radius: var(--r-lg); margin: 0 auto 12px; max-width: 880px; overflow: hidden; background: var(--bg-2); box-shadow: var(--lift); }
+  .group.mention { border-color: var(--lamp-dim); box-shadow: var(--lift), 0 0 0 1px var(--lamp-glow), 0 0 24px -8px var(--lamp); }
   .title { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; text-align: left; color: var(--ink-2); border-bottom: 1px solid var(--line); }
   .title:hover { background: var(--bg-3); }
+  .title, .line { transition: background-color var(--t-fast); }
   .name { font-size: 17px; color: var(--ink); flex: 1; }
-  .at { font-family: var(--mono); font-size: 11px; color: var(--lamp); }
+  .at { font: 700 11px/1.5 var(--mono); color: var(--bg); background: var(--lamp); padding: 0 7px; border-radius: var(--r-pill, 999px); text-transform: uppercase; letter-spacing: .05em; }
   .line { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 14px; text-align: left; color: var(--ink-2); }
   .line:hover { background: var(--bg-3); }
   .who { font-weight: 700; color: var(--ink); flex: none; }
   .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text :global(br) { display: none; }
   .when { flex: none; font-size: 11px; }
-  .more { width: 100%; padding: 6px 14px 10px; text-align: left; font-size: 12.5px; }
+  .more { width: 100%; padding: 6px 14px 10px; text-align: left; font-size: 13px; }
   .line.thread { border-top: 1px solid var(--line); }
   .err { color: var(--danger, var(--lamp)); }
   .line.thread .who { font-weight: 600; }

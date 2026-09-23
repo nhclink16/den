@@ -33,6 +33,7 @@
   import type { Channel, Message } from '../lib/types'
   import { dayLabel, sameDay, within } from '../lib/time'
   import MessageItem from './MessageItem.svelte'
+  import Icon from './Icon.svelte'
 
   let { channel, source, onreply }: { channel: Channel; source: Source; onreply: (m: Message) => void } = $props()
   let el: HTMLDivElement
@@ -93,6 +94,16 @@
     if (tail) source.onread?.(tail)
   })
 
+  // Reading history while the room keeps talking: count what arrived below you.
+  let far = $state(false)
+  let seenLast = $state<string | undefined>()
+  $effect(() => { if (!far) seenLast = list.at(-1)?.id })
+  const arrived = $derived(far && seenLast ? list.filter((m) => m.id > seenLast! && m.author_id !== store.me?.id).length : 0)
+  function latest() {
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    el?.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+  }
+
   function mediaReady() {
     void tick().then(() => {
       if (stickToBottom && !source.target && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
@@ -102,7 +113,9 @@
   async function onScroll() {
     const scroller = el
     if (!scroller) return
-    stickToBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottom = fromBottom < 80
+    far = fromBottom > 400
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
       const before = el.scrollHeight
       await source.older()
@@ -118,9 +131,12 @@
   }
 </script>
 
+<div class="wrap">
 <div class="list" bind:this={el} onscroll={onScroll}>
-  {#if source.exhausted}
+  <!-- A thread pins its root above the list, so only a room gets a start block. -->
+  {#if source.exhausted && prefix === 'm'}
     <div class="start">
+      <div class="start-mark" aria-hidden="true"><Icon name={channel.kind === 'dm' ? 'lock' : 'hash'} size={24} /></div>
       <div class="display start-title">{channel.kind === 'dm' ? store.title(channel) : `#${channel.name}`}</div>
       <div class="muted">{list.length ? 'This is where it started.' : 'Nobody has said anything here yet. Say the first thing.'}</div>
     </div>
@@ -139,14 +155,48 @@
     <MessageItem {m} {prefix} compact={continues(prev, m)} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
+{#if far}
+  <button class="latest" class:lit={arrived > 0} onclick={latest}>
+    {arrived ? `${arrived} new ${arrived === 1 ? 'message' : 'messages'}` : 'Jump to latest'}<Icon name="down" size={14} />
+  </button>
+{/if}
+</div>
 
 <style>
-  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; }
+  .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  .latest {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 3;
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 14px;
+    border-radius: var(--r-pill, 999px); border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--ink);
+    font-size: 13px; font-weight: 600; box-shadow: var(--lift);
+    transition: background-color var(--t-fast), transform var(--t) var(--ease-out);
+  }
+  .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); }
+  .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--bg); box-shadow: var(--lift), var(--glow); }
+  @media (prefers-reduced-motion: no-preference) { .latest { animation: latest-in .2s var(--ease-out); } }
+  @keyframes latest-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
+  /* A short conversation sits down by the composer, where the next line will appear,
+     not at the top of an empty page. */
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; display: flex; flex-direction: column; }
+  .list > :global(*) { flex: none; }
+  .list > :global(:first-child) { margin-top: auto; }
   .start { padding: 28px var(--gutter) 18px; }
   .start-title { font-size: 28px; }
   .center { text-align: center; padding: 8px; font-size: 13px; }
-  .day { display: flex; align-items: center; gap: 12px; margin: 14px var(--gutter) 6px; color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
+  /* The day sits in a chip on the rule. */
+  .day { display: flex; align-items: center; gap: 12px; margin: 18px var(--gutter) 6px; }
   .day::before, .day::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-  .new { display: flex; align-items: center; gap: 10px; margin: 6px 20px; color: var(--lamp); font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
-  .new::before { content: ''; flex: 1; height: 1px; background: var(--lamp); opacity: 0.6; }
+  .day span {
+    padding: 3px 10px; border-radius: var(--r-pill, 999px); border: 1px solid var(--line); background: var(--bg-2);
+    color: var(--ink-2); font: 600 11px/1.45 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  }
+  /* Where unread starts is live, so it is lit. */
+  .new { display: flex; align-items: center; gap: 10px; margin: 10px var(--gutter) 4px; }
+  .new::before { content: ''; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--lamp)); box-shadow: var(--glow); }
+  .new span {
+    padding: 1px 8px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--bg);
+    font: 700 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .08em; box-shadow: var(--glow);
+  }
+  .start-title { color: var(--ink); }
+  .start-mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: var(--r-avatar, 35%); color: var(--lamp); background: var(--lamp-glow); box-shadow: inset 0 0 0 1px var(--lamp-dim); }
 </style>

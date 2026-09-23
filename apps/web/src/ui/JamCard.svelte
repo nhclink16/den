@@ -193,10 +193,10 @@
 
   .who { flex: none; display: grid; justify-items: center; gap: 2px; }
   .faces { display: flex; }
-  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--bg-2); border-radius: 35%; }
+  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--bg-2); border-radius: var(--r-avatar, 35%); }
   .faces > :global(*:first-child) { margin-left: 0; }
   .more {
-    display: grid; place-items: center; width: 24px; height: 24px; border-radius: 35%;
+    display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-avatar, 35%);
     background: var(--bg-3); color: var(--ink-2); font: 11px/1 var(--mono);
   }
   .who-label { font: 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }

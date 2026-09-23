@@ -5,6 +5,14 @@ export function shortTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+/** The clock without AM/PM, for the narrow gutter beside a continued message. */
+export function clockTime(iso: string, locale?: string): string {
+  const parts = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).formatToParts(new Date(iso))
+  const from = parts.findIndex((p) => p.type === 'hour'), to = parts.findIndex((p) => p.type === 'minute')
+  // Keep whatever separator the locale uses between the two ("8:03", "20.03").
+  return parts.slice(Math.min(from, to), Math.max(from, to) + 1).map((p) => p.value).join('')
+}
+
 export function dayLabel(iso: string, now = new Date()): string {
   const d = new Date(iso)
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()

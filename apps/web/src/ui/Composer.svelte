@@ -341,11 +341,11 @@
 
 <style>
   .error { color: var(--ember); }
-  .commands { position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px; z-index: 6; }
+  .commands { position: absolute; bottom: calc(100% - 6px); left: var(--gutter); right: var(--gutter); background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 4px; z-index: 6; box-shadow: var(--lift); }
   .locked { margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); font-size: 12px; }
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
-  .commands .chosen { background: var(--bg-3); }
+  .commands .chosen { background: var(--bg-3); box-shadow: inset 2px 0 0 var(--lamp); }
   .people { max-height: 260px; overflow-y: auto; }
   .people button { align-items: center; gap: 8px; }
   .people b { font-weight: 600; }
@@ -353,18 +353,23 @@
   .composer { position: relative; padding: 0 var(--gutter) 14px; }
   .box {
     display: flex; align-items: flex-end; gap: 6px; padding: calc(6px * var(--density)) calc(6px * var(--density)) calc(6px * var(--density)) calc(8px * var(--density));
-    background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--r-lg);
-    transition: border-color 0.15s, box-shadow 0.15s;
+    background: var(--bg-3); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    box-shadow: var(--lift);
+    transition: border-color var(--t), box-shadow var(--t);
   }
-  .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow), var(--lift); }
   textarea {
     flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
-  textarea::placeholder { color: var(--ink-3); }
-  .attach, .sendbtn { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-3); flex: none; }
+  /* A long room name must not wrap the placeholder onto a hidden second line. */
+  textarea::placeholder { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .attach, .sendbtn { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-2); flex: none; transition: color var(--t-fast), background-color var(--t-fast), box-shadow var(--t), transform var(--t) var(--ease-out); }
   .attach:hover { color: var(--ink); background: var(--bg-2); }
-  .sendbtn.ready { color: var(--lamp); }
+  /* The send button lights once there is something to send. */
+  .sendbtn.ready { color: var(--bg); background: var(--lamp); box-shadow: var(--glow); }
+  .sendbtn.ready:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .sendbtn.ready:active { transform: scale(.94); }
   .sendbtn:disabled { opacity: 0.4; }
   .reply-bar, .pending {
     display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0 8px;

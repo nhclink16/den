@@ -164,7 +164,7 @@
 <style>
   .strip { border-bottom: 1px solid var(--line); padding: 6px var(--gutter) 8px; display: grid; gap: 6px; }
   .tabs { display: flex; gap: 4px; }
-  .tabs button { padding: 3px 9px; border-radius: 999px; font-size: 12px; color: var(--ink-3); border: 1px solid transparent; }
+  .tabs button { padding: 3px 9px; border-radius: var(--r-pill, 999px); font-size: 12px; color: var(--ink-3); border: 1px solid transparent; }
   .tabs button.on { color: var(--ink); border-color: var(--line); background: var(--bg-2); }
   .tabs button:hover { color: var(--ink); }
   .rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; align-items: center; scrollbar-width: thin; }
@@ -172,7 +172,7 @@
   .err { color: var(--danger, var(--lamp)); }
   .chip {
     display: inline-flex; align-items: center; gap: 7px; flex: none; max-width: 260px;
-    padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--r-pill, 999px);
     font-size: 12px; color: var(--ink-2); background: var(--bg-2);
   }
   .chip:hover { color: var(--ink); background: var(--hover); }
@@ -180,7 +180,7 @@
   .chip.active { border-color: var(--accent); color: var(--ink); box-shadow: 0 0 0 2px var(--accent-glow); }
   .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .count {
-    min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--lamp);
+    min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp);
     color: var(--on-lamp, #000); font-family: var(--mono); font-size: 11px; text-align: center;
   }
   .more { font-family: var(--mono); }

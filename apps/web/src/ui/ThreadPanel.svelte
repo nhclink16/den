@@ -282,7 +282,7 @@
   h2 { font-size: 16px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
   .iconbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px; }
-  .tag { font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+  .tag { font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); padding: 1px 7px; }
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: 13px; }
   .root { border-bottom: 1px solid var(--line); padding-bottom: 6px; }

@@ -104,7 +104,11 @@
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
 
 <style>
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); font-size: 13px; display: flex; align-items: center; gap: 12px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }
+  @media (prefers-reduced-motion: no-preference) { .toast { animation: toast-in .24s var(--ease-out); } }
+  @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+  .toast button { border-radius: var(--r); color: var(--ink-2); }
+  .toast button:hover { color: var(--ink); background: var(--bg-3); }
   .toast button { min-width: 24px; min-height: 24px; }
   .call-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; color: var(--lamp); background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .shell {

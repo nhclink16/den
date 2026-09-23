@@ -70,8 +70,12 @@
     button { position: relative; }
     button::after { content: ''; position: absolute; inset: -8px; }
   }
-  .muted { color: var(--ink-3); }
-  .sharing, .blurred { color: var(--lamp); }
+  /* Off is a state you need to see at a glance, so it is coloured, not dimmed. */
+  .muted { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+  .muted:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+  .sharing, .blurred { color: var(--bg); background: var(--lamp); box-shadow: var(--glow); }
+  .sharing:hover, .blurred:hover { background: var(--lamp); filter: brightness(1.08); }
+  button { transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t); }
   .leave { color: var(--ink-2); }
   /* Leave sits apart from the toggles so it is not fumbled mid-call. */
   .leave { margin-inline-start: 6px; }

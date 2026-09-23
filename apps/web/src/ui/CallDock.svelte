@@ -15,9 +15,11 @@
 {/if}
 
 <style>
-  .dock { min-height: 44px; height: auto; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-3); border-top: 1px solid var(--line); }
+  .dock { min-height: 44px; height: auto; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--lamp) 9%, var(--bg-3)), var(--bg-3)); border-top: 1px solid color-mix(in srgb, var(--lamp) 30%, var(--line)); }
   .dock :global(.controls) { margin-inline-start: auto; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
-  .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
+  .dot { width: 8px; height: 8px; margin-inline: 2px; flex: none; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
+  @media (prefers-reduced-motion: no-preference) { .dot { animation: breathe 2.4s ease-in-out infinite; } }
+  @keyframes breathe { 50% { box-shadow: 0 0 2px var(--lamp); } }
   .room { min-width: 5ch; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
   .count { font: 11px var(--mono); color: var(--ink-2); }
   .ptt { gap: 3px; padding-inline: 5px; }

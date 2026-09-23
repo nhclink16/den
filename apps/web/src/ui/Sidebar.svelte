@@ -41,7 +41,7 @@
           <Icon name="headset" />
           <span class="voice-name"><span class="name">{c.name}</span>
             {#if call.ids(c.id).length}
-              <span class="avatars">{#each call.ids(c.id).slice(0,5) as id (id)}<span><Avatar userId={id} size={20} /></span>{/each}{#if call.ids(c.id).length > 5}<small>+{call.ids(c.id).length - 5}</small>{/if}</span>
+              <span class="avatars">{#each call.ids(c.id).slice(0,5) as id (id)}<span><Avatar userId={id} size={20} presence={false} /></span>{/each}{#if call.ids(c.id).length > 5}<small>+{call.ids(c.id).length - 5}</small>{/if}</span>
             {/if}
           </span>
           {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
@@ -110,35 +110,46 @@
     color: var(--ink); font-size: 12.5px; line-height: 1.35;
   }
   .scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
-  .cat { padding: 14px 10px 4px; user-select: none; }
+  .cat { padding: 16px 10px 5px; user-select: none; }
   .row {
-    display: flex; align-items: center; gap: 8px; padding: calc(6px * var(--density)) 10px; margin: 1px 0;
+    position: relative; display: flex; align-items: center; gap: 8px; padding: calc(6px * var(--density)) 10px; margin: 1px 0;
     border-radius: var(--r); color: var(--ink-2); font-size: 14.5px;
+    transition: background-color var(--t-fast), color var(--t-fast);
   }
-  .row:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
-  .row.active { background: var(--bg-3); color: var(--ink); }
+  .row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); text-decoration: none; }
+  .row.active { background: color-mix(in srgb, var(--lamp) 13%, var(--bg-3)); color: var(--ink); }
+  /* The room you are in is the one lamp that is on. */
+  .row.active::before {
+    content: ''; position: absolute; left: -8px; top: 22%; bottom: 22%; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--lamp); box-shadow: var(--glow);
+  }
   .row.lit { color: var(--ink); font-weight: 700; }
   .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row :global(svg) { color: var(--ink-3); flex: none; }
-  .row.lit :global(svg), .row.active :global(svg) { color: var(--ink-2); }
+  .row.lit :global(svg) { color: var(--ink-2); }
+  .row.active :global(svg) { color: var(--lamp); }
   .wordmark { min-width: 0; }
   .wordmark span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wordmark :global(svg) { flex-shrink: 0; }
-  .voice { width: 100%; text-align: left; }
+  .voice { width: 100%; text-align: left; align-items: flex-start; }
+  .voice > :global(svg) { margin-top: 2px; }
   .voice-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
   .voice.active :global(svg) { color: var(--lamp); }
   .avatars { display: flex; padding-left: 6px; padding-bottom: 2px; align-items: center; }
-  .avatars > span { margin-left: -6px; display: flex; border-radius: 35%; box-shadow: 0 0 0 2px var(--bg-2); }
+  .avatars > span { margin-left: -6px; display: flex; border-radius: var(--r-avatar, 35%); box-shadow: 0 0 0 2px var(--bg-2); }
+  .voice:has(.avatars) > :global(svg) { color: var(--lamp); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lamp) 60%, transparent)); }
   .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
   .inbox { margin: 4px 8px 0; }
   .uploading { font: 16px var(--mono); color: var(--lamp); }
   .count {
     font-family: var(--mono); font-size: 11px; font-weight: 500; line-height: 1;
-    padding: 3px 6px; border-radius: 999px; background: var(--lamp); color: var(--bg);
+    min-width: 20px; text-align: center; font-variant-numeric: tabular-nums;
+    padding: 3px 6px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--bg);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 40%, transparent);
   }
   .count.at { font-weight: 700; }
-  .me { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .me { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 35%, transparent); }
   .me .name { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gear { color: var(--ink-3); display: grid; padding: 4px; border-radius: var(--r); }
+  .gear { color: var(--ink-2); display: grid; padding: 6px; border-radius: var(--r); transition: color var(--t-fast), background-color var(--t-fast); }
   .gear:hover, .gear.active { color: var(--ink); background: var(--bg-3); }
 </style>

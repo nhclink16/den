@@ -47,8 +47,9 @@
 </script>
 
 <main class="wrap">
+  <div class="light" aria-hidden="true"></div>
   <form class="card" onsubmit={submit}>
-    <h1 class="display"><Mark size={40} /><span>{store.settings.instance_name}</span></h1>
+    <h1 class="display"><span class="mark"><Mark size={44} /></span><span>{store.settings.instance_name}</span></h1>
     {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{:else if invite}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Open in Den</a>{/if}
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
@@ -89,7 +90,7 @@
 
     <p class="error" role="alert">{error}</p>
 
-    <button class="btn lit" type="submit" disabled={busy}>{mode === 'login' ? 'Come in' : 'Join'}</button>
+    <button class="btn lit" type="submit" disabled={busy}>{busy ? (mode === 'login' ? 'Coming in…' : 'Joining…') : mode === 'login' ? 'Come in' : 'Join'}</button>
     <button class="btn quiet" type="button" onclick={() => { mode = mode === 'login' ? 'register' : 'login'; error = '' }}>
       {mode === 'login' ? 'Have an invite?' : 'Already a member? Log in'}
     </button>
@@ -97,17 +98,41 @@
 </main>
 
 <style>
-  .wrap { height: 100%; display: grid; place-items: center; padding: 24px; }
-  .card {
-    width: min(360px, 100%); display: flex; flex-direction: column; gap: 14px;
-    padding: 28px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg);
+  .wrap { position: relative; height: 100%; display: grid; place-items: center; padding: 24px; overflow: auto; isolation: isolate; }
+  /* Light spilling out of an open door: a warm pool behind the card, brightest
+     where the mark's doorway sits. It switches on as the page loads. */
+  .light {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(ellipse 34% 42% at 50% 30%, var(--pool), transparent 70%),
+      radial-gradient(ellipse 80% 70% at 50% 40%, color-mix(in srgb, var(--pool) 35%, transparent), transparent 75%);
   }
-  h1 { font-size: 40px; margin: 0; line-height: 1; display: flex; align-items: center; gap: 10px; }
+  .card {
+    width: min(380px, 100%); display: flex; flex-direction: column; gap: 14px;
+    padding: 32px 30px 26px; background: color-mix(in srgb, var(--bg-2) 92%, transparent);
+    border: 1px solid var(--line); border-top-color: color-mix(in srgb, var(--lamp) 35%, var(--line)); border-radius: var(--r-lg);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent) inset, 0 30px 70px -24px var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--bg) 40%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  h1 { font-size: 40px; margin: 0; line-height: 1; display: flex; align-items: center; gap: 12px; }
+  .mark { position: relative; display: grid; }
+  .mark::before {
+    content: ''; position: absolute; left: 30%; right: 30%; top: 40%; bottom: -10%; z-index: -1;
+    border-radius: 50% 50% 0 0; background: var(--lamp); filter: blur(14px); opacity: .55;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .light { animation: lamp-on 1.1s .15s var(--ease-out) both; }
+    .mark::before { animation: lamp-on .9s .1s var(--ease-out) both; }
+    .card { animation: rise .5s var(--ease-out) both; }
+  }
+  @keyframes lamp-on { 0% { opacity: 0; } 35% { opacity: .45; } 45% { opacity: .2; } 100% { } }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99); } }
+  .btn.lit { min-height: 44px; font-size: 15px; }
+  .btn:disabled { cursor: default; }
   h1 span { min-width: 0; overflow-wrap: anywhere; }
   h1 :global(svg) { flex-shrink: 0; }
   h1 + p { margin: -6px 0 6px; }
   label { display: flex; flex-direction: column; gap: 6px; }
-  .small { font-size: 13px; margin: -4px 0 0; }
   /* Stated before you type, not after a rejected submit. Satisfied rules recede
      rather than vanish, so the form does not reflow while you are filling it in. */
   .hint {

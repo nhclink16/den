@@ -308,7 +308,7 @@
       <MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} />
 
       <div class="typing" aria-live="polite">
-        {#if listening}<span class="mono">listening</span>{:else if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
+        {#if listening}<span class="mono">listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
       </div>
 
       <Composer {channel} bind:replyTo bind:dropped bind:listening />
@@ -370,7 +370,7 @@
   h1 { font-size: 19px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
   .iconbtn { padding: 6px; }
-  .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; color: var(--ink-3); background: var(--bg-2); }
+  .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); color: var(--ink-3); background: var(--bg-2); }
   .search:focus-within { border-color: var(--accent); color: var(--ink-2); box-shadow: 0 0 0 3px var(--accent-glow); }
   .search input { background: none; border: 0; outline: 0; width: 120px; font-size: 13px; color: var(--ink); transition: width 0.15s; }
   .search input:focus { width: 200px; }
@@ -383,7 +383,16 @@
   .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
-  .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
+  .typing { height: 20px; padding: 0 var(--gutter); display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); }
+  .typing b { font-weight: 700; color: var(--ink); }
+  .dots { display: inline-flex; gap: 3px; margin-right: 4px; }
+  .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--lamp); }
+  @media (prefers-reduced-motion: no-preference) {
+    .dots i { animation: bob 1.1s ease-in-out infinite; }
+    .dots i:nth-child(2) { animation-delay: .15s; }
+    .dots i:nth-child(3) { animation-delay: .3s; }
+  }
+  @keyframes bob { 0%, 60%, 100% { transform: none; opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
   .drop {
     position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg);
     background: var(--overlay); border: 2px dashed var(--lamp);

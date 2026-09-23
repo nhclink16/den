@@ -6,6 +6,9 @@
   --gutter: 20px;
   --control-height: 42px;
   --lamp: var(--accent); --lamp-dim: var(--accent-dim); --lamp-glow: var(--accent-glow);
+  /* Text on an accent fill. Accent is checked at 4.5:1 against bg, and contrast is
+     symmetric, so bg is the readable ink; a fixed black failed every light theme. */
+  --on-lamp: var(--bg);
   --moss: var(--success); --ember: var(--danger);
   --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
   /* A scrim darkens whatever is behind it, in either appearance. Deriving it from
@@ -17,7 +20,13 @@
   --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
   --sidebar-w: 248px;
   --members-w: 220px;
-
+  /* Motion. Hover and reveal states ease instead of snapping. */
+  --t-fast: 110ms;
+  --t: 160ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  /* Lamplight: the soft halo live things carry. */
+  --glow: 0 0 12px color-mix(in srgb, var(--lamp) 45%, transparent);
+  --lift: 0 1px 2px var(--shadow), 0 8px 24px -8px var(--shadow);
 }
 
 * { box-sizing: border-box; }
@@ -37,6 +46,8 @@ body {
   overflow: hidden;
 }
 #app { height: 100%; }
+/* Thin scrollbars in the theme's own colours, not the platform's grey slab. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent; }
 
 a { color: var(--lamp); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -45,9 +56,10 @@ input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
 ::selection { background: var(--selection); color: var(--ink); }
 code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
-code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
+code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
 pre { background: var(--bg-3); padding: 10px 12px; border-radius: var(--r); overflow-x: auto; margin: 6px 0; }
-pre code { background: none; padding: 0; }
+pre { border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+pre code { background: none; padding: 0; border: 0; }
 .mention { color: var(--lamp); background: var(--mention-bg); padding: 0 4px; border-radius: 4px; font-weight: 700; }
 
 .display { font-family: var(--display); font-weight: 600; letter-spacing: -0.01em; }
@@ -65,10 +77,12 @@ pre code { background: none; padding: 0; }
   background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-strong);
   white-space: nowrap;
 }
+.btn { transition: border-color var(--t-fast), background-color var(--t-fast), color var(--t-fast), box-shadow var(--t), filter var(--t-fast); }
 .btn:hover { border-color: var(--ink-2); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.lit { background: var(--lamp); color: var(--bg); border-color: var(--lamp); font-weight: 700; }
-.btn.lit:hover { filter: brightness(1.06); }
+.btn.lit:hover { filter: brightness(1.06); box-shadow: 0 6px 22px -6px color-mix(in srgb, var(--lamp) 70%, transparent); }
 /* Declared after .btn.quiet so a quiet destructive button still reads as destructive. */
 .btn.danger, .btn.quiet.danger { color: var(--danger); }
 .btn.danger:hover, .btn.quiet.danger:hover { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
@@ -79,6 +93,7 @@ pre code { background: none; padding: 0; }
   width: 100%; padding: 9px 11px; border-radius: var(--r);
   background: var(--bg); border: 1px solid var(--line-strong); color: var(--ink);
 }
+.field { transition: border-color var(--t-fast), box-shadow var(--t); }
 .field:focus { outline: none; border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
 .muted { color: var(--ink-2); }
 .faint { color: var(--ink-3); }
@@ -95,6 +110,11 @@ kbd {
 /* Wallpaper. The runtime sets --bg-image and data-bg-scope; these rules decide where it shows.
    The layer sits behind content and carries its own blur and scrim so text stays readable. */
 :root[data-bg-scope] .bg-host { position: relative; isolation: isolate; }
+/* The layer is scaled past its box to hide the blur's soft edge. Clip it to the region,
+   or a chat-only wallpaper spills over the room list and the people list. `clip` does
+   not create a scroll container, so sticky and scrolling children behave as before. */
+:root[data-bg-scope] .bg-host.scope-sidebar,
+:root[data-bg-scope] .bg-host.scope-chat { overflow: clip; }
 :root[data-bg-scope] .bg-host::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background-image: var(--bg-image);

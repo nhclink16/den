@@ -65,10 +65,22 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   s.setProperty('--line-strong', controlBorder(colors))
   s.setProperty('--accent-dim', `color-mix(in srgb, ${colors.accent} 55%, ${colors.bg})`)
   s.setProperty('--accent-glow', `color-mix(in srgb, ${colors.accent} 18%, transparent)`)
+  // Per-person tints (avatars) sit at a lightness chosen from the actual background,
+  // not the half's name, so a custom pale "dark" theme still gets readable initials.
+  const pale = lab(colors.bg)[0]! > .5
+  s.setProperty('--tint-bg-l', pale ? '.86' : '.4'); s.setProperty('--tint-ink-l', pale ? '.42' : '.88')
+  // Black shadows at dark-theme strength look like soot on a pale page, and a dark
+  // accent mixed into cream reads as a stain, so pale themes get lighter versions.
+  s.setProperty('--shadow', pale ? 'rgba(40, 30, 10, .12)' : 'rgba(0, 0, 0, .34)')
+  s.setProperty('--shadow-lg', pale ? 'rgba(40, 30, 10, .2)' : 'rgba(0, 0, 0, .46)')
+  s.setProperty('--pool', pale ? `color-mix(in srgb, ${colors.accent} 14%, #fff)` : `color-mix(in srgb, ${colors.accent} 22%, transparent)`)
   s.setProperty('--selection', 'var(--accent-dim)'); s.setProperty('--mention-bg', 'var(--accent-glow)')
   for (const [key,value] of Object.entries(t.fonts)) s.setProperty(`--${key}`, `"${value}", ${key === 'mono' ? '"Den Terminal Mono", monospace' : 'system-ui, sans-serif'}`)
   const radii = { sharp: [2,6], soft: [6,12], round: [10,18] }[t.radius]
   s.setProperty('--r', `${radii[0]}px`); s.setProperty('--r-lg', `${radii[1]}px`)
+  // Chips and avatars follow Corners too, or a Sharp theme ends up full of pills.
+  s.setProperty('--r-pill', t.radius === 'sharp' ? `${radii[0]}px` : '999px')
+  s.setProperty('--r-avatar', { sharp: '14%', soft: '35%', round: '50%' }[t.radius])
   s.setProperty('--density', t.density === 'compact' ? '0.8' : '1')
   s.setProperty('--leading', t.density === 'compact' ? '1.35' : '1.45')
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id
