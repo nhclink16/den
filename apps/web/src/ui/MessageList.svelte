@@ -29,11 +29,12 @@
 
 <script lang="ts">
   import { tick } from 'svelte'
-  import { store } from '../lib/store.svelte'
+  import { store, instances } from '../lib/store.svelte'
   import type { Channel, Message } from '../lib/types'
   import { dayLabel, sameDay, within } from '../lib/time'
   import MessageItem from './MessageItem.svelte'
   import Icon from './Icon.svelte'
+  import { profileCard } from '../lib/people.svelte'
 
   let { channel, source, onreply }: { channel: Channel; source: Source; onreply: (m: Message) => void } = $props()
   let el: HTMLDivElement
@@ -99,6 +100,10 @@
   let seenLast = $state<string | undefined>()
   $effect(() => { if (!far) seenLast = list.at(-1)?.id })
   const arrived = $derived(far && seenLast ? list.filter((m) => m.id > seenLast! && m.author_id !== store.me?.id).length : 0)
+  function mention(e: MouseEvent) {
+    const tag = (e.target as HTMLElement).closest<HTMLElement>('.mention[data-user]')
+    if (tag?.dataset.user) profileCard.open(tag.dataset.user, tag, instances.active)
+  }
   function latest() {
     const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
     el?.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
@@ -132,7 +137,9 @@
 </script>
 
 <div class="wrap">
-<div class="list" bind:this={el} onscroll={onScroll}>
+<!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
+<div class="list" bind:this={el} onscroll={onScroll} onclick={mention}>
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <div class="start">

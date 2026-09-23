@@ -10,6 +10,7 @@
   import { desktop } from '../lib/desktop.svelte'
   import ServerSwitcher from './ServerSwitcher.svelte'
   import Mark from './Mark.svelte'
+  import { profileCard } from '../lib/people.svelte'
 
   let { narrow = false }: { narrow?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
@@ -83,8 +84,10 @@
   <CallDock />
   <div class="me">
     {#if store.me}
-      <Avatar userId={store.me.id} size={28} />
-      <span class="name">{store.me.display_name || store.me.username}</span>
+      <button class="me-card" aria-haspopup="dialog" onclick={(e) => profileCard.open(store.me!.id, e.currentTarget, instances.active)}>
+        <Avatar userId={store.me.id} size={28} />
+        <span class="name">{store.me.display_name || store.me.username}</span>
+      </button>
       <a href="/settings" class="gear" class:active={router.route.name === 'settings'} aria-current={router.route.name === 'settings' ? 'page' : undefined} title="Settings" onclick={go('/settings')}><Icon name="gear" /></a>
     {/if}
   </div>
@@ -136,7 +139,7 @@
   .voice-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
   .voice.active :global(svg) { color: var(--lamp); }
   .avatars { display: flex; padding-left: 6px; padding-bottom: 2px; align-items: center; }
-  .avatars > span { margin-left: -6px; display: flex; border-radius: var(--r-avatar, 35%); box-shadow: 0 0 0 2px var(--bg-2); }
+  .avatars > span { margin-left: -6px; display: flex; border-radius: var(--avatar-r, 35%); box-shadow: 0 0 0 2px var(--bg-2); }
   .voice:has(.avatars) > :global(svg) { color: var(--lamp); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lamp) 60%, transparent)); }
   .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
   .inbox { margin: 4px 8px 0; }
@@ -149,6 +152,8 @@
   }
   .count.at { font-weight: 700; }
   .me { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 35%, transparent); }
+  .me-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; margin: -4px; padding: 4px; border-radius: var(--r); text-align: left; transition: background-color var(--t-fast); }
+  .me-card:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
   .me .name { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gear { color: var(--ink-2); display: grid; padding: 6px; border-radius: var(--r); transition: color var(--t-fast), background-color var(--t-fast); }
   .gear:hover, .gear.active { color: var(--ink); background: var(--bg-3); }

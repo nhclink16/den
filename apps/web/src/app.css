@@ -27,7 +27,12 @@
   /* Lamplight: the soft halo live things carry. */
   --glow: 0 0 12px color-mix(in srgb, var(--lamp) 45%, transparent);
   --lift: 0 1px 2px var(--shadow), 0 8px 24px -8px var(--shadow);
+  /* Avatar shape: follows Corners unless this device picked one. */
+  --avatar-r: var(--r-avatar, 35%);
 }
+:root[data-avatar-shape='sharp'] { --avatar-r: 14%; }
+:root[data-avatar-shape='soft'] { --avatar-r: 35%; }
+:root[data-avatar-shape='round'] { --avatar-r: 50%; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -163,3 +168,9 @@ kbd {
 /* One heading treatment across sibling settings pages. */
 .settings h2 { font-family: var(--display); font-size: 26px; font-weight: 600; margin: 0 0 6px; }
 .settings h3, .settings legend.eyebrow { font: 600 11px/1.45 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+
+/* A segmented control: one choice from a few, all visible. */
+.segments { display: inline-flex; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
+.segments button { min-height: 32px; padding: 5px 13px; border-radius: var(--r); color: var(--ink2); font-size: 13px; transition: background-color var(--t-fast), color var(--t-fast); }
+.segments button:hover { color: var(--ink); }
+.segments button[aria-pressed=true] { background: var(--bg3); color: var(--ink); font-weight: 600; }

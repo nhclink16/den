@@ -13,6 +13,7 @@
   import Settings from './Settings.svelte'
   import SpotifyCallback from './SpotifyCallback.svelte'
   import Palette from './Palette.svelte'
+  import ProfilePopover from './ProfilePopover.svelte'
   import Search from './Search.svelte'
   import { notify } from '../lib/notify.svelte'
 
@@ -49,6 +50,13 @@
     window.addEventListener('keydown', down); window.addEventListener('keyup', up)
     window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
+  })
+  // Per-device avatar preferences, read by Avatar through root attributes.
+  $effect(() => {
+    const root = document.documentElement
+    if (store.layout.avatarShape === 'theme') delete root.dataset.avatarShape
+    else root.dataset.avatarShape = store.layout.avatarShape
+    root.dataset.presence = store.layout.presence
   })
   notify.attach()
 </script>
@@ -102,6 +110,7 @@
 {#if store.toast}<div class="toast" role="status">{store.toast}<button aria-label="Dismiss notification" onclick={() => store.toast = ''}>×</button></div>{/if}
 
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
+<ProfilePopover />
 
 <style>
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }

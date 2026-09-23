@@ -233,10 +233,10 @@
 
   .who { flex: none; display: grid; justify-items: center; gap: 4px; }
   .faces { display: flex; }
-  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--jam-bg); border-radius: var(--r-avatar, 35%); }
+  .faces > :global(*) { margin-left: -7px; box-shadow: 0 0 0 2px var(--jam-bg); border-radius: var(--avatar-r, 35%); }
   .faces > :global(*:first-child) { margin-left: 0; }
   .more {
-    display: grid; place-items: center; width: 26px; height: 26px; margin-left: -7px; border-radius: var(--r-avatar, 35%);
+    display: grid; place-items: center; width: 26px; height: 26px; margin-left: -7px; border-radius: var(--avatar-r, 35%);
     background: var(--bg-3); color: var(--ink-2); font: 11px/1 var(--mono); box-shadow: 0 0 0 2px var(--jam-bg);
   }
   .who-label { font: 11px var(--mono); letter-spacing: 0.04em; color: var(--ink-2); }

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { call } from '../lib/call.svelte'
   import ParticipantVolume from './ParticipantVolume.svelte'
-  import { store } from '../lib/store.svelte'
-  import { router } from '../lib/router.svelte'
+  import { store, instances } from '../lib/store.svelte'
+  import { profileCard } from '../lib/people.svelte'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import type { Channel } from '../lib/types'
@@ -16,11 +16,6 @@
   const here = $derived(members.filter((u) => store.online.has(u.id)))
   const away = $derived(members.filter((u) => !store.online.has(u.id)))
 
-  async function dm(id: string) {
-    if (id === store.me?.id) return
-    const c = await store.openDm([id])
-    router.go(`/c/${c.id}`)
-  }
 </script>
 
 <div class="roster">
@@ -30,7 +25,7 @@
   {/each}
   {#snippet person(u: import('../lib/types').User)}
     <div class="member">
-    <button class="person" class:off={!store.online.has(u.id)} onclick={() => dm(u.id)} title={u.id === store.me?.id ? 'You' : `Message ${u.display_name || u.username}`}>
+    <button class="person" class:off={!store.online.has(u.id)} aria-haspopup="dialog" onclick={(e) => profileCard.open(u.id, e.currentTarget, instances.active)}>
       <Avatar userId={u.id} size={28} />
       <span class="name">{u.display_name || u.username}</span>
       {#if u.bot}<span class="tag lit"><Icon name="bot" size={11} />agent</span>{/if}

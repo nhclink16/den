@@ -7,6 +7,7 @@
   import ThemeCard from './ThemeCard.svelte'
   import BackgroundSettings from './BackgroundSettings.svelte'
   import SettingRow from './SettingRow.svelte'
+  import { store, type AvatarShape, type PresenceStyle } from '../lib/store.svelte'
 
   type Half = 'light' | 'dark'
 
@@ -259,6 +260,24 @@
           </div>
         {/snippet}
       </SettingRow>
+      <SettingRow label="Avatar shape" hint="How profile pictures are cut, on this device only.">
+        {#snippet control()}
+          <div class="segments" role="group" aria-label="Avatar shape">
+            {#each [['theme', 'Match corners'], ['sharp', 'Sharp'], ['soft', 'Soft'], ['round', 'Round']] as [value, name] (value)}
+              <button aria-pressed={store.layout.avatarShape === value} onclick={() => store.saveLayout({ avatarShape: value as AvatarShape })}>{name}</button>
+            {/each}
+          </div>
+        {/snippet}
+      </SettingRow>
+      <SettingRow label="Online indicator" hint="How people who are here show on their picture, on this device only.">
+        {#snippet control()}
+          <div class="segments" role="group" aria-label="Online indicator">
+            {#each [['dot', 'Dot'], ['ring', 'Ring'], ['off', 'Off']] as [value, name] (value)}
+              <button aria-pressed={store.layout.presence === value} onclick={() => store.saveLayout({ presence: value as PresenceStyle })}>{name}</button>
+            {/each}
+          </div>
+        {/snippet}
+      </SettingRow>
       <SettingRow label="Contrast" hint="Raises or softens secondary text and borders.">
         {#snippet control()}
           <input type="range" min="80" max="120" step="5" value={appearance.contrast ?? 100} oninput={e => themes.contrast(+e.currentTarget.value)} aria-label="Contrast" />
@@ -318,9 +337,6 @@
   .specimen span { font-size: 14px; color: var(--ink2); }
   .specimen code { font-size: 12.5px; color: var(--ink3); }
 
-  .segments { display: inline-flex; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
-  .segments button { min-height: 32px; padding: 5px 13px; border-radius: var(--r); color: var(--ink2); font-size: 13px; }
-  .segments button[aria-pressed=true] { background: var(--bg3); color: var(--ink); font-weight: 600; }
   select.field, .custom-font { width: auto; min-width: 150px; }
   input[type=range] { width: 160px; accent-color: var(--accent); }
   output { font-size: 12px; color: var(--ink2); min-width: 42px; text-align: end; }

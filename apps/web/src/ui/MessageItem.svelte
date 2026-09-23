@@ -8,6 +8,7 @@
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
+  import { profileCard } from '../lib/people.svelte'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
   // room does, so an unscoped id would exist twice and a deep link could reveal
@@ -74,12 +75,12 @@
   {/if}
   <div class="row">
     <div class="gutter">
-      {#if compact}<span class="stamp" title={shortTime(m.created_at)}>{clockTime(m.created_at)}</span>{:else}<Avatar userId={m.author_id} size={36} />{/if}
+      {#if compact}<span class="stamp" title={shortTime(m.created_at)}>{clockTime(m.created_at)}</span>{:else}<button class="face" aria-label={`${store.name(m.author_id)}'s profile`} onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}><Avatar userId={m.author_id} size={36} /></button>{/if}
     </div>
     <div class="body">
       {#if !compact}
         <div class="meta">
-          <span class="author">{author?.display_name || author?.username || 'someone'}</span>
+          <button class="author" onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}>{author?.display_name || author?.username || 'someone'}</button>
           {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />agent</span>{/if}
           <span class="time">{shortTime(m.created_at)}</span>
         </div>
@@ -167,6 +168,10 @@
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
   .author { font-weight: 700; }
+  .author:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .face { display: grid; border-radius: var(--avatar-r, 35%); transition: transform var(--t) var(--ease-out); }
+  .face:hover { transform: translateY(-1px); }
+  .face:active { transform: scale(.96); }
   .bot {
     display: inline-flex; align-items: center; gap: 3px; align-self: center; padding: 1px 6px 1px 5px;
     border-radius: var(--r-pill, 999px); font: 600 11px/1.45 var(--mono); letter-spacing: .04em; text-transform: uppercase;
