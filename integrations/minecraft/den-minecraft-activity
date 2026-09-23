@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Show "Playing Minecraft" on Den for everyone logged into the Minecraft server.
+
+Every 30 seconds this asks the server who is online (through mcrcon, which owns
+the RCON protocol) and sets a `minecraft` activity for each player it can match
+to a Den account. Activities expire after 90 seconds, so if this relay or the
+server stops, nobody is left "playing".
+
+Environment:
+  DEN_URL, DEN_TOKEN        Den server and an admin's API token (den token create).
+  RCON_HOST, RCON_PORT, RCON_PASSWORD
+                            Usually sourced from ~/.config/minecraft/rcon.env.
+  DEN_MINECRAFT_PLAYERS     Optional JSON file mapping Minecraft names to Den
+                            usernames. Default ~/.config/den/minecraft-players.json.
+                            Unmapped players are matched to a Den username by name.
+  MCRCON                    mcrcon binary. Default: mcrcon on PATH.
+
+Run once with --once to test; see README.md for the systemd unit.
+"""
+import json, os, re, subprocess, sys, time, urllib.error, urllib.request
+from pathlib import Path
+
+INTERVAL, TTL, SLOT = 30, 90, "minecraft"
+LIST = re.compile(r"players online:\s*(.*)$", re.I | re.S)
+
+
+def online_players() -> list[str]:
+    out = subprocess.run(
+        [os.environ.get("MCRCON", "mcrcon"), "-H", os.environ["RCON_HOST"], "-P", os.environ["RCON_PORT"],
+         "-p", os.environ["RCON_PASSWORD"], "-c", "list"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if out.returncode != 0:
+        raise RuntimeError(f"mcrcon failed: {out.stderr.strip() or out.stdout.strip()}")
+    match = LIST.search(out.stdout.strip())
+    return [p.strip() for p in match.group(1).split(",") if p.strip()] if match else []
+
+
+def api(method: str, path: str, body=None):
+    request = urllib.request.Request(
+        os.environ["DEN_URL"].rstrip("/") + path, method=method,
+        data=None if body is None else json.dumps(body).encode(),
+        headers={"authorization": f"Bearer {os.environ['DEN_TOKEN']}", "content-type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return json.loads(response.read() or b"null")
+
+
+def den_users() -> dict[str, str]:
+    """Lowercased Den username -> user id."""
+    return {u["username"].lower(): u["id"] for u in api("GET", "/users")}
+
+
+def mapping() -> dict[str, str]:
+    path = Path(os.environ.get("DEN_MINECRAFT_PLAYERS", Path.home() / ".config/den/minecraft-players.json"))
+    if not path.exists():
+        return {}
+    return {k.lower(): v.lower() for k, v in json.loads(path.read_text()).items()}
+
+
+def tick(previous: set[str]) -> set[str]:
+    users, names = den_users(), mapping()
+    playing = set()
+    for player in online_players():
+        user_id = users.get(names.get(player.lower(), player.lower()))
+        if not user_id:
+            continue
+        api("PUT", f"/users/{user_id}/activities/{SLOT}", {"kind": "playing", "name": "Minecraft", "ttl_seconds": TTL})
+        playing.add(user_id)
+    # Players who logged off: clear now rather than waiting out the TTL.
+    for user_id in previous - playing:
+        api("DELETE", f"/users/{user_id}/activities/{SLOT}")
+    return playing
+
+
+def main() -> None:
+    once = "--once" in sys.argv
+    playing: set[str] = set()
+    while True:
+        try:
+            playing = tick(playing)
+            print(f"playing: {len(playing)}", flush=True)
+        except (OSError, RuntimeError, urllib.error.URLError, subprocess.TimeoutExpired) as e:
+            # A stopped server or an unreachable Den is normal; the TTL cleans up.
+            print(f"skipped: {e}", file=sys.stderr, flush=True)
+        if once:
+            return
+        time.sleep(INTERVAL)
+
+
+if __name__ == "__main__":
+    main()

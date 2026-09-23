@@ -1,0 +1,13 @@
+[Unit]
+Description=Show Minecraft players as playing on Den
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/minecraft/rcon.env
+EnvironmentFile=%h/.config/den/minecraft-activity.env
+ExecStart=%h/den/integrations/minecraft/den-minecraft-activity
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

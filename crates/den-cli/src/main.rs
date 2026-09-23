@@ -1,3 +1,4 @@
+mod activity;
 mod canvas;
 mod client;
 mod hosts;
@@ -36,6 +37,8 @@ struct Cli {
 enum Cmd {
     /// Add music to a voice room, skip, or inspect its shared queue.
     Music(music::Music),
+    /// Set, clear or list what people are doing ("Playing Minecraft").
+    Activity(activity::ActivityArgs),
     Health,
     #[command(subcommand)]
     Host(hosts::HostCmd),
@@ -234,6 +237,7 @@ fn main() -> anyhow::Result<()> {
     let mut c = Client::new(args.url, args.token, args.config)?;
     match args.cmd {
         Cmd::Music(args) => music::run(&c, args)?,
+        Cmd::Activity(args) => activity::run(&c, args)?,
         Cmd::Thread(cmd) => threads::run(&c, cmd)?,
         Cmd::Canvas(cmd) => canvas::run(&c, cmd)?,
         Cmd::Host(cmd) => hosts::host(&c, cmd)?,
