@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { wallpapers, wallpaperImage, legacyWallpapers } from '../apps/web/src/lib/wallpapers.ts'
+import { wallpapers, wallpaperImage, legacyWallpapers, savedWallpaper } from '../apps/web/src/lib/wallpapers.ts'
 
 const themes = JSON.parse(readFileSync(new URL('../crates/den-core/src/themes.json', import.meta.url), 'utf8'))
 
@@ -27,4 +27,8 @@ test('SVG presets keep working internal references', () => {
 test('names saved before the redesign still paint', () => {
   for (const [old, now] of Object.entries(legacyWallpapers)) assert.equal(wallpaperImage(old, themes[0].dark), wallpaperImage(now, themes[0].dark), old)
   assert.equal(wallpaperImage('nonsense', themes[0].dark), 'none')
+})
+
+test('every preset is saved under a name older clients know', () => {
+  for (const name of wallpapers) assert.equal(legacyWallpapers[savedWallpaper[name]], name, name)
 })

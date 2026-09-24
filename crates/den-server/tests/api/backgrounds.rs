@@ -24,16 +24,21 @@ async fn backgrounds_are_private_bounded_and_portable() {
             .status(),
         404
     );
-    // Retired preset names still load, as the preset that replaced them.
+    // Presets travel under their original names, which older iOS builds decode
+    // strictly. The redesign's names are accepted and stored as the original.
     for (name, now) in [
-        ("lamplight", "lamplight"),
-        ("paper", "paper"),
-        ("aurora", "clearing"),
-        ("dunes", "contours"),
-        ("harbor", "doorway"),
-        ("ember-sky", "lamplight"),
-        ("slate-mist", "plaid"),
-        ("grain", "paper"),
+        ("lamplight", "ember-sky"),
+        ("paper", "grain"),
+        ("aurora", "aurora"),
+        ("dunes", "dunes"),
+        ("clearing", "aurora"),
+        ("contours", "dunes"),
+        ("harbor", "harbor"),
+        ("doorway", "harbor"),
+        ("ember-sky", "ember-sky"),
+        ("slate-mist", "slate-mist"),
+        ("plaid", "slate-mist"),
+        ("grain", "grain"),
         ("unknown", ""),
     ] {
         let mut preference = json!(Appearance::default());

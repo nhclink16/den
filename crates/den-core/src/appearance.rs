@@ -173,20 +173,21 @@ fn clamped<'de, D: serde::Deserializer<'de>, const MIN: u8, const MAX: u8>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum BackgroundBuiltin {
-    // Painted by clients from the active palette. The first six names were
-    // retired in the wallpaper redesign; saved choices still load as the nearest
-    // new preset, so nobody's background disappears.
-    #[serde(alias = "ember-sky")]
+    // Painted by clients from the active palette. The wallpaper redesign gave
+    // these new names, but the wire keeps the old ones: iOS builds that predate
+    // it decode this enum strictly and would refuse a name they do not know.
+    // The new names are accepted as aliases and clients show them.
+    #[serde(rename = "ember-sky", alias = "lamplight")]
     Lamplight,
-    #[serde(alias = "harbor")]
+    #[serde(rename = "harbor", alias = "doorway")]
     Doorway,
-    #[serde(alias = "dunes")]
+    #[serde(rename = "dunes", alias = "contours")]
     Contours,
-    #[serde(alias = "slate-mist")]
+    #[serde(rename = "slate-mist", alias = "plaid")]
     Plaid,
-    #[serde(alias = "aurora")]
+    #[serde(rename = "aurora", alias = "clearing")]
     Clearing,
-    #[serde(alias = "grain")]
+    #[serde(rename = "grain", alias = "paper")]
     Paper,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]

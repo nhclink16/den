@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { themes } from '../lib/theme.svelte'
   import { uploadedBackgroundUrl } from '../lib/theme-runtime'
-  import { wallpapers, wallpaperNames, wallpaperImage, legacyWallpapers } from '../lib/wallpapers'
+  import { wallpapers, wallpaperNames, wallpaperImage, legacyWallpapers, savedWallpaper, type Wallpaper } from '../lib/wallpapers'
   import { apiFor } from '../lib/api'
   import { activeOrigin } from '../lib/native'
   import type { AppearanceBackground, BackgroundBuiltin, BackgroundImage } from '../lib/types'
@@ -28,7 +28,7 @@
     if (!bg) return
     themes.background({ ...bg, ...patch })
   }
-  function pickPreset(name: string) { themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name: name as BackgroundBuiltin } }) }
+  function pickPreset(name: Wallpaper) { themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name: savedWallpaper[name] as BackgroundBuiltin } }) }
   function pickUpload(id: string) { themes.background({ ...(bg ?? defaults), source: { type: 'upload', id } }) }
   function clear() { themes.background(null) }
 

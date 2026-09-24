@@ -1803,7 +1803,7 @@ export interface components {
             source: components["schemas"]["BackgroundSource"];
         };
         /** @enum {string} */
-        BackgroundBuiltin: "lamplight" | "doorway" | "contours" | "plaid" | "clearing" | "paper";
+        BackgroundBuiltin: "ember-sky" | "harbor" | "dunes" | "slate-mist" | "aurora" | "grain";
         /** @enum {string} */
         BackgroundFit: "cover" | "contain" | "tile";
         BackgroundImage: {

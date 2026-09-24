@@ -10,10 +10,13 @@ export type Wallpaper = typeof wallpapers[number]
 export const wallpaperNames: Record<Wallpaper, string> = {
   lamplight: 'Lamplight', doorway: 'Doorway', contours: 'Contours', plaid: 'Plaid', clearing: 'Clearing', paper: 'Paper',
 }
-/** Names saved before the redesign still open the nearest new one. */
+/** The server stores presets under their original names, which older iOS builds
+ *  decode strictly. Each still opens the new preset that replaced it. */
 export const legacyWallpapers: Record<string, Wallpaper> = {
   aurora: 'clearing', dunes: 'contours', harbor: 'doorway', 'ember-sky': 'lamplight', 'slate-mist': 'plaid', grain: 'paper',
 }
+/** The name a preset is saved under. */
+export const savedWallpaper = Object.fromEntries(Object.entries(legacyWallpapers).map(([saved, name]) => [name, saved])) as Record<Wallpaper, string>
 
 // --- colour ------------------------------------------------------------------
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
