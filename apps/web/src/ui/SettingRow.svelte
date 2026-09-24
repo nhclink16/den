@@ -24,6 +24,10 @@
   .control { flex: none; display: flex; align-items: center; gap: 8px; }
   .row.wide { flex-direction: column; align-items: stretch; gap: 12px; }
   .row.wide .control { flex: 1; }
+  @container panel (max-width: 460px) {
+    .row { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+    .control { justify-content: flex-start; flex-wrap: wrap; }
+  }
   @media (max-width: 720px) {
     .row { flex-direction: column; align-items: stretch; gap: 10px; }
     .control { justify-content: flex-start; }

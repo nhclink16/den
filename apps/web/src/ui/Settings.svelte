@@ -6,7 +6,7 @@
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
   import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
-  import Appearance from './Appearance.svelte'
+  import { customizer } from '../lib/customizer.svelte'
   import ProfileSettings from './ProfileSettings.svelte'
   import MachineSettings from './MachineSettings.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
@@ -15,12 +15,19 @@
   import SpotifySettings from './SpotifySettings.svelte'
   import Icon from './Icon.svelte'
 
-  let { section = 'appearance', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
+  let { section = 'profile', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
     ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
     ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
+  // Appearance isn't a page: it opens over the room you came from, so each change
+  // shows where it matters.
+  $effect(() => {
+    if (section !== 'appearance') return
+    customizer.show()
+    router.go(customizer.lastPlace, true)
+  })
   let toc: HTMLElement
   $effect(() => {
     void section; void narrow
@@ -139,9 +146,7 @@
 
     <div class="pane" class:appearance-pane={section === 'appearance' || section === 'profile'}>
       <div class="pane-inner">
-      {#if section === 'appearance'}
-      <Appearance />
-      {:else if section === 'profile'}
+      {#if section === 'profile'}
       <ProfileSettings />
       {:else if section === 'machines' || section === 'access'}
       <MachineSettings {section} />

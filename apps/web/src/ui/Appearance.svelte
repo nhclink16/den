@@ -9,6 +9,8 @@
   import SettingRow from './SettingRow.svelte'
   import { store, type AvatarShape, type PresenceStyle } from '../lib/store.svelte'
 
+  /** `panel`: shown in the live customizer rather than on the Settings page. */
+  let { panel = false }: { panel?: boolean } = $props()
   type Half = 'light' | 'dark'
 
   let editor = $state(false)
@@ -105,11 +107,13 @@
   onDestroy(() => themes.reset())
 </script>
 
-<div class="appearance">
-  <header class="intro">
-    <h2 class="display">Appearance</h2>
-    <p class="muted">Your theme follows you to every device signed in to this server.</p>
-  </header>
+<div class="appearance" class:panel>
+  {#if !panel}
+    <header class="intro">
+      <h2 class="display">Appearance</h2>
+      <p class="muted">Your theme follows you to every device signed in to this server.</p>
+    </header>
+  {/if}
 
   <section>
     <h3>Color scheme</h3>
@@ -165,7 +169,7 @@
       <div class="section-head">
         <div>
           <h3>Editing {active.name}</h3>
-          <p class="muted small">Every change shows in the app behind this panel.</p>
+          <p class="muted small">Every change shows in the app{panel ? ' behind this panel' : ''} as you make it.</p>
         </div>
         <button class="btn quiet" onclick={() => { editor = false; themes.reset() }}>Close</button>
       </div>
@@ -344,7 +348,24 @@
   .error { color: var(--danger); font-size: 13px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
+  .appearance.panel { padding-bottom: 16px; }
+  .appearance.panel > section:first-child { margin-top: 16px; }
+  .appearance.panel section { margin-top: 26px; }
+
   @media (max-width: 900px) { .editor-body { grid-template-columns: 1fr; } .editor-side { max-width: 260px; } }
+  /* The narrow arrangement, when shown in the customizer panel. */
+  @container panel (max-width: 460px) {
+    .editor-body { grid-template-columns: 1fr; } .editor-side { max-width: 260px; }
+    .editor { padding: 14px; }
+    .schemes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .scheme { padding: 6px; gap: 6px; min-width: 0; }
+    .scheme-art { aspect-ratio: 16 / 10; }
+    .scheme-text b { font-size: 13px; }
+    .scheme-text small { display: none; }
+    .theme-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    select.field, .custom-font { width: 100%; min-width: 0; }
+    input[type=range] { width: 100%; }
+  }
   @media (max-width: 650px) {
     .schemes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .scheme { padding: 6px; gap: 6px; min-width: 0; }

@@ -14,6 +14,8 @@
   import SpotifyCallback from './SpotifyCallback.svelte'
   import Palette from './Palette.svelte'
   import ProfilePopover from './ProfilePopover.svelte'
+  import Customizer from './Customizer.svelte'
+  import { customizer } from '../lib/customizer.svelte'
   import Search from './Search.svelte'
   import { notify } from '../lib/notify.svelte'
 
@@ -27,6 +29,9 @@
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
   })
+
+  // Remember the last place outside Settings, for the customizer to open over.
+  $effect(() => { if (router.route.name !== 'settings') customizer.lastPlace = location.pathname + location.search })
 
   // Close the drawer when a route changes on narrow screens.
   $effect(() => { void router.route; drawer = false })
@@ -111,6 +116,7 @@
 
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
 <ProfilePopover />
+<Customizer />
 
 <style>
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }
