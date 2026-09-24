@@ -230,22 +230,27 @@
       <h3>Activity</h3>
       <div class="group">
         {#if native}
-          <SettingRow label="Share what I'm playing or using" hint="Only the app's name is shared, never window titles. Steam games and Minecraft show as Playing. It clears after 10 idle minutes or when you lock your screen. This device only.">
+          <SettingRow label="Share what I'm playing or using" hint="Games share on their own; other apps are asked about once. Only the app's name is shared, never window titles. It clears after 10 idle minutes or when you lock your screen. This device only.">
             {#snippet control()}
               <label class="switch"><input type="checkbox" checked={activityShare.prefs.share} onchange={(e) => activityShare.save({ share: e.currentTarget.checked })} /><span class="sr-only">Share activity</span></label>
             {/snippet}
           </SettingRow>
-          <SettingRow label="Right now" hint={activityShare.detected ? (activityShare.shared ? 'Everyone can see this.' : 'Hidden. Nobody sees it.') : 'Nothing detected.'}>
+          <SettingRow label="Right now" hint={activityShare.detected ? (activityShare.shared ? 'Everyone can see this.' : activityShare.asking ? 'Not shared until you say yes.' : 'Hidden. Nobody sees it.') : 'Nothing detected.'}>
             {#snippet control()}
               {#if activityShare.detected}<span class="now" class:off={!activityShare.shared}>{activityVerb(activityShare.detected.kind)} <b>{activityShare.detected.name}</b></span>{:else}<span class="faint small">—</span>{/if}
             {/snippet}
           </SettingRow>
+          <SettingRow label="Ask about other apps" hint="Off: apps that aren't games stay private unless you show them below.">
+            {#snippet control()}
+              <label class="switch"><input type="checkbox" checked={activityShare.prefs.askApps} onchange={(e) => activityShare.save({ askApps: e.currentTarget.checked })} /><span class="sr-only">Ask about other apps</span></label>
+            {/snippet}
+          </SettingRow>
           {#if activityShare.prefs.seen.length}
-            <SettingRow label="Recently seen" hint="Hide any app you would rather not show." wide>
+            <SettingRow label="Recently seen" hint="Choose which games and apps people can see." wide>
               {#snippet control()}
                 <ul class="apps">
                   {#each activityShare.prefs.seen as name (name)}
-                    {@const hidden = activityShare.prefs.hidden.includes(name)}
+                    {@const hidden = activityShare.prefs.hidden.includes(name) || (!activityShare.prefs.allowed.includes(name) && !activityShare.prefs.games.includes(name))}
                     <li><span class:off={hidden}>{name}</span><button type="button" class="btn quiet" onclick={() => activityShare.hide(name, !hidden)}>{hidden ? 'Show' : 'Hide'}</button></li>
                   {/each}
                 </ul>

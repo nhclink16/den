@@ -31,3 +31,12 @@ export function activitySince(startedAt: number, now = Date.now()): string {
 
 /** The glyph beside each kind of activity. */
 export const activityIcon = { playing: 'game', listening: 'music', watching: 'screen', using: 'window', working: 'bot' } as const
+
+/** A device's choices about what the desktop app may share. */
+export type SharePrefs = { share: boolean; hidden: string[]; allowed: string[]; askApps: boolean }
+/** Games share on their own; any other app only once its owner says yes to it. */
+export function shareDecision(p: SharePrefs, d: { kind: ActivityKind; name: string } | null): 'share' | 'keep' | 'ask' {
+  if (!d || !p.share || p.hidden.includes(d.name)) return 'keep'
+  if (d.kind === 'playing' || p.allowed.includes(d.name)) return 'share'
+  return p.askApps ? 'ask' : 'keep'
+}

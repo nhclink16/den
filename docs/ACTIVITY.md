@@ -42,9 +42,12 @@ and name keeps `started_at`. The server sweeps expired entries every 5 seconds.
   title, so a wiki tab about it is not "playing". On Windows one long-lived
   PowerShell answers each sample, and is replaced if it exits or stalls. Desktop shells and lock screens are ignored. When Den itself is
   focused the previous answer stands, so alt-tabbing to chat mid-game keeps
-  "Playing". Ten idle minutes, a locked screen or sleep clear it. Sharing is on
-  by default, announced once with a notice the first time something is detected;
-  Settings > Profile > Activity turns it off or hides individual apps, per device. Native Wayland windows are not visible to `xprop`.
+  "Playing". Ten idle minutes, a locked screen or sleep clear it. Games share on
+  their own, announced once with a notice the first time one does. Any other app
+  is asked about once ("Show people you're using Firefox?": Share, Not this app,
+  Don't ask) and stays private until the answer is yes. Settings > Profile >
+  Activity turns sharing off, stops the questions, or shows and hides individual
+  games and apps, per device. Native Wayland windows are not visible to `xprop`.
 - **Spotify.** Opt-in and off by default: connecting Spotify for Jams is not consent
   to share. People who turn on "Show what I'm listening to"
   (`PUT /users/me/spotify/sharing`, stored as `spotify_accounts.share_listening`,
