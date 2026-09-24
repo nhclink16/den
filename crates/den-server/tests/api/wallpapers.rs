@@ -99,7 +99,13 @@ async fn past_uploads_stay_in_a_private_library_with_previews() {
             .send()
             .await
             .unwrap();
-        assert_eq!(r.status(), 404, "{bad}");
+        // `../..` is resolved by the client, so this can land on another route
+        // (`/users/{id}` has no GET). What matters is that no file comes back.
+        assert!(
+            matches!(r.status().as_u16(), 404 | 405),
+            "{bad}: {}",
+            r.status()
+        );
     }
 
     // Deleting the picture in use also clears the selection.
