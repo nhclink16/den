@@ -97,7 +97,9 @@ fn process(bytes: &[u8], format: image::ImageFormat) -> Result<(u32, u32, Vec<u8
     Ok((decoded.width(), decoded.height(), preview))
 }
 
-async fn describe(path: &FsPath, id: &str) -> Option<BackgroundImage> {
+/// An image and its exact modification time, which orders the library: whole
+/// seconds would tie uploads made together and let pruning drop the newer one.
+async fn describe(path: &FsPath, id: &str) -> Option<(Duration, BackgroundImage)> {
     let meta = tokio::fs::metadata(path).await.ok()?;
     let path = path.to_path_buf();
     let (format, (width, height)) = tokio::task::spawn_blocking(move || {
@@ -110,19 +112,22 @@ async fn describe(path: &FsPath, id: &str) -> Option<BackgroundImage> {
     })
     .await
     .ok()??;
-    let uploaded_at = meta
+    let modified = meta
         .modified()
         .ok()
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |d| d.as_secs() as i64);
-    Some(BackgroundImage {
-        id: id.to_string(),
-        content_type: mime(format).into(),
-        size: meta.len(),
-        width,
-        height,
-        uploaded_at,
-    })
+        .unwrap_or_default();
+    Some((
+        modified,
+        BackgroundImage {
+            id: id.to_string(),
+            content_type: mime(format).into(),
+            size: meta.len(),
+            width,
+            height,
+            uploaded_at: modified.as_secs() as i64,
+        },
+    ))
 }
 
 /// Everything someone has uploaded, newest first.
@@ -142,8 +147,8 @@ async fn library(s: &AppState, user: &str) -> Result<Vec<BackgroundImage>> {
             }
         }
     }
-    images.sort_by(|a, b| b.uploaded_at.cmp(&a.uploaded_at).then(a.id.cmp(&b.id)));
-    Ok(images)
+    images.sort_by(|(a, x), (b, y)| b.cmp(a).then(x.id.cmp(&y.id)));
+    Ok(images.into_iter().map(|(_, image)| image).collect())
 }
 
 fn upload_id(background: &Option<Background>) -> Option<&str> {
