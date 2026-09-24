@@ -234,4 +234,8 @@
   .segments button[aria-pressed=true] { background: var(--bg3); color: var(--ink); font-weight: 600; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   @media (max-width: 720px) { input[type=range] { width: 100%; } }
+  @container panel (max-width: 460px) {
+    input[type=range] { width: 100%; }
+    .swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  }
 </style>

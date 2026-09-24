@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { customizer } from '../lib/customizer.svelte'
   import { modal, outsideDialog } from '../lib/modal'
   import { plugins } from '../plugins'
   import { callLayouts } from '../lib/call-layout.svelte'
@@ -27,6 +28,7 @@
       { id: 'a-inbox', label: 'Inbox', hint: 'action', kind: 'action', run: () => router.go('/inbox') },
       ...(q.trim().length > 1 ? [{ id: 'a-search', label: `Search messages for "${q.trim()}"`, hint: 'search', kind: 'action' as const, run: () => router.go(`/find?q=${encodeURIComponent(q.trim())}`) }] : []),
       { id: 'a-settings', label: 'Settings', hint: 'action', kind: 'action', run: () => router.go('/settings') },
+      { id: 'a-appearance', label: 'Appearance: themes and wallpaper', hint: 'action', kind: 'action', run: () => customizer.show() },
       { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide room list' : 'Show room list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
       { id: 'a-members', label: store.layout.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.saveLayout({ members: !store.layout.members }) },
       { id: 'a-logout', label: 'Log out', hint: 'action', kind: 'action', run: () => { store.logout(); router.go('/login') } },
