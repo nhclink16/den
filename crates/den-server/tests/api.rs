@@ -577,6 +577,8 @@ mod desktop;
 #[path = "api/backgrounds.rs"]
 mod backgrounds;
 
+#[path = "api/members.rs"]
+mod members;
 #[path = "api/profile_images.rs"]
 mod profile_images;
 #[path = "api/profiles.rs"]

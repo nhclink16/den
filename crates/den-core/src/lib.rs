@@ -71,6 +71,10 @@ pub struct User {
     /// True when this identity was created for an agent rather than a person.
     pub bot: bool,
     pub role: Role,
+    /// An admin removed this member. They cannot log in; the row stays so their
+    /// messages keep an author. Absent from older servers.
+    #[serde(default)]
+    pub removed: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, ToSchema)]

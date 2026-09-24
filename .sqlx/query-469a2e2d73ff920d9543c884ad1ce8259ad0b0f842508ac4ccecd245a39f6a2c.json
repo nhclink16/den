@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as \"bot: bool\",role FROM users ORDER BY id",
+  "query": "SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as \"bot: bool\",role,removed_at FROM users WHERE id=?",
   "describe": {
     "columns": [
       {
@@ -112,10 +112,21 @@
             "name": "role"
           }
         }
+      },
+      {
+        "name": "removed_at",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "removed_at"
+          }
+        }
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -127,8 +138,9 @@
       true,
       true,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "1579aaed513a8cf2c7eb1e55b2a82a6309589d3161a5af9003af9cccf724129a"
+  "hash": "469a2e2d73ff920d9543c884ad1ce8259ad0b0f842508ac4ccecd245a39f6a2c"
 }

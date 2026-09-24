@@ -55,6 +55,7 @@ mod tests {
                 status: None,
                 bot: false,
                 role: Role::Member,
+                removed: false,
             },
             credential: "session".into(),
             session: true,

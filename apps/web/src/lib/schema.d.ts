@@ -1709,6 +1709,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes a member without deleting their history: they are signed out
+         *     everywhere and cannot log in again, and their messages keep their name.
+         */
+        delete: operations["delete__users__id_"];
+        options?: never;
+        head?: never;
+        patch: operations["patch__users__id_"];
+        trace?: never;
+    };
     "/users/{id}/activities/{slot}": {
         parameters: {
             query?: never;
@@ -1735,7 +1755,7 @@ export interface paths {
         get: operations["get__users__id__avatar"];
         put: operations["put__users__id__avatar"];
         post?: never;
-        delete?: never;
+        delete: operations["delete__users__id__avatar"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1749,9 +1769,9 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get__users__id__banner"];
-        put?: never;
+        put: operations["put__users__id__banner"];
         post?: never;
-        delete?: never;
+        delete: operations["delete__users__id__banner"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2550,6 +2570,13 @@ export interface components {
         MarkThreadRead: {
             message_id: components["schemas"]["String"];
         };
+        /** @description Body for `PATCH /users/{id}`: an admin renaming a member. */
+        MemberPatch: {
+            /** @description Blank means "same as the username". */
+            display_name?: string | null;
+            /** @description The handle used to log in and to mention. Old mentions keep the old text. */
+            username?: string | null;
+        };
         Message: {
             attachments: components["schemas"]["Upload"][];
             author_id: components["schemas"]["String"];
@@ -3146,6 +3173,11 @@ export interface components {
             bot: boolean;
             display_name: string;
             id: components["schemas"]["String"];
+            /**
+             * @description An admin removed this member. They cannot log in; the row stays so their
+             *     messages keep an author. Absent from older servers.
+             */
+            removed?: boolean;
             role: components["schemas"]["Role"];
             status?: {
                 /** @description Exactly one extended grapheme cluster when set. */
@@ -7839,6 +7871,126 @@ export interface operations {
             };
         };
     };
+    delete__users__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    patch__users__id_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     put__users__id__activities__slot_: {
         parameters: {
             query?: never;
@@ -8029,6 +8181,60 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users__id__avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {
                 headers: {
@@ -8067,6 +8273,105 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users__id__banner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/gif": number[];
+                "image/jpeg": number[];
+                "image/png": number[];
+                "image/webp": number[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    delete__users__id__banner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
             };
             404: {
                 headers: {

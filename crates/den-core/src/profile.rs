@@ -46,3 +46,15 @@ pub struct ProfilePatch {
     #[schema(schema_with = crate::nullable_object_schema::<Status>)]
     pub status: Option<Option<Status>>,
 }
+
+/// Body for `PATCH /users/{id}`: an admin renaming a member.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MemberPatch {
+    /// The handle used to log in and to mention. Old mentions keep the old text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    /// Blank means "same as the username".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}

@@ -27,6 +27,7 @@ pub(crate) struct DbUser {
     pub status: Option<String>,
     pub bot: bool,
     pub role: String,
+    pub removed_at: Option<i64>,
 }
 impl From<DbUser> for User {
     fn from(v: DbUser) -> Self {
@@ -48,12 +49,13 @@ impl From<DbUser> for User {
             } else {
                 Role::Member
             },
+            removed: v.removed_at.is_some(),
         }
     }
 }
 pub(crate) async fn user(state: &AppState, id: &str) -> Result<User> {
     let expired = profiles::expire(state, Some(id)).await?;
-    let user: User = sqlx::query_as!(DbUser, r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role FROM users WHERE id=?"#, id).fetch_one(&state.db).await?.into();
+    let user: User = sqlx::query_as!(DbUser, r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role,removed_at FROM users WHERE id=?"#, id).fetch_one(&state.db).await?.into();
     if !expired.is_empty() {
         profiles::broadcast(state, &user);
     }
@@ -383,7 +385,7 @@ pub(crate) async fn login(
         return Err(Error::unauthorized());
     }
     let row = sqlx::query!(
-        "SELECT id,password_hash FROM users WHERE username=? AND bot=0",
+        "SELECT id,password_hash FROM users WHERE username=? AND bot=0 AND removed_at IS NULL",
         v.username
     )
     .fetch_optional(&s.db)
@@ -437,7 +439,7 @@ pub(crate) async fn me(a: Auth) -> Json<User> {
 #[utoipa::path(get,path="/users",responses((status=200,body=Vec<User>)))]
 pub(crate) async fn users(State(s): State<AppState>, _a: Auth) -> Result<Json<Vec<User>>> {
     let expired = profiles::expire(&s, None).await?;
-    let users: Vec<User> = sqlx::query_as!(DbUser,r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role FROM users ORDER BY id"#).fetch_all(&s.db).await?.into_iter().map(Into::into).collect();
+    let users: Vec<User> = sqlx::query_as!(DbUser,r#"SELECT id,username,display_name,avatar_url,banner_url,bio,accent,status,bot as "bot: bool",role,removed_at FROM users ORDER BY id"#).fetch_all(&s.db).await?.into_iter().map(Into::into).collect();
     for user in &users {
         if expired.contains(&user.id) {
             profiles::broadcast(&s, user);

@@ -183,7 +183,7 @@ async fn spa_fallback_preserves_api_auth_and_missing_asset_errors() {
     for path in [
         "/assets/missing.js",
         "/missing.png",
-        "/users/misspelled",
+        "/users/misspelled/typo",
         "/api/missing",
         "/objects/missing/typo",
     ] {

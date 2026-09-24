@@ -21,7 +21,7 @@
     for (const s of instances.all) {
     for (const c of s.textChannels) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: c.name, hint: s.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', run: () => { instances.select(s); if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
     for (const c of s.dms) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: s.title(c), hint: 'direct', kind: 'dm', run: () => { instances.select(s); router.go(`/c/${c.id}`) }, userId: (c.member_ids || []).find((id) => id !== s.me?.id) })
-    for (const u of s.users.values()) if (u.id !== s.me?.id) out.push({ id: `${s.origin}:u-${u.id}`, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await s.openDm([u.id]); instances.select(s); router.go(`/c/${c.id}`) } })
+    for (const u of s.people) if (u.id !== s.me?.id) out.push({ id: `${s.origin}:u-${u.id}`, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await s.openDm([u.id]); instances.select(s); router.go(`/c/${c.id}`) } })
     }
     out.push(
       { id: 'a-inbox', label: 'Inbox', hint: 'action', kind: 'action', run: () => router.go('/inbox') },

@@ -117,6 +117,19 @@ pub(crate) fn clear(s: &AppState, user: &str, slot: &str) {
     }
 }
 
+/// Everything someone is doing, gone at once: they were removed from the server.
+pub(crate) fn clear_all(s: &AppState, user: &str) {
+    let had = s
+        .activities
+        .lock()
+        .expect("activities mutex")
+        .remove(user)
+        .is_some();
+    if had {
+        announce(s, user);
+    }
+}
+
 /// `me` or a real user id. Setting someone else's activity is an admin's job:
 /// the Minecraft relay runs with an admin token and speaks for the players.
 async fn target(s: &AppState, a: &Auth, id: &str) -> Result<String> {
