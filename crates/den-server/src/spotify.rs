@@ -261,9 +261,10 @@ struct Stored {
     connected_at: i64,
     expires_at: i64,
     needs_reauth: bool,
+    share_listening: bool,
 }
 async fn stored(s: &AppState, user: &str) -> Result<Option<Stored>> {
-    Ok(sqlx::query("SELECT refresh_nonce,refresh_ciphertext,key_version,account_name,connected_at,expires_at,needs_reauth FROM spotify_accounts WHERE user_id=?")
+    Ok(sqlx::query("SELECT refresh_nonce,refresh_ciphertext,key_version,account_name,connected_at,expires_at,needs_reauth,share_listening FROM spotify_accounts WHERE user_id=?")
         .bind(user)
         .fetch_optional(&s.db)
         .await?
@@ -275,6 +276,7 @@ async fn stored(s: &AppState, user: &str) -> Result<Option<Stored>> {
             connected_at: r.get("connected_at"),
             expires_at: r.get("expires_at"),
             needs_reauth: r.get::<i64, _>("needs_reauth") != 0,
+            share_listening: r.get::<i64, _>("share_listening") != 0,
         }))
 }
 
@@ -285,6 +287,7 @@ pub(crate) async fn view(s: &AppState, user: &str) -> Result<SpotifyAccount> {
             account_name: None,
             connected_at: None,
             expires_at: None,
+            share_listening: false,
         });
     }
     let Some(row) = stored(s, user).await? else {
@@ -293,6 +296,7 @@ pub(crate) async fn view(s: &AppState, user: &str) -> Result<SpotifyAccount> {
             account_name: None,
             connected_at: None,
             expires_at: None,
+            share_listening: false,
         });
     };
     // The 180-day cliff is a state to re-authorise from, not a failure.
@@ -306,6 +310,7 @@ pub(crate) async fn view(s: &AppState, user: &str) -> Result<SpotifyAccount> {
         account_name: row.account_name,
         connected_at: Some(row.connected_at),
         expires_at: Some(row.expires_at),
+        share_listening: row.share_listening,
     })
 }
 async fn announce(s: &AppState, user: &str) {
@@ -522,8 +527,32 @@ pub(crate) async fn disconnect(State(s): State<AppState>, a: Auth) -> Result<Sta
     // this second clear removes the stale material for good.
     s.spotify.access.lock().await.remove(&a.user.id);
     s.spotify.playback.lock().await.remove(&a.user.id);
+    activities::clear(&s, &a.user.id, "spotify");
     announce(&s, &a.user.id).await;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(put,path="/users/me/spotify/sharing",request_body=SpotifySharing,responses((status=200,body=SpotifyAccount),(status=404,body=ApiError,description="No Spotify connection")))]
+pub(crate) async fn sharing(
+    State(s): State<AppState>,
+    a: Auth,
+    ApiJson(body): ApiJson<SpotifySharing>,
+) -> Result<Json<SpotifyAccount>> {
+    let changed = sqlx::query("UPDATE spotify_accounts SET share_listening=? WHERE user_id=?")
+        .bind(i64::from(body.share_listening))
+        .bind(&a.user.id)
+        .execute(&s.db)
+        .await?
+        .rows_affected();
+    if changed == 0 {
+        return Err(Error::missing());
+    }
+    // Turning it off takes the line down now rather than at its expiry.
+    if !body.share_listening {
+        activities::clear(&s, &a.user.id, "spotify");
+    }
+    announce(&s, &a.user.id).await;
+    Ok(Json(view(&s, &a.user.id).await?))
 }
 
 async fn remember(s: &AppState, user: &str, granted: &Granted) {

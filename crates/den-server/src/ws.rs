@@ -23,6 +23,7 @@ fn snapshot(s: &AppState) -> PresenceState {
     PresenceState {
         online_user_ids,
         objects: Vec::new(),
+        activities: activities::snapshot(s),
     }
 }
 struct Connected {
@@ -182,6 +183,7 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         Event::UserUpdated { .. }
         | Event::SettingsUpdated { .. }
         | Event::Presence { .. }
+        | Event::ActivityUpdated { .. }
         | Event::Resync { .. } => None,
     };
     if let Some(channel) = channel {

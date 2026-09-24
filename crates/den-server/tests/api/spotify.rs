@@ -1115,3 +1115,115 @@ async fn jams_in_a_dm_are_private_to_its_members() {
         host.user.id
     );
 }
+
+// Presence is registered after the Resync frame, so wait for the server to count a
+// socket before polling; otherwise the poll can run before the person is online.
+async fn online(t: &Test, user: &str) {
+    for _ in 0..100 {
+        let p: PresenceState = t
+            .req(Method::GET, "/presence", &t.admin.token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        if p.online_user_ids.iter().any(|id| id == user) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("{user} never came online");
+}
+
+#[tokio::test]
+async fn listening_is_shared_only_by_online_people_who_chose_to() {
+    let provider = StubSpotify::start(ProviderMode::Healthy).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let here = t.member("listener_here").await;
+    let away = t.member("listener_away").await;
+    for member in [&here, &away] {
+        let (_, state) = authorization(&t, &member.token).await;
+        t.post(
+            "/users/me/spotify/callback",
+            &member.token,
+            json!({"code":"stub-code","state":state}),
+        )
+        .await;
+    }
+    let _tab = socket(&t, &here.token, "").await;
+    online(&t, &here.user.id).await;
+    let activities = |t: &Test| t.req(Method::GET, "/activities", &t.admin.token).send();
+    let sharing = |t: &Test, token: &str, on: bool| {
+        t.req(Method::PUT, "/users/me/spotify/sharing", token)
+            .json(&json!({"share_listening": on}))
+            .send()
+    };
+
+    // Connected for Jams only: nothing shared, and Spotify is not even asked.
+    let before = provider.state.playback_calls.load(Ordering::SeqCst);
+    t.state.poll_spotify_activities().await;
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty(), "connecting is not consent to share");
+    assert_eq!(provider.state.playback_calls.load(Ordering::SeqCst), before);
+    assert!(!account(&t, &here.token).await.share_listening);
+
+    // Opting in shows the track to everyone while online; the offline account stays out.
+    for member in [&here, &away] {
+        let on: SpotifyAccount = sharing(&t, &member.token, true)
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert!(on.share_listening);
+    }
+    t.state.poll_spotify_activities().await;
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    let mine = all
+        .iter()
+        .find(|u| u.user_id == here.user.id)
+        .expect("the online listener");
+    let song = &mine.activities[0];
+    assert_eq!(
+        (song.slot.as_str(), song.kind),
+        ("spotify", ActivityKind::Listening)
+    );
+    assert_eq!(
+        (song.name.as_str(), song.details.as_deref()),
+        ("Stub Song", Some("Stub Artist"))
+    );
+    assert!(song.image_url.is_some(), "album art rides along");
+    assert!(
+        all.iter().all(|u| u.user_id != away.user.id),
+        "nobody sees an offline account"
+    );
+
+    // Opting out takes it down at once, not at its expiry.
+    sharing(&t, &here.token, false).await.unwrap();
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty());
+
+    // So does disconnecting, and a disconnected account cannot opt in.
+    sharing(&t, &here.token, true).await.unwrap();
+    t.state.poll_spotify_activities().await;
+    t.req(Method::DELETE, "/users/me/spotify", &here.token)
+        .send()
+        .await
+        .unwrap();
+    let all: Vec<UserActivities> = activities(&t).await.unwrap().json().await.unwrap();
+    assert!(all.is_empty());
+    assert_eq!(
+        sharing(&t, &here.token, true).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+
+    // Clients cannot forge the server's slot.
+    let forged = t
+        .req(Method::PUT, "/users/me/activities/spotify", &here.token)
+        .json(&json!({"kind":"listening","name":"Fake"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(forged.status(), StatusCode::BAD_REQUEST);
+}

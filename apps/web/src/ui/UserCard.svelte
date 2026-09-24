@@ -9,6 +9,7 @@
   import type { User } from '../lib/types'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
+  import { shownActivities, activityVerb, activitySince, activityIcon } from '../lib/activity'
 
   let { userId, instance = store, draft, onmessage, onedit }: {
     userId: string; instance?: Store; draft?: Partial<User>
@@ -25,6 +26,8 @@
   $effect(() => { const id = setInterval(() => (now = Date.now()), 30_000); return () => clearInterval(id) })
   const status = $derived(liveStatus(user?.status, now))
   const me = $derived(userId === instance.me?.id)
+  const doing = $derived(shownActivities(instance.activities.get(userId)))
+  // The half-minute `now` above also moves "for 12m" while the card is open.
 </script>
 
 {#if user}
@@ -42,6 +45,21 @@
         {#if user.role === 'admin'}<span class="tag">admin</span>{/if}
       </p>
       <p class="presence" class:here={online}><span class="pip" aria-hidden="true"></span>{online ? 'Here now' : 'Away'}</p>
+
+      {#if doing.length}
+        <ul class="doing" aria-label="Activity">
+          {#each doing as a (a.slot + a.name)}
+            <li class:live={a.kind === 'playing'}>
+              <span class="art" aria-hidden="true">{#if a.image_url}<img src={a.image_url} alt="" referrerpolicy="no-referrer" />{:else}<Icon name={activityIcon[a.kind]} size={18} />{/if}</span>
+              <span class="what">
+                <span class="verb">{activityVerb(a.kind)}</span>
+                <span class="thing">{a.name}</span>
+                <span class="more">{#if a.details}{a.details}{' · '}{/if}{activitySince(a.started_at, now)}</span>
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
 
       {#if status}
         <p class="status">{#if status.emoji}<span class="emoji">{status.emoji}</span>{/if}<span>{status.text}</span></p>
@@ -90,6 +108,21 @@
   .presence { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
   .pip { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
   .presence.here .pip { background: var(--success); box-shadow: none; }
+  .doing { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .doing li { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r); background: var(--bg-3); }
+  /* A game in progress is the live thing on the card. */
+  .doing li.live { background: color-mix(in srgb, var(--lamp) 12%, var(--bg-3)); box-shadow: inset 0 0 0 1px var(--lamp-dim); }
+  .art {
+    flex: none; width: 40px; height: 40px; border-radius: calc(var(--r) - 1px); overflow: hidden;
+    display: grid; place-items: center; background: var(--bg-2); color: var(--ink-2);
+  }
+  .live .art { color: var(--lamp); }
+  .art img { width: 100%; height: 100%; object-fit: cover; }
+  .what { min-width: 0; display: grid; }
+  .verb { font: 600 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+  .live .verb { color: var(--lamp); }
+  .thing { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r);
     background: var(--bg-3); font-size: 14px; overflow-wrap: anywhere;

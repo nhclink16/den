@@ -3,6 +3,7 @@
   import ParticipantVolume from './ParticipantVolume.svelte'
   import { store, instances } from '../lib/store.svelte'
   import { profileCard } from '../lib/people.svelte'
+  import { shownActivities, activityVerb, activityIcon } from '../lib/activity'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import type { Channel } from '../lib/types'
@@ -24,12 +25,18 @@
     <div class="member"><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div><details class="member-audio"><summary aria-label={`${dj.name} audio options`}><Icon name="sound" size={14} /><span>In call</span></summary><ParticipantVolume userId={dj.userId} name={dj.name} /></details></div>
   {/each}
   {#snippet person(u: import('../lib/types').User)}
+    {@const doing = shownActivities(store.activities.get(u.id))[0]}
     <div class="member">
     <button class="person" class:off={!store.online.has(u.id)} aria-haspopup="dialog" onclick={(e) => profileCard.open(u.id, e.currentTarget, instances.active)}>
       <Avatar userId={u.id} size={28} />
-      <span class="name">{u.display_name || u.username}</span>
-      {#if u.bot}<span class="tag lit"><Icon name="bot" size={11} />agent</span>{/if}
-      {#if u.role === 'admin'}<span class="tag">admin</span>{/if}
+      <span class="who">
+        <span class="top">
+          <span class="name">{u.display_name || u.username}</span>
+          {#if u.bot}<span class="tag lit"><Icon name="bot" size={11} />agent</span>{/if}
+          {#if u.role === 'admin'}<span class="tag">admin</span>{/if}
+        </span>
+        {#if doing}<span class="doing" class:live={doing.kind === 'playing'}><Icon name={activityIcon[doing.kind]} size={11} /><span>{activityVerb(doing.kind)} <b>{doing.name}</b></span></span>{/if}
+      </span>
     </button>
     {#if call.origin === store.origin && call.participants.some(p => p.userId === u.id && !p.local)}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
@@ -73,7 +80,15 @@
   .person.off { color: var(--ink-2); }
   .person.off :global(.avatar) { opacity: 0.55; filter: saturate(.4); transition: opacity var(--t), filter var(--t); }
   .person.off:hover :global(.avatar) { opacity: 1; filter: none; }
-  .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .who { flex: 1; min-width: 0; display: grid; }
+  .top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  /* What they are up to, under the name. A game is live, so it is lit. */
+  .doing { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: var(--ink-2); }
+  .doing > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doing b { font-weight: 600; color: var(--ink); }
+  .doing :global(svg) { flex: none; }
+  .doing.live, .doing.live b { color: var(--lamp); }
   .badge { color: var(--lamp); display: grid; }
   .tag {
     display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 1px 6px; border-radius: var(--r-pill, 999px);

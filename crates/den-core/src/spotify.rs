@@ -24,6 +24,17 @@ pub struct SpotifyAccount {
     /// Unix seconds when the refresh token is assumed dead, so the UI can warn
     /// before the cliff. Advisory: a rejection from Spotify is authoritative.
     pub expires_at: Option<i64>,
+    /// Whether everyone sees "Listening to …" while this person is online. Off
+    /// until they turn it on; connecting for Jams alone never shares it.
+    #[serde(default)]
+    pub share_listening: bool,
+}
+
+/// Body for `PUT /users/me/spotify/sharing`.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpotifySharing {
+    pub share_listening: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

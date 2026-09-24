@@ -147,7 +147,11 @@ use utoipa::OpenApi;
         invitation_tickets::redeem,
         calls::webhook,
         thumbnails::serve,
-        ws::connect
+        ws::connect,
+        activities::set,
+        activities::remove,
+        activities::list,
+        spotify::sharing
     ),
     components(schemas(
         ProfilePatch,
@@ -254,6 +258,11 @@ use utoipa::OpenApi;
         SearchMessages,
         ClientEvent,
         PresenceState,
+        Activity,
+        ActivityKind,
+        SetActivity,
+        UserActivities,
+        SpotifySharing,
         CallToken,
         CallState,
         MusicQueue,
