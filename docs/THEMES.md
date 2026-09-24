@@ -192,6 +192,15 @@ M9's validation policy and are not silently modified to meet a contrast target.
 {"source":{"type":"builtin","name":"lamplight"},"blur":8,"dim":20,"saturate":100,"scope":"app","fit":"cover"}
 ```
 
+`sidebar_background` is a second, optional wallpaper of the same shape for the
+sidebar alone; its `scope` is ignored. When it is set, `background` covers the rest
+of the app. Either can name a preset or an upload from the library, and deleting a
+library image clears whichever wallpaper used it. A client that omits the field on
+`PUT /users/me/appearance` keeps the stored one, because apps that predate it send
+the whole object without it; only an explicit `null` clears it. Choosing a sidebar
+wallpaper while the main one is limited to the sidebar moves the main one back to
+`app`, so it still shows somewhere.
+
 The six presets are `lamplight`, `doorway`, `contours`, `plaid`, `clearing` and
 `paper` (`apps/web/src/lib/wallpapers.ts`). Clients paint them as SVG or CSS
 gradients from the active theme's colors; the server stores names and has no

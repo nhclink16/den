@@ -14,7 +14,11 @@
   let uploads = $state<BackgroundImage[]>([])
   let confirming = $state<string | null>(null)
 
-  const bg = $derived(themes.appearance.background ?? null)
+  // Which wallpaper the gallery edits: the main one, or the sidebar's own.
+  let target = $state<'main' | 'sidebar'>('main')
+  const bg = $derived((target === 'main' ? themes.appearance.background : themes.appearance.sidebar_background) ?? null)
+  const sidebarOwn = $derived(!!themes.appearance.sidebar_background)
+  const put = (b: AppearanceBackground | null) => target === 'main' ? themes.background(b) : themes.sidebarBackground(b)
   const colors = $derived(themes.active[themes.half])
   const chosenPreset = $derived(bg?.source.type === 'builtin' ? (legacyWallpapers[bg.source.name] ?? bg.source.name) : null)
   const chosenUpload = $derived(bg?.source.type === 'upload' ? bg.source.id : null)
@@ -26,11 +30,11 @@
 
   function set(patch: Partial<AppearanceBackground>) {
     if (!bg) return
-    themes.background({ ...bg, ...patch })
+    put({ ...bg, ...patch })
   }
-  function pickPreset(name: Wallpaper) { themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name: savedWallpaper[name] as BackgroundBuiltin } }) }
-  function pickUpload(id: string) { themes.background({ ...(bg ?? defaults), source: { type: 'upload', id } }) }
-  function clear() { themes.background(null) }
+  function pickPreset(name: Wallpaper) { put({ ...(bg ?? defaults), source: { type: 'builtin', name: savedWallpaper[name] as BackgroundBuiltin } }) }
+  function pickUpload(id: string) { put({ ...(bg ?? defaults), source: { type: 'upload', id } }) }
+  function clear() { put(null) }
 
   const MAX_EDGE = 3840, KEEP_BYTES = 6 * 1024 * 1024, SERVER_BYTES = 16 * 1024 * 1024
   /**
@@ -88,6 +92,14 @@
   <div class="head">
     <h3>Background</h3>
     <p class="muted">A wallpaper behind the room. Presets are painted from your theme, so they change with it.</p>
+  </div>
+
+  <div class="target">
+    <div class="segments" role="group" aria-label="Which wallpaper to edit">
+      <button aria-pressed={target === 'main'} onclick={() => (target = 'main')}>Main</button>
+      <button aria-pressed={target === 'sidebar'} onclick={() => (target = 'sidebar')}>Sidebar{#if sidebarOwn}<span class="dot" aria-hidden="true"></span><span class="sr-only"> (has its own)</span>{/if}</button>
+    </div>
+    <p class="faint">{target === 'main' ? (sidebarOwn ? 'Behind the conversation. The sidebar has its own.' : 'Behind the room. Pick one for the sidebar too if you want two.') : 'Just the sidebar. None uses the main wallpaper there.'}</p>
   </div>
 
   <h4 class="eyebrow">Presets</h4>
@@ -150,15 +162,17 @@
           <output class="mono">{bg.saturate}%</output>
         {/snippet}
       </SettingRow>
+      {#if target === 'main'}
       <SettingRow label="Where it shows">
         {#snippet control()}
           <div class="segments" role="group" aria-label="Background area">
-            {#each [['app','Everywhere'],['sidebar','Sidebar'],['chat','Conversation']] as [value, text] (value)}
+            {#each sidebarOwn ? [['app','Everywhere else'],['chat','Conversation']] : [['app','Everywhere'],['sidebar','Sidebar'],['chat','Conversation']] as [value, text] (value)}
               <button aria-pressed={bg.scope === value} onclick={() => set({ scope: value as AppearanceBackground['scope'] })}>{text}</button>
             {/each}
           </div>
         {/snippet}
       </SettingRow>
+      {/if}
       {#if bg.source.type === 'upload'}
         <SettingRow label="Fit">
           {#snippet control()}
@@ -175,6 +189,9 @@
 </section>
 
 <style>
+  .target { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 4px 0 16px; }
+  .target p { margin: 0; font-size: 13px; }
+  .target .dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--lamp); vertical-align: middle; }
   .bgsec { margin-top: 34px; }
   .head h3 { margin: 0 0 3px; }
   .head p { margin: 0 0 14px; font-size: 13px; }

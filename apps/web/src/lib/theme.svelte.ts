@@ -94,6 +94,13 @@ class Themes {
   }
   contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
   background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
+  /** The sidebar's own wallpaper. A main one limited to the sidebar would then show
+   *  nowhere, so it moves back to everywhere else. */
+  sidebarBackground(b: Appearance['sidebar_background']) {
+    const main = this.appearance.background
+    const background = b && main?.scope === 'sidebar' ? { ...main, scope: 'app' as const } : main ?? null
+    return this.save({ ...this.appearance, background, sidebar_background: b ?? null }, true)
+  }
   mode(mode: Appearance['mode']) { return this.save({...this.appearance,mode},true) }
   preview(t: Theme) { this.draft = t; this.apply() }
   reset() { this.draft = null; this.apply() }

@@ -1788,6 +1788,17 @@ export interface components {
             dark_theme: string;
             light_theme: string;
             mode: components["schemas"]["AppearanceMode"];
+            sidebar_background?: {
+                /** Format: int32 */
+                blur: number;
+                /** Format: int32 */
+                dim: number;
+                fit: components["schemas"]["BackgroundFit"];
+                /** Format: int32 */
+                saturate: number;
+                scope: components["schemas"]["BackgroundScope"];
+                source: components["schemas"]["BackgroundSource"];
+            } | null;
         };
         /** @enum {string} */
         AppearanceMode: "light" | "dark" | "system";
