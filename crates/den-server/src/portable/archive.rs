@@ -61,6 +61,23 @@ fn sound_name(name: &str) -> bool {
         (owner == "server" || owner.parse::<ulid::Ulid>().is_ok()) && den_core::sound_id(id)
     })
 }
+/// `<user>` is the single file older servers kept; `<user>/<sha256>` and
+/// `<user>/<sha256>.jpg` are a library image and its preview.
+fn background_name(name: &str) -> bool {
+    let hash = |id: &str| {
+        id.len() == 64
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    };
+    match name.split_once('/') {
+        None => name.parse::<ulid::Ulid>().is_ok(),
+        Some((user, file)) => {
+            user.parse::<ulid::Ulid>().is_ok()
+                && (hash(file) || file.strip_suffix(".jpg").is_some_and(hash))
+        }
+    }
+}
 fn archive_name(name: &str) -> bool {
     matches!(
         name,
@@ -71,7 +88,7 @@ fn archive_name(name: &str) -> bool {
             .is_some_and(profile_name)
         || name
             .strip_prefix("uploads/backgrounds/")
-            .is_some_and(|id| id.parse::<ulid::Ulid>().is_ok())
+            .is_some_and(background_name)
         || name.strip_prefix("uploads/").is_some_and(upload_name)
 }
 fn private_file(path: &Path) -> Result<fs::File> {
@@ -187,12 +204,29 @@ pub(super) fn pack(
                     .file_name()
                     .into_string()
                     .map_err(|_| anyhow::anyhow!("Non-UTF8 background filename"))?;
-                if id.parse::<ulid::Ulid>().is_ok() {
-                    ensure!(
-                        background.file_type()?.is_file(),
-                        "Background is not a regular file"
-                    );
+                if id.parse::<ulid::Ulid>().is_err() {
+                    continue;
+                }
+                let kind = background.file_type()?;
+                if kind.is_file() {
                     paths.push((format!("uploads/backgrounds/{id}"), background.path()));
+                } else {
+                    ensure!(kind.is_dir(), "Background library is not a directory");
+                    for image in fs::read_dir(background.path())? {
+                        let image = image?;
+                        let file = image
+                            .file_name()
+                            .into_string()
+                            .map_err(|_| anyhow::anyhow!("Non-UTF8 background filename"))?;
+                        let name = format!("{id}/{file}");
+                        if background_name(&name) {
+                            ensure!(
+                                image.file_type()?.is_file(),
+                                "Background is not a regular file"
+                            );
+                            paths.push((format!("uploads/backgrounds/{name}"), image.path()));
+                        }
+                    }
                 }
             }
         }
@@ -295,7 +329,10 @@ pub(super) fn unpack(input: &Path, target: &Path) -> Result<Manifest> {
             file.size() == expected.size && expected.sha256.len() == 64,
             "Manifest file size or hash is invalid"
         );
-        if name.starts_with("uploads/profiles/") || name.starts_with("uploads/sounds/") {
+        if name.starts_with("uploads/profiles/")
+            || name.starts_with("uploads/sounds/")
+            || name.starts_with("uploads/backgrounds/")
+        {
             fs::create_dir_all(target.join(name).parent().unwrap())?;
         }
         let mut output = private_file(&target.join(name))?;

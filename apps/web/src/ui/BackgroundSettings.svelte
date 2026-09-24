@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { themes } from '../lib/theme.svelte'
-  import { builtinBackgrounds, builtinBackgroundImage, bumpBackground, backgroundImageUrl } from '../lib/theme-runtime'
+  import { uploadedBackgroundUrl } from '../lib/theme-runtime'
+  import { wallpapers, wallpaperNames, wallpaperImage, legacyWallpapers, savedWallpaper, type Wallpaper } from '../lib/wallpapers'
   import { apiFor } from '../lib/api'
   import { activeOrigin } from '../lib/native'
   import type { AppearanceBackground, BackgroundBuiltin, BackgroundImage } from '../lib/types'
@@ -9,49 +11,86 @@
   let fileInput: HTMLInputElement
   let busy = $state(false)
   let error = $state('')
+  let uploads = $state<BackgroundImage[]>([])
+  let confirming = $state<string | null>(null)
 
   const bg = $derived(themes.appearance.background ?? null)
-  const own = $derived(bg?.source.type === 'upload')
   const colors = $derived(themes.active[themes.half])
+  const chosenPreset = $derived(bg?.source.type === 'builtin' ? (legacyWallpapers[bg.source.name] ?? bg.source.name) : null)
+  const chosenUpload = $derived(bg?.source.type === 'upload' ? bg.source.id : null)
   const defaults: Omit<AppearanceBackground, 'source'> = { blur: 0, dim: 30, saturate: 100, scope: 'app', fit: 'cover' }
-  const labels: Record<string, string> = {
-    aurora: 'Aurora', dunes: 'Dunes', harbor: 'Harbor',
-    'ember-sky': 'Ember sky', 'slate-mist': 'Slate mist', grain: 'Grain',
-  }
+  const api = () => apiFor(activeOrigin())
+
+  async function load() { uploads = await api().get<BackgroundImage[]>('/users/me/backgrounds').catch(() => uploads) }
+  onMount(load)
 
   function set(patch: Partial<AppearanceBackground>) {
     if (!bg) return
     themes.background({ ...bg, ...patch })
   }
-  function pickBuiltin(name: BackgroundBuiltin) {
-    themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name } })
-  }
+  function pickPreset(name: Wallpaper) { themes.background({ ...(bg ?? defaults), source: { type: 'builtin', name: savedWallpaper[name] as BackgroundBuiltin } }) }
+  function pickUpload(id: string) { themes.background({ ...(bg ?? defaults), source: { type: 'upload', id } }) }
   function clear() { themes.background(null) }
+
+  const MAX_EDGE = 3840, KEEP_BYTES = 6 * 1024 * 1024, SERVER_BYTES = 16 * 1024 * 1024
+  /**
+   * Phones and displays make pictures far bigger than a wallpaper needs. Anything
+   * the browser can open (HEIC too, where it can) is scaled to at most 4K on its
+   * long edge and saved as a JPEG. GIFs go up untouched so they keep moving.
+   */
+  async function prepare(file: File): Promise<Blob> {
+    if (file.type === 'image/gif') {
+      if (file.size > SERVER_BYTES) throw Error('Animated GIFs can be up to 16 MB. Try a shorter or smaller one.')
+      return file
+    }
+    const bitmap = await createImageBitmap(file).catch(() => null)
+    if (!bitmap) throw Error("This browser can't open that file. Try a PNG, JPEG or WebP.")
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+    if (scale === 1 && file.size <= KEEP_BYTES && ['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { bitmap.close(); return file }
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale)
+    const ctx = canvas.getContext('2d')!
+    // JPEG has no transparency; sit see-through pixels on the page colour they would show over.
+    ctx.fillStyle = colors.bg; ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/jpeg', 0.9))
+    if (!blob) throw Error("That image couldn't be prepared. Try a different file.")
+    return blob
+  }
 
   async function upload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0]
     fileInput.value = ''
     if (!file) return
-    error = ''
-    if (file.size > 8 * 1024 * 1024) { error = 'Images must be at most 8 MB.'; return }
-    busy = true
+    error = ''; busy = true
     try {
-      // The id is the server's content hash, so a replaced image changes it and busts caches.
-      const saved = await apiFor(activeOrigin()).putRaw<BackgroundImage>('/users/me/background/image', file, { 'content-type': file.type || 'application/octet-stream' })
-      bumpBackground()
-      themes.background({ ...(bg ?? defaults), source: { type: 'upload', id: saved.id } })
+      const image = await prepare(file)
+      const saved = await api().putRaw<BackgroundImage>('/users/me/background/image', image, { 'content-type': image.type })
+      await load()
+      pickUpload(saved.id)
     } catch (err) {
       error = (err as Error).message || "That image couldn't be saved."
     } finally { busy = false }
   }
-</script>
 
+  async function remove(id: string) {
+    if (confirming !== id) { confirming = id; return }
+    confirming = null; error = ''
+    try {
+      await api().del(`/users/me/backgrounds/${id}`)
+      uploads = uploads.filter((u) => u.id !== id)
+      if (chosenUpload === id) clear()
+    } catch (err) { error = (err as Error).message || "That picture couldn't be removed." }
+  }
+</script>
 <section class="bgsec">
   <div class="head">
     <h3>Background</h3>
-    <p class="muted">A wallpaper behind the room. Presets are painted from your theme, so they follow it.</p>
+    <p class="muted">A wallpaper behind the room. Presets are painted from your theme, so they change with it.</p>
   </div>
 
+  <h4 class="eyebrow">Presets</h4>
   <div class="swatches">
     <button class="swatch none" class:chosen={!bg} onclick={clear} aria-pressed={!bg}>
       <span class="x" aria-hidden="true">
@@ -59,24 +98,36 @@
       </span>
       <span class="label">None</span>
     </button>
-    {#each builtinBackgrounds as name (name)}
-      {@const active = bg?.source.type === 'builtin' && bg.source.name === name}
-      <button class="swatch" class:chosen={active} aria-pressed={active} onclick={() => pickBuiltin(name)}>
-        <span class="chip" style={`background-image:${builtinBackgroundImage(name, colors)}`}></span>
-        <span class="label">{labels[name] ?? name}</span>
+    {#each wallpapers as name (name)}
+      {@const active = chosenPreset === name}
+      <button class="swatch" class:chosen={active} aria-pressed={active} onclick={() => pickPreset(name)}>
+        <span class="chip" style={`background-image:${wallpaperImage(name, colors)}`}></span>
+        <span class="label">{wallpaperNames[name]}</span>
       </button>
     {/each}
-    <button class="swatch" class:chosen={own} aria-pressed={own} onclick={() => fileInput.click()} disabled={busy}>
-      <span class="chip own" style={own ? `background-image:url("${backgroundImageUrl()}")` : ''}>
-        {#if !own}
-          <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.2v9.6M3.2 8h9.6" /></svg>
-        {/if}
-      </span>
-      <span class="label">{busy ? 'Uploading…' : own ? 'Your image' : 'Your image'}</span>
-    </button>
-    <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Choose a background image" onchange={upload} />
   </div>
-  <p class="note faint">Up to 8 MB. Animated GIFs work, but a still image is easier to read over.</p>
+
+  <h4 class="eyebrow">Your pictures</h4>
+  <div class="swatches">
+    <button class="swatch add" onclick={() => fileInput.click()} disabled={busy}>
+      <span class="chip">
+        {#if busy}<span class="spin" aria-hidden="true"></span>{:else}<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 3.2v9.6M3.2 8h9.6" /></svg>{/if}
+      </span>
+      <span class="label">{busy ? 'Uploading…' : 'Upload'}</span>
+    </button>
+    {#each uploads as image (image.id)}
+      {@const active = chosenUpload === image.id}
+      <div class="swatch mine" class:chosen={active}>
+        <button class="pick" aria-pressed={active} aria-label={`Use picture from ${new Date((image.uploaded_at ?? 0) * 1000).toLocaleDateString()}`} onclick={() => pickUpload(image.id)}>
+          <span class="chip" style={`background-image:url("${uploadedBackgroundUrl(image.id, true)}")`}></span>
+          <span class="label">{image.width}×{image.height}</span>
+        </button>
+        <button class="remove" class:confirm={confirming === image.id} onclick={() => remove(image.id)} onblur={() => { if (confirming === image.id) confirming = null }} aria-label={confirming === image.id ? 'Confirm removing this picture' : 'Remove this picture'}>{confirming === image.id ? 'Remove?' : '×'}</button>
+      </div>
+    {/each}
+    <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept="image/*" aria-label="Choose a background picture" onchange={upload} />
+  </div>
+  <p class="note faint">Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation.</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#if bg}
@@ -134,10 +185,27 @@
     border: 1px solid var(--line); background-size: cover; background-position: center; color: var(--ink3);
   }
   .none .x { background: var(--bg2); }
-  .chip.own { background-color: var(--bg2); }
   .swatch:hover .chip, .swatch:hover .x { border-color: var(--ink3); }
   .swatch.chosen .chip, .swatch.chosen .x { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
-  .swatch .label { font-size: 12.5px; color: var(--ink2); }
+  .swatch .label { font-size: 12px; color: var(--ink2); }
+  .eyebrow { margin: 18px 0 8px; }
+  .add .chip { border-style: dashed; background: var(--bg2); color: var(--ink2); }
+  .add:disabled { cursor: progress; }
+  .mine { position: relative; }
+  .mine .pick { display: grid; gap: 6px; text-align: start; }
+  .mine .chip { background-color: var(--bg3); }
+  .mine:hover .chip { border-color: var(--ink3); }
+  .mine.chosen .chip { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
+  .remove {
+    position: absolute; top: 4px; right: 4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-pill, 999px);
+    background: color-mix(in srgb, #000 55%, transparent); color: #fff; font-size: 13px; line-height: 22px;
+    opacity: 0; transition: opacity var(--t-fast, .1s);
+  }
+  .mine:hover .remove, .mine:focus-within .remove, .remove.confirm { opacity: 1; }
+  .remove.confirm { background: var(--danger); font-size: 12px; font-weight: 600; }
+  @media (pointer: coarse) { .remove { opacity: 1; } }
+  .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
   .swatch.chosen .label { color: var(--ink); font-weight: 600; }
   .note { font-size: 12px; margin: 10px 0 0; }
   .error { color: var(--danger); font-size: 13px; margin: 8px 0 0; }

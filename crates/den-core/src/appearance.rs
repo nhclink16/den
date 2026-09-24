@@ -173,12 +173,22 @@ fn clamped<'de, D: serde::Deserializer<'de>, const MIN: u8, const MAX: u8>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum BackgroundBuiltin {
-    Aurora,
-    Dunes,
-    Harbor,
-    EmberSky,
-    SlateMist,
-    Grain,
+    // Painted by clients from the active palette. The wallpaper redesign gave
+    // these new names, but the wire keeps the old ones: iOS builds that predate
+    // it decode this enum strictly and would refuse a name they do not know.
+    // The new names are accepted as aliases and clients show them.
+    #[serde(rename = "ember-sky", alias = "lamplight")]
+    Lamplight,
+    #[serde(rename = "harbor", alias = "doorway")]
+    Doorway,
+    #[serde(rename = "dunes", alias = "contours")]
+    Contours,
+    #[serde(rename = "slate-mist", alias = "plaid")]
+    Plaid,
+    #[serde(rename = "aurora", alias = "clearing")]
+    Clearing,
+    #[serde(rename = "grain", alias = "paper")]
+    Paper,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -224,4 +234,7 @@ pub struct BackgroundImage {
     pub size: u64,
     pub width: u32,
     pub height: u32,
+    /// Unix seconds when it was uploaded. Absent from servers before the library.
+    #[serde(default)]
+    pub uploaded_at: i64,
 }

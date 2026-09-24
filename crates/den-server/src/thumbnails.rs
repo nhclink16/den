@@ -67,26 +67,47 @@ pub(crate) async fn serve(
 }
 
 // Shared by thumbnails and account backgrounds, including the decode allocation cap.
+/// How large an image one decode may be. Attachments and avatars use `DEFAULT`;
+/// wallpapers are photographs and screenshots of whole displays, so they get more.
+#[derive(Clone, Copy)]
+pub(crate) struct Bounds {
+    pub side: u32,
+    pub pixels: u64,
+    pub alloc: u64,
+}
+impl Bounds {
+    pub(crate) const DEFAULT: Bounds = Bounds {
+        side: 8192,
+        pixels: 16_000_000,
+        alloc: 64 * 1024 * 1024,
+    };
+}
 pub(crate) fn decode<R: std::io::BufRead + std::io::Seek>(
+    reader: image::ImageReader<R>,
+) -> anyhow::Result<image::DynamicImage> {
+    decode_within(reader, Bounds::DEFAULT)
+}
+pub(crate) fn decode_within<R: std::io::BufRead + std::io::Seek>(
     mut reader: image::ImageReader<R>,
+    bounds: Bounds,
 ) -> anyhow::Result<image::DynamicImage> {
     let mut limits = image::Limits::default();
-    limits.max_image_width = Some(8192);
-    limits.max_image_height = Some(8192);
-    limits.max_alloc = Some(64 * 1024 * 1024);
+    limits.max_image_width = Some(bounds.side);
+    limits.max_image_height = Some(bounds.side);
+    limits.max_alloc = Some(bounds.alloc);
     reader.limits(limits);
     use image::ImageDecoder;
     let mut decoder = reader.into_decoder()?;
     let (width, height) = decoder.dimensions();
     anyhow::ensure!(
-        u64::from(width) * u64::from(height) <= 16_000_000,
+        u64::from(width) * u64::from(height) <= bounds.pixels,
         "Image exceeds pixel limit"
     );
     let orientation = decoder.orientation()?;
     let mut decoded = image::DynamicImage::from_decoder(decoder)?;
     decoded.apply_orientation(orientation);
     anyhow::ensure!(
-        u64::from(decoded.width()) * u64::from(decoded.height()) <= 16_000_000,
+        u64::from(decoded.width()) * u64::from(decoded.height()) <= bounds.pixels,
         "Image exceeds pixel limit"
     );
     Ok(decoded)
