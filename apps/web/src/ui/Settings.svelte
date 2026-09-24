@@ -13,13 +13,14 @@
   import SoundSettings from './SoundSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import SpotifySettings from './SpotifySettings.svelte'
+  import MemberSettings from './MemberSettings.svelte'
   import Icon from './Icon.svelte'
 
   let { section = 'appearance', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
-    ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['agents', 'Agents'],
-    ...(admin ? [['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
+    ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['keys', 'API keys'], ['agents', 'Agents'],
+    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
   ] as [string, string][])
   let toc: HTMLElement
   $effect(() => {
@@ -53,7 +54,7 @@
   let copied = $state(false)
   let agentErr = $state('')
   async function loadTokens() { try { tokens = await api.get<Token[]>('/tokens') } catch { tokens = [] } }
-  $effect(() => { if (section === 'agents') loadTokens() })
+  $effect(() => { if (section === 'agents' || section === 'keys') loadTokens() })
   async function createBot(e: SubmitEvent) {
     e.preventDefault(); agentErr = ''
     try {
@@ -67,7 +68,7 @@
     e.preventDefault(); agentErr = ''
     try {
       const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-      reveal = { label: `Token "${t.credential.name}" posts as you. Shown once:`, token: t.token }
+      reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
       tokenName = ''; await loadTokens()
     } catch (err) { agentErr = (err as Error).message }
   }
@@ -180,9 +181,14 @@
         <label class="switch"><input type="checkbox" checked={store.layout.members} onchange={(e) => store.saveLayout({ members: e.currentTarget.checked })} /> Show people <kbd>Ctrl+Shift+M</kbd></label>
         <p class="muted small">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty composer.</p>
 
-      {:else if section === 'agents'}
-        <h2 class="display">Agents</h2>
-        <p class="muted">An agent is just a member with a token. No app registration, no OAuth, no portal. Give the token to the thing that should talk here.</p>
+      {:else if section === 'keys' || section === 'agents'}
+        {#if section === 'keys'}
+          <h2 class="display">API keys</h2>
+          <p class="muted">An API key acts as you: scripts, the <code>den</code> CLI, or a relay like the Minecraft one. Anyone holding it can do what you can, so keep it private.</p>
+        {:else}
+          <h2 class="display">Agents</h2>
+          <p class="muted">An agent is a member of its own, with a name and picture, that talks through its key. No app registration, no OAuth.</p>
+        {/if}
         {#if reveal}
           <div class="reveal">
             <div>{reveal.label}</div>
@@ -194,29 +200,36 @@
             <div class="faint small">Use it as <code>DEN_TOKEN</code> with the <code>den</code> CLI, or as a bearer token.</div>
           </div>
         {/if}
-        <form class="inline" onsubmit={createBot}>
-          <h3 class="eyebrow">New agent</h3>
-          <input class="field" bind:value={botName} placeholder="username, e.g. clanker" pattern={'[a-z0-9_]{3,32}'} required />
-          <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" />
-          <button class="btn lit" type="submit"><Icon name="bot" /> Create agent</button>
-        </form>
-        <form class="inline" onsubmit={createToken}>
-          <h3 class="eyebrow">Token that posts as you</h3>
-          <input class="field" bind:value={tokenName} placeholder="What is it for, e.g. laptop script" />
-          <button class="btn" type="submit"><Icon name="plus" /> Create token</button>
-        </form>
+        {#if section === 'keys'}
+          <form class="inline" onsubmit={createToken}>
+            <h3 class="eyebrow">New API key</h3>
+            <input class="field" bind:value={tokenName} placeholder="What is it for, e.g. minecraft-relay" />
+            <button class="btn lit" type="submit"><Icon name="plus" /> Create key</button>
+          </form>
+        {:else}
+          <form class="inline" onsubmit={createBot}>
+            <h3 class="eyebrow">New agent</h3>
+            <input class="field" bind:value={botName} placeholder="username, e.g. hermes" pattern={'[a-z0-9_]{3,32}'} required />
+            <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" />
+            <button class="btn lit" type="submit"><Icon name="bot" /> Create agent</button>
+          </form>
+        {/if}
         {#if agentErr}<p class="error">{agentErr}</p>{/if}
-        <h3 class="eyebrow">Active tokens</h3>
-        {#if !tokens.length}<p class="faint">None yet.</p>{/if}
-        {#each tokens as t (t.id)}
+        {@const shown = tokens.filter((t) => (section === 'keys') === (t.user_id === store.me?.id))}
+        <h3 class="eyebrow">{section === 'keys' ? 'Your keys' : 'Agent keys'}</h3>
+        {#if !shown.length}<p class="faint">None yet.</p>{/if}
+        {#each shown as t (t.id)}
           {@const owner = store.user(t.user_id)}
           <div class="tok">
             <span class="tname">{t.name}</span>
-            <span class="muted">{owner?.bot ? `agent ${owner.display_name || owner.username}` : 'you'}</span>
+            {#if section === 'agents'}<span class="muted">{owner ? owner.display_name || owner.username : 'agent'}</span>{/if}
             <span class="spacer"></span>
             <InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />
           </div>
         {/each}
+
+      {:else if section === 'members' && admin}
+        <MemberSettings />
 
       {:else if section === 'invites' && admin}
         <h2 class="display">Invites</h2>

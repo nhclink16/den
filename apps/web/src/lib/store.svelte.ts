@@ -174,13 +174,24 @@ export class Store {
   async saveProfile(patch: import('./types').ProfilePatch) {
     this.receiveUser(await this.api.patch<User>('/users/me/profile', patch))
   }
-  /** Avatars must be square; callers crop first. The server keeps the original. */
-  async setProfileImage(kind: 'avatar' | 'banner', image: Blob | null) {
+  /** Avatars must be square; callers crop first. The server keeps the original.
+   *  Admins may pass someone else's id. */
+  async setProfileImage(kind: 'avatar' | 'banner', image: Blob | null, userId = 'me') {
     const u = image
-      ? await this.api.putRaw<User>(`/users/me/${kind}`, image, { 'content-type': image.type })
-      : await this.api.del<User>(`/users/me/${kind}`)
+      ? await this.api.putRaw<User>(`/users/${userId}/${kind}`, image, { 'content-type': image.type })
+      : await this.api.del<User>(`/users/${userId}/${kind}`)
     this.receiveUser(u)
   }
+  /** Admin: a new username or display name for someone. */
+  async renameMember(id: string, patch: import('./types').MemberPatch) {
+    this.receiveUser(await this.api.patch<User>(`/users/${id}`, patch))
+  }
+  /** Admin: sign someone out for good. Their messages stay. */
+  async removeMember(id: string) {
+    this.receiveUser(await this.api.del<User>(`/users/${id}`))
+  }
+  /** Everyone still here, for pickers and the people list. */
+  get people() { return [...this.users.values()].filter((u) => !u.removed) }
   name(id: string) { const u = this.users.get(id); return u ? u.display_name || u.username : 'someone' }
 
   get textChannels() { return this.channels.filter((c) => c.kind !== 'dm').sort((a, b) => a.position - b.position) }

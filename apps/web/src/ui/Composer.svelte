@@ -129,7 +129,7 @@
     const query = mentioning
     if (query === null) return []
     const q = query.toLowerCase()
-    const all = [...store.users.values()]
+    const all = store.people
     const here = channel.kind === 'dm' ? all.filter((u) => channel.member_ids?.includes(u.id)) : all
     const shown = (u: User) => u.display_name || u.username
     const starts = (u: User) => u.username.toLowerCase().startsWith(q) || shown(u).toLowerCase().startsWith(q)

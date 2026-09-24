@@ -244,23 +244,58 @@ pub(crate) async fn put_banner(
 ) -> Result<Json<User>> {
     put(s, a.user.id, Kind::Banner, req).await
 }
-#[utoipa::path(put,path="/users/{id}/avatar",params(("id"=String,Path)),request_body(content((Vec<u8>="image/png"),(Vec<u8>="image/jpeg"),(Vec<u8>="image/webp"),(Vec<u8>="image/gif"))),responses((status=200,body=User),(status=403,body=ApiError)))]
-pub(crate) async fn put_bot_avatar(
+/// Someone else's pictures: an admin tidying profiles, or the owner of an agent.
+async fn editable(s: &AppState, a: &Auth, id: &str) -> Result<String> {
+    let owner: Option<Option<String>> = sqlx::query_scalar("SELECT owner_id FROM users WHERE id=?")
+        .bind(id)
+        .fetch_optional(&s.db)
+        .await?;
+    let Some(owner) = owner else {
+        return Err(Error::missing());
+    };
+    if a.user.role == Role::Admin || owner.as_deref() == Some(&a.user.id) {
+        Ok(id.to_string())
+    } else {
+        Err(Error::forbidden())
+    }
+}
+#[utoipa::path(put,path="/users/{id}/avatar",params(("id"=String,Path)),request_body(content((Vec<u8>="image/png"),(Vec<u8>="image/jpeg"),(Vec<u8>="image/webp"),(Vec<u8>="image/gif"))),responses((status=200,body=User),(status=403,body=ApiError),(status=404,body=ApiError)))]
+pub(crate) async fn put_user_avatar(
     State(s): State<AppState>,
     a: Auth,
     Path(id): Path<String>,
     req: Request,
 ) -> Result<Json<User>> {
-    let owner: Option<String> =
-        sqlx::query_scalar("SELECT owner_id FROM users WHERE id=? AND bot=1")
-            .bind(&id)
-            .fetch_optional(&s.db)
-            .await?
-            .flatten();
-    if owner.as_deref() != Some(&a.user.id) {
-        return Err(Error::forbidden());
-    }
+    let id = editable(&s, &a, &id).await?;
     put(s, id, Kind::Avatar, req).await
+}
+#[utoipa::path(put,path="/users/{id}/banner",params(("id"=String,Path)),request_body(content((Vec<u8>="image/png"),(Vec<u8>="image/jpeg"),(Vec<u8>="image/webp"),(Vec<u8>="image/gif"))),responses((status=200,body=User),(status=403,body=ApiError),(status=404,body=ApiError)))]
+pub(crate) async fn put_user_banner(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+    req: Request,
+) -> Result<Json<User>> {
+    let id = editable(&s, &a, &id).await?;
+    put(s, id, Kind::Banner, req).await
+}
+#[utoipa::path(delete,path="/users/{id}/avatar",params(("id"=String,Path)),responses((status=200,body=User),(status=403,body=ApiError),(status=404,body=ApiError)))]
+pub(crate) async fn delete_user_avatar(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+) -> Result<Json<User>> {
+    let id = editable(&s, &a, &id).await?;
+    remove(s, id, Kind::Avatar).await
+}
+#[utoipa::path(delete,path="/users/{id}/banner",params(("id"=String,Path)),responses((status=200,body=User),(status=403,body=ApiError),(status=404,body=ApiError)))]
+pub(crate) async fn delete_user_banner(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+) -> Result<Json<User>> {
+    let id = editable(&s, &a, &id).await?;
+    remove(s, id, Kind::Banner).await
 }
 #[utoipa::path(get,path="/users/{id}/avatar",params(("id"=String,Path)),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
 pub(crate) async fn get_avatar(

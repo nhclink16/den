@@ -2,6 +2,7 @@ import type { components } from './schema'
 type S = components['schemas']
 export type User = S['User']
 export type ProfilePatch = S['ProfilePatch']
+export type MemberPatch = S['MemberPatch']
 export type UserStatus = S['Status']
 export type Activity = S['Activity']
 export type ActivityKind = S['ActivityKind']

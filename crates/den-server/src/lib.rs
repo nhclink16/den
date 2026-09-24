@@ -14,6 +14,7 @@ mod invitation_state;
 mod invitation_tickets;
 mod invitations;
 mod jams;
+mod members;
 mod messages;
 mod music;
 mod objects;
@@ -346,10 +347,21 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             axum::routing::put(profile_images::put_banner).delete(profile_images::delete_banner),
         )
         .route(
-            "/users/{id}/avatar",
-            get(profile_images::get_avatar).put(profile_images::put_bot_avatar),
+            "/users/{id}",
+            axum::routing::patch(members::patch).delete(members::remove),
         )
-        .route("/users/{id}/banner", get(profile_images::get_banner))
+        .route(
+            "/users/{id}/avatar",
+            get(profile_images::get_avatar)
+                .put(profile_images::put_user_avatar)
+                .delete(profile_images::delete_user_avatar),
+        )
+        .route(
+            "/users/{id}/banner",
+            get(profile_images::get_banner)
+                .put(profile_images::put_user_banner)
+                .delete(profile_images::delete_user_banner),
+        )
         .route("/users/me/profile", axum::routing::patch(profiles::patch))
         .route(
             "/users/me/background/image",

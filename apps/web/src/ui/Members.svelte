@@ -10,7 +10,7 @@
 
   let { channel }: { channel: Channel } = $props()
   const members = $derived.by(() => {
-    const all = [...store.users.values()]
+    const all = store.people
     const list = channel.kind === 'dm' ? all.filter((u) => channel.member_ids?.includes(u.id)) : all
     return list.sort((a, b) => Number(store.online.has(b.id)) - Number(store.online.has(a.id)) || Number(a.bot) - Number(b.bot) || a.username.localeCompare(b.username))
   })

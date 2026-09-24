@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,password_hash FROM users WHERE username=? AND bot=0",
+  "query": "SELECT id,password_hash FROM users WHERE username=? AND bot=0 AND removed_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "7c1a86b58cb9aae430e36b15f64b0e1f2b410bcfe1bceb0929c68306fe11f2b1"
+  "hash": "7ebb51af679d9cf0fe818deb9f79bacf7a5d67dd532c0f140d6b29c48cb514e4"
 }

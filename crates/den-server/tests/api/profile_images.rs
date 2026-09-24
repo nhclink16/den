@@ -192,20 +192,27 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
             .status(),
         403
     );
+    // An admin may tidy anyone's picture, and clear it again.
+    let bob_path = format!("/users/{}/avatar", bob.user.id);
     assert_eq!(
-        t.req(
-            Method::PUT,
-            &format!("/users/{}/avatar", bob.user.id),
-            &t.admin.token
-        )
-        .header("Content-Type", "image/png")
-        .body(avatar.clone())
+        t.req(Method::PUT, &bob_path, &t.admin.token)
+            .header("Content-Type", "image/png")
+            .body(avatar.clone())
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    let cleared: User = t
+        .req(Method::DELETE, &bob_path, &t.admin.token)
         .send()
         .await
         .unwrap()
-        .status(),
-        403
-    );
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(cleared.avatar_url, None);
     assert_eq!(
         t.req(Method::PUT, &bot_path, &t.admin.token)
             .header("Content-Type", "image/png")
