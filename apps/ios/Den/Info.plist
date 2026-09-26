@@ -28,7 +28,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Share your camera in Den calls.</string>
+	<string>Take photos to share in messages and use your camera in Den calls.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to your self-hosted Den server on your network.</string>
 	<key>NSMicrophoneUsageDescription</key>
