@@ -100,6 +100,13 @@ impl AppState {
         origin: String,
         max_upload: i64,
     ) -> anyhow::Result<Self> {
+        // jsonwebtoken keeps one crypto backend per process, and the first to
+        // claim it wins. livekit-token claims an HMAC-only one when it mints its
+        // first token, after which APNs (ES256) cannot sign until a restart.
+        // rust_crypto covers LiveKit's HS256 too, so claim it first.
+        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
+            &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
+        );
         let uri: axum::http::Uri = origin.parse()?;
         anyhow::ensure!(
             uri.scheme_str() == Some("https")
