@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { sharePicker } from '../lib/share-picker.svelte'
   import { modal, outsideDialog } from '../lib/modal'
 
@@ -12,8 +13,10 @@
   // Show sound toggle only on Windows and only if audio was requested
   const showAudio = $derived(req?.platform === 'win32' && !!req?.audioRequested)
 
+  const requestId = $derived(req?.requestId)
+  // Keyed on the id so the 2s thumbnail refresh doesn't reset the tab or selection.
   $effect(() => {
-    if (req) { tab = 'screen'; selectedId = null; audio = true }
+    if (requestId) { tab = 'screen'; selectedId = null; audio = true }
   })
 
   const screens = $derived(req?.sources.filter(s => s.isScreen) ?? [])
@@ -21,7 +24,7 @@
   const current = $derived(tab === 'screen' ? screens : windows)
 
   $effect(() => {
-    if (req && screens.length === 0 && windows.length > 0) tab = 'window'
+    if (requestId && untrack(() => screens.length === 0 && windows.length > 0)) tab = 'window'
   })
 
   $effect(() => {
@@ -87,7 +90,7 @@
         onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selectCard(source.id); confirm() } }}>
         <div class="thumb">
           {#if source.thumbnail}
-            <img src={source.thumbnail} alt={source.name} draggable="false" />
+            <img src={source.thumbnail} alt="" draggable="false" />
           {:else}
             <div class="no-thumb"></div>
           {/if}
@@ -153,6 +156,8 @@
     padding: 16px 20px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: max-content;
+    min-height: 0;
     gap: 12px;
     align-content: start;
   }

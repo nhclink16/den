@@ -59,7 +59,7 @@ async function start() {
       const filtered = sources.filter(s => s.name !== appName)
       const offered = filtered.map(s => ({
         id: s.id, name: s.name,
-        thumbnail: s.thumbnail.toDataURL(),
+        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
         appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
         isScreen: s.id.startsWith('screen:'),
       }))
@@ -118,7 +118,7 @@ async function start() {
       const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })
       const offered = sources.filter(s => s.name !== appName).map(s => ({
         id: s.id, name: s.name,
-        thumbnail: s.thumbnail.toDataURL(),
+        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
         appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
         isScreen: s.id.startsWith('screen:'),
       }))
