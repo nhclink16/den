@@ -10,7 +10,9 @@ test('updater accepts a signed manifest and rejects changed metadata or another 
   const directory = fs.mkdtempSync(path.join(tmpdir(), 'den-update-'))
   const cli = path.resolve(__dirname, '../node_modules/@tauri-apps/cli/tauri.js')
   const key = path.join(directory, 'key'), manifest = path.join(directory, 'manifest.json')
-  const run = args => execFileSync(process.execPath, [cli, 'signer', ...args], { stdio: 'pipe', env: { ...process.env, CI: 'true' } })
+  // The release job exports the real signing key; the signer refuses it alongside -f.
+  const { TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD, ...env } = process.env
+  const run = args => execFileSync(process.execPath, [cli, 'signer', ...args], { stdio: 'pipe', env: { ...env, CI: 'true' } })
   try {
     run(['generate', '--ci', '-p', '', '-w', key])
     const publicKey = Buffer.from(fs.readFileSync(key + '.pub', 'utf8').trim(), 'base64').toString().trim().split('\n').at(-1)
