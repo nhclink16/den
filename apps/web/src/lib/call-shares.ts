@@ -1,9 +1,12 @@
 import { shareSource, type ShareSurface } from './share-source'
-import { LocalVideoTrack, Track, type Room, type Participant, type LocalTrack } from 'livekit-client'
+import { LocalVideoTrack, ScreenSharePresets, Track, type Room, type Participant, type LocalTrack } from 'livekit-client'
 
 export type Share = { name: string; label: string; surface: ShareSurface; track?: Track }
 // LiveKit 2.15's first-share default is 1080p/15 at 2.5 Mbps. Additional
 // captures get 750 kbps/15; Smooth lifts only the frame-rate cap to 30.
+// A 720p layer keeps a full-width iPhone tile (~1080x608 px requested) off the 1080p VP8 layer, which iOS decodes in software.
+// Not H.264: Chromium throttled H.264 screen-share simulcast to ~10 fps in testing.
+const firstShareLayers = [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps15]
 export class Shares {
   private groups = new Map<string, LocalTrack[]>()
   private pending = false
@@ -38,7 +41,7 @@ export class Shares {
         await room.localParticipant.publishTrack(track, {
           name: track.kind === Track.Kind.Video ? name : `${name}-audio`, stream: name,
           degradationPreference: 'balanced',
-          ...(extra && track.kind === Track.Kind.Video ? { screenShareEncoding: { maxBitrate: 750_000, maxFramerate: 15 } } : {}),
+          ...(track.kind === Track.Kind.Video ? extra ? { screenShareEncoding: { maxBitrate: 750_000, maxFramerate: 15 } } : { screenShareSimulcastLayers: firstShareLayers } : {}),
         })
       }
       this.changed()
