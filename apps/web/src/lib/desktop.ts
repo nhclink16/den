@@ -2,6 +2,7 @@
 export type DesktopCommand = 'platform' | 'session_get' | 'session_set' | 'session_clear'
   | 'instances_get' | 'instances_set' | 'api_request' | 'ptt_register' | 'notify'
   | 'badge' | 'tray_state' | 'deep_links' | 'update_check' | 'update_restart' | 'activity_current'
+  | 'set_titlebar'
 export type DesktopEvent = 'ptt' | 'tray-action' | 'notification-open'
   | 'deep-link://new-url' | 'window-background' | 'activity'
 export interface DesktopBridge {
