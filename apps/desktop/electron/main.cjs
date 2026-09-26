@@ -109,7 +109,7 @@ async function start() {
       pickerRequest = null
       clearTimeout(timer)
       const valid = validatePickerChoice(offeredIds, a.sourceId ?? null)
-      if (valid === false) return
+      // false = rejected (not offered) → treat as cancel so getDisplayMedia doesn't hang
       resolve(valid ? { sourceId: valid, audio: !!a.audio } : null)
     },
     share_picker_sources: async () => {

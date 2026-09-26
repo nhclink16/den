@@ -1,13 +1,16 @@
 <script lang="ts">
   import { sharePicker } from '../lib/share-picker.svelte'
   import { modal, outsideDialog } from '../lib/modal'
-  import { desktop } from '../lib/desktop.svelte'
 
   const req = $derived(sharePicker.request)
   let tab = $state<'screen' | 'window'>('screen')
   let selectedId = $state<string | null>(null)
   let audio = $state(true)
   let dialog = $state<HTMLDialogElement | undefined>()
+  let gridEl = $state<HTMLElement | undefined>()
+
+  // Show sound toggle only on Windows and only if audio was requested
+  const showAudio = $derived(req?.platform === 'win32' && !!req?.audioRequested)
 
   $effect(() => {
     if (req) { tab = 'screen'; selectedId = null; audio = true }
@@ -38,7 +41,12 @@
     sharePicker.cancel(req.requestId).catch(() => {})
   }
 
-  const showAudio = $derived(req?.platform === 'win32' && !!req?.audioRequested)
+  function selectCard(id: string) {
+    selectedId = id
+    // Focus the newly selected card
+    const idx = current.findIndex(s => s.id === id)
+    if (idx >= 0) gridEl?.querySelectorAll<HTMLElement>('[role="gridcell"]')[idx]?.focus()
+  }
 
   function gridKeydown(e: KeyboardEvent) {
     const items = current
@@ -50,12 +58,8 @@
     else if (e.key === 'ArrowLeft') { e.preventDefault(); next = idx <= 0 ? 0 : idx - 1 }
     else if (e.key === 'ArrowDown') { e.preventDefault(); next = idx < 0 ? 0 : Math.min(idx + cols, items.length - 1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); next = idx < 0 ? 0 : Math.max(idx - cols, 0) }
-    else if (e.key === 'Enter') { e.preventDefault(); confirm(); return }
     else return
-    if (next !== idx && items[next]) {
-      selectedId = items[next].id
-      ;(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="gridcell"]')[next]?.focus()
-    }
+    if (items[next]) selectCard(items[next].id)
   }
 </script>
 
@@ -71,16 +75,16 @@
     </div>
   </div>
 
-  <div class="grid" role="grid" tabindex="-1" aria-label={tab === 'screen' ? 'Screens' : 'Windows'} onkeydown={gridKeydown}>
+  <div bind:this={gridEl} class="grid" role="grid" tabindex="-1" aria-label={tab === 'screen' ? 'Screens' : 'Windows'} onkeydown={gridKeydown}>
     {#each current as source (source.id)}
       {@const selected = source.id === selectedId}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div role="gridcell" class="card" class:selected
         tabindex={selected || (!selectedId && current[0]?.id === source.id) ? 0 : -1}
         aria-selected={selected}
-        onclick={() => selectedId = source.id}
-        ondblclick={confirm}
-        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selectedId = source.id; confirm() } }}>
+        onclick={() => selectCard(source.id)}
+        ondblclick={() => { selectCard(source.id); confirm() }}
+        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selectCard(source.id); confirm() } }}>
         <div class="thumb">
           {#if source.thumbnail}
             <img src={source.thumbnail} alt={source.name} draggable="false" />
