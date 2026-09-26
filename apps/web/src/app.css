@@ -39,8 +39,11 @@ html, body { height: 100%; margin: 0; }
 /* The wallpaper layer is inset:0 but scaled 1.06 to hide the soft edge blur leaves,
    so it reaches ~3% past each side and the document could be panned sideways by that
    much on narrow screens. `clip` kills the pan without creating a scroll container,
-   which `hidden` would, and without clipping descendants that need to escape. */
-html { overflow-x: clip; }
+   which `hidden` would, and without clipping descendants that need to escape.
+   Clipped vertically too: the app never scrolls the document, but an absolute
+   .sr-only with no positioned ancestor escapes every scroller and grew it, drawing
+   a page scrollbar up the window edge and under the desktop window controls. */
+html { overflow: clip; }
 
 /* Desktop app: window controls overlay safe area and drag regions.
    --wco-left / --wco-right are the widths of the native controls on each side.
