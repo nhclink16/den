@@ -15,12 +15,14 @@
   import SpotifySettings from './SpotifySettings.svelte'
   import MemberSettings from './MemberSettings.svelte'
   import Icon from './Icon.svelte'
+  import DesktopApp from './DesktopApp.svelte'
+  import { isDesktop } from '../lib/desktop'
 
   let { section = 'profile', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   const sections = $derived([
     ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['keys', 'API keys'], ['agents', 'Agents'],
-    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms']] : []), ['account', 'Account'],
+    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms']] : []), ...(isDesktop() ? [] : [['desktop', 'Desktop app']]), ['account', 'Account'],
   ] as [string, string][])
   // Appearance isn't a page: it opens over the room you came from, so each change
   // shows where it matters.
@@ -288,6 +290,9 @@
             {/each}
           {/if}
         {/each}
+
+      {:else if section === 'desktop' && !isDesktop()}
+        <DesktopApp />
 
       {:else if section === 'account'}
         <h2 class="display">Account</h2>

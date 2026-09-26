@@ -113,6 +113,12 @@ jobs:
         with:
           path: release-artifacts
           merge-multiple: true
+      # Installed Tauri 0.2.2 clients poll releases/latest/download/latest.json.
+      # Keep serving its frozen manifest so they see "no update", not a 404.
+      - name: Carry the legacy Tauri update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v0.2.2 -R "$GITHUB_REPOSITORY" -p latest.json -D release-artifacts
       - run: bash deploy/finalize-release.sh "$GITHUB_REF_NAME"
       - name: Publish binaries, matching source, and checksums
         env:
