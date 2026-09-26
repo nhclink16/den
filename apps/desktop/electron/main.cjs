@@ -63,7 +63,10 @@ async function start() {
     const saved = JSON.parse(fs.readFileSync(boundsFile, 'utf8'))
     if (Number.isInteger(saved.width) && Number.isInteger(saved.height) && saved.width >= 900 && saved.height >= 600 && screen.getAllDisplays().some(d => saved.x < d.workArea.x + d.workArea.width && saved.x + saved.width > d.workArea.x && saved.y < d.workArea.y + d.workArea.height && saved.y + saved.height > d.workArea.y)) bounds = saved
   } catch { /* first launch */ }
-  window = new BrowserWindow({ ...bounds, minWidth: 900, minHeight: 600, title: 'Den', icon: path.join(__dirname, '../icons/icon.png'), ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}), webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } })
+  const titleBarOpts = process.platform === 'darwin'
+    ? { titleBarStyle: 'hiddenInset' }
+    : { titleBarStyle: 'hidden', titleBarOverlay: { height: 52, color: '#1b1916', symbolColor: '#ece5d8' } }
+  window = new BrowserWindow({ ...bounds, minWidth: 900, minHeight: 600, title: 'Den', icon: path.join(__dirname, '../icons/icon.png'), ...titleBarOpts, webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } })
   const native = features(window, emit, focus), updates = updater(), doing = activity(emit, powerMonitor)
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null)
   window.on('close', event => { fs.writeFileSync(boundsFile, JSON.stringify(window.getNormalBounds()), { mode: 0o600 }); if (!quitting) { event.preventDefault(); window.hide() } })
@@ -84,6 +87,7 @@ async function start() {
     ptt_register: a => native.pttRegister(a.key), tray_state: a => native.trayState(a), notify: a => native.notify(a), badge: a => native.badge(a.count),
     deep_links: () => pendingLinks.splice(0), update_check: () => app.isPackaged ? updates.check() : false, update_restart: () => updates.restart(),
     activity_current: () => doing.current(),
+    set_titlebar: a => { if (process.platform !== 'darwin') window.setTitleBarOverlay({ color: a.color, symbolColor: a.symbolColor }) },
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !trusted(event.senderFrame.url) || !Object.hasOwn(commands, command)) throw Error('Desktop command denied')
