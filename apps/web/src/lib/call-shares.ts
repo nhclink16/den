@@ -1,4 +1,5 @@
 import { shareSource, type ShareSurface } from './share-source'
+import { firstShareLayers, setShareFramerate } from './share-quality'
 import { LocalVideoTrack, Track, type Room, type Participant, type LocalTrack } from 'livekit-client'
 
 export type Share = { name: string; label: string; surface: ShareSurface; track?: Track }
@@ -38,7 +39,7 @@ export class Shares {
         await room.localParticipant.publishTrack(track, {
           name: track.kind === Track.Kind.Video ? name : `${name}-audio`, stream: name,
           degradationPreference: 'balanced',
-          ...(extra && track.kind === Track.Kind.Video ? { screenShareEncoding: { maxBitrate: 750_000, maxFramerate: 15 } } : {}),
+          ...(track.kind === Track.Kind.Video ? extra ? { screenShareEncoding: { maxBitrate: 750_000, maxFramerate: 15 } } : { screenShareSimulcastLayers: firstShareLayers } : {}),
         })
       }
       this.changed()
@@ -66,7 +67,7 @@ export class Shares {
     const preference = mode === 'Smooth' ? 'maintain-framerate' : 'maintain-resolution'
     if (pub?.options) {
       pub.options.degradationPreference = preference
-      pub.options.screenShareEncoding = { ...pub.options.screenShareEncoding, maxBitrate: pub.options.screenShareEncoding?.maxBitrate ?? 2_500_000, maxFramerate: mode === 'Smooth' ? 30 : 15 }
+      setShareFramerate(pub.options, mode === 'Smooth' ? 30 : 15)
     }
     await video.mediaStreamTrack.applyConstraints({ frameRate: mode === 'Smooth' ? 30 : 15 })
     // Update this sender in place: no republish, new tile, or lost paired audio.
