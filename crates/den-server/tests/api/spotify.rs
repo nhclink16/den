@@ -1045,11 +1045,21 @@ async fn a_jam_is_started_joined_and_ended_by_its_host_and_gated_on_the_socket()
     .unwrap();
     assert_eq!(again.joined_user_ids, joined.joined_user_ids);
 
-    // Starting a second Jam retires the first; the unique index allows one live.
+    // Replacing ends the current Jam, so a guest may not; its host may. The
+    // unique index allows one live Jam.
+    assert_eq!(
+        t.req(Method::POST, &path, &guest.token)
+            .json(&json!({"url":"https://spotify.link/takeover"}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::FORBIDDEN
+    );
     let replacement: Jam = serde_json::from_value(
         t.post(
             &path,
-            &guest.token,
+            &host.token,
             json!({"url":"https://spotify.link/xyz789"}),
         )
         .await,
@@ -1062,7 +1072,7 @@ async fn a_jam_is_started_joined_and_ended_by_its_host_and_gated_on_the_socket()
     );
 
     assert_eq!(
-        t.req(Method::DELETE, &path, &host.token)
+        t.req(Method::DELETE, &path, &guest.token)
             .send()
             .await
             .unwrap()
@@ -1071,7 +1081,7 @@ async fn a_jam_is_started_joined_and_ended_by_its_host_and_gated_on_the_socket()
         "only the Jam's host or an admin ends it"
     );
     assert_eq!(
-        t.req(Method::DELETE, &path, &guest.token)
+        t.req(Method::DELETE, &path, &host.token)
             .send()
             .await
             .unwrap()
@@ -1320,4 +1330,25 @@ async fn a_host_who_keeps_playing_keeps_the_jam() {
             at - started
         );
     }
+}
+
+#[tokio::test]
+async fn a_host_den_cannot_read_is_not_counted_as_silent() {
+    // Spotify answers 429 to every playback read. That is "we could not look",
+    // not "nothing is playing", and must never end the Jam.
+    let provider = StubSpotify::start(ProviderMode::Limited).await;
+    let t = Test::with_spotify_provider(provider.url.clone(), Duration::from_secs(2)).await;
+    let host = connected_host(&t, "jam_limited_host").await;
+    let room = voice_room(&t).await;
+    join_call(&t, &room, &host).await;
+    t.post(
+        &format!("/rooms/{room}/jam"),
+        &host.token,
+        json!({"url":"https://spotify.link/limited-idle"}),
+    )
+    .await;
+    let started = jam(&t, &room, &host.token).await.unwrap().started_at;
+    t.state.jam_watcher_tick(started + 1800).await.unwrap();
+    t.state.jam_watcher_tick(started + 7200).await.unwrap();
+    assert!(jam(&t, &room, &host.token).await.is_some());
 }

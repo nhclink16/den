@@ -376,10 +376,9 @@ pub(crate) async fn order(
     Ok(Json(view))
 }
 
-/// Pause the music queue because a Jam started. No-op if already paused.
-/// Marks jam_paused so the queue resumes when the Jam ends.
+/// Pause the queue because a Jam started. No-op if already paused. Marks it, so
+/// the queue resumes when the Jam ends. The caller holds the write lock.
 pub(crate) async fn jam_pause(s: &AppState, room: &str) -> Result<()> {
-    let _guard = s.writes.lock().await;
     let mut q = load(s, room).await?;
     if q.view.paused {
         return Ok(());
@@ -396,9 +395,9 @@ pub(crate) async fn jam_pause(s: &AppState, room: &str) -> Result<()> {
     Ok(())
 }
 
-/// Resume the music queue after a Jam ends — only if the queue was paused by the Jam.
+/// Resume the queue after a Jam ends, only if the Jam paused it. The caller
+/// holds the write lock.
 pub(crate) async fn jam_resume(s: &AppState, room: &str) -> Result<()> {
-    let _guard = s.writes.lock().await;
     let mut q = load(s, room).await?;
     if !q.jam_paused {
         return Ok(());

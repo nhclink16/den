@@ -53,10 +53,13 @@ pub(crate) struct MediaRoom {
 }
 
 /// Fetch outside the write lock. A newer webhook invalidates this snapshot.
-pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
+/// True when every room's occupancy is known: read from LiveKit, newer from a
+/// webhook, or no LiveKit at all (so no call exists). False when LiveKit could
+/// not be read and the call map may be stale.
+pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<bool> {
     use std::sync::atomic::Ordering;
     let Some(lk) = &s.livekit else {
-        return Ok(());
+        return Ok(true);
     };
     let revision = s.call_revision.load(Ordering::SeqCst);
     let url = lk
@@ -66,8 +69,9 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
     let client = RoomClient::with_api_key(&url, &lk.key, &lk.secret)
         .with_request_timeout(Duration::from_secs(2));
     let Ok(rooms) = client.list_rooms(channels.to_vec()).await else {
-        return Ok(());
+        return Ok(false);
     };
+    let mut verified = true;
     let mut snapshots = Vec::new();
     for channel in channels {
         if let Some(room) = rooms.iter().find(|r| &r.name == channel) {
@@ -84,6 +88,8 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
                         .map(|p| (p.identity, p.sid))
                         .collect::<HashMap<_, _>>(),
                 ));
+            } else {
+                verified = false;
             }
         } else {
             snapshots.push((channel.clone(), None, HashMap::new()));
@@ -91,7 +97,7 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
     }
     let _guard = s.writes.lock().await;
     if s.call_revision.load(Ordering::SeqCst) != revision {
-        return Ok(());
+        return Ok(verified);
     }
     let mut calls = s.calls.lock().await;
     let mut known = s.call_rooms.lock().await;
@@ -113,7 +119,7 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
         invitation_state::media(s, &channel, &participants, true).await?;
     }
     s.call_revision.fetch_add(1, Ordering::SeqCst);
-    Ok(())
+    Ok(verified)
 }
 
 #[utoipa::path(get,path="/calls",responses((status=200,body=Vec<CallState>)))]

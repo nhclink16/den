@@ -346,3 +346,51 @@ async fn migration_ends_jams_already_pinned_in_text_rooms() {
     drop(db);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+async fn only_the_host_or_an_admin_can_replace_a_live_jam() {
+    let t = Test::new().await;
+    let host = t.member("jam_replace_host").await;
+    let other = t.member("jam_replace_other").await;
+    let room = voice_room(&t).await;
+    start(&t, &room, &host, "https://spotify.link/original").await;
+    let original = get_jam(&t, &room, &host.token).await.unwrap().id;
+    place_in_call(&t, &room, &other.user.id, "o").await;
+
+    // Replacing ends the current Jam, so it needs the same right as ending it.
+    let replaced = t
+        .req(Method::POST, &format!("/rooms/{room}/jam"), &other.token)
+        .json(&json!({"url":"https://spotify.link/takeover"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replaced.status(), StatusCode::FORBIDDEN);
+    assert_eq!(get_jam(&t, &room, &host.token).await.unwrap().id, original);
+
+    place_in_call(&t, &room, &t.admin.user.id, "a").await;
+    t.post(
+        &format!("/rooms/{room}/jam"),
+        &t.admin.token,
+        json!({"url":"https://spotify.link/admin"}),
+    )
+    .await;
+    assert_ne!(get_jam(&t, &room, &host.token).await.unwrap().id, original);
+}
+
+#[tokio::test]
+async fn an_unverifiable_call_is_not_treated_as_empty() {
+    // LiveKit is configured but unreachable, as it can be just after a restart.
+    let t = Test::with_voice(true).await;
+    let host = t.member("jam_unverified").await;
+    let room = voice_room(&t).await;
+    start(&t, &room, &host, "https://spotify.link/unverified").await;
+    // The restart lost the webhook-fed map; LiveKit cannot be asked.
+    remove_from_call(&t, &room).await;
+    let at = unix_now();
+    t.state.jam_watcher_tick(at).await.unwrap();
+    t.state.jam_watcher_tick(at + 3600).await.unwrap();
+    assert!(
+        get_jam(&t, &room, &host.token).await.is_some(),
+        "occupancy was never verified, so nothing may expire"
+    );
+}

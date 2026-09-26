@@ -100,19 +100,16 @@ async fn broadcast(s: &AppState, room: &str, jam: Option<Jam>) {
     });
 }
 
-/// Takes the write lock itself; callers must not hold it, because resuming the
-/// queue takes it again.
+/// The caller holds the write lock, so the end, its event and the queue
+/// resuming land together, never interleaved with a start.
 async fn end_jam(s: &AppState, jam_id: &str, room: &str) -> Result<()> {
-    let ended = {
-        let _guard = s.writes.lock().await;
-        sqlx::query("UPDATE jams SET ended_at=? WHERE id=? AND ended_at IS NULL")
-            .bind(now())
-            .bind(jam_id)
-            .execute(&s.db)
-            .await?
-            .rows_affected()
-            > 0
-    };
+    let ended = sqlx::query("UPDATE jams SET ended_at=? WHERE id=? AND ended_at IS NULL")
+        .bind(now())
+        .bind(jam_id)
+        .execute(&s.db)
+        .await?
+        .rows_affected()
+        > 0;
     if ended {
         broadcast(s, room, None).await;
         music::jam_resume(s, room).await?;
@@ -155,6 +152,12 @@ pub(crate) async fn start(
     }
     let url = jam_url(&v.url)?;
     let _guard = s.writes.lock().await;
+    // Replacing a Jam ends it, so it takes the same right as ending it.
+    if let Some(current) = live(&s, &room).await? {
+        if current.host_id != a.user.id {
+            a.admin()?;
+        }
+    }
     let time = now();
     let id = s.id();
     let mut tx = s.db.begin().await?;
@@ -180,7 +183,8 @@ pub(crate) async fn start(
         .await?;
     tx.commit().await?;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
-    drop(_guard);
+    // Still under the lock: an End cannot slip between the start's event and
+    // its queue pause.
     broadcast(&s, &room, Some(jam.clone())).await;
     if let Err(e) = music::jam_pause(&s, &room).await {
         tracing::warn!(code = e.1, "Could not pause the queue for a Jam");
@@ -220,6 +224,7 @@ pub(crate) async fn end(
     Path(room): Path<String>,
 ) -> Result<StatusCode> {
     authorize(&s, &a, &room).await?;
+    let _guard = s.writes.lock().await;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
     if jam.host_id != a.user.id {
         a.admin()?;
@@ -255,12 +260,10 @@ pub(crate) async fn watch_tick(s: &AppState, at: i64) -> Result<()> {
     )
     .fetch_all(&s.db)
     .await?;
-    // The call map is empty after a restart until webhooks arrive, so ask
-    // LiveKit for these rooms before reading "nobody is here" from it.
+    // The call map is empty after a restart until webhooks arrive. "Nobody is
+    // here" only counts once LiveKit has confirmed it.
     let rooms: Vec<String> = rows.iter().map(|r| r.get("channel_id")).collect();
-    if !rooms.is_empty() {
-        calls::refresh(s, &rooms).await?;
-    }
+    let verified = rooms.is_empty() || calls::refresh(s, &rooms).await?;
     for row in rows {
         let id: String = row.get("id");
         let room: String = row.get("channel_id");
@@ -268,7 +271,9 @@ pub(crate) async fn watch_tick(s: &AppState, at: i64) -> Result<()> {
         let empty_since: Option<i64> = row.get("empty_since");
         let empty = people(s, &room).await.is_empty();
         match (empty, empty_since) {
+            _ if !verified => {}
             (true, Some(since)) if at - since >= EMPTY_CALL_SECS => {
+                let _guard = s.writes.lock().await;
                 end_jam(s, &id, &room).await?;
                 continue;
             }
@@ -287,28 +292,27 @@ pub(crate) async fn watch_tick(s: &AppState, at: i64) -> Result<()> {
             }
             _ => {}
         }
-        // Idle only counts for a host whose playback we can read. `None` from
-        // now_playing covers "nothing playing", so silence is measured from the
-        // last time we saw it playing, or from the start.
+        // Idle only counts for a host whose playback we can read, and only
+        // silence Spotify actually reported. A read that failed (rate limit,
+        // timeout, dead grant) restarts the count like playback does, so thirty
+        // minutes means thirty minutes of observed silence.
         if !row.get::<bool, _>("spotify") {
             continue;
         }
-        if spotify::now_playing(s, &host)
-            .await
-            .is_some_and(|p| p.is_playing)
-        {
+        if spotify::is_playing(s, &host).await == Some(false) {
+            let last: i64 = row
+                .get::<Option<i64>, _>("last_playing_at")
+                .unwrap_or_else(|| row.get("started_at"));
+            if at - last >= HOST_IDLE_SECS {
+                let _guard = s.writes.lock().await;
+                end_jam(s, &id, &room).await?;
+            }
+        } else {
             sqlx::query("UPDATE jams SET last_playing_at=? WHERE id=?")
                 .bind(at)
                 .bind(&id)
                 .execute(&s.db)
                 .await?;
-        } else {
-            let last: i64 = row
-                .get::<Option<i64>, _>("last_playing_at")
-                .unwrap_or_else(|| row.get("started_at"));
-            if at - last >= HOST_IDLE_SECS {
-                end_jam(s, &id, &room).await?;
-            }
         }
     }
     Ok(())
@@ -317,6 +321,114 @@ pub(crate) async fn watch_tick(s: &AppState, at: i64) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An End that lands while a start is between its commit and its queue
+    /// pause. Holding the playback cache freezes the start exactly there: its
+    /// broadcast reads the host's cached track. Only in-crate code can hold it.
+    #[tokio::test]
+    async fn an_end_racing_a_start_leaves_the_queue_and_events_consistent() {
+        let dir = std::env::temp_dir().join(format!("den-jam-race-{}", ulid::Ulid::new()));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let s = AppState::open(
+            dir.join("den.db"),
+            dir.join("uploads"),
+            dir.join("bootstrap.key"),
+            base.clone(),
+            1024,
+        )
+        .await
+        .unwrap();
+        let app = crate::router_with_web(s.clone(), dir.join("spa"));
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap()
+        });
+        let http = reqwest::Client::new();
+        let key = std::fs::read_to_string(dir.join("bootstrap.key")).unwrap();
+        let session: serde_json::Value = http
+            .post(format!("{base}/auth/init"))
+            .json(&serde_json::json!({"username":"host","password":"test-password-123","bootstrap_token":key}))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        let token = session["token"].as_str().unwrap().to_string();
+        let user = session["user"]["id"].as_str().unwrap().to_string();
+        let room: String = sqlx::query_scalar("SELECT id FROM channels WHERE kind='voice' LIMIT 1")
+            .fetch_one(&s.db)
+            .await
+            .unwrap();
+        s.calls
+            .lock()
+            .await
+            .entry(room.clone())
+            .or_default()
+            .insert(format!("{user}:test"), "PA_host".into());
+        let mut events = s.events.subscribe();
+        let url = format!("{base}/rooms/{room}/jam");
+
+        let cache = s.spotify.playback.lock().await;
+        let start = tokio::spawn({
+            let (http, url, token) = (http.clone(), url.clone(), token.clone());
+            async move {
+                http.post(url)
+                    .bearer_auth(token)
+                    .json(&serde_json::json!({"url":"https://spotify.link/race"}))
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+            }
+        });
+        // Wait for the commit; the start is now parked on the cache.
+        while sqlx::query_scalar::<_, i64>("SELECT count(*) FROM jams WHERE ended_at IS NULL")
+            .fetch_one(&s.db)
+            .await
+            .unwrap()
+            == 0
+        {
+            tokio::task::yield_now().await;
+        }
+        let end = tokio::spawn({
+            let (http, url, token) = (http.clone(), url.clone(), token.clone());
+            async move {
+                http.delete(url)
+                    .bearer_auth(token)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        drop(cache);
+        assert_eq!(start.await.unwrap(), StatusCode::OK);
+        assert_eq!(end.await.unwrap(), StatusCode::NO_CONTENT);
+
+        let jam_paused: bool =
+            sqlx::query_scalar("SELECT jam_paused FROM music_rooms WHERE room_id=?")
+                .bind(&room)
+                .fetch_one(&s.db)
+                .await
+                .unwrap();
+        assert!(!jam_paused, "the queue is paused for a Jam that has ended");
+        let mut last = None;
+        while let Ok(event) = events.try_recv() {
+            if let Event::JamUpdated { jam, .. } = event {
+                last = Some(jam);
+            }
+        }
+        assert_eq!(last, Some(None), "the last Jam event must be the end");
+        server.abort();
+        let _ = std::fs::remove_dir_all(dir);
+    }
     #[test]
     fn only_spotify_share_links_become_jams() {
         assert_eq!(

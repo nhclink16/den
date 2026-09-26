@@ -25,7 +25,8 @@
     </div>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <p class="note">Headphones recommended, so your mic doesn't send the music back into the call.</p>
-    <details class="replace"><summary>Start a different Jam</summary><JamComposer {roomId} {owner} label="Replace the Jam" /></details>
+    <!-- Replacing ends this Jam, so only someone who could end it gets the offer. -->
+    {#if canEnd}<details class="replace"><summary>Start a different Jam</summary><JamComposer {roomId} {owner} label="Replace the Jam" /></details>{/if}
   {:else}
     <h2>Listen together on Spotify</h2>
     <p class="lede">Everyone hears the same songs in their own Spotify app. Den shows what's playing and who joined.</p>
