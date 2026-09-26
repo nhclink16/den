@@ -16,10 +16,7 @@
   $effect(() => { if (native) void invoke('badge', { count: instances.totalUnread }).catch(() => {}) })
   $effect(() => { if (native) void invoke('tray_state', { inCall: !!call.room, muted: !call.micOn, deafened: call.outputMuted }).catch(() => {}) })
   $effect(() => {
-    if (native) {
-      const colors = themes.active[themes.half]
-      void invoke('set_titlebar', { color: colors.bg, symbolColor: colors.ink }).catch(() => {})
-    }
+    if (native) void invoke('set_titlebar', { symbolColor: themes.active[themes.half].ink }).catch(() => {})
   })
 </script>
 {#if native && instances.adding}<AddServer />{/if}
