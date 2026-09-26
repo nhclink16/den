@@ -32,9 +32,10 @@
 </script>
 <section class="music-panel" aria-label="Music queue" data-testid="music-panel">
   <header><Icon name="music" size={20} /><div><h2>{owner.settings.instance_name} DJ</h2><p>One queue for everyone in {owner.channel(roomId)?.name || 'the call'}.</p></div></header>
+  {#if q?.paused_for_jam}<p class="for-jam" role="status">Queue paused for the Jam. It picks up where it left off when the Jam ends.</p>{/if}
   <div class="now">
     <div class="art">{#if current?.thumbnail}<img src={current.thumbnail} alt="" referrerpolicy="no-referrer" />{:else}<Icon name="music" size={32} />{/if}</div>
-    <div class="now-copy"><span class="eyebrow">{current?.state === 'loading' ? 'Loading' : q?.paused ? 'Paused' : 'Now playing'}</span><h3>{current?.title || 'Pick the first track'}</h3><p>{current ? `Added by ${owner.name(current.added_by)}` : 'Paste a YouTube link below.'}</p></div>
+    <div class="now-copy"><span class="eyebrow">{current?.state === 'loading' ? 'Loading' : q?.paused_for_jam ? 'Paused for the Jam' : q?.paused ? 'Paused' : 'Now playing'}</span><h3>{current?.title || 'Pick the first track'}</h3><p>{current ? `Added by ${owner.name(current.added_by)}` : 'Paste a YouTube link below.'}</p></div>
   </div>
   {#if current}
     <label class="seek">Playback position<input aria-label="Playback position" type="range" min="0" max={Math.max(0, (current.duration || 1) - 1)} step="1" value={position} disabled={busy || !current.duration || current.state === 'loading'} onchange={e => change('/seek', { position_seconds: +e.currentTarget.value })} /></label>
@@ -60,6 +61,7 @@
   .music-panel { width: min(380px, calc(100vw - 24px)); max-height: min(720px, calc(100dvh - 32px)); overflow: auto; overscroll-behavior: contain; padding: 18px; color: var(--ink); }
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   h2 { font-size: 18px; margin: 0; } h3 { font-size: 14px; margin: 0; } p { margin: 4px 0 0; font-size: 12px; color: var(--ink-2); }
+  .for-jam { margin: -4px 0 14px; padding: 8px 10px; border-radius: var(--r); background: color-mix(in srgb, var(--lamp) 12%, var(--bg-3)); color: var(--ink); font-size: 12px; }
   .now { display: flex; align-items: center; gap: 12px; } .art { width: 68px; height: 68px; flex: none; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r); overflow: hidden; color: var(--lamp); }
   img { width: 100%; height: 100%; object-fit: cover; } .now-copy { min-width: 0; } .now-copy h3 { margin-top: 4px; overflow-wrap: anywhere; } .eyebrow { font-size: 10px; }
   .seek { display: block; margin-top: 14px; font-size: 0; } .seek input { width: 100%; min-height: 24px; accent-color: var(--lamp); }

@@ -2638,6 +2638,11 @@ export interface components {
             /** @description Stable LiveKit participant identity; use the regular participant volume control. */
             participant_id: string;
             paused: boolean;
+            /**
+             * @description True when the queue was paused automatically because a Spotify Jam started.
+             *     Clears when the Jam ends and the queue resumes.
+             */
+            paused_for_jam?: boolean;
             /** Format: double */
             position_seconds: number;
             queue: components["schemas"]["MusicTrack"][];
