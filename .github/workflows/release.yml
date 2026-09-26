@@ -83,7 +83,14 @@ jobs:
           npm --prefix apps/web run check
       - name: Build Electron installers
         shell: bash
-        run: npm --prefix apps/desktop run build -- ${{ matrix.args }}
+        # An empty CSC_LINK is read as a certificate path, so a missing secret
+        # must mean unset. With no certificate, build unsigned like PR CI does.
+        run: |
+          for v in CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [[ -n ${!v} ]] || unset "$v"
+          done
+          [[ -n ${CSC_LINK:-}${WIN_CSC_LINK:-} ]] || export CSC_IDENTITY_AUTO_DISCOVERY=false
+          npm --prefix apps/desktop run build -- ${{ matrix.args }}
       - name: Sign updater manifest with the existing Den update key
         shell: bash
         run: |
