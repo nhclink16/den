@@ -5,11 +5,13 @@
   type Asset = { name: string; browser_download_url: string; size: number }
   type Os = 'windows' | 'mac' | 'linux'
   const osNames: Record<Os, string> = { windows: 'Windows', mac: 'Mac', linux: 'Linux' }
-  // First match is the one we recommend for that OS.
+  // Only electron-builder's Den-<version>-<os>-<arch>.<ext> files: the release also
+  // carries the CLI, host and server binaries. First match is the recommendation.
   const kinds: Record<Os, [RegExp, string][]> = {
-    windows: [[/\.exe$/, 'Installer (.exe)'], [/\.msi$/, 'MSI package']],
-    mac: [[/\.dmg$/, 'Disk image (.dmg)'], [/mac.*\.zip$/, 'Zip']],
-    linux: [[/\.AppImage$/, 'AppImage'], [/\.deb$/, 'Debian package (.deb)']],
+    // No MSI: the updater only ships NSIS, so an MSI install would end up with two registrations.
+    windows: [[/^Den-[^-]+-win-.*\.exe$/, 'Installer (.exe)']],
+    mac: [[/^Den-[^-]+-mac-.*\.dmg$/, 'Disk image (.dmg)'], [/^Den-[^-]+-mac-.*\.zip$/, 'Zip']],
+    linux: [[/^Den-[^-]+-linux-.*\.AppImage$/, 'AppImage'], [/^Den-[^-]+-linux-.*\.deb$/, 'Debian package (.deb)']],
   }
 
   const platform = ((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.userAgent).toLowerCase()
@@ -28,6 +30,7 @@
           const asset = rel.assets.find(a => re.test(a.name))
           return asset ? [{ os, label, asset }] : []
         }))
+        if (!files.length) failed = true
       })
       .catch(() => { failed = true })
   })
