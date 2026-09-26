@@ -2,7 +2,7 @@
   "name": "den-desktop",
   "productName": "Den",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Chat, calls and shared rooms for your people",
   "author": {
     "name": "Den contributors",
