@@ -38,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
     state.cleanup().await?;
     state.run_invitation_expiry();
     state.run_activities();
+    state.run_jam_watcher();
     let cleanup = state.clone();
     tokio::spawn(async move {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(3600));

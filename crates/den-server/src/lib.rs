@@ -236,6 +236,16 @@ impl AppState {
             .map_err(|_| anyhow::anyhow!("Invitation cleanup failed"))?;
         Ok(())
     }
+    /// Ends Jams whose call has emptied or whose host has gone quiet.
+    pub fn run_jam_watcher(&self) {
+        tokio::spawn(jams::watcher(Arc::downgrade(&self.0)));
+    }
+    /// One Jam auto-end pass as if the clock read `at` (Unix seconds).
+    pub async fn jam_watcher_tick(&self, at: i64) -> anyhow::Result<()> {
+        jams::watch_tick(self, at)
+            .await
+            .map_err(|e| anyhow::anyhow!("Jam watcher failed: {}", e.2))
+    }
 }
 
 pub fn router(state: AppState) -> Router {

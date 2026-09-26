@@ -236,7 +236,7 @@ fn user_id(identity: &str) -> &str {
     identity.split_once(':').map_or(identity, |(user, _)| user)
 }
 
-fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
+pub(crate) fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
     let mut ids = participants
         .into_iter()
         .flat_map(|p| {

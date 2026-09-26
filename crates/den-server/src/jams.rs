@@ -6,9 +6,16 @@ use crate::{auth::Auth, chat::visible, *};
 use axum::extract::Path;
 use sqlx::Row;
 
-async fn authorize(s: &AppState, a: &Auth, room: &str) -> Result<()> {
-    visible(s, &a.user.id, room).await?;
-    Ok(())
+async fn authorize(s: &AppState, a: &Auth, room: &str) -> Result<Channel> {
+    visible(s, &a.user.id, room).await
+}
+
+/// People in the call, by user id. The room's own DJ is not a person.
+async fn people(s: &AppState, channel_id: &str) -> Vec<String> {
+    calls::user_ids(s.calls.lock().await.get(channel_id))
+}
+async fn in_call(s: &AppState, user_id: &str, channel_id: &str) -> bool {
+    people(s, channel_id).await.iter().any(|u| u == user_id)
 }
 
 /// Share links only. Everything else gets the same one-line answer.
@@ -93,6 +100,26 @@ async fn broadcast(s: &AppState, room: &str, jam: Option<Jam>) {
     });
 }
 
+/// Takes the write lock itself; callers must not hold it, because resuming the
+/// queue takes it again.
+async fn end_jam(s: &AppState, jam_id: &str, room: &str) -> Result<()> {
+    let ended = {
+        let _guard = s.writes.lock().await;
+        sqlx::query("UPDATE jams SET ended_at=? WHERE id=? AND ended_at IS NULL")
+            .bind(now())
+            .bind(jam_id)
+            .execute(&s.db)
+            .await?
+            .rows_affected()
+            > 0
+    };
+    if ended {
+        broadcast(s, room, None).await;
+        music::jam_resume(s, room).await?;
+    }
+    Ok(())
+}
+
 #[utoipa::path(get,path="/rooms/{id}/jam",params(("id"=String,Path)),responses((status=200,body=RoomJam)))]
 pub(crate) async fn get(
     State(s): State<AppState>,
@@ -114,7 +141,18 @@ pub(crate) async fn start(
     Path(room): Path<String>,
     ApiJson(v): ApiJson<StartJam>,
 ) -> Result<Json<Jam>> {
-    authorize(&s, &a, &room).await?;
+    // Jams belong to calls: a voice room or a DM call, and only from inside it.
+    if authorize(&s, &a, &room).await?.kind == ChannelKind::Text {
+        return Err(Error::bad("Start a Jam from a call, not a text room."));
+    }
+    // The call map follows LiveKit webhooks. Someone who joined a moment ago
+    // may not be in it yet, so ask LiveKit before refusing them.
+    if !in_call(&s, &a.user.id, &room).await {
+        calls::refresh(&s, std::slice::from_ref(&room)).await?;
+        if !in_call(&s, &a.user.id, &room).await {
+            return Err(Error::bad("Join the call to start a Jam."));
+        }
+    }
     let url = jam_url(&v.url)?;
     let _guard = s.writes.lock().await;
     let time = now();
@@ -142,7 +180,11 @@ pub(crate) async fn start(
         .await?;
     tx.commit().await?;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
+    drop(_guard);
     broadcast(&s, &room, Some(jam.clone())).await;
+    if let Err(e) = music::jam_pause(&s, &room).await {
+        tracing::warn!(code = e.1, "Could not pause the queue for a Jam");
+    }
     Ok(Json(jam))
 }
 
@@ -178,18 +220,98 @@ pub(crate) async fn end(
     Path(room): Path<String>,
 ) -> Result<StatusCode> {
     authorize(&s, &a, &room).await?;
-    let _guard = s.writes.lock().await;
     let jam = live(&s, &room).await?.ok_or_else(Error::missing)?;
     if jam.host_id != a.user.id {
         a.admin()?;
     }
-    sqlx::query("UPDATE jams SET ended_at=? WHERE id=?")
-        .bind(now())
-        .bind(&jam.id)
-        .execute(&s.db)
-        .await?;
-    broadcast(&s, &room, None).await;
+    end_jam(&s, &jam.id, &room).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Background task: auto-end Jams when the call has been empty for 10 minutes
+/// or (when the host has Spotify) the host has been idle for 30 minutes.
+pub(crate) async fn watcher(inner: std::sync::Weak<Inner>) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(60)).await;
+        let Some(inner) = inner.upgrade() else { return };
+        let s = AppState(inner);
+        if let Err(e) = watch_tick(&s, now()).await {
+            tracing::warn!(code = e.1, "Jam watcher tick failed");
+        }
+    }
+}
+
+const EMPTY_CALL_SECS: i64 = 10 * 60;
+const HOST_IDLE_SECS: i64 = 30 * 60;
+
+/// One pass over live Jams at time `at` (Unix seconds). A Jam that has not yet
+/// been seen empty starts its timer now, so ten minutes means ten minutes of
+/// observed emptiness, never "empty since before the server started".
+pub(crate) async fn watch_tick(s: &AppState, at: i64) -> Result<()> {
+    let rows = sqlx::query(
+        "SELECT j.id,j.channel_id,j.host_id,j.started_at,j.empty_since,j.last_playing_at, \
+         EXISTS(SELECT 1 FROM spotify_accounts a WHERE a.user_id=j.host_id AND a.needs_reauth=0) AS spotify \
+         FROM jams j WHERE j.ended_at IS NULL",
+    )
+    .fetch_all(&s.db)
+    .await?;
+    // The call map is empty after a restart until webhooks arrive, so ask
+    // LiveKit for these rooms before reading "nobody is here" from it.
+    let rooms: Vec<String> = rows.iter().map(|r| r.get("channel_id")).collect();
+    if !rooms.is_empty() {
+        calls::refresh(s, &rooms).await?;
+    }
+    for row in rows {
+        let id: String = row.get("id");
+        let room: String = row.get("channel_id");
+        let host: String = row.get("host_id");
+        let empty_since: Option<i64> = row.get("empty_since");
+        let empty = people(s, &room).await.is_empty();
+        match (empty, empty_since) {
+            (true, Some(since)) if at - since >= EMPTY_CALL_SECS => {
+                end_jam(s, &id, &room).await?;
+                continue;
+            }
+            (true, None) => {
+                sqlx::query("UPDATE jams SET empty_since=? WHERE id=?")
+                    .bind(at)
+                    .bind(&id)
+                    .execute(&s.db)
+                    .await?;
+            }
+            (false, Some(_)) => {
+                sqlx::query("UPDATE jams SET empty_since=NULL WHERE id=?")
+                    .bind(&id)
+                    .execute(&s.db)
+                    .await?;
+            }
+            _ => {}
+        }
+        // Idle only counts for a host whose playback we can read. `None` from
+        // now_playing covers "nothing playing", so silence is measured from the
+        // last time we saw it playing, or from the start.
+        if !row.get::<bool, _>("spotify") {
+            continue;
+        }
+        if spotify::now_playing(s, &host)
+            .await
+            .is_some_and(|p| p.is_playing)
+        {
+            sqlx::query("UPDATE jams SET last_playing_at=? WHERE id=?")
+                .bind(at)
+                .bind(&id)
+                .execute(&s.db)
+                .await?;
+        } else {
+            let last: i64 = row
+                .get::<Option<i64>, _>("last_playing_at")
+                .unwrap_or_else(|| row.get("started_at"));
+            if at - last >= HOST_IDLE_SECS {
+                end_jam(s, &id, &room).await?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -588,6 +588,9 @@ mod terminal_recording;
 #[path = "api/voice_preferences.rs"]
 mod voice_preferences;
 
+#[path = "api/jams.rs"]
+mod jams;
+
 #[cfg(unix)]
 #[path = "api/music.rs"]
 mod music;
