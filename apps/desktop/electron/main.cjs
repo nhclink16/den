@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
+const { validatePickerChoice, validatePickerFrame } = require('./picker.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
 const { activity } = require('./activity.cjs')
@@ -27,6 +28,7 @@ else {
   app.whenReady().then(start).catch(() => { dialog.showErrorBox('Den could not start', 'Cannot initialize desktop storage or the app window.'); app.quit() })
 }
 async function start() {
+  let pickerRequest = null
   const store = storage(app.getPath('userData'), safeStorage)
   const dev = !app.isPackaged && process.env.DEN_DESKTOP_URL
   if (dev && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(dev)) throw Error('Development URL must be localhost')
@@ -49,12 +51,29 @@ async function start() {
   session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => wc === window?.webContents && trusted(requestingOrigin) && ['media', 'display-capture', 'fullscreen'].includes(permission))
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => callback(wc === window?.webContents && trusted(details.requestingUrl || wc.getURL()) && ['media', 'display-capture', 'fullscreen'].includes(permission)))
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (!request.frame || request.frame !== window?.webContents.mainFrame || !trusted(request.frame.url)) return callback({})
+    if (!validatePickerFrame(request.frame, window?.webContents.mainFrame, trusted)) return callback({})
+    if (pickerRequest) { const old = pickerRequest; pickerRequest = null; clearTimeout(old.timer); old.resolve(null) }
     try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] })
-      const answer = await dialog.showMessageBox(window, { title: 'Share your screen', message: 'Choose a screen or window to share', buttons: ['Cancel', ...sources.map(s => s.name)], cancelId: 0, defaultId: 0, noLink: true })
-      if (!answer.response) return callback({})
-      callback({ video: sources[answer.response - 1], ...(request.audioRequested && process.platform === 'win32' ? { audio: 'loopback' } : {}) })
+      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })
+      const appName = app.getName()
+      const filtered = sources.filter(s => s.name !== appName)
+      const offered = filtered.map(s => ({
+        id: s.id, name: s.name,
+        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
+        appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
+        isScreen: s.id.startsWith('screen:'),
+      }))
+      const offeredIds = new Set(offered.map(s => s.id))
+      const requestId = `pick-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const result = await new Promise(resolve => {
+        const timer = setTimeout(() => { if (pickerRequest?.id === requestId) { pickerRequest = null; resolve(null) } }, 120_000)
+        pickerRequest = { id: requestId, offeredIds, resolve, timer }
+        emit('share-picker', { requestId, sources: offered, audioRequested: !!request.audioRequested, platform: process.platform })
+      })
+      if (!result) return callback({})
+      const source = sources.find(s => s.id === result.sourceId)
+      if (!source) return callback({})
+      callback({ video: source, ...(result.audio && request.audioRequested && process.platform === 'win32' ? { audio: 'loopback' } : {}) })
     } catch { callback({}) }
   }, { useSystemPicker: true })
   const boundsFile = path.join(app.getPath('userData'), 'window.json')
@@ -84,6 +103,28 @@ async function start() {
     ptt_register: a => native.pttRegister(a.key), tray_state: a => native.trayState(a), notify: a => native.notify(a), badge: a => native.badge(a.count),
     deep_links: () => pendingLinks.splice(0), update_check: () => app.isPackaged ? updates.check() : false, update_restart: () => updates.restart(),
     activity_current: () => doing.current(),
+    share_picker_choose: a => {
+      if (!pickerRequest || pickerRequest.id !== a.requestId) return
+      const { resolve, offeredIds, timer } = pickerRequest
+      pickerRequest = null
+      clearTimeout(timer)
+      const valid = validatePickerChoice(offeredIds, a.sourceId ?? null)
+      // false = rejected (not offered) → treat as cancel so getDisplayMedia doesn't hang
+      resolve(valid ? { sourceId: valid, audio: !!a.audio } : null)
+    },
+    share_picker_sources: async () => {
+      if (!pickerRequest) return null
+      const appName = app.getName()
+      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })
+      const offered = sources.filter(s => s.name !== appName).map(s => ({
+        id: s.id, name: s.name,
+        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
+        appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
+        isScreen: s.id.startsWith('screen:'),
+      }))
+      offered.forEach(s => pickerRequest.offeredIds.add(s.id))
+      return offered
+    },
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !trusted(event.senderFrame.url) || !Object.hasOwn(commands, command)) throw Error('Desktop command denied')
