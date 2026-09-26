@@ -5,7 +5,6 @@
   import { conversationKey, room, sameConversation, type Conversation } from '../lib/conversation'
   import type { Drafts } from '../lib/drafts'
   import { store } from '../lib/store.svelte'
-  import { isJamLink, startJam } from '../lib/jam'
   import type { Channel, Message, User } from '../lib/types'
   import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
@@ -27,13 +26,10 @@
   // and back, or a call expanding over the view, must not lose what was typed.
   // Every text change goes through setText so the edit count stays honest: a send
   // that resolves later compares this, not the string, before clearing the box.
-  let jamDismissed = $state(false)
-  let jamBusy = $state(false)
   const text = $derived(store.drafts.for(here).text)
   function setText(value: string) {
     if (value === text) return
     store.drafts.setText(here, value)
-    jamDismissed = false
   }
   // Read through a captured owner, never through a derived and never through the
   // `store` proxy after an await: the proxy follows the active instance, and a
@@ -83,27 +79,6 @@
     replyTo = null
   }
   const pending = $derived(store.uploads.forConversation(here))
-  // A Jam link belongs at the top of the room, not in the scrollback. Offer the
-  // pin; sending it as an ordinary message is still one click away.
-  const offerJam = $derived(!here.rootId && !jamDismissed && isJamLink(text))
-  async function pinJam() {
-    if (jamBusy) return
-    const conversation = here
-    const owner = store.drafts
-    const token = owner.token
-    const submitted = draft(owner, conversation)
-    const content = text
-    jamBusy = true; error = ''
-    try {
-      const current = await startJam(store, channel.id, content)
-      if (current && store.drafts === owner && owner.holds(token) && shouldClearDraft(submitted, draft(owner, conversation))) {
-        owner.setText(conversation, '')
-        if (alive && sameConversation(conversation, here)) requestAnimationFrame(grow)
-      }
-    }
-    catch (err) { error = (err as Error).message }
-    finally { jamBusy = false }
-  }
   let busy = $state(false)
   let error = $state('')
   let dismissed = $state(false)
@@ -299,14 +274,6 @@
       {/each}
     </div>
   {/if}
-  {#if offerJam}
-    <div class="reply-bar jam-offer">
-      <Icon name="pin" size={13} />
-      <span class="snippet">Pin this Spotify Jam to the top of {channel.kind === 'dm' ? store.title(channel) : `#${channel.name}`}?</span>
-      <button class="btn lit tiny" onclick={pinJam} disabled={jamBusy}>{jamBusy ? 'Pinning…' : 'Pin the Jam'}</button>
-      <button class="x" onclick={() => (jamDismissed = true)} aria-label="Dismiss Jam suggestion"><Icon name="x" size={14} /></button>
-    </div>
-  {/if}
   {#if replyTo}
     <div class="reply-bar">
       <Icon name="reply" size={13} />
@@ -377,7 +344,6 @@
     border-radius: var(--r-lg) var(--r-lg) 0 0; font-size: 13px;
   }
   .pending { flex-wrap: wrap; gap: 6px; }
-  .jam-offer .tiny { min-height: 28px; padding: 3px 10px; font-size: 12px; }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { display: grid; padding: 3px; border-radius: var(--r); color: var(--ink-3); }
   .x:hover { color: var(--ink); background: var(--bg-3); }

@@ -17,6 +17,21 @@
   const uncategorized = $derived(store.textChannels.filter((c) => c.kind !== 'voice' && !c.category_id))
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path) }
+  // The sidebar line is the Jam's only announcement, so keep its track current
+  // for people who are not in the call and have no strip polling it.
+  const jamRooms = $derived(store.textChannels.filter((c) => c.kind === 'voice' && store.jams.has(c.id)).map((c) => c.id))
+  $effect(() => {
+    const ids = jamRooms
+    if (!ids.length) return
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') for (const id of ids) void store.refreshJam(id, 15000).catch(() => {})
+    }, 20000)
+    return () => clearInterval(timer)
+  })
+  const jamLine = (id: string) => {
+    const jam = store.jams.get(id)
+    return jam ? `Jam · ${jam.now_playing?.track || store.name(jam.host_id)}` : ''
+  }
 </script>
 
 <nav class="side" class:mac={desktop.platform === 'macos'}>
@@ -38,12 +53,14 @@
     {#snippet channelRow(c: import('../lib/types').Channel)}
       {@const u = store.unread(c.id)}
       {#if c.kind === 'voice'}
-        <button class="row voice" class:active={call.origin === store.origin && call.channel?.id === c.id} title={`Join ${c.name}`} aria-label={`Join ${c.name}`} onclick={() => call.join(c)}>
+        {@const jam = jamLine(c.id)}
+        <button class="row voice" class:active={call.origin === store.origin && call.channel?.id === c.id} title={`Join ${c.name}`} aria-label={jam ? `Join ${c.name}. ${jam}` : `Join ${c.name}`} onclick={() => call.join(c)}>
           <Icon name="headset" />
           <span class="voice-name"><span class="name">{c.name}</span>
             {#if call.ids(c.id).length}
               <span class="avatars">{#each call.ids(c.id).slice(0,5) as id (id)}<span><Avatar userId={id} size={20} presence={false} /></span>{/each}{#if call.ids(c.id).length > 5}<small>+{call.ids(c.id).length - 5}</small>{/if}</span>
             {/if}
+            {#if jam}<span class="jam-line" data-testid="sidebar-jam" title={jam}><span aria-hidden="true">🎧</span> {jam}</span>{/if}
           </span>
           {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
         </button>
@@ -143,6 +160,7 @@
   .avatars { display: flex; padding-left: 6px; padding-bottom: 2px; align-items: center; }
   .avatars > span { margin-left: -6px; display: flex; border-radius: var(--avatar-r, 35%); box-shadow: 0 0 0 2px var(--bg-2); }
   .voice:has(.avatars) > :global(svg) { color: var(--lamp); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lamp) 60%, transparent)); }
+  .jam-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--lamp); }
   .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
   .inbox { margin: 4px 8px 0; }
   .uploading { font: 16px var(--mono); color: var(--lamp); }

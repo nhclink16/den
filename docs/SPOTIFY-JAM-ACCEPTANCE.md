@@ -4,6 +4,13 @@ This is the review and release record for the Spotify Jam lane. It covers the
 server, web/Tauri client, portability, deployment inputs, and compatibility with
 clients that predate Jam events. Production deployment is not part of this work.
 
+> **Superseded in part (2026-09-25).** Jams now live only in calls: they start
+> from the call's Music menu, only from someone in the call, and text rooms can
+> no longer pin them (migration 0024 ended those). The composer suggestion and
+> voice-room form rows below, and the parts of `scripts/spotify-jam-smoke.mjs`
+> that drive them, describe the old flow. Server coverage for the new rules is
+> `tests/api/jams.rs`.
+
 ## Acceptance inventory
 
 | Surface | Acceptance condition | Evidence |

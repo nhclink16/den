@@ -50,6 +50,7 @@ fn now_ms() -> i64 {
 struct Queue {
     view: MusicQueue,
     epoch: i64,
+    jam_paused: bool,
 }
 fn active(q: &MusicQueue) -> Option<&MusicTrack> {
     q.queue.iter().find(|t| {
@@ -75,7 +76,7 @@ async fn authorize(s: &AppState, a: &Auth, room: &str) -> Result<()> {
 }
 async fn load(s: &AppState, room: &str) -> Result<Queue> {
     let r = sqlx::query(
-        "SELECT paused,position_seconds,updated_at,revision,epoch FROM music_rooms WHERE room_id=?",
+        "SELECT paused,jam_paused,position_seconds,updated_at,revision,epoch FROM music_rooms WHERE room_id=?",
     )
     .bind(room)
     .fetch_optional(&s.db)
@@ -85,13 +86,17 @@ async fn load(s: &AppState, room: &str) -> Result<Queue> {
         participant_id: format!("den-dj-{room}"),
         queue: vec![],
         paused: false,
+        paused_for_jam: false,
         position_seconds: 0.,
         updated_at: now_ms(),
         revision: 0,
     };
     let mut epoch = 0;
+    let mut jam_paused = false;
     if let Some(r) = r {
         view.paused = r.get("paused");
+        jam_paused = r.get("jam_paused");
+        view.paused_for_jam = jam_paused;
         view.position_seconds = r.get("position_seconds");
         view.updated_at = r.get("updated_at");
         view.revision = r.get("revision");
@@ -124,7 +129,11 @@ async fn load(s: &AppState, room: &str) -> Result<Queue> {
         }
     }
     view.updated_at = now_ms();
-    Ok(Queue { view, epoch })
+    Ok(Queue {
+        view,
+        epoch,
+        jam_paused,
+    })
 }
 // Called with the shared write lock. Queue edits and their complete WS snapshot
 // are committed together; clients discard snapshots older than their revision.
@@ -132,8 +141,8 @@ async fn save(s: &AppState, q: &mut Queue) -> Result<MusicQueue> {
     q.view.revision += 1;
     q.view.updated_at = now_ms();
     let mut tx = s.db.begin().await?;
-    sqlx::query("INSERT INTO music_rooms(room_id,paused,position_seconds,updated_at,revision,epoch) VALUES(?,?,?,?,?,?) ON CONFLICT(room_id) DO UPDATE SET paused=excluded.paused,position_seconds=excluded.position_seconds,updated_at=excluded.updated_at,revision=excluded.revision,epoch=excluded.epoch")
-        .bind(&q.view.room_id).bind(q.view.paused).bind(q.view.position_seconds).bind(q.view.updated_at).bind(q.view.revision).bind(q.epoch).execute(&mut *tx).await?;
+    sqlx::query("INSERT INTO music_rooms(room_id,paused,jam_paused,position_seconds,updated_at,revision,epoch) VALUES(?,?,?,?,?,?,?) ON CONFLICT(room_id) DO UPDATE SET paused=excluded.paused,jam_paused=excluded.jam_paused,position_seconds=excluded.position_seconds,updated_at=excluded.updated_at,revision=excluded.revision,epoch=excluded.epoch")
+        .bind(&q.view.room_id).bind(q.view.paused).bind(q.jam_paused).bind(q.view.position_seconds).bind(q.view.updated_at).bind(q.view.revision).bind(q.epoch).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM music_queue WHERE room_id=?")
         .bind(&q.view.room_id)
         .execute(&mut *tx)
@@ -285,6 +294,9 @@ pub(crate) async fn pause(
     authorize(&s, &a, &room).await?;
     let _guard = s.writes.lock().await;
     let mut q = load(&s, &room).await?;
+    // A person's own Play or Pause outranks the Jam: ending the Jam must not undo it.
+    q.jam_paused = false;
+    q.view.paused_for_jam = false;
     if q.view.paused != v.paused {
         q.epoch += 1;
         q.view.paused = v.paused;
@@ -362,4 +374,42 @@ pub(crate) async fn order(
     let view = save(&s, &mut q).await?;
     s.music.wake(&s, &room);
     Ok(Json(view))
+}
+
+/// Pause the queue because a Jam started. No-op if already paused. Marks it, so
+/// the queue resumes when the Jam ends. The caller holds the write lock.
+pub(crate) async fn jam_pause(s: &AppState, room: &str) -> Result<()> {
+    let mut q = load(s, room).await?;
+    if q.view.paused {
+        return Ok(());
+    }
+    q.epoch += 1;
+    q.view.paused = true;
+    q.jam_paused = true;
+    q.view.paused_for_jam = true;
+    if let Some(t) = active_mut(&mut q.view) {
+        t.state = MusicTrackState::Paused;
+    }
+    save(s, &mut q).await?;
+    s.music.wake(s, room);
+    Ok(())
+}
+
+/// Resume the queue after a Jam ends, only if the Jam paused it. The caller
+/// holds the write lock.
+pub(crate) async fn jam_resume(s: &AppState, room: &str) -> Result<()> {
+    let mut q = load(s, room).await?;
+    if !q.jam_paused {
+        return Ok(());
+    }
+    q.epoch += 1;
+    q.view.paused = false;
+    q.jam_paused = false;
+    q.view.paused_for_jam = false;
+    if let Some(t) = active_mut(&mut q.view) {
+        t.state = MusicTrackState::Loading;
+    }
+    save(s, &mut q).await?;
+    s.music.wake(s, room);
+    Ok(())
 }

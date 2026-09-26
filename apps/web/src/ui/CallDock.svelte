@@ -2,10 +2,12 @@
   import { call } from '../lib/call.svelte'
   import { native } from '../lib/native'
   import CallControls from './CallControls.svelte'
+  import CallJam from './CallJam.svelte'
   const people = $derived(new Set(call.participants.filter(p => !p.music).map((p) => p.userId)).size)
 </script>
 
 {#if call.channel}
+  <CallJam />
   <div class="dock" class:ptt={call.prefs.mode === 'ptt'} data-testid="call-dock" aria-label="Current call">
     <span class="dot" aria-hidden="true"></span>
     <button class="room" title={call.title} onclick={() => (call.expanded = !call.expanded)}>{call.title}{#if native}<small class="mono"> · {call.instanceName}</small>{/if}</button>

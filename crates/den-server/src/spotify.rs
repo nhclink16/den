@@ -40,6 +40,9 @@ pub(crate) struct Credentials {
     profile_url: String,
     playing_url: String,
 }
+/// A playback sample, whether Spotify answered, and when to ask again.
+type Sample = (Option<SpotifyNowPlaying>, bool, Instant);
+
 /// `credentials` is `None` on a server with no client secret; the maps stay
 /// empty there. Nothing in this struct reaches disk.
 #[derive(Default)]
@@ -48,7 +51,7 @@ pub(crate) struct Spotify {
     /// SHA-256 of a pending `state`, exactly as `tickets.rs` stores its tickets.
     states: Mutex<HashMap<String, (String, Instant, u64)>>,
     access: Mutex<HashMap<String, (String, Instant)>>,
-    playback: Mutex<HashMap<String, (Option<SpotifyNowPlaying>, Instant)>>,
+    pub(crate) playback: Mutex<HashMap<String, Sample>>,
     /// Account lifecycle generation. A disconnect or a new authorization makes
     /// provider work already in flight for the previous grant ineligible.
     epochs: Mutex<HashMap<String, u64>>,
@@ -687,7 +690,7 @@ fn now_ms() -> i64 {
 /// change so the card does not blink its track off and back on.
 pub(crate) async fn cached(s: &AppState, user: &str) -> Option<SpotifyNowPlaying> {
     match s.spotify.playback.lock().await.get(user) {
-        Some((value, expiry)) if *expiry > Instant::now() => value.clone(),
+        Some((value, _, expiry)) if *expiry > Instant::now() => value.clone(),
         _ => None,
     }
 }
@@ -696,13 +699,26 @@ pub(crate) async fn cached(s: &AppState, user: &str) -> Option<SpotifyNowPlaying
 /// with no connection, a dead grant, private-session mode and a paused-nothing
 /// account are all the same answer to the card.
 pub(crate) async fn now_playing(s: &AppState, user: &str) -> Option<SpotifyNowPlaying> {
-    s.spotify.credentials.as_ref()?;
+    sample(s, user).await.0
+}
+
+/// Whether the host is playing, or `None` when Spotify could not be read at all
+/// (no grant, rate limited, timed out, failed). Only an answer is evidence.
+pub(crate) async fn is_playing(s: &AppState, user: &str) -> Option<bool> {
+    let (value, observed) = sample(s, user).await;
+    observed.then(|| value.is_some_and(|p| p.is_playing))
+}
+
+async fn sample(s: &AppState, user: &str) -> (Option<SpotifyNowPlaying>, bool) {
+    if s.spotify.credentials.is_none() {
+        return (None, false);
+    }
     {
         let _epochs = s.spotify.epochs.lock().await;
         let playback = s.spotify.playback.lock().await;
-        if let Some((value, expiry)) = playback.get(user) {
+        if let Some((value, observed, expiry)) = playback.get(user) {
             if *expiry > Instant::now() {
-                return value.clone();
+                return (value.clone(), *observed);
             }
         }
     }
@@ -712,9 +728,9 @@ pub(crate) async fn now_playing(s: &AppState, user: &str) -> Option<SpotifyNowPl
         let epochs = s.spotify.epochs.lock().await;
         let sample_epoch = epochs.get(user).copied().unwrap_or(0);
         let playback = s.spotify.playback.lock().await;
-        if let Some((value, expiry)) = playback.get(user) {
+        if let Some((value, observed, expiry)) = playback.get(user) {
             if *expiry > Instant::now() {
-                return value.clone();
+                return (value.clone(), *observed);
             }
         }
         sample_epoch
@@ -727,26 +743,39 @@ pub(crate) async fn now_playing(s: &AppState, user: &str) -> Option<SpotifyNowPl
     // already advanced the epoch wins; one that follows clears this cache.
     let epochs = s.spotify.epochs.lock().await;
     if epochs.get(user).copied().unwrap_or(0) != sample_epoch {
-        return None;
+        return (None, false);
     }
     s.spotify.playback.lock().await.insert(
         user.into(),
-        (value.value.clone(), Instant::now() + value.ttl),
+        (
+            value.value.clone(),
+            value.observed,
+            Instant::now() + value.ttl,
+        ),
     );
-    value.value
+    (value.value, value.observed)
 }
 struct PlaybackFetch {
     value: Option<SpotifyNowPlaying>,
+    /// Spotify answered. False for every failure, so failures are never read
+    /// as "nothing is playing".
+    observed: bool,
     ttl: Duration,
 }
 impl Default for PlaybackFetch {
     fn default() -> Self {
         Self {
             value: None,
+            observed: false,
             ttl: PLAYBACK_TTL,
         }
     }
 }
+const NOTHING_PLAYING: PlaybackFetch = PlaybackFetch {
+    value: None,
+    observed: true,
+    ttl: PLAYBACK_TTL,
+};
 
 fn playback_retry_after(headers: &reqwest::header::HeaderMap) -> Duration {
     let seconds = headers
@@ -805,7 +834,7 @@ async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch 
     };
     // 204 is Spotify for "nothing is playing", not an error.
     if response.status() == reqwest::StatusCode::NO_CONTENT {
-        return PlaybackFetch::default();
+        return NOTHING_PLAYING;
     }
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         s.spotify.access.lock().await.remove(user);
@@ -813,8 +842,8 @@ async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch 
     }
     if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
         return PlaybackFetch {
-            value: None,
             ttl: playback_retry_after(response.headers()),
+            ..Default::default()
         };
     }
     if !response.status().is_success() {
@@ -824,7 +853,7 @@ async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch 
         return PlaybackFetch::default();
     };
     let Some(item) = playing.item else {
-        return PlaybackFetch::default();
+        return NOTHING_PLAYING;
     };
     let mut images = item.album.map(|a| a.images).unwrap_or_default();
     // Smallest art at least 200px wide; the card is a thumbnail, not a poster.
@@ -849,6 +878,7 @@ async fn fetch_playing(s: &AppState, user: &str, access: &str) -> PlaybackFetch 
             is_playing: playing.is_playing,
             sampled_at: now_ms(),
         }),
+        observed: true,
         ttl: PLAYBACK_TTL,
     }
 }

@@ -100,6 +100,13 @@ impl AppState {
         origin: String,
         max_upload: i64,
     ) -> anyhow::Result<Self> {
+        // jsonwebtoken keeps one crypto backend per process, and the first to
+        // claim it wins. livekit-token claims an HMAC-only one when it mints its
+        // first token, after which APNs (ES256) cannot sign until a restart.
+        // rust_crypto covers LiveKit's HS256 too, so claim it first.
+        let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
+            &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
+        );
         let uri: axum::http::Uri = origin.parse()?;
         anyhow::ensure!(
             uri.scheme_str() == Some("https")
@@ -235,6 +242,16 @@ impl AppState {
             .await
             .map_err(|_| anyhow::anyhow!("Invitation cleanup failed"))?;
         Ok(())
+    }
+    /// Ends Jams whose call has emptied or whose host has gone quiet.
+    pub fn run_jam_watcher(&self) {
+        tokio::spawn(jams::watcher(Arc::downgrade(&self.0)));
+    }
+    /// One Jam auto-end pass as if the clock read `at` (Unix seconds).
+    pub async fn jam_watcher_tick(&self, at: i64) -> anyhow::Result<()> {
+        jams::watch_tick(self, at)
+            .await
+            .map_err(|e| anyhow::anyhow!("Jam watcher failed: {}", e.2))
     }
 }
 

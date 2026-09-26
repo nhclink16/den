@@ -53,10 +53,13 @@ pub(crate) struct MediaRoom {
 }
 
 /// Fetch outside the write lock. A newer webhook invalidates this snapshot.
-pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
+/// True when this call applied a LiveKit read of every room, or there is no
+/// LiveKit (so no call exists). False when LiveKit could not be read or the
+/// snapshot was discarded, since the call map may then be stale.
+pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<bool> {
     use std::sync::atomic::Ordering;
     let Some(lk) = &s.livekit else {
-        return Ok(());
+        return Ok(true);
     };
     let revision = s.call_revision.load(Ordering::SeqCst);
     let url = lk
@@ -66,8 +69,9 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
     let client = RoomClient::with_api_key(&url, &lk.key, &lk.secret)
         .with_request_timeout(Duration::from_secs(2));
     let Ok(rooms) = client.list_rooms(channels.to_vec()).await else {
-        return Ok(());
+        return Ok(false);
     };
+    let mut verified = true;
     let mut snapshots = Vec::new();
     for channel in channels {
         if let Some(room) = rooms.iter().find(|r| &r.name == channel) {
@@ -84,6 +88,8 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
                         .map(|p| (p.identity, p.sid))
                         .collect::<HashMap<_, _>>(),
                 ));
+            } else {
+                verified = false;
             }
         } else {
             snapshots.push((channel.clone(), None, HashMap::new()));
@@ -91,7 +97,8 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
     }
     let _guard = s.writes.lock().await;
     if s.call_revision.load(Ordering::SeqCst) != revision {
-        return Ok(());
+        // Discarded: a webhook, possibly for another room, landed meanwhile.
+        return Ok(false);
     }
     let mut calls = s.calls.lock().await;
     let mut known = s.call_rooms.lock().await;
@@ -113,7 +120,7 @@ pub(crate) async fn refresh(s: &AppState, channels: &[String]) -> Result<()> {
         invitation_state::media(s, &channel, &participants, true).await?;
     }
     s.call_revision.fetch_add(1, Ordering::SeqCst);
-    Ok(())
+    Ok(verified)
 }
 
 #[utoipa::path(get,path="/calls",responses((status=200,body=Vec<CallState>)))]
@@ -236,7 +243,7 @@ fn user_id(identity: &str) -> &str {
     identity.split_once(':').map_or(identity, |(user, _)| user)
 }
 
-fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
+pub(crate) fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
     let mut ids = participants
         .into_iter()
         .flat_map(|p| {
@@ -248,4 +255,50 @@ fn user_ids(participants: Option<&HashMap<String, String>>) -> Vec<String> {
     ids.sort();
     ids.dedup();
     ids
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A webhook for another room lands while LiveKit is being asked. The
+    /// snapshot is then thrown away, so it verified nothing about this room.
+    #[tokio::test]
+    async fn a_snapshot_discarded_for_a_newer_webhook_is_not_verification() {
+        let dir = std::env::temp_dir().join(format!("den-refresh-{}", ulid::Ulid::new()));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let s = AppState::open(
+            dir.join("den.db"),
+            dir.join("uploads"),
+            dir.join("bootstrap.key"),
+            "http://127.0.0.1:7000".into(),
+            1024,
+        )
+        .await
+        .unwrap()
+        .with_livekit(
+            url,
+            "key".into(),
+            "secret-at-least-thirty-two-bytes!".into(),
+        );
+        let webhook = s.clone();
+        let stub = Router::new().fallback(move || {
+            let s = webhook.clone();
+            async move {
+                s.call_revision
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                // An empty body is an empty ListRoomsResponse.
+                (
+                    StatusCode::OK,
+                    [(axum::http::header::CONTENT_TYPE, "application/protobuf")],
+                    Vec::<u8>::new(),
+                )
+            }
+        });
+        let server = tokio::spawn(async move { axum::serve(listener, stub).await.unwrap() });
+        assert!(matches!(refresh(&s, &["room".into()]).await, Ok(false)));
+        server.abort();
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

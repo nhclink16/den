@@ -82,7 +82,13 @@ export class Store {
     if (jam) next.set(channelId, jam); else next.delete(channelId)
     this.jams = next
   }
+  private jamLoadedAt = new Map<string, number>()
+  /** For polls: several strips can show one room's Jam, and one request serves them all. */
+  refreshJam(room: string, maxAge: number) {
+    return Date.now() - (this.jamLoadedAt.get(room) ?? 0) < maxAge ? Promise.resolve() : this.loadJam(room)
+  }
   async loadJam(room: string) {
+    this.jamLoadedAt.set(room, Date.now())
     const generation = this.generation
     const seq = (this.jamSeq.get(room) ?? 0) + 1
     this.jamSeq.set(room, seq)
@@ -635,6 +641,7 @@ export class Store {
     this.loadingOlder = new Set()
     this.jams = new Map()
     this.jamSeq.clear()
+    this.jamLoadedAt.clear()
     this.receiveSpotify(noSpotify())
     // Logout cancels every open fetch, so no response and no finally can touch
     // the next account's state.
@@ -713,7 +720,7 @@ export class Store {
     await Promise.all([...this.music.keys()].filter(id => channels.some(c => c.id === id)).map(id => this.loadMusic(id)))
     // A Jam may have started while the socket was down. Loading only keys already
     // in the map would miss that gap forever, so resync every visible room.
-    await Promise.all(channels.map(channel => this.loadJam(channel.id).catch(() => {})))
+    await Promise.all(channels.filter(c => c.kind !== 'text').map(channel => this.loadJam(channel.id).catch(() => {})))
     // Refresh the tail of channels we already had open so the view is current after a gap.
     await Promise.all([...this.messages.keys()].filter((id) => channels.some((c) => c.id === id)).map((id) => this.loadLatest(id)))
     // Deliberately NOT awaited, for the same reason the channel reconcile is
@@ -1200,7 +1207,12 @@ export class Store {
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
       case 'music_queue_updated': this.receiveMusic(ev.queue); break
-      case 'jam_updated': this.receiveJam(ev.channel_id, ev.jam ?? null); break
+      case 'jam_updated':
+        this.receiveJam(ev.channel_id, ev.jam ?? null)
+        // Events carry the host's track only when the server sampled it
+        // recently. One read a moment later asks it to, for everyone at once.
+        if (ev.jam && !ev.jam.now_playing) setTimeout(() => void this.refreshJam(ev.channel_id, 1000).catch(() => {}), 1500)
+        break
       case 'spotify_account_updated': this.receiveSpotify(ev.account); break
       case 'sounds_updated': void this.loadSounds(); break
       case 'voice_preferences_updated': this.receiveVoice(ev.preferences); break

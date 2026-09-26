@@ -31,6 +31,10 @@ pub struct MusicQueue {
     pub participant_id: String,
     pub queue: Vec<MusicTrack>,
     pub paused: bool,
+    /// True when the queue was paused automatically because a Spotify Jam started.
+    /// Clears when the Jam ends and the queue resumes.
+    #[serde(default)]
+    pub paused_for_jam: bool,
     pub position_seconds: f64,
     /// Server time for the progress position, in Unix milliseconds.
     pub updated_at: i64,

@@ -12,7 +12,9 @@
   import InlineConfirm from './InlineConfirm.svelte'
   import { anchor, type Anchor } from '../lib/jam-clock'
 
-  let { channelId, owner = store }: { channelId: string; owner?: Store } = $props()
+  // `compact` is the in-call strip: the call bar and the call view. Same record
+  // and clock, with Join only; ending lives in the Music menu's full card.
+  let { channelId, owner = store, compact = false }: { channelId: string; owner?: Store; compact?: boolean } = $props()
 
   const jam = $derived(owner.jams.get(channelId))
   const playing = $derived(jam?.now_playing ?? null)
@@ -54,13 +56,13 @@
   // Jam mutations arrive over the socket, but a track change is only a change on
   // Spotify's side. Poll while a Jam is up: often when a track is showing, rarely
   // when it is not, and never while the tab is hidden.
-  $effect(() => { void owner.loadJam(channelId).catch(() => {}) })
+  $effect(() => { void owner.refreshJam(channelId, 4000).catch(() => {}) })
   const live = $derived(!!playing)
   const present = $derived(!!jam)
   $effect(() => {
     if (!present) return
     const id = setInterval(() => {
-      if (document.visibilityState === 'visible') void owner.loadJam(channelId).catch(() => {})
+      if (document.visibilityState === 'visible') void owner.refreshJam(channelId, 4000).catch(() => {})
     }, live ? 5000 : 20000)
     return () => clearInterval(id)
   })
@@ -85,8 +87,8 @@
 </script>
 
 {#if jam}
-  <section class="jam" class:with-art={!!playing?.album_art && !artFailed} aria-label="Spotify Jam">
-    {#if playing?.album_art && !artFailed}
+  <section class="jam" class:compact class:with-art={!compact && !!playing?.album_art && !artFailed} aria-label="Spotify Jam">
+    {#if !compact && playing?.album_art && !artFailed}
       <!-- Ambience only: a blurred, scaled copy of the art bled behind the strip. -->
       <div class="wash" style="background-image:url({playing.album_art})" aria-hidden="true"></div>
     {/if}
@@ -123,7 +125,7 @@
       </p>
     </div>
 
-    {#if joined.length}
+    {#if joined.length && !compact}
       <div class="who" title="Den members who opened this Jam from here. Spotify does not say who is listening.">
         <span class="faces">
           {#each joined.slice(0, FACES) as id (id)}<Avatar userId={id} size={26} instance={owner} presence={false} />{/each}
@@ -136,11 +138,11 @@
 
     <div class="actions">
       <a class="btn open" class:lit={!mine} href={jam.url} target="_blank" rel="noopener noreferrer" onclick={join}>
-        <Icon name="popout" size={14} />
+        {#if !compact}<Icon name="popout" size={14} />{/if}
         {mine ? 'Open' : 'Join'}
         <span class="sr-only"> Spotify Jam in a new window</span>
       </a>
-      {#if canEnd}
+      {#if canEnd && !compact}
         <InlineConfirm action="End" sentence="End this Jam? The card goes away for everyone. Spotify keeps playing until each person stops it." confirm={end} disabled={busy} />
       {/if}
     </div>
@@ -259,8 +261,25 @@
   }
   .jam-error { margin: 0; padding: 6px var(--gutter); font-size: 12px; color: var(--danger); background: var(--bg-2); border-bottom: 1px solid var(--line); }
 
+  .jam.compact { container: jam-strip / inline-size; gap: 10px; padding: 8px 10px 10px; border-bottom: 0; }
+  .compact .sleeve { width: 36px; height: 36px; }
+  .compact .sleeve.out { margin-right: 10px; }
+  .compact .sleeve.out .record { transform: translateX(10px); }
+  .compact .eyebrow { font-size: 10px; overflow: hidden; }
+  .compact h2 { font-size: 13px; }
+  .compact .line { font-size: 11.5px; }
+  .compact .line.has-track .starter, .compact .line.has-track .dot, .compact .hint { display: none; }
+  .compact .actions { margin-left: 0; }
+  .compact .open { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+  /* The call bar is sidebar-wide: the icon still says Spotify, and the clock
+     keeps the line, so the brand words and artists give way. */
+  @container jam-strip (max-width: 360px) {
+    .brand, .sep, .line.has-track .artists { display: none; }
+    .clock { margin-left: 0; padding-left: 0; }
+  }
+
   @media (max-width: 760px) {
-    .jam { gap: 12px; padding-inline: 10px; }
+    .jam:not(.compact) { gap: 12px; padding-inline: 10px; }
     .sleeve { width: 48px; height: 48px; }
     .sleeve.out { margin-right: 12px; }
     .sleeve.out .record { transform: translateX(14px); }
