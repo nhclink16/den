@@ -312,12 +312,10 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         await ws.send(command)
         with self.assertRaises(TimeoutError):
             await asyncio.wait_for(self.frames.get(), 0.2)
-        await asyncio.sleep(2)
-        await ws.send(command)
         try:
             result = await asyncio.wait_for(self.frame("result"), 3)
         except TimeoutError:
-            self.fail("completed command result must survive a disconnected session")
+            self.fail("running command must deliver its result after reconnect without another retry")
         self.assertEqual(result, {"type": "result", "command_id": "restart-disconnected", "ok": True, "message": "Restarting"})
         self.assertEqual(sum(i["executable"] == "restart" for i in self.invocations()), 1)
 

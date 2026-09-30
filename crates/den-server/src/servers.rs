@@ -17,6 +17,7 @@ struct Connection {
 #[derive(Default)]
 struct Live {
     connection: Option<Connection>,
+    busy: Option<(String, String, String, Instant)>,
     status: Option<ServerStatus>,
     updated_at: Option<i64>,
     stats: HashMap<String, ServerStat>,
@@ -216,8 +217,11 @@ pub(crate) async fn action(
             .get_mut(&slug)
             .filter(|l| l.connection.is_some())
             .ok_or_else(|| Error::conflict("The server's relay isn't connected"))?;
-        let c = live.connection.as_mut().unwrap();
-        if !c.pending.is_empty() {
+        if live
+            .busy
+            .as_ref()
+            .is_some_and(|(_, _, _, at)| at.elapsed() < Duration::from_secs(300))
+        {
             return Err(Error::conflict(
                 "The server is still working on the last request",
             ));
@@ -229,6 +233,13 @@ pub(crate) async fn action(
                 state.as_str().unwrap()
             )));
         }
+        live.busy = Some((
+            id.clone(),
+            action.clone(),
+            a.user.display_name.clone(),
+            Instant::now(),
+        ));
+        let c = live.connection.as_mut().unwrap();
         sender = c.tx.clone();
         c.pending.insert(id.clone(), (Instant::now(), tx));
     }
@@ -391,15 +402,17 @@ async fn status(s: &AppState, slug: &str, mut status: ServerStatus) -> Result<()
         .stats
         .iter()
         .filter(|stat| stat.graph && stat.key != "players")
-        .take(4)
     {
         sqlx::query(
-            "INSERT OR REPLACE INTO game_server_samples(slug,key,at,value) VALUES(?,?,?,?)",
+            "INSERT OR REPLACE INTO game_server_samples(slug,key,at,value) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM game_server_samples WHERE slug=? AND key=?) OR (SELECT COUNT(DISTINCT key) FROM game_server_samples WHERE slug=? AND key!='players')<4",
         )
         .bind(slug)
         .bind(&stat.key)
         .bind(minute)
         .bind(stat.value)
+        .bind(slug)
+        .bind(&stat.key)
+        .bind(slug)
         .execute(&mut *tx)
         .await?;
     }
@@ -465,6 +478,20 @@ async fn run(s: AppState, a: Auth, mut ws: WebSocket) {
         let mut all = s.servers.live.lock().await;
         let live = all.entry(slug.clone()).or_default();
         live.status = None;
+        if live
+            .busy
+            .as_ref()
+            .is_some_and(|(_, _, _, at)| at.elapsed() >= Duration::from_secs(300))
+        {
+            live.busy = None;
+        }
+        if let Some((command_id, action, by, _)) = &live.busy {
+            let _ = tx.try_send(RelayFrame::Command {
+                command_id: command_id.clone(),
+                action: action.clone(),
+                by: by.clone(),
+            });
+        }
         live.connection = Some(Connection {
             id: id.clone(),
             tx,
@@ -482,8 +509,13 @@ async fn run(s: AppState, a: Auth, mut ws: WebSocket) {
             _ = tick.tick() => {
                 if s.servers.live.lock().await.get(&slug).and_then(|l| l.connection.as_ref()).is_none_or(|c| c.id != id)
                     || seen.elapsed() > Duration::from_secs(45) { break; }
-                if let Some(c) = s.servers.live.lock().await.get_mut(&slug).and_then(|l| l.connection.as_mut()) {
-                    c.pending.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(300));
+                if let Some(live) = s.servers.live.lock().await.get_mut(&slug) {
+                    if live.busy.as_ref().is_some_and(|(_, _, _, at)| at.elapsed() >= Duration::from_secs(300)) {
+                        live.busy = None;
+                    }
+                    if let Some(c) = live.connection.as_mut() {
+                        c.pending.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(300));
+                    }
                 }
                 if checked.elapsed() >= Duration::from_secs(2) {
                     if !a.valid(&s).await || sqlx::query_scalar::<_, String>("SELECT role FROM users WHERE id=? AND removed_at IS NULL")
@@ -506,7 +538,8 @@ async fn run(s: AppState, a: Auth, mut ws: WebSocket) {
                         seen = Instant::now();
                         let Ok(frame) = serde_json::from_str::<RelayFrame>(&text) else { break; };
                         let _g = s.writes.lock().await;
-                        if s.servers.live.lock().await.get(&slug).and_then(|l| l.connection.as_ref()).is_none_or(|c| c.id != id) { break; }
+                        if s.servers.live.lock().await.get(&slug).and_then(|l| l.connection.as_ref()).is_none_or(|c| c.id != id)
+                            && !matches!(frame, RelayFrame::Result { .. }) { break; }
                         if !a.valid(&s).await || sqlx::query_scalar::<_, String>("SELECT role FROM users WHERE id=? AND removed_at IS NULL")
                             .bind(&a.user.id).fetch_optional(&s.db).await.ok().flatten().as_deref() != Some("admin") { break; }
                         match frame {
@@ -517,7 +550,12 @@ async fn run(s: AppState, a: Auth, mut ws: WebSocket) {
                             RelayFrame::Status { status: value } => { if status(&s, &slug, value).await.is_err() { break; } }
                             result @ RelayFrame::Result { .. } => {
                                 let RelayFrame::Result { ref command_id, .. } = result else { unreachable!() };
-                                if let Some((_, tx)) = s.servers.live.lock().await.get_mut(&slug).and_then(|l| l.connection.as_mut()).and_then(|c| c.pending.remove(command_id)) { let _ = tx.send(result); }
+                                if let Some(live) = s.servers.live.lock().await.get_mut(&slug) {
+                                    if live.busy.as_ref().is_some_and(|(busy_id, _, _, _)| busy_id == command_id) {
+                                        live.busy = None;
+                                    }
+                                    if let Some((_, tx)) = live.connection.as_mut().filter(|c| c.id == id).and_then(|c| c.pending.remove(command_id)) { let _ = tx.send(result); }
+                                }
                             }
                             _ => break,
                         }

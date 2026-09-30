@@ -362,6 +362,59 @@ async fn hello_and_status_reach_list_detail_and_ws() {
 }
 
 #[tokio::test]
+async fn graph_keys_are_capped_across_messages() {
+    let t = Test::new().await;
+    let token = api_token(&t, &t.admin).await;
+    let mut peer = relay(&t, &token).await;
+    for index in 0..50 {
+        let mut value = status(&[]);
+        value.stats[0].key = format!("graph_{index}");
+        send(&mut peer, RelayFrame::Status { status: value }).await;
+    }
+    let page = detail(&t, &t.admin.token).await;
+    assert_eq!(
+        page.history.len(),
+        5,
+        "players plus at most four graph keys"
+    );
+    assert_eq!(
+        page.history
+            .iter()
+            .map(|series| series.key.as_str())
+            .collect::<Vec<_>>(),
+        ["players", "graph_0", "graph_1", "graph_2", "graph_3"]
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(DISTINCT key) FROM game_server_samples WHERE slug='minecraft'"
+        )
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap(),
+        5,
+        "stored samples must also cap distinct keys"
+    );
+    let mut value = status(&[]);
+    value.stats[0].key = "graph_0".into();
+    value.stats[0].value = 42.0;
+    send(&mut peer, RelayFrame::Status { status: value }).await;
+    let page = detail(&t, &t.admin.token).await;
+    assert_eq!(page.history.len(), 5);
+    assert_eq!(
+        page.history
+            .iter()
+            .find(|series| series.key == "graph_0")
+            .unwrap()
+            .points
+            .last()
+            .unwrap()
+            .value,
+        42.0,
+        "an existing key must keep accepting samples at the cap"
+    );
+}
+
+#[tokio::test]
 async fn actions_follow_capabilities_and_roles() {
     let t = Test::new().await;
     let member = t.member("server_actions").await;
@@ -440,6 +493,127 @@ async fn actions_follow_capabilities_and_roles() {
 }
 
 #[tokio::test]
+async fn pending_command_survives_reconnect() {
+    let t = Test::new().await;
+    let token = api_token(&t, &t.admin).await;
+    let mut first = relay(&t, &token).await;
+    send(
+        &mut first,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    let command: RelayFrame = serde_json::from_str(&next_frame(&mut first).await).unwrap();
+    let RelayFrame::Command { ref command_id, .. } = command else {
+        panic!("expected relay command")
+    };
+    first.close(None).await.unwrap();
+    drop(first);
+    let response = pending.await.unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        response.json::<ApiError>().await.unwrap().message,
+        "The server's relay disconnected"
+    );
+
+    let mut second = connect_async(ws_request(&t, "/servers/relay", Some(&token)))
+        .await
+        .unwrap()
+        .0;
+    second
+        .send(Frame::Text(
+            serde_json::to_string(&RelayFrame::Hello { server: info() })
+                .unwrap()
+                .into(),
+        ))
+        .await
+        .unwrap();
+    let replay = tokio::time::timeout(Duration::from_secs(2), next_frame(&mut second))
+        .await
+        .expect("pending command must be replayed after reconnect");
+    assert_eq!(
+        serde_json::from_str::<RelayFrame>(&replay).unwrap(),
+        command
+    );
+    send(
+        &mut second,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let response = action(&t, &t.admin.token, "save").await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        response.json::<ApiError>().await.unwrap().message,
+        "The server is still working on the last request"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), next_frame(&mut second))
+            .await
+            .is_err(),
+        "busy server must not deliver a new command"
+    );
+    send(
+        &mut second,
+        RelayFrame::Result {
+            command_id: "unrelated-command".into(),
+            ok: true,
+            message: None,
+        },
+    )
+    .await;
+    assert_eq!(
+        action(&t, &t.admin.token, "save").await.status(),
+        StatusCode::CONFLICT,
+        "an unrelated result must not clear the busy command"
+    );
+    send(
+        &mut second,
+        RelayFrame::Result {
+            command_id: command_id.clone(),
+            ok: true,
+            message: Some("World saved".into()),
+        },
+    )
+    .await;
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    let RelayFrame::Command {
+        command_id: next_id,
+        action,
+        by,
+    } = serde_json::from_str(&next_frame(&mut second).await).unwrap()
+    else {
+        panic!("expected next relay command")
+    };
+    assert_ne!(next_id, *command_id);
+    assert_eq!(action, "save");
+    assert_eq!(by, t.admin.user.display_name);
+    send(
+        &mut second,
+        RelayFrame::Result {
+            command_id: next_id,
+            ok: true,
+            message: Some("Saved again".into()),
+        },
+    )
+    .await;
+    assert_eq!(pending.await.unwrap().status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn action_without_relay_and_after_reconnect() {
     let t = Test::new().await;
     let member = t.member("server_reconnect").await;
@@ -458,10 +632,10 @@ async fn action_without_relay_and_after_reconnect() {
         &member.token,
     );
     let pending = tokio::spawn(async move { request.send().await.unwrap() });
-    assert!(matches!(
-        serde_json::from_str::<RelayFrame>(&next_frame(&mut peer).await).unwrap(),
-        RelayFrame::Command { .. }
-    ));
+    let command: RelayFrame = serde_json::from_str(&next_frame(&mut peer).await).unwrap();
+    let RelayFrame::Command { ref command_id, .. } = command else {
+        panic!("expected relay command")
+    };
     peer.close(None).await.unwrap();
     drop(peer);
     let response = pending.await.unwrap();
@@ -498,7 +672,30 @@ async fn action_without_relay_and_after_reconnect() {
         action(&t, &member.token, "undeclared").await.status(),
         StatusCode::NOT_FOUND
     );
-    let mut peer = relay(&t, &token).await;
+    let mut peer = connect_async(ws_request(&t, "/servers/relay", Some(&token)))
+        .await
+        .unwrap()
+        .0;
+    peer.send(Frame::Text(
+        serde_json::to_string(&RelayFrame::Hello { server: info() })
+            .unwrap()
+            .into(),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(
+        serde_json::from_str::<RelayFrame>(&next_frame(&mut peer).await).unwrap(),
+        command
+    );
+    send(
+        &mut peer,
+        RelayFrame::Result {
+            command_id: command_id.clone(),
+            ok: true,
+            message: Some("Saved before reconnect".into()),
+        },
+    )
+    .await;
     send(
         &mut peer,
         RelayFrame::Status {

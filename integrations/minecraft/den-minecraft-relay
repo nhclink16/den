@@ -262,8 +262,12 @@ async def session(ws, cache, announced):
             if frame.get("type") == "command":
                 command_id = frame["command_id"]
                 if command_id in results:
-                    if results[command_id] is not None:
-                        await ws.send(json.dumps(results[command_id]))
+                    # Still running in an earlier session: answer here once it finishes.
+                    for _ in range(1200):
+                        if results.get(command_id) is not None:
+                            await ws.send(json.dumps(results[command_id]))
+                            break
+                        await asyncio.sleep(0.1)
                     continue
                 results[command_id] = None
                 if len(results) > 100:
