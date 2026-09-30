@@ -81,10 +81,11 @@ html.desktop .members .roster > .head select { -webkit-app-region: no-drag; }
    is at the right edge when the members panel is hidden (.no-members shell). */
 html.desktop .members .roster > .head { padding-right: max(18px, var(--wco-right)); }
 html.desktop .shell.no-members .main > section > header.head { padding-right: max(var(--gutter), var(--wco-right)); }
-/* Outside a channel the call view and the call notices sit above the header, at the
-   window's top edge, so their right-hand controls need the same reserve. */
-html.desktop .shell.no-members .main > .call-status:first-child { padding-right: max(12px, var(--wco-right)); }
-html.desktop .shell.no-members .main > .call-view:first-child .expand { right: calc(var(--wco-right) + 6px); }
+/* Outside a channel the call view and the call notices sit above the header, at or
+   within a notice's height of the window's top edge, so all of them get the reserve.
+   Not :first-child: a notice bar above the call view still leaves it under the controls. */
+html.desktop .shell.no-members .main > .call-status { padding-right: max(12px, var(--wco-right)); }
+html.desktop .shell.no-members .main > .call-view .expand { right: calc(var(--wco-right) + 6px); }
 /* The Appearance drawer is pinned to the right edge over everything. */
 html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
 
