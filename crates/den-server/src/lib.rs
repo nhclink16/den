@@ -23,6 +23,7 @@ pub mod portable;
 mod profile_images;
 mod profiles;
 mod push;
+mod servers;
 mod sounds;
 mod spotify;
 mod terminal;
@@ -66,6 +67,7 @@ pub struct Inner {
     pub(crate) spotify: spotify::Spotify,
     pub db: SqlitePool,
     pub(crate) hosts: hosts::Hosts,
+    pub(crate) servers: servers::Servers,
     pub livekit: Option<calls::LiveKit>,
     pub calls: Mutex<HashMap<String, HashMap<String, String>>>,
     pub(crate) call_rooms: Mutex<HashMap<String, calls::MediaRoom>>,
@@ -180,11 +182,15 @@ impl AppState {
         sqlx::query("UPDATE music_queue SET state='paused' WHERE state IN ('playing','loading')")
             .execute(&db)
             .await?;
+        sqlx::query("UPDATE game_server_sessions SET ended_at=seen_at WHERE ended_at IS NULL")
+            .execute(&db)
+            .await?;
         let state = Self(Arc::new(Inner {
             music: music::Music::default(),
             spotify: spotify::Spotify::default(),
             db,
             hosts: hosts::Hosts::default(),
+            servers: servers::Servers::default(),
             livekit: None,
             calls: Mutex::new(HashMap::new()),
             call_rooms: Mutex::new(HashMap::new()),
@@ -288,6 +294,11 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
         )
         .route("/instance", get(objects::instance))
         .route("/auth/ws-ticket", post(tickets::issue))
+        .route("/servers", get(servers::list))
+        .route("/servers/relay", get(servers::relay))
+        .route("/servers/{slug}", get(servers::detail))
+        .route("/servers/{slug}/icon", get(servers::icon))
+        .route("/servers/{slug}/actions/{action}", post(servers::action))
         .route("/hosts", get(hosts::list))
         .route("/hosts/enroll", post(hosts::enroll))
         .route("/hosts/login", post(hosts::login))

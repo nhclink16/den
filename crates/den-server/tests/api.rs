@@ -240,6 +240,8 @@ mod auth;
 mod chat;
 #[path = "api/realtime.rs"]
 mod realtime;
+#[path = "api/servers.rs"]
+mod servers;
 #[path = "api/uploads.rs"]
 mod uploads;
 #[path = "api/wallpapers.rs"]

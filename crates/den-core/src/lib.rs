@@ -18,6 +18,8 @@ mod threads;
 pub use threads::*;
 mod activity;
 pub use activity::*;
+mod servers;
+pub use servers::*;
 // Shared API types. The server serializes these, the CLI and the web client
 // deserialize them. Keep this crate free of framework dependencies.
 
@@ -280,6 +282,11 @@ pub enum Event {
     ActivityUpdated {
         user_id: Id,
         activities: Vec<Activity>,
+    },
+    /// A game server changed: its state, players, numbers or buttons. Everyone
+    /// receives it. Gated behind `?servers=true` on `/ws`.
+    ServerUpdated {
+        server: GameServer,
     },
     /// A future notification this client does not understand. Receive-only: ignore it.
     #[serde(other, skip_serializing)]
