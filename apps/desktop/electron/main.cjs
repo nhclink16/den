@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
-const { validatePickerChoice, validatePickerFrame } = require('./picker.cjs')
+const { pickSession, captureAnswer, validatePickerFrame } = require('./picker.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
 const { activity } = require('./activity.cjs')
@@ -50,30 +50,26 @@ async function start() {
   protocol.handle('den-media', req => media(store, req))
   session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => wc === window?.webContents && trusted(requestingOrigin) && ['media', 'display-capture', 'fullscreen'].includes(permission))
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => callback(wc === window?.webContents && trusted(details.requestingUrl || wc.getURL()) && ['media', 'display-capture', 'fullscreen'].includes(permission)))
+  // Den's own window is left out: sharing it mirrors the call into itself.
+  const listSources = async () => (await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })).filter(s => s.name !== app.getName())
+  const shown = list => list.map(s => ({
+    id: s.id, name: s.name,
+    thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
+    appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
+    isScreen: s.id.startsWith('screen:'),
+  }))
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     if (!validatePickerFrame(request.frame, window?.webContents.mainFrame, trusted)) return callback({})
     if (pickerRequest) { const old = pickerRequest; pickerRequest = null; clearTimeout(old.timer); old.resolve(null) }
     try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })
-      const appName = app.getName()
-      const filtered = sources.filter(s => s.name !== appName)
-      const offered = filtered.map(s => ({
-        id: s.id, name: s.name,
-        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
-        appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
-        isScreen: s.id.startsWith('screen:'),
-      }))
-      const offeredIds = new Set(offered.map(s => s.id))
+      const pick = pickSession(), sources = pick.offer(await listSources())
       const requestId = `pick-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const result = await new Promise(resolve => {
         const timer = setTimeout(() => { if (pickerRequest?.id === requestId) { pickerRequest = null; resolve(null) } }, 120_000)
-        pickerRequest = { id: requestId, offeredIds, resolve, timer }
-        emit('share-picker', { requestId, sources: offered, audioRequested: !!request.audioRequested, platform: process.platform })
+        pickerRequest = { id: requestId, pick, resolve, timer }
+        emit('share-picker', { requestId, sources: shown(sources), audioRequested: !!request.audioRequested, platform: process.platform })
       })
-      if (!result) return callback({})
-      const source = sources.find(s => s.id === result.sourceId)
-      if (!source) return callback({})
-      callback({ video: source, ...(result.audio && request.audioRequested && process.platform === 'win32' ? { audio: 'loopback' } : {}) })
+      callback(captureAnswer(result?.source, { audio: result?.audio, audioRequested: request.audioRequested, platform: process.platform }))
     } catch { callback({}) }
   }, { useSystemPicker: true })
   const boundsFile = path.join(app.getPath('userData'), 'window.json')
@@ -111,25 +107,17 @@ async function start() {
     set_titlebar: a => { if (process.platform !== 'darwin') window.setTitleBarOverlay(overlay(a.symbolColor)) },
     share_picker_choose: a => {
       if (!pickerRequest || pickerRequest.id !== a.requestId) return
-      const { resolve, offeredIds, timer } = pickerRequest
+      const { resolve, pick, timer } = pickerRequest
       pickerRequest = null
       clearTimeout(timer)
-      const valid = validatePickerChoice(offeredIds, a.sourceId ?? null)
-      // false = rejected (not offered) → treat as cancel so getDisplayMedia doesn't hang
-      resolve(valid ? { sourceId: valid, audio: !!a.audio } : null)
+      const source = pick.choose(a.sourceId)
+      resolve(source ? { source, audio: !!a.audio } : null)
     },
     share_picker_sources: async () => {
-      if (!pickerRequest) return null
-      const appName = app.getName()
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })
-      const offered = sources.filter(s => s.name !== appName).map(s => ({
-        id: s.id, name: s.name,
-        thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
-        appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
-        isScreen: s.id.startsWith('screen:'),
-      }))
-      offered.forEach(s => pickerRequest.offeredIds.add(s.id))
-      return offered
+      const current = pickerRequest
+      if (!current) return null
+      const sources = await listSources()
+      return pickerRequest === current ? shown(current.pick.offer(sources)) : null
     },
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
