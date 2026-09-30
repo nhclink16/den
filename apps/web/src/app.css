@@ -39,8 +39,66 @@ html, body { height: 100%; margin: 0; }
 /* The wallpaper layer is inset:0 but scaled 1.06 to hide the soft edge blur leaves,
    so it reaches ~3% past each side and the document could be panned sideways by that
    much on narrow screens. `clip` kills the pan without creating a scroll container,
-   which `hidden` would, and without clipping descendants that need to escape. */
-html { overflow-x: clip; }
+   which `hidden` would, and without clipping descendants that need to escape.
+   Clipped vertically too: the app never scrolls the document, but an absolute
+   .sr-only with no positioned ancestor escapes every scroller and grew it, drawing
+   a page scrollbar up the window edge and under the desktop window controls. */
+html { overflow: clip; }
+
+/* Desktop app: window controls overlay safe area and drag regions.
+   --wco-left / --wco-right are the widths of the native controls on each side.
+   Both are 0 when not in a titleBarOverlay context (web or macOS hiddenInset). */
+html.desktop {
+  --wco-left: env(titlebar-area-x, 0px);
+  --wco-right: max(0px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
+}
+
+/* Top header rows are drag handles. Only the desktop class activates this so the
+   web build is unaffected. Direct-child (>) selectors exclude nested panels like
+   ThreadPanel that share the .head class but sit below the window top edge, and
+   the miniature sidebars ThemePreview draws and JamCard's own .brand. */
+html.desktop .sidebar > .side > .brand,
+html.desktop .main > section > header.head,
+html.desktop .members .roster > .head { -webkit-app-region: drag; }
+
+/* Every interactive element inside a drag region must opt out. */
+html.desktop .sidebar > .side > .brand a,
+html.desktop .sidebar > .side > .brand button,
+html.desktop .sidebar > .side > .brand input,
+html.desktop .sidebar > .side > .brand select,
+html.desktop .main > section > header.head a,
+html.desktop .main > section > header.head button,
+html.desktop .main > section > header.head input,
+html.desktop .main > section > header.head select,
+html.desktop .main > section > header.head form,
+html.desktop .members .roster > .head a,
+html.desktop .members .roster > .head button,
+html.desktop .members .roster > .head input,
+html.desktop .members .roster > .head select { -webkit-app-region: no-drag; }
+
+/* Reserve the right edge of the window for the native controls overlay.
+   Members head is always at the right edge when visible; the main header
+   is at the right edge when the members panel is hidden (.no-members shell). */
+html.desktop .members .roster > .head { padding-right: max(18px, var(--wco-right)); }
+html.desktop .shell.no-members .main > section > header.head { padding-right: max(var(--gutter), var(--wco-right)); }
+/* Outside a channel the call view and the call notices sit above the header, at or
+   within a notice's height of the window's top edge, so all of them get the reserve.
+   Not :first-child: a notice bar above the call view still leaves it under the controls. */
+html.desktop .shell.no-members .main > .call-status { padding-right: max(12px, var(--wco-right)); }
+html.desktop .shell.no-members .main > .call-view .expand { right: calc(var(--wco-right) + 6px); }
+/* The Appearance drawer is pinned to the right edge over everything. */
+html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
+
+/* Signed out there is no header to drag by, so the login page gets a strip across
+   the top: the controls overlay's height, or clear of the macOS traffic lights. */
+.titlebar-drag { display: none; }
+html.desktop .titlebar-drag { display: block; position: fixed; inset: 0 0 auto; z-index: -1; height: max(38px, env(titlebar-area-height, 0px)); -webkit-app-region: drag; }
+html.desktop .titlebar-drag ~ * :is(a, button, input, select) { -webkit-app-region: no-drag; }
+
+/* macOS: reserve horizontal space for the traffic lights in the sidebar brand.
+   The existing padding-top:38px (set per-component) handles vertical clearance. */
+html.desktop .sidebar > .side > .brand { padding-left: max(16px, calc(var(--wco-left) + 16px)); }
+
 body {
   background: var(--bg);
   color: var(--ink);

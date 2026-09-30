@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
-const commands = new Set(['platform', 'session_get', 'session_set', 'session_clear', 'instances_get', 'instances_set', 'api_request', 'ptt_register', 'notify', 'badge', 'tray_state', 'deep_links', 'update_check', 'update_restart', 'activity_current'])
+const commands = new Set(['platform', 'session_get', 'session_set', 'session_clear', 'instances_get', 'instances_set', 'api_request', 'ptt_register', 'notify', 'badge', 'tray_state', 'deep_links', 'update_check', 'update_restart', 'activity_current', 'set_titlebar'])
 const events = new Set(['ptt', 'tray-action', 'notification-open', 'deep-link://new-url', 'window-background', 'activity'])
 contextBridge.exposeInMainWorld('denDesktop', {
   invoke(command, args) {
