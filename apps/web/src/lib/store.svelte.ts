@@ -151,6 +151,12 @@ export class Store {
   users = $state<Map<string, User>>(new Map())
   /** What each person is doing now, newest first. Replaced whole on every update. */
   activities = $state<Map<string, import('./types').Activity[]>>(new Map())
+  /** Game servers a relay reports on, for the sidebar and the Servers page. */
+  servers = $state<import('./types').GameServer[]>([])
+  receiveServer(server: import('./types').GameServer) {
+    const rest = this.servers.filter((s) => s.slug !== server.slug)
+    this.servers = [...rest, server].sort((a, b) => a.slug.localeCompare(b.slug))
+  }
   channels = $state<Channel[]>([])
   categories = $state<Category[]>([])
   messages = $state<Map<string, Message[]>>(new Map())
@@ -672,7 +678,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
-    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify] = await Promise.all([
+    const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
       this.api.get<Category[]>('/categories'),
@@ -687,6 +693,8 @@ export class Store {
       // A new desktop client can still connect to an older Den server. Spotify
       // is optional there; a missing endpoint must not make the whole app fail.
       this.api.get<SpotifyAccount>('/users/me/spotify').catch(() => noSpotify()),
+      // Same for servers: an older Den has none.
+      this.api.get<import('./types').GameServer[]>('/servers').catch(() => []),
     ])
     // Everything below mutates this Store. A resync that was in flight across a
     // logout belongs to the account that asked for it, not to this one.
@@ -696,6 +704,7 @@ export class Store {
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)
     this.settings = settings
+    this.servers = servers
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
     this.channels = channels
@@ -1165,7 +1174,7 @@ export class Store {
       this.backoff = Math.min(this.backoff * 2, 15_000)
       return
     } finally { this.connecting = false }
-    url += `${url.includes('?') ? '&' : '?'}music=true&jam=true`
+    url += `${url.includes('?') ? '&' : '?'}music=true&jam=true&servers=true`
     const ws = new WebSocket(url)
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
@@ -1253,6 +1262,7 @@ export class Store {
       case 'notification': receiveAlert(this, ev); this.alerts = [...this.alerts, ev].slice(-100); if (native) window.dispatchEvent(new CustomEvent('den-alert', { detail: { origin: this.origin, alert: ev } })); break
       case 'call_state': this.calls = [...this.calls.filter(c => c.channel_id !== ev.channel_id), ev]; if (this.active) call.receive(ev); if (!this.channel(ev.channel_id)) await this.resync(); break
       case 'user_updated': this.receiveUser(ev.user); break
+      case 'server_updated': this.receiveServer(ev.server); break
       case 'activity_updated': {
         const next = new Map(this.activities)
         if (ev.activities.length) next.set(ev.user_id, ev.activities); else next.delete(ev.user_id)

@@ -17,6 +17,7 @@
   import Customizer from './Customizer.svelte'
   import { customizer } from '../lib/customizer.svelte'
   import Search from './Search.svelte'
+  import ServerView from './ServerView.svelte'
   import { notify } from '../lib/notify.svelte'
 
   let palette = $state(false)
@@ -100,6 +101,8 @@
       <Search q={router.route.q} channelId={router.route.channel} onmenu={() => (drawer = !drawer)} {narrow} />
     {:else if router.route.name === 'settings'}
       <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
+    {:else if router.route.name === 'server'}
+      <ServerView slug={router.route.slug} onmenu={() => (drawer = !drawer)} {narrow} />
     {:else if router.route.name === 'spotify-callback'}
       <SpotifyCallback route={router.route} />
     {/if}
