@@ -47,6 +47,7 @@
 </script>
 
 <main class="wrap">
+  <div class="titlebar-drag" aria-hidden="true"></div>
   <div class="light" aria-hidden="true"></div>
   <form class="card" onsubmit={submit}>
     <h1 class="display"><span class="mark"><Mark size={44} /></span><span>{store.settings.instance_name}</span></h1>

@@ -55,16 +55,17 @@ html.desktop {
 
 /* Top header rows are drag handles. Only the desktop class activates this so the
    web build is unaffected. Direct-child (>) selectors exclude nested panels like
-   ThreadPanel that share the .head class but sit below the window top edge. */
-html.desktop .brand,
+   ThreadPanel that share the .head class but sit below the window top edge, and
+   the miniature sidebars ThemePreview draws and JamCard's own .brand. */
+html.desktop .sidebar > .side > .brand,
 html.desktop .main > section > header.head,
 html.desktop .members .roster > .head { -webkit-app-region: drag; }
 
 /* Every interactive element inside a drag region must opt out. */
-html.desktop .brand a,
-html.desktop .brand button,
-html.desktop .brand input,
-html.desktop .brand select,
+html.desktop .sidebar > .side > .brand a,
+html.desktop .sidebar > .side > .brand button,
+html.desktop .sidebar > .side > .brand input,
+html.desktop .sidebar > .side > .brand select,
 html.desktop .main > section > header.head a,
 html.desktop .main > section > header.head button,
 html.desktop .main > section > header.head input,
@@ -80,10 +81,22 @@ html.desktop .members .roster > .head select { -webkit-app-region: no-drag; }
    is at the right edge when the members panel is hidden (.no-members shell). */
 html.desktop .members .roster > .head { padding-right: max(18px, var(--wco-right)); }
 html.desktop .shell.no-members .main > section > header.head { padding-right: max(var(--gutter), var(--wco-right)); }
+/* Outside a channel the call view and the call notices sit above the header, at the
+   window's top edge, so their right-hand controls need the same reserve. */
+html.desktop .shell.no-members .main > .call-status:first-child { padding-right: max(12px, var(--wco-right)); }
+html.desktop .shell.no-members .main > .call-view:first-child .expand { right: calc(var(--wco-right) + 6px); }
+/* The Appearance drawer is pinned to the right edge over everything. */
+html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
+
+/* Signed out there is no header to drag by, so the login page gets a strip across
+   the top: the controls overlay's height, or clear of the macOS traffic lights. */
+.titlebar-drag { display: none; }
+html.desktop .titlebar-drag { display: block; position: fixed; inset: 0 0 auto; z-index: -1; height: max(38px, env(titlebar-area-height, 0px)); -webkit-app-region: drag; }
+html.desktop .titlebar-drag ~ * :is(a, button, input, select) { -webkit-app-region: no-drag; }
 
 /* macOS: reserve horizontal space for the traffic lights in the sidebar brand.
    The existing padding-top:38px (set per-component) handles vertical clearance. */
-html.desktop .brand { padding-left: max(16px, calc(var(--wco-left) + 16px)); }
+html.desktop .sidebar > .side > .brand { padding-left: max(16px, calc(var(--wco-left) + 16px)); }
 
 body {
   background: var(--bg);

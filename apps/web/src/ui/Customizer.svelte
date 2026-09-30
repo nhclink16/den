@@ -47,7 +47,7 @@
   @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
   h2 { margin: 0; font-size: 20px; }
-  .small { margin: 2px 0 0; font-size: 12.5px; }
+  .small { margin: 2px 0 0; font-size: 12.5px; text-wrap: pretty; }
   .icon { padding: 6px; }
   .body { overflow-y: auto; padding: 0 16px; overscroll-behavior: contain; }
   footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
