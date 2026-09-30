@@ -14,6 +14,7 @@ import urllib.request
 from urllib.parse import urlsplit, urlunsplit
 
 from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosed
 
 MC_DIR = Path(os.environ.get("MC_SERVER_DIR", Path.home() / "minecraft/server"))
 UNIT = os.environ.get("MC_UNIT", "minecraft")
@@ -192,8 +193,9 @@ def poll(cache):
     return {"type": "status", "status": status}
 
 
-def command(frame):
+def command(frame, results):
     action = frame["action"]
+    ok = True
     try:
         if action == "save":
             rcon("save-all flush")
@@ -208,11 +210,14 @@ def command(frame):
                 shell=True, timeout=60)
             message = {"start": "Starting", "stop": "Stopping", "restart": "Restarting"}[action]
         else:
-            return {"type": "result", "command_id": frame["command_id"], "ok": False, "message": "Unknown action"}
-        ok = True
+            ok, message = False, "Unknown action"
     except (OSError, RuntimeError) as error:
         ok, message = False, str(error)[:200]
-    return {"type": "result", "command_id": frame["command_id"], "ok": ok, "message": message}
+    result = {"type": "result", "command_id": frame["command_id"], "ok": ok, "message": message}
+    results[frame["command_id"]] = result
+    if len(results) > 100:
+        results.pop(next(iter(results)), None)
+    return result
 
 
 def activities(previous, players):
@@ -235,6 +240,7 @@ def activities(previous, players):
 
 async def session(ws, cache, announced):
     lock = asyncio.Lock()
+    results = cache.setdefault("results", {})
 
     async def report():
         nonlocal announced
@@ -254,7 +260,15 @@ async def session(ws, cache, announced):
         async for raw in ws:
             frame = json.loads(raw)
             if frame.get("type") == "command":
-                result = await asyncio.to_thread(command, frame)
+                command_id = frame["command_id"]
+                if command_id in results:
+                    if results[command_id] is not None:
+                        await ws.send(json.dumps(results[command_id]))
+                    continue
+                results[command_id] = None
+                if len(results) > 100:
+                    results.pop(next(iter(results)), None)
+                result = await asyncio.to_thread(command, frame, results)
                 await ws.send(json.dumps(result))
                 action = frame["action"] if frame["action"] in ("save", "start", "restart", "stop") else "unknown"
                 print(f"command {action}: ok={result['ok']}", file=sys.stderr, flush=True)
@@ -290,16 +304,23 @@ async def main():
     delay = 1
     try:
         while True:
+            connected_at = None
+            refused = False
             try:
                 announced = await asyncio.to_thread(hello)
                 async with connect(url, additional_headers={"Authorization": f"Bearer {os.environ['DEN_TOKEN']}"}) as ws:
                     await ws.send(json.dumps(announced))
                     print("connected", file=sys.stderr, flush=True)
-                    delay = 1
+                    connected_at = time.monotonic()
                     cache.pop("playtime_at", None)
                     await session(ws, cache, announced)
             except Exception as error:
+                refused = isinstance(error, ConnectionClosed) and error.rcvd is not None and error.rcvd.code == 4003
                 print(f"connection error: {type(error).__name__}: {error}", file=sys.stderr, flush=True)
+            if connected_at is not None and time.monotonic() - connected_at >= 60:
+                delay = 1
+            if refused:
+                delay = 60
             print(f"disconnected; retry in {delay}s", file=sys.stderr, flush=True)
             await asyncio.sleep(delay)
             delay = min(delay * 2, 60)

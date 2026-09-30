@@ -1,6 +1,6 @@
 use crate::{auth::Auth, *};
 use axum::extract::{
-    ws::{Message as Frame, WebSocket, WebSocketUpgrade},
+    ws::{CloseFrame, Message as Frame, WebSocket, WebSocketUpgrade},
     Path,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 struct Connection {
     id: String,
     tx: mpsc::Sender<RelayFrame>,
-    pending: HashMap<String, oneshot::Sender<RelayFrame>>,
+    pending: HashMap<String, (Instant, oneshot::Sender<RelayFrame>)>,
 }
 
 #[derive(Default)]
@@ -195,7 +195,6 @@ pub(crate) async fn action(
 ) -> Result<Json<ServerActionResult>> {
     let id = s.id();
     let (tx, rx) = oneshot::channel();
-    let connection;
     let sender;
     {
         let _g = s.writes.lock().await;
@@ -217,6 +216,12 @@ pub(crate) async fn action(
             .get_mut(&slug)
             .filter(|l| l.connection.is_some())
             .ok_or_else(|| Error::conflict("The server's relay isn't connected"))?;
+        let c = live.connection.as_mut().unwrap();
+        if !c.pending.is_empty() {
+            return Err(Error::conflict(
+                "The server is still working on the last request",
+            ));
+        }
         if !capability.states.contains(&server.state) {
             let state = serde_json::to_value(server.state).unwrap();
             return Err(Error::conflict(format!(
@@ -224,10 +229,8 @@ pub(crate) async fn action(
                 state.as_str().unwrap()
             )));
         }
-        let c = live.connection.as_mut().unwrap();
-        connection = c.id.clone();
         sender = c.tx.clone();
-        c.pending.insert(id.clone(), tx);
+        c.pending.insert(id.clone(), (Instant::now(), tx));
     }
     let answer = tokio::time::timeout(Duration::from_secs(20), async {
         if sender
@@ -244,17 +247,6 @@ pub(crate) async fn action(
         rx.await.map_err(|_| ())
     })
     .await;
-    if let Some(c) = s
-        .servers
-        .live
-        .lock()
-        .await
-        .get_mut(&slug)
-        .and_then(|l| l.connection.as_mut())
-        .filter(|c| c.id == connection)
-    {
-        c.pending.remove(&id);
-    }
     match answer {
         Ok(Ok(RelayFrame::Result {
             ok: true, message, ..
@@ -267,7 +259,7 @@ pub(crate) async fn action(
         Err(_) => Err(Error(
             StatusCode::GATEWAY_TIMEOUT,
             "timeout",
-            "The server didn't answer".into(),
+            "The server is still working on it; check back in a moment".into(),
         )),
         _ => Err(Error::conflict("The server's relay disconnected")),
     }
@@ -286,10 +278,10 @@ pub(crate) async fn relay(
     Ok(ws
         .max_message_size(256 * 1024)
         .max_frame_size(256 * 1024)
-        .on_upgrade(move |ws| run(s, ws)))
+        .on_upgrade(move |ws| run(s, a, ws)))
 }
 
-async fn hello(s: &AppState, mut info: ServerInfo) -> Result<()> {
+async fn hello(s: &AppState, token_id: &str, mut info: ServerInfo) -> Result<()> {
     let length = |v: &str, min, max| (min..=max).contains(&v.chars().count());
     if !valid_server_slug(&info.slug)
         || !length(&info.name, 1, 100)
@@ -323,8 +315,8 @@ async fn hello(s: &AppState, mut info: ServerInfo) -> Result<()> {
         .transpose()?;
     let mut stored = serde_json::to_value(&info).unwrap();
     stored.as_object_mut().unwrap().remove("icon_png");
-    sqlx::query("INSERT INTO game_servers(slug,info,icon,updated_at) VALUES(?,?,?,?) ON CONFLICT(slug) DO UPDATE SET info=excluded.info,icon=excluded.icon,updated_at=excluded.updated_at")
-        .bind(&info.slug).bind(stored.to_string()).bind(icon).bind(now()).execute(&s.db).await?;
+    sqlx::query("INSERT INTO game_servers(slug,info,icon,updated_at,token_id) VALUES(?,?,?,?,?) ON CONFLICT(slug) DO UPDATE SET info=excluded.info,icon=excluded.icon,updated_at=excluded.updated_at,token_id=COALESCE(game_servers.token_id,excluded.token_id)")
+        .bind(&info.slug).bind(stored.to_string()).bind(icon).bind(now()).bind(token_id).execute(&s.db).await?;
     Ok(())
 }
 
@@ -379,6 +371,13 @@ async fn status(s: &AppState, slug: &str, mut status: ServerStatus) -> Result<()
     }
     sqlx::query("UPDATE game_server_sessions SET seen_at=? WHERE slug=? AND ended_at IS NULL AND seen_at<=?")
         .bind(at).bind(slug).bind(at - 60).execute(&mut *tx).await?;
+    sqlx::query(
+        "DELETE FROM game_server_sessions WHERE slug=? AND ended_at IS NOT NULL AND ended_at<?",
+    )
+    .bind(slug)
+    .bind(at - 30 * 86400)
+    .execute(&mut *tx)
+    .await?;
     let minute = at / 60 * 60;
     sqlx::query(
         "INSERT OR REPLACE INTO game_server_samples(slug,key,at,value) VALUES(?,'players',?,?)",
@@ -392,6 +391,7 @@ async fn status(s: &AppState, slug: &str, mut status: ServerStatus) -> Result<()
         .stats
         .iter()
         .filter(|stat| stat.graph && stat.key != "players")
+        .take(4)
     {
         sqlx::query(
             "INSERT OR REPLACE INTO game_server_samples(slug,key,at,value) VALUES(?,?,?,?)",
@@ -413,13 +413,17 @@ async fn status(s: &AppState, slug: &str, mut status: ServerStatus) -> Result<()
     for stat in &status.stats {
         live.stats.insert(stat.key.clone(), stat.clone());
     }
+    if live.stats.len() > 16 {
+        live.stats
+            .retain(|key, _| status.stats.iter().any(|stat| stat.key == *key));
+    }
     live.updated_at = Some(at);
     live.status = Some(status);
     drop(all);
     announce(s, slug).await
 }
 
-async fn run(s: AppState, mut ws: WebSocket) {
+async fn run(s: AppState, a: Auth, mut ws: WebSocket) {
     let first = tokio::time::timeout(Duration::from_secs(5), ws.recv()).await;
     let Ok(Some(Ok(Frame::Text(text)))) = first else {
         return;
@@ -432,7 +436,30 @@ async fn run(s: AppState, mut ws: WebSocket) {
     let (tx, mut rx) = mpsc::channel(128);
     {
         let _g = s.writes.lock().await;
-        if hello(&s, server).await.is_err() || end_sessions(&s, &slug).await.is_err() {
+        let owner = sqlx::query_scalar::<_, Option<String>>(
+            "SELECT token_id FROM game_servers WHERE slug=?",
+        )
+        .bind(&slug)
+        .fetch_optional(&s.db)
+        .await;
+        let Ok(owner) = owner else {
+            return;
+        };
+        if owner
+            .flatten()
+            .is_some_and(|token_id| token_id != a.credential)
+        {
+            let _ = ws
+                .send(Frame::Close(Some(CloseFrame {
+                    code: 4003,
+                    reason: "This server belongs to another relay key; revoke that key to move it"
+                        .into(),
+                })))
+                .await;
+            return;
+        }
+        if hello(&s, &a.credential, server).await.is_err() || end_sessions(&s, &slug).await.is_err()
+        {
             return;
         }
         let mut all = s.servers.live.lock().await;
@@ -449,11 +476,20 @@ async fn run(s: AppState, mut ws: WebSocket) {
     let mut tick = tokio::time::interval(Duration::from_millis(500));
     let mut seen = Instant::now();
     let mut ping = Instant::now();
+    let mut checked = Instant::now();
     loop {
         tokio::select! {
             _ = tick.tick() => {
                 if s.servers.live.lock().await.get(&slug).and_then(|l| l.connection.as_ref()).is_none_or(|c| c.id != id)
                     || seen.elapsed() > Duration::from_secs(45) { break; }
+                if let Some(c) = s.servers.live.lock().await.get_mut(&slug).and_then(|l| l.connection.as_mut()) {
+                    c.pending.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(300));
+                }
+                if checked.elapsed() >= Duration::from_secs(2) {
+                    if !a.valid(&s).await || sqlx::query_scalar::<_, String>("SELECT role FROM users WHERE id=? AND removed_at IS NULL")
+                        .bind(&a.user.id).fetch_optional(&s.db).await.ok().flatten().as_deref() != Some("admin") { break; }
+                    checked = Instant::now();
+                }
                 if ping.elapsed() >= Duration::from_secs(15) {
                     if !matches!(tokio::time::timeout(Duration::from_secs(2), ws.send(Frame::Ping(vec![].into()))).await, Ok(Ok(()))) { break; }
                     ping = Instant::now();
@@ -471,15 +507,17 @@ async fn run(s: AppState, mut ws: WebSocket) {
                         let Ok(frame) = serde_json::from_str::<RelayFrame>(&text) else { break; };
                         let _g = s.writes.lock().await;
                         if s.servers.live.lock().await.get(&slug).and_then(|l| l.connection.as_ref()).is_none_or(|c| c.id != id) { break; }
+                        if !a.valid(&s).await || sqlx::query_scalar::<_, String>("SELECT role FROM users WHERE id=? AND removed_at IS NULL")
+                            .bind(&a.user.id).fetch_optional(&s.db).await.ok().flatten().as_deref() != Some("admin") { break; }
                         match frame {
                             RelayFrame::Hello { server } => {
-                                if server.slug != slug || hello(&s, server).await.is_err() { break; }
+                                if server.slug != slug || hello(&s, &a.credential, server).await.is_err() { break; }
                                 if announce(&s, &slug).await.is_err() { break; }
                             }
                             RelayFrame::Status { status: value } => { if status(&s, &slug, value).await.is_err() { break; } }
                             result @ RelayFrame::Result { .. } => {
                                 let RelayFrame::Result { ref command_id, .. } = result else { unreachable!() };
-                                if let Some(tx) = s.servers.live.lock().await.get_mut(&slug).and_then(|l| l.connection.as_mut()).and_then(|c| c.pending.remove(command_id)) { let _ = tx.send(result); }
+                                if let Some((_, tx)) = s.servers.live.lock().await.get_mut(&slug).and_then(|l| l.connection.as_mut()).and_then(|c| c.pending.remove(command_id)) { let _ = tx.send(result); }
                             }
                             _ => break,
                         }

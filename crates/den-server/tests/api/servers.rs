@@ -732,3 +732,423 @@ async fn week_playtime_counts_sessions() {
     );
     reopened.db.close().await;
 }
+
+#[tokio::test]
+async fn revoked_relay_key_is_cut_off() {
+    let t = Test::new().await;
+    let key = t
+        .post("/tokens", &t.admin.token, json!({"name":"revoked relay"}))
+        .await;
+    let mut peer = relay(&t, key["token"].as_str().unwrap()).await;
+    send(
+        &mut peer,
+        RelayFrame::Status {
+            status: status(&["Alex"]),
+        },
+    )
+    .await;
+    let before = detail(&t, &t.admin.token).await;
+    let stored_playtime: String =
+        sqlx::query_scalar("SELECT playtime FROM game_servers WHERE slug='minecraft'")
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    let response = t
+        .req(
+            Method::DELETE,
+            &format!("/tokens/{}", key["credential"]["id"].as_str().unwrap()),
+            &t.admin.token,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let mut changed = status(&["Unauthorized"]);
+    changed.playtime = Some(vec![ServerPlaytime {
+        name: "Unauthorized".into(),
+        user_id: None,
+        total_seconds: Some(999),
+        week_seconds: 0,
+    }]);
+    let _ = peer
+        .send(Frame::Text(
+            serde_json::to_string(&RelayFrame::Status { status: changed })
+                .unwrap()
+                .into(),
+        ))
+        .await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(Ok(frame)) = peer.next().await {
+            match frame {
+                Frame::Close(_) => break,
+                Frame::Ping(bytes) => {
+                    let _ = peer.send(Frame::Pong(bytes)).await;
+                }
+                _ => (),
+            }
+        }
+    })
+    .await
+    .expect("revoked relay socket must close within 5 seconds");
+    let listed: Vec<GameServer> = t
+        .req(Method::GET, "/servers", &t.admin.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(!listed[0].connected);
+    let after = detail(&t, &t.admin.token).await;
+    let after_playtime: String =
+        sqlx::query_scalar("SELECT playtime FROM game_servers WHERE slug='minecraft'")
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!(
+        after_playtime, stored_playtime,
+        "revoked status must not change stored playtime"
+    );
+    assert_eq!(
+        after.history, before.history,
+        "revoked status must not change stored history"
+    );
+}
+
+#[tokio::test]
+async fn second_key_cannot_take_over_server() {
+    let t = Test::new().await;
+    let key_a = t
+        .post("/tokens", &t.admin.token, json!({"name":"relay A"}))
+        .await;
+    let key_b = api_token(&t, &t.admin).await;
+    let mut a = relay(&t, key_a["token"].as_str().unwrap()).await;
+    send(
+        &mut a,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let mut b = connect_async(ws_request(&t, "/servers/relay", Some(&key_b)))
+        .await
+        .unwrap()
+        .0;
+    b.send(Frame::Text(
+        serde_json::to_string(&RelayFrame::Hello { server: info() })
+            .unwrap()
+            .into(),
+    ))
+    .await
+    .unwrap();
+    let closed = tokio::time::timeout(Duration::from_secs(3), b.next())
+        .await
+        .expect("second key must receive ownership close")
+        .unwrap()
+        .unwrap();
+    let Frame::Close(Some(close)) = closed else {
+        panic!("expected ownership close, got {closed:?}")
+    };
+    assert_eq!(u16::from(close.code), 4003);
+    assert_eq!(
+        close.reason,
+        "This server belongs to another relay key; revoke that key to move it"
+    );
+    assert!(detail(&t, &t.admin.token).await.server.connected);
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    respond(
+        &mut a,
+        "save",
+        &t.admin.user.display_name,
+        true,
+        "Saved by A",
+    )
+    .await;
+    assert_eq!(pending.await.unwrap().status(), StatusCode::OK);
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/tokens/{}", key_a["credential"]["id"].as_str().unwrap()),
+            &t.admin.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        StatusCode::NO_CONTENT
+    );
+    let mut b = relay(&t, &key_b).await;
+    send(
+        &mut b,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    respond(
+        &mut b,
+        "save",
+        &t.admin.user.display_name,
+        true,
+        "Saved by B",
+    )
+    .await;
+    assert_eq!(pending.await.unwrap().status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn pending_command_blocks_retry() {
+    let t = Test::new().await;
+    let token = api_token(&t, &t.admin).await;
+    let mut peer = relay(&t, &token).await;
+    send(
+        &mut peer,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    let RelayFrame::Command { command_id, .. } =
+        serde_json::from_str(&next_frame(&mut peer).await).unwrap()
+    else {
+        panic!("expected first command")
+    };
+    let mut starting = status(&[]);
+    starting.state = ServerState::Starting;
+    send(&mut peer, RelayFrame::Status { status: starting }).await;
+    let response = tokio::time::timeout(Duration::from_secs(2), action(&t, &t.admin.token, "save"))
+        .await
+        .expect("pending retry must return 409 without waiting for the relay");
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let error: ApiError = response.json().await.unwrap();
+    assert_eq!(error.error, "conflict");
+    assert_eq!(
+        error.message,
+        "The server is still working on the last request"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), next_frame(&mut peer))
+            .await
+            .is_err(),
+        "retry must not send a second command"
+    );
+    send(
+        &mut peer,
+        RelayFrame::Status {
+            status: status(&[]),
+        },
+    )
+    .await;
+    let response = tokio::time::timeout(Duration::from_secs(25), pending)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::GATEWAY_TIMEOUT);
+    let error: ApiError = response.json().await.unwrap();
+    assert_eq!(error.error, "timeout");
+    assert_eq!(
+        error.message,
+        "The server is still working on it; check back in a moment"
+    );
+    let response = tokio::time::timeout(Duration::from_secs(2), action(&t, &t.admin.token, "save"))
+        .await
+        .expect("timed-out command must still block retry");
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let error: ApiError = response.json().await.unwrap();
+    assert_eq!(error.error, "conflict");
+    assert_eq!(
+        error.message,
+        "The server is still working on the last request"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(200), next_frame(&mut peer))
+            .await
+            .is_err(),
+        "timeout must not permit a second command"
+    );
+    send(
+        &mut peer,
+        RelayFrame::Result {
+            command_id,
+            ok: true,
+            message: Some("Saved late".into()),
+        },
+    )
+    .await;
+    let request = t.req(
+        Method::POST,
+        "/servers/minecraft/actions/save",
+        &t.admin.token,
+    );
+    let pending = tokio::spawn(async move { request.send().await.unwrap() });
+    respond(
+        &mut peer,
+        "save",
+        &t.admin.user.display_name,
+        true,
+        "Saved next request",
+    )
+    .await;
+    assert_eq!(pending.await.unwrap().status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn history_and_sessions_are_bounded() {
+    let t = Test::new().await;
+    let token = api_token(&t, &t.admin).await;
+    let mut peer = relay(&t, &token).await;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    for (id, days) in [("old", 40), ("recent", 20)] {
+        let ended = now - days * 86400;
+        sqlx::query("INSERT INTO game_server_sessions(id,slug,player,started_at,seen_at,ended_at) VALUES(?,'minecraft',?,?,?,?)")
+            .bind(id).bind(id).bind(ended - 60).bind(ended).bind(ended).execute(&t.state.db).await.unwrap();
+    }
+    let mut value = status(&["Alex"]);
+    value.stats = (0..6)
+        .map(|n| ServerStat {
+            key: format!("stat{n}"),
+            label: format!("Graph {n}"),
+            unit: StatUnit::Number,
+            value: n as f64,
+            graph: true,
+        })
+        .collect();
+    value.stats.insert(
+        0,
+        ServerStat {
+            key: "players".into(),
+            label: "Ignored players stat".into(),
+            unit: StatUnit::Number,
+            value: 99.0,
+            graph: true,
+        },
+    );
+    value.stats.insert(
+        0,
+        ServerStat {
+            key: "ungraphed".into(),
+            label: "Not graphed".into(),
+            unit: StatUnit::Number,
+            value: 9.0,
+            graph: false,
+        },
+    );
+    send(&mut peer, RelayFrame::Status { status: value }).await;
+    let sessions: Vec<String> = sqlx::query_scalar(
+        "SELECT id FROM game_server_sessions WHERE ended_at IS NOT NULL ORDER BY id",
+    )
+    .fetch_all(&t.state.db)
+    .await
+    .unwrap();
+    assert_eq!(
+        sessions,
+        vec!["recent"],
+        "expired ended sessions must be pruned"
+    );
+    let page = detail(&t, &t.admin.token).await;
+    assert_eq!(
+        page.history
+            .iter()
+            .map(|s| s.key.as_str())
+            .collect::<Vec<_>>(),
+        vec!["players", "stat0", "stat1", "stat2", "stat3"],
+        "history must contain players plus the first four graph stats"
+    );
+    assert_eq!(page.history[0].points.last().unwrap().value, 1.0);
+    assert_eq!(page.history[1].label, "Graph 0");
+    let mut value = status(&[]);
+    value.stats = (0..16)
+        .map(|n| ServerStat {
+            key: format!("new{n}"),
+            label: format!("New {n}"),
+            unit: StatUnit::Number,
+            value: n as f64,
+            graph: false,
+        })
+        .collect();
+    send(&mut peer, RelayFrame::Status { status: value }).await;
+    let page = detail(&t, &t.admin.token).await;
+    assert_eq!(
+        page.history
+            .iter()
+            .find(|s| s.key == "stat0")
+            .unwrap()
+            .label,
+        "stat0",
+        "obsolete stat labels must be dropped once the cache exceeds 16 keys"
+    );
+}
+
+#[tokio::test]
+async fn idle_relay_loses_admin_access() {
+    for change in ["revoke", "demote", "remove"] {
+        let t = Test::new().await;
+        let observer = t.member("relay_observer").await;
+        let key = t
+            .post("/tokens", &t.admin.token, json!({"name":"idle relay"}))
+            .await;
+        let mut peer = relay(&t, key["token"].as_str().unwrap()).await;
+        if change == "revoke" {
+            assert_eq!(
+                t.req(
+                    Method::DELETE,
+                    &format!("/tokens/{}", key["credential"]["id"].as_str().unwrap()),
+                    &t.admin.token
+                )
+                .send()
+                .await
+                .unwrap()
+                .status(),
+                StatusCode::NO_CONTENT
+            );
+        } else {
+            let query = if change == "demote" {
+                "UPDATE users SET role='member' WHERE id=?"
+            } else {
+                "UPDATE users SET removed_at=1 WHERE id=?"
+            };
+            sqlx::query(query)
+                .bind(&t.admin.user.id)
+                .execute(&t.state.db)
+                .await
+                .unwrap();
+        }
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while let Some(Ok(frame)) = peer.next().await {
+                match frame {
+                    Frame::Close(_) => break,
+                    Frame::Ping(bytes) => {
+                        let _ = peer.send(Frame::Pong(bytes)).await;
+                    }
+                    _ => (),
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("idle relay must close after {change}"));
+        assert!(
+            !detail(&t, &observer.token).await.server.connected,
+            "relay remains connected after {change}"
+        );
+    }
+}

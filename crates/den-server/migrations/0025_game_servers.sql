@@ -8,6 +8,9 @@ CREATE TABLE game_servers (
     icon BLOB,
     -- Latest all-time totals from the relay, JSON list of ServerPlaytime.
     playtime TEXT NOT NULL DEFAULT '[]',
+    -- The API key that registered this server. Another key is refused until this
+    -- one is revoked, which clears it.
+    token_id TEXT REFERENCES tokens(id) ON DELETE SET NULL,
     updated_at INTEGER NOT NULL
 );
 
@@ -22,6 +25,7 @@ CREATE TABLE game_server_samples (
 
 -- Who was online and when, for "past 7 days" playtime. ended_at is NULL while
 -- the player is on; seen_at bounds a session that a Den restart cut short.
+-- Sessions that ended more than 30 days ago are deleted.
 CREATE TABLE game_server_sessions (
     id TEXT PRIMARY KEY,
     slug TEXT NOT NULL REFERENCES game_servers(slug) ON DELETE CASCADE,

@@ -89,6 +89,13 @@ five minutes. Available stats include Spark TPS, process memory, CPU as a
 percentage of the whole machine, process uptime, and the last backup timestamp.
 Unavailable stats are omitted.
 
+Each server belongs to its registering relay key until that key is revoked;
+ownership refusals wait 60 seconds, and reconnect backoff resets only after a
+session lasts at least 60 seconds.
+The relay remembers the last 100 command IDs across reconnects, while Den keeps
+one action pending per server through HTTP timeouts until a result, disconnect,
+or five-minute backstop.
+
 ## Tests
 
 Tests create temporary Minecraft files and fake executables, and run a fake Den

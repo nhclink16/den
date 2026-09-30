@@ -51,7 +51,7 @@ elif name == "mcrcon":
         print("announcement failed", file=sys.stderr)
         sys.exit(1)
 elif name in ("start", "stop", "restart"):
-    time.sleep(0.6 if name == "restart" else 0)
+    time.sleep(state.get("restart_delay", 0.6) if name == "restart" else 0)
     if state.get("command_fail") == name:
         print("failure:" + "x" * 250, file=sys.stderr)
         sys.exit(1)
@@ -120,6 +120,7 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.frames = asyncio.Queue()
         self.connections = asyncio.Queue()
         self.connection_count = 0
+        self.close_immediately = None
 
         async def process_request(connection, request):
             if request.path == "/servers/relay":
@@ -139,6 +140,9 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         async def handler(ws):
             self.connection_count += 1
             await self.connections.put(ws)
+            if self.close_immediately is not None:
+                await ws.close(code=self.close_immediately, reason="test refusal")
+                return
             async for raw in ws:
                 await self.frames.put(json.loads(raw))
 
@@ -267,6 +271,56 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         await self.frame("status")
         self.assertEqual(self.connection_count, 1)
 
+    async def test_duplicate_restart_is_not_executed_twice(self):
+        await self.launch()
+        ws = await asyncio.wait_for(self.connections.get(), 5)
+        await self.frame("hello")
+        await self.frame("status")
+        command = json.dumps({"type": "command", "command_id": "restart-duplicate", "action": "restart", "by": "nerc"})
+        await ws.send(command)
+        await ws.send(command)
+        first = await self.frame("result")
+        await self.frame("status")
+        second = await self.frame("result")
+        self.assertEqual(first, {"type": "result", "command_id": "restart-duplicate", "ok": True, "message": "Restarting"})
+        self.assertEqual(second, first)
+        self.assertEqual(sum(i["executable"] == "restart" for i in self.invocations()), 1,
+                         "duplicate command ids must not execute restart twice")
+        await ws.close()
+        ws = await asyncio.wait_for(self.connections.get(), 5)
+        await self.frame("hello")
+        await self.frame("status")
+        await ws.send(command)
+        self.assertEqual(await self.frame("result"), first)
+        self.assertEqual(sum(i["executable"] == "restart" for i in self.invocations()), 1)
+
+    async def test_running_command_result_survives_disconnect(self):
+        self.state.write_text('{"restart_delay": 12}')
+        await self.launch()
+        ws = await asyncio.wait_for(self.connections.get(), 5)
+        await self.frame("hello")
+        await self.frame("status")
+        command = json.dumps({"type": "command", "command_id": "restart-disconnected", "action": "restart", "by": "nerc"})
+        await ws.send(command)
+        async with asyncio.timeout(5):
+            while not any(i["executable"] == "restart" for i in self.invocations()):
+                await asyncio.sleep(0.01)
+        await ws.close()
+        ws = await asyncio.wait_for(self.connections.get(), 15)
+        await self.frame("hello")
+        await self.frame("status")
+        await ws.send(command)
+        with self.assertRaises(TimeoutError):
+            await asyncio.wait_for(self.frames.get(), 0.2)
+        await asyncio.sleep(2)
+        await ws.send(command)
+        try:
+            result = await asyncio.wait_for(self.frame("result"), 3)
+        except TimeoutError:
+            self.fail("completed command result must survive a disconnected session")
+        self.assertEqual(result, {"type": "result", "command_id": "restart-disconnected", "ok": True, "message": "Restarting"})
+        self.assertEqual(sum(i["executable"] == "restart" for i in self.invocations()), 1)
+
     async def test_reconnect(self):
         await self.launch()
         ws = await asyncio.wait_for(self.connections.get(), 5)
@@ -277,6 +331,25 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.frame("hello"), first)
         self.assertEqual((await self.frame("status"))["status"]["playtime"], status["status"]["playtime"])
         self.assertEqual(self.connection_count, 2)
+
+    async def test_short_sessions_back_off(self):
+        self.close_immediately = 1000
+        await self.launch()
+        await asyncio.wait_for(self.connections.get(), 5)
+        await asyncio.sleep(6)
+        self.assertLessEqual(self.connection_count, 4, "short sessions must retain reconnect backoff")
+        self.assertGreaterEqual(self.connection_count, 2)
+
+    async def test_ownership_refusal_waits_a_minute(self):
+        self.close_immediately = 4003
+        process = await self.launch()
+        await asyncio.wait_for(self.connections.get(), 5)
+        await asyncio.sleep(3)
+        self.assertEqual(self.connection_count, 1, "ownership refusal must wait 60 seconds before reconnecting")
+        process.terminate()
+        _, stderr = await asyncio.wait_for(process.communicate(), 5)
+        self.assertIn(b"test refusal", stderr)
+        self.assertIn(b"disconnected; retry in 60s", stderr)
 
     async def test_once(self):
         process = await self.launch("--once")
