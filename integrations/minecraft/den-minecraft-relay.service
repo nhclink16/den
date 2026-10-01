@@ -1,0 +1,13 @@
+[Unit]
+Description=Relay Minecraft status and player activities to Den
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/minecraft/rcon.env
+EnvironmentFile=%h/.config/den/minecraft-activity.env
+ExecStart=%h/.local/share/den-minecraft-relay/venv/bin/python %h/den/integrations/minecraft/den-minecraft-relay
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

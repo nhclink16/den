@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""Report Minecraft to Den's Servers page and keep player activities current."""
+import asyncio
+import base64
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
+import time
+import urllib.request
+from urllib.parse import urlsplit, urlunsplit
+
+from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosed
+
+MC_DIR = Path(os.environ.get("MC_SERVER_DIR", Path.home() / "minecraft/server"))
+UNIT = os.environ.get("MC_UNIT", "minecraft")
+SYSTEMCTL = os.environ.get("SYSTEMCTL", "systemctl")
+FORMATTING = re.compile(r"§.")
+
+
+def parse_list(output):
+    match = re.search(r"There are \d+ of a max of (\d+) players online:\s*([^\r\n]*)",
+                      FORMATTING.sub("", output), re.I)
+    if not match:
+        raise ValueError("Unrecognized list response")
+    return [p.strip() for p in match[2].split(",") if p.strip()], int(match[1])
+
+
+def parse_tps(output):
+    match = re.search(r"TPS from last[^\n]*\n[^\d\n]*([\d]+(?:\.\d+)?)",
+                      FORMATTING.sub("", output), re.I)
+    return float(match[1]) if match else None
+
+
+def run(command, *, shell=False, timeout=10, env=None, check=True):
+    try:
+        result = subprocess.run(command, shell=shell, env=env, capture_output=True,
+                                text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        output = error.stderr or error.stdout or "Command timed out"
+        raise RuntimeError(output.decode(errors="replace") if isinstance(output, bytes) else output)
+    if result.returncode and check:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or
+                           f"Command exited with status {result.returncode}")
+    return result.stdout.strip()
+
+
+def rcon(command):
+    env = dict(os.environ, MCRCON_HOST=os.environ["RCON_HOST"],
+               MCRCON_PORT=os.environ["RCON_PORT"], MCRCON_PASS=os.environ["RCON_PASSWORD"])
+    return run([os.environ.get("MCRCON", "mcrcon"), "-c", command], env=env)
+
+
+def api(method, path, body=None):
+    request = urllib.request.Request(
+        os.environ["DEN_URL"].rstrip("/") + path, method=method,
+        data=None if body is None else json.dumps(body).encode(),
+        headers={"authorization": f"Bearer {os.environ['DEN_TOKEN']}", "content-type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return json.loads(response.read() or b"null")
+
+
+def properties():
+    try:
+        lines = (MC_DIR / "server.properties").read_text().splitlines()
+    except OSError:
+        return {}
+    values = {}
+    for line in lines:
+        key, separator, value = line.partition("=")
+        if separator and not key.lstrip().startswith(("#", "!")):
+            values[key.strip()] = re.sub(r"\\u([0-9a-fA-F]{4})",
+                                        lambda m: chr(int(m[1], 16)), value.strip())
+    return values
+
+
+def hello():
+    details, icon = [], None
+    try:
+        match = re.search(r"fabric-server-mc\.([\w.-]+?)-loader", (MC_DIR / "start.sh").read_text())
+        if match:
+            details.extend([match[1], "Fabric"])
+    except OSError:
+        pass
+    details.append(f"{len(list((MC_DIR / 'mods').glob('*.jar')))} mods")
+    try:
+        with (MC_DIR / "server-icon.png").open("rb") as file:
+            data = file.read(65537)
+        if len(data) <= 65536:
+            icon = base64.b64encode(data).decode()
+    except OSError:
+        pass
+    return {"type": "hello", "server": {
+        "slug": os.environ.get("DEN_SERVER_SLUG", "minecraft"), "game": "minecraft",
+        "name": FORMATTING.sub("", properties().get("motd", "")).strip() or "Minecraft",
+        "details": details, "address": os.environ.get("MC_ADDRESS") or None, "icon_png": icon,
+        "actions": [
+            {"id": "save", "label": "Save world", "admin_only": False, "states": ["up"]},
+            {"id": "start", "label": "Start", "admin_only": False, "states": ["down", "asleep"]},
+            {"id": "restart", "label": "Restart", "admin_only": True, "states": ["up", "starting"]},
+            {"id": "stop", "label": "Stop", "admin_only": True, "states": ["up", "starting"]},
+        ],
+    }}
+
+
+def poll(cache):
+    now = time.monotonic()
+    if now >= cache.get("users_at", 0):
+        cache["users_at"] = now + 300
+        try:
+            cache["users"] = {u["username"].lower(): u["id"] for u in api("GET", "/users")}
+        except (OSError, ValueError):
+            pass
+    try:
+        path = Path(os.environ.get("DEN_MINECRAFT_PLAYERS", Path.home() / ".config/den/minecraft-players.json"))
+        names = {k.lower(): v.lower() for k, v in json.loads(path.read_text()).items()}
+    except (OSError, ValueError):
+        names = {}
+
+    def player(name):
+        return {"name": name, "user_id": cache.get("users", {}).get(names.get(name.lower(), name.lower()))}
+
+    stats = []
+
+    def stat(key, label, unit, value, graph=False):
+        stats.append(dict(key=key, label=label, unit=unit, value=value, graph=graph))
+
+    try:
+        active = run([SYSTEMCTL, "is-active", UNIT], check=False)
+    except (OSError, RuntimeError):
+        active = "inactive"
+    state = {"active": "starting", "activating": "starting", "deactivating": "stopping"}.get(active, "down")
+    players, maximum = [], None
+    if active == "active":
+        try:
+            players, maximum = parse_list(rcon("list"))
+            state = "up"
+        except (OSError, RuntimeError, ValueError):
+            pass
+        if state == "up":
+            try:
+                tps = parse_tps(rcon("spark tps"))
+                if tps is not None:
+                    stat("tps", "TPS", "tps", tps, True)
+            except (OSError, RuntimeError):
+                pass
+    previous = cache.pop("cpu", None)
+    try:
+        pid = int(run([SYSTEMCTL, "show", "-p", "MainPID", "--value", UNIT]))
+        proc = Path(f"/proc/{pid}")
+        fields = (proc / "stat").read_text().rsplit(")", 1)[1].split()
+        ticks, started = int(fields[11]) + int(fields[12]), int(fields[19])
+        sampled = time.monotonic()
+        hz = os.sysconf("SC_CLK_TCK")
+        cache["cpu"] = (pid, started, ticks, sampled)
+        if previous and previous[:2] == (pid, started) and sampled > previous[3]:
+            cpu = (ticks - previous[2]) / ((sampled - previous[3]) * hz * (os.cpu_count() or 1)) * 100
+            stat("cpu", "CPU", "percent", round(cpu, 1))
+        stat("uptime", "Uptime", "seconds", max(0, float(Path("/proc/uptime").read_text().split()[0]) - started / hz))
+        rss = re.search(r"^VmRSS:\s+(\d+)\s+kB", (proc / "status").read_text(), re.M)
+        if rss:
+            stat("memory", "Memory", "bytes", int(rss[1]) * 1024)
+    except (OSError, RuntimeError, ValueError, IndexError):
+        pass
+    try:
+        backups = [p.stat().st_mtime for p in Path(os.environ.get("MC_BACKUP_DIR", "/mnt/storage/minecraft/backups")).glob("world-*") if p.is_file()]
+        if backups:
+            stat("backup", "Last backup", "timestamp", max(backups))
+    except OSError:
+        pass
+    status = {"state": state, "players": [player(p) for p in players], "max_players": maximum, "stats": stats}
+    if now >= cache.get("playtime_at", 0):
+        cache["playtime_at"] = now + 300
+        playtime = []
+        try:
+            entries = json.loads((MC_DIR / "usercache.json").read_text())
+        except (OSError, ValueError):
+            entries = []
+        for entry in entries:
+            try:
+                path = MC_DIR / properties().get("level-name", "world") / "stats" / f"{entry['uuid']}.json"
+                ticks = json.loads(path.read_text())["stats"]["minecraft:custom"]["minecraft:play_time"]
+                playtime.append(dict(player(entry["name"]), total_seconds=int(ticks) // 20))
+            except (OSError, ValueError, KeyError):
+                continue
+        status["playtime"] = playtime
+    cache["players"] = status["players"]
+    return {"type": "status", "status": status}
+
+
+def command(frame, results):
+    action = frame["action"]
+    ok = True
+    try:
+        if action == "save":
+            rcon("save-all flush")
+            message = "World saved"
+        elif action in ("start", "stop", "restart"):
+            if action == "restart":
+                try:
+                    rcon(f"say Restarting now ({frame['by']})")
+                except (OSError, RuntimeError):
+                    pass
+            run(os.environ.get(f"MC_{action.upper()}", f"sudo -n systemctl --no-block {action} {shlex.quote(UNIT)}"),
+                shell=True, timeout=60)
+            message = {"start": "Starting", "stop": "Stopping", "restart": "Restarting"}[action]
+        else:
+            ok, message = False, "Unknown action"
+    except (OSError, RuntimeError) as error:
+        ok, message = False, str(error)[:200]
+    result = {"type": "result", "command_id": frame["command_id"], "ok": ok, "message": message}
+    results[frame["command_id"]] = result
+    if len(results) > 100:
+        results.pop(next(iter(results)), None)
+    return result
+
+
+def activities(previous, players):
+    playing = {p["user_id"] for p in players if p["user_id"]}
+    for user_id in playing:
+        try:
+            api("PUT", f"/users/{user_id}/activities/minecraft",
+                {"kind": "playing", "name": "Minecraft", "ttl_seconds": 90})
+            previous.add(user_id)
+        except (OSError, ValueError):
+            pass
+    for user_id in previous - playing:
+        try:
+            api("DELETE", f"/users/{user_id}/activities/minecraft")
+            previous.remove(user_id)
+        except (OSError, ValueError):
+            pass
+    return previous
+
+
+async def session(ws, cache, announced):
+    lock = asyncio.Lock()
+    results = cache.setdefault("results", {})
+
+    async def report():
+        nonlocal announced
+        async with lock:
+            current = await asyncio.to_thread(hello)
+            if current != announced:
+                await ws.send(json.dumps(current))
+                announced = current
+            await ws.send(json.dumps(await asyncio.to_thread(poll, cache)))
+
+    async def reports():
+        while True:
+            await report()
+            await asyncio.sleep(10)
+
+    async def receive():
+        async for raw in ws:
+            frame = json.loads(raw)
+            if frame.get("type") == "command":
+                command_id = frame["command_id"]
+                if command_id in results:
+                    # Still running in an earlier session: answer here once it finishes.
+                    for _ in range(1200):
+                        if results.get(command_id) is not None:
+                            await ws.send(json.dumps(results[command_id]))
+                            break
+                        await asyncio.sleep(0.1)
+                    continue
+                results[command_id] = None
+                if len(results) > 100:
+                    results.pop(next(iter(results)), None)
+                result = await asyncio.to_thread(command, frame, results)
+                await ws.send(json.dumps(result))
+                action = frame["action"] if frame["action"] in ("save", "start", "restart", "stop") else "unknown"
+                print(f"command {action}: ok={result['ok']}", file=sys.stderr, flush=True)
+                await report()
+
+    tasks = [asyncio.create_task(reports()), asyncio.create_task(receive())]
+    try:
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            await task
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def main():
+    cache = {}
+    if "--once" in sys.argv:
+        print(json.dumps(await asyncio.to_thread(hello)))
+        print(json.dumps(await asyncio.to_thread(poll, cache)))
+        return
+
+    async def update_activities():
+        previous = set()
+        while True:
+            previous = await asyncio.to_thread(activities, previous, cache.get("players", []))
+            await asyncio.sleep(30)
+
+    activity_task = asyncio.create_task(update_activities())
+    url = urlsplit(os.environ["DEN_URL"].rstrip("/"))
+    url = urlunsplit(({"http": "ws", "https": "wss"}[url.scheme], url.netloc, url.path + "/servers/relay", "", ""))
+    delay = 1
+    try:
+        while True:
+            connected_at = None
+            refused = False
+            try:
+                announced = await asyncio.to_thread(hello)
+                async with connect(url, additional_headers={"Authorization": f"Bearer {os.environ['DEN_TOKEN']}"}) as ws:
+                    await ws.send(json.dumps(announced))
+                    print("connected", file=sys.stderr, flush=True)
+                    connected_at = time.monotonic()
+                    cache.pop("playtime_at", None)
+                    await session(ws, cache, announced)
+            except Exception as error:
+                refused = isinstance(error, ConnectionClosed) and error.rcvd is not None and error.rcvd.code == 4003
+                print(f"connection error: {type(error).__name__}: {error}", file=sys.stderr, flush=True)
+            if connected_at is not None and time.monotonic() - connected_at >= 60:
+                delay = 1
+            if refused:
+                delay = 60
+            print(f"disconnected; retry in {delay}s", file=sys.stderr, flush=True)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 60)
+    finally:
+        activity_task.cancel()
+        await asyncio.gather(activity_task, return_exceptions=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

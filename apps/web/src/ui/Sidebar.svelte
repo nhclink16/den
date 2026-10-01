@@ -11,10 +11,12 @@
   import ServerSwitcher from './ServerSwitcher.svelte'
   import Mark from './Mark.svelte'
   import { profileCard } from '../lib/people.svelte'
+  import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
 
   let { narrow = false }: { narrow?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
   const uncategorized = $derived(store.textChannels.filter((c) => c.kind !== 'voice' && !c.category_id))
+  const serverActive = (slug: string) => router.route.name === 'server' && router.route.slug === slug
   const active = (id: string) => router.route.name === 'channel' && router.route.id === id
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path) }
   // The sidebar line is the Jam's only announcement, so keep its track current
@@ -91,6 +93,19 @@
       {/if}
     {/each}
 
+    {#if store.servers.length}
+      <div class="cat eyebrow">Servers</div>
+      {#each store.servers as sv (sv.slug)}
+        {@const label = `${gameLabel(sv)}, ${stateLabel(sv).toLowerCase()}${sv.connected && sv.state === 'up' && sv.players.length ? `, ${sv.players.length} playing` : ''}`}
+        <a href="/server/{sv.slug}" class="row server" class:active={serverActive(sv.slug)} aria-current={serverActive(sv.slug) ? 'page' : undefined} aria-label={label} title={label} onclick={go(`/server/${sv.slug}`)} data-testid="sidebar-server">
+          <span class="glyph" aria-hidden="true">{gameGlyph(sv.game)}</span>
+          <span class="name">{gameLabel(sv)}</span>
+          {#if sv.connected && sv.state === 'up' && sv.players.length}<span class="players mono" aria-hidden="true">{sv.players.length}</span>{/if}
+          <span class="sdot {dotTone(sv)}" aria-hidden="true"></span>
+        </a>
+      {/each}
+    {/if}
+
     {#if store.dms.length}
       <div class="cat eyebrow">Direct</div>
       {#each store.dms as c (c.id)}{@render channelRow(c)}{/each}
@@ -162,6 +177,14 @@
   .voice:has(.avatars) > :global(svg) { color: var(--lamp); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lamp) 60%, transparent)); }
   .jam-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--lamp); }
   .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
+  .glyph { width: 16px; text-align: center; font-size: 13px; line-height: 1; flex: none; }
+  .players { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  /* Up glows, asleep dims to a ring, down is red; starting and stopping sit between. */
+  .sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-right: 2px; }
+  .sdot.up { background: var(--moss); box-shadow: 0 0 7px color-mix(in srgb, var(--moss) 75%, transparent); }
+  .sdot.busy { background: var(--lamp); }
+  .sdot.asleep { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+  .sdot.down { background: var(--danger); }
   .inbox { margin: 4px 8px 0; }
   .uploading { font: 16px var(--mono); color: var(--lamp); }
   .count {

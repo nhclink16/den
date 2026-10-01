@@ -989,6 +989,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__servers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/servers/relay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__servers_relay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/servers/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__servers__slug_"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/servers/{slug}/actions/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__servers__slug__actions__action_"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/servers/{slug}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__servers__slug__icon"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions/{id}": {
         parameters: {
             query?: never;
@@ -2372,9 +2452,38 @@ export interface components {
             /** @enum {string} */
             type: "activity_updated";
             user_id: components["schemas"]["String"];
+        } | {
+            server: components["schemas"]["GameServer"];
+            /** @enum {string} */
+            type: "server_updated";
         };
         FollowThread: {
             following: boolean;
+        };
+        /** @description A game server as clients see it. */
+        GameServer: {
+            actions: components["schemas"]["ServerAction"][];
+            address?: string | null;
+            /**
+             * @description False when the relay is not connected. The state is then `down`, and no
+             *     action can run until it reconnects.
+             */
+            connected: boolean;
+            details: string[];
+            game: string;
+            icon_url?: string | null;
+            /** Format: int32 */
+            max_players?: number | null;
+            name: string;
+            players: components["schemas"]["ServerPlayer"][];
+            slug: string;
+            state: components["schemas"]["ServerState"];
+            stats: components["schemas"]["ServerStat"][];
+            /**
+             * Format: int64
+             * @description Unix seconds of the last status.
+             */
+            updated_at: number;
         };
         Grant: {
             capability: components["schemas"]["Capability"];
@@ -2783,6 +2892,33 @@ export interface components {
             /** @description APNs token encoded as hexadecimal. Do not log or expose this credential. */
             token: string;
         };
+        /**
+         * @description JSON text frames on `GET /servers/relay`. The relay sends `hello` first, then
+         *     `status` whenever it polls; Den sends `command` when someone presses a button
+         *     and the relay answers each with `result`.
+         */
+        RelayFrame: {
+            server: components["schemas"]["ServerInfo"];
+            /** @enum {string} */
+            type: "hello";
+        } | {
+            status: components["schemas"]["ServerStatus"];
+            /** @enum {string} */
+            type: "status";
+        } | {
+            action: string;
+            /** @description Display name of whoever pressed it, for an in-game line. */
+            by: string;
+            command_id: components["schemas"]["String"];
+            /** @enum {string} */
+            type: "command";
+        } | {
+            command_id: components["schemas"]["String"];
+            message?: string | null;
+            ok: boolean;
+            /** @enum {string} */
+            type: "result";
+        };
         RequestAccess: {
             capability: components["schemas"]["Capability"];
             /** Format: int32 */
@@ -2852,6 +2988,102 @@ export interface components {
         SeekMusic: {
             /** Format: double */
             position_seconds: number;
+        };
+        /** @description A button the relay can carry out. */
+        ServerAction: {
+            /** @description Only admins may run it. Den enforces this, not the client. */
+            admin_only: boolean;
+            /** @description What the relay receives back in a command: `save`, `start`, `restart`, `stop`. */
+            id: string;
+            label: string;
+            /** @description The states in which the button is offered. */
+            states: components["schemas"]["ServerState"][];
+        };
+        /** @description What `POST /servers/{slug}/actions/{action}` returns once the relay has done it. */
+        ServerActionResult: {
+            message?: string | null;
+        };
+        /** @description `GET /servers/{slug}`: the server plus what only its page needs. */
+        ServerDetail: {
+            history: components["schemas"]["ServerSeries"][];
+            /** @description Everyone who has played, most all-time first. */
+            playtime: components["schemas"]["ServerPlaytime"][];
+            server: components["schemas"]["GameServer"];
+        };
+        /** @description What a relay says about its server when it connects, and again whenever it changes. */
+        ServerInfo: {
+            actions: components["schemas"]["ServerAction"][];
+            /** @description What players type to join. */
+            address?: string | null;
+            /** @description Short facts shown under the name: `1.21.1`, `Fabric`, `56 mods`. */
+            details: string[];
+            /** @description Which game, for the fallback icon: `minecraft`. */
+            game: string;
+            /** @description Base64 PNG, at most 64 KiB decoded. */
+            icon_png?: string | null;
+            /** @description Display name, such as the Minecraft MOTD without formatting codes. */
+            name: string;
+            /** @description Stable id, part of the page URL: lowercase letters, digits and hyphens. */
+            slug: string;
+        };
+        ServerPlayer: {
+            /** @description The in-game name. */
+            name: string;
+            user_id?: null | components["schemas"]["String"];
+        };
+        ServerPlaytime: {
+            name: string;
+            /**
+             * Format: int64
+             * @description All-time, from the game's own records. The relay sends it.
+             */
+            total_seconds?: number | null;
+            user_id?: null | components["schemas"]["String"];
+            /**
+             * Format: int64
+             * @description The past 7 days, from Den's record of who was online. Den fills it in;
+             *     a relay leaves it out.
+             */
+            week_seconds?: number;
+        };
+        ServerPoint: {
+            /**
+             * Format: int64
+             * @description Unix seconds.
+             */
+            at: number;
+            /** Format: double */
+            value: number;
+        };
+        /** @description 24 hours of one number, a point per minute at most. */
+        ServerSeries: {
+            /** @description `players`, or a stat key the relay marked `graph`. */
+            key: string;
+            label: string;
+            points: components["schemas"]["ServerPoint"][];
+            unit: components["schemas"]["StatUnit"];
+        };
+        ServerStat: {
+            /** @description Den keeps 24 hours of this stat for a graph. Player counts always are. */
+            graph?: boolean;
+            /** @description Stable name: `tps`, `memory`, `cpu`, `uptime`, `backup`. */
+            key: string;
+            label: string;
+            unit: components["schemas"]["StatUnit"];
+            /** Format: double */
+            value: number;
+        };
+        /** @enum {string} */
+        ServerState: "up" | "starting" | "stopping" | "asleep" | "down";
+        /** @description The live half, sent every few seconds. */
+        ServerStatus: {
+            /** Format: int32 */
+            max_players?: number | null;
+            players: components["schemas"]["ServerPlayer"][];
+            /** @description All-time totals. Absent means unchanged since the last status. */
+            playtime?: components["schemas"]["ServerPlaytime"][] | null;
+            state: components["schemas"]["ServerState"];
+            stats: components["schemas"]["ServerStat"][];
         };
         Session: {
             csrf_token: string;
@@ -2985,6 +3217,11 @@ export interface components {
         StartJam: {
             url: string;
         };
+        /**
+         * @description How a client formats a number.
+         * @enum {string}
+         */
+        StatUnit: "number" | "tps" | "bytes" | "percent" | "seconds" | "timestamp";
         Status: {
             /** @description Exactly one extended grapheme cluster when set. */
             emoji?: string | null;
@@ -5609,6 +5846,225 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Message"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__servers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameServer"][];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__servers_relay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin API token relay; JSON RelayFrame text messages, hello required within 5 seconds */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__servers__slug_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    post__servers__slug__actions__action_: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                action: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerActionResult"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__servers__slug__icon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG icon */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": number[];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -8406,6 +8862,8 @@ export interface operations {
                 sounds?: boolean;
                 /** @description Opt in to Spotify Jam and account events; omitted for older clients */
                 jam?: boolean;
+                /** @description Opt in to game server events; omitted for older clients */
+                servers?: boolean;
             };
             header?: never;
             path?: never;
