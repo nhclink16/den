@@ -78,7 +78,7 @@ async function start() {
     ? { titleBarStyle: 'hiddenInset' }
     : { titleBarStyle: 'hidden', titleBarOverlay: overlay('#ece5d8') }
   window = new BrowserWindow({ ...bounds, minWidth: 900, minHeight: 600, title: 'Den', icon: path.join(__dirname, '../icons/icon.png'), ...titleBarOpts, webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } })
-  const native = features(window, emit, focus), updates = updater(), doing = activity(emit, powerMonitor)
+  const native = features(window, emit, focus), updates = updater(path.join(app.getPath('userData'), 'updater.log')), doing = activity(emit, powerMonitor)
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null)
   window.on('close', event => { fs.writeFileSync(boundsFile, JSON.stringify(window.getNormalBounds()), { mode: 0o600 }); if (!quitting) { event.preventDefault(); window.hide() } })
   window.on('blur', () => emit('window-background', null))
