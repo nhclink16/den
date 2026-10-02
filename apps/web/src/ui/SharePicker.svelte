@@ -28,8 +28,8 @@
   })
 
   $effect(() => {
-    if (!req) return
-    const id = req.requestId
+    const id = requestId
+    if (!id) return
     const t = setInterval(() => { sharePicker.refreshSources(id).catch(() => {}) }, 2000)
     return () => clearInterval(t)
   })

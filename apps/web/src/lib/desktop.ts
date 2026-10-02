@@ -5,7 +5,7 @@ export type DesktopCommand = 'platform' | 'session_get' | 'session_set' | 'sessi
   | 'set_titlebar'
   | 'share_picker_choose' | 'share_picker_sources'
 export type DesktopEvent = 'ptt' | 'tray-action' | 'notification-open'
-  | 'deep-link://new-url' | 'window-background' | 'activity' | 'share-picker'
+  | 'deep-link://new-url' | 'window-background' | 'activity' | 'share-picker' | 'share-picker-closed'
 export interface DesktopBridge {
   invoke<T>(command: DesktopCommand, args?: Record<string, unknown>): Promise<T>
   listen<T>(event: DesktopEvent, handler: (payload: T) => void): Promise<() => void>

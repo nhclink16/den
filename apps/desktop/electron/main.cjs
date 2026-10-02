@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
-const { pickSession, captureAnswer, validatePickerFrame, visibleSources } = require('./picker.cjs')
+const { picker, validatePickerFrame, visibleSources } = require('./picker.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
 const { activity } = require('./activity.cjs')
@@ -28,7 +28,6 @@ else {
   app.whenReady().then(start).catch(() => { dialog.showErrorBox('Den could not start', 'Cannot initialize desktop storage or the app window.'); app.quit() })
 }
 async function start() {
-  let pickerRequest = null
   const store = storage(app.getPath('userData'), safeStorage)
   const dev = !app.isPackaged && process.env.DEN_DESKTOP_URL
   if (dev && !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(dev)) throw Error('Development URL must be localhost')
@@ -58,19 +57,14 @@ async function start() {
     appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
     isScreen: s.id.startsWith('screen:'),
   }))
+  const shares = picker({
+    list: listSources, platform: process.platform,
+    show: (requestId, sources, audioRequested) => emit('share-picker', { requestId, sources: shown(sources), audioRequested, platform: process.platform }),
+    dismiss: requestId => emit('share-picker-closed', requestId),
+  })
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     if (!validatePickerFrame(request.frame, window?.webContents.mainFrame, trusted)) return callback({})
-    if (pickerRequest) { const old = pickerRequest; pickerRequest = null; clearTimeout(old.timer); old.resolve(null) }
-    try {
-      const pick = pickSession(), sources = pick.offer(await listSources())
-      const requestId = `pick-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const result = await new Promise(resolve => {
-        const timer = setTimeout(() => { if (pickerRequest?.id === requestId) { pickerRequest = null; resolve(null) } }, 120_000)
-        pickerRequest = { id: requestId, pick, resolve, timer }
-        emit('share-picker', { requestId, sources: shown(sources), audioRequested: !!request.audioRequested, platform: process.platform })
-      })
-      callback(captureAnswer(result?.source, { audio: result?.audio, audioRequested: request.audioRequested, platform: process.platform }))
-    } catch { callback({}) }
+    try { callback(await shares.request(!!request.audioRequested)) } catch { callback({}) }
   }, { useSystemPicker: true })
   const boundsFile = path.join(app.getPath('userData'), 'window.json')
   let bounds = { width: 1200, height: 800 }
@@ -105,20 +99,8 @@ async function start() {
     deep_links: () => pendingLinks.splice(0), update_check: () => app.isPackaged ? updates.check() : false, update_restart: () => updates.restart(),
     activity_current: () => doing.current(),
     set_titlebar: a => { if (process.platform !== 'darwin') window.setTitleBarOverlay(overlay(a.symbolColor)) },
-    share_picker_choose: a => {
-      if (!pickerRequest || pickerRequest.id !== a.requestId) return
-      const { resolve, pick, timer } = pickerRequest
-      pickerRequest = null
-      clearTimeout(timer)
-      const source = pick.choose(a.sourceId)
-      resolve(source ? { source, audio: !!a.audio } : null)
-    },
-    share_picker_sources: async () => {
-      const current = pickerRequest
-      if (!current) return null
-      const sources = await listSources()
-      return pickerRequest === current ? shown(current.pick.offer(sources)) : null
-    },
+    share_picker_choose: a => shares.choose(a.requestId, a.sourceId, a.audio),
+    share_picker_sources: async () => { const sources = await shares.refresh(); return sources && shown(sources) },
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !trusted(event.senderFrame.url) || !Object.hasOwn(commands, command)) throw Error('Desktop command denied')

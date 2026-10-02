@@ -9,6 +9,7 @@ class SharePickerState {
   attach() {
     if (!native) return
     void listen<PickerRequest>('share-picker', req => { this.request = req })
+    void listen<string>('share-picker-closed', id => this.close(id))
   }
 
   async choose(requestId: string, sourceId: string, audio: boolean) {
@@ -21,9 +22,15 @@ class SharePickerState {
     if (this.request?.requestId === requestId) this.request = null
   }
 
+  // Main answers null once the request ended (timeout or a newer request), so close.
   async refreshSources(requestId: string) {
     const sources = await invoke<PickerSource[] | null>('share_picker_sources')
-    if (sources && this.request?.requestId === requestId) this.request = { ...this.request, sources }
+    if (this.request?.requestId !== requestId) return
+    this.request = sources ? { ...this.request, sources } : null
+  }
+
+  close(requestId: string) {
+    if (this.request?.requestId === requestId) this.request = null
   }
 }
 

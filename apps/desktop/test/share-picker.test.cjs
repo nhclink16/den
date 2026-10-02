@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { pickSession, captureAnswer, validatePickerFrame, visibleSources } = require('../electron/picker.cjs')
+const { pickSession, picker, captureAnswer, validatePickerFrame, visibleSources } = require('../electron/picker.cjs')
 
 const screen = { id: 'screen:0:0', name: 'Entire screen' }
 const editor = { id: 'window:1001:0', name: 'Editor' }
@@ -69,4 +69,46 @@ test('helper and overlay windows with blank thumbnails are hidden, dark real win
     { id: 'screen:0:0', name: 'Screen 1', thumbnail: image([0, 0, 0, 255]) },
   ]
   assert.deepEqual(visibleSources(sources).map(s => s.name), ['Command Prompt', 'Screen 1'])
+})
+
+// Resolves to 'pending' if the promise has not settled within a few ticks.
+const settled = (promise, ms = 50) => Promise.race([promise, new Promise(r => setTimeout(() => r('pending'), ms))])
+
+test('overlapping capture requests are each answered exactly once', async () => {
+  const lists = [], shown = [], dismissed = []
+  const p = picker({
+    list: () => new Promise(r => lists.push(r)),
+    show: id => shown.push(id), dismiss: id => dismissed.push(id), platform: 'win32',
+  })
+  const answers = [[], []]
+  const first = p.request(true).then(a => answers[0].push(a))
+  const second = p.request(true).then(a => answers[1].push(a))
+  lists[0]([screen]); lists[1]([screen, editor])
+  await settled(Promise.resolve())
+  p.choose(shown[1], editor.id, false)
+  assert.notEqual(await settled(first), 'pending', 'the older request was never answered')
+  await second
+  assert.deepEqual(answers, [[{}], [{ video: editor }]])
+  assert.deepEqual(dismissed, [shown[0]])
+})
+
+test('a picker left open times out with {} and tells the renderer to close', async () => {
+  const dismissed = []
+  let shownId
+  const p = picker({ list: async () => [screen], show: id => { shownId = id }, dismiss: id => dismissed.push(id), platform: 'win32', timeoutMs: 20 })
+  assert.deepEqual(await p.request(true), {})
+  assert.deepEqual(dismissed, [shownId])
+  assert.equal(await p.refresh(), null, 'refresh after the timeout must report the picker closed')
+  p.choose(shownId, screen.id, true)
+})
+
+test('a refresh reports closed once the picker was answered', async () => {
+  let shownId
+  const p = picker({ list: async () => [screen, editor], show: id => { shownId = id }, dismiss: () => {}, platform: 'linux' })
+  const answer = p.request(false)
+  await settled(Promise.resolve())
+  assert.deepEqual((await p.refresh()).map(s => s.id), [screen.id, editor.id])
+  p.choose(shownId, null, false)
+  assert.deepEqual(await answer, {})
+  assert.equal(await p.refresh(), null)
 })
