@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
+const { picker, validatePickerFrame, visibleSources } = require('./picker.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
 const { activity } = require('./activity.cjs')
@@ -48,14 +49,22 @@ async function start() {
   protocol.handle('den-media', req => media(store, req))
   session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => wc === window?.webContents && trusted(requestingOrigin) && ['media', 'display-capture', 'fullscreen'].includes(permission))
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => callback(wc === window?.webContents && trusted(details.requestingUrl || wc.getURL()) && ['media', 'display-capture', 'fullscreen'].includes(permission)))
+  // Den's own window is left out: sharing it mirrors the call into itself.
+  const listSources = async () => visibleSources((await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })).filter(s => s.name !== app.getName()))
+  const shown = list => list.map(s => ({
+    id: s.id, name: s.name,
+    thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
+    appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
+    isScreen: s.id.startsWith('screen:'),
+  }))
+  const shares = picker({
+    list: listSources, platform: process.platform,
+    show: (requestId, sources, audioRequested) => emit('share-picker', { requestId, sources: shown(sources), audioRequested, platform: process.platform }),
+    dismiss: requestId => emit('share-picker-closed', requestId),
+  })
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (!request.frame || request.frame !== window?.webContents.mainFrame || !trusted(request.frame.url)) return callback({})
-    try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] })
-      const answer = await dialog.showMessageBox(window, { title: 'Share your screen', message: 'Choose a screen or window to share', buttons: ['Cancel', ...sources.map(s => s.name)], cancelId: 0, defaultId: 0, noLink: true })
-      if (!answer.response) return callback({})
-      callback({ video: sources[answer.response - 1], ...(request.audioRequested && process.platform === 'win32' ? { audio: 'loopback' } : {}) })
-    } catch { callback({}) }
+    if (!validatePickerFrame(request.frame, window?.webContents.mainFrame, trusted)) return callback({})
+    try { callback(await shares.request(!!request.audioRequested)) } catch { callback({}) }
   }, { useSystemPicker: true })
   const boundsFile = path.join(app.getPath('userData'), 'window.json')
   let bounds = { width: 1200, height: 800 }
@@ -90,6 +99,8 @@ async function start() {
     deep_links: () => pendingLinks.splice(0), update_check: () => app.isPackaged ? updates.check() : false, update_restart: () => updates.restart(),
     activity_current: () => doing.current(),
     set_titlebar: a => { if (process.platform !== 'darwin') window.setTitleBarOverlay(overlay(a.symbolColor)) },
+    share_picker_choose: a => shares.choose(a.requestId, a.sourceId, a.audio),
+    share_picker_sources: async () => { const sources = await shares.refresh(); return sources && shown(sources) },
   }
   ipcMain.handle('den:command', (event, command, args = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !trusted(event.senderFrame.url) || !Object.hasOwn(commands, command)) throw Error('Desktop command denied')
