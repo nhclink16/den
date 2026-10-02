@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { storage, apiRequest, media } = require('./session.cjs')
-const { pickSession, captureAnswer, validatePickerFrame } = require('./picker.cjs')
+const { pickSession, captureAnswer, validatePickerFrame, visibleSources } = require('./picker.cjs')
 const { features } = require('./features.cjs')
 const { updater } = require('./updater.cjs')
 const { activity } = require('./activity.cjs')
@@ -51,7 +51,7 @@ async function start() {
   session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => wc === window?.webContents && trusted(requestingOrigin) && ['media', 'display-capture', 'fullscreen'].includes(permission))
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => callback(wc === window?.webContents && trusted(details.requestingUrl || wc.getURL()) && ['media', 'display-capture', 'fullscreen'].includes(permission)))
   // Den's own window is left out: sharing it mirrors the call into itself.
-  const listSources = async () => (await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })).filter(s => s.name !== app.getName())
+  const listSources = async () => visibleSources((await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: true })).filter(s => s.name !== app.getName()))
   const shown = list => list.map(s => ({
     id: s.id, name: s.name,
     thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),

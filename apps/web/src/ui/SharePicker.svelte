@@ -116,7 +116,7 @@
     {/if}
     <div class="actions">
       <button class="btn quiet" onclick={cancel}>Cancel</button>
-      <button class="btn lit" disabled={!selectedId} onclick={confirm}>Share</button>
+      <button class="btn" class:lit={!!selectedId} disabled={!selectedId} onclick={confirm}>Share</button>
     </div>
   </div>
 </dialog>

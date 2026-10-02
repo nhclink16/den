@@ -10,6 +10,16 @@ function pickSession() {
   }
 }
 
+// Helper and overlay windows (tray helpers, GPU overlays) capture as empty or pure black.
+// One lit pixel keeps a window, so a dark terminal with any text survives.
+function blankThumbnail(image) {
+  if (image.isEmpty()) return true
+  const px = image.toBitmap() // BGRA
+  for (let i = 0; i + 3 < px.length; i += 4) if (px[i + 3] > 16 && Math.max(px[i], px[i + 1], px[i + 2]) > 24) return false
+  return true
+}
+const visibleSources = list => list.filter(s => s.id.startsWith('screen:') || !blankThumbnail(s.thumbnail))
+
 // Loopback is Windows-only in Chromium; elsewhere asking for it fails the whole capture.
 function captureAnswer(source, { audio, audioRequested, platform }) {
   if (!source) return {}
@@ -20,4 +30,4 @@ function validatePickerFrame(frame, mainFrame, trusted) {
   return !!(frame && frame === mainFrame && trusted(frame.url))
 }
 
-module.exports = { pickSession, captureAnswer, validatePickerFrame }
+module.exports = { pickSession, captureAnswer, validatePickerFrame, visibleSources }
