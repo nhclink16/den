@@ -1,5 +1,8 @@
+const fs = require('node:fs')
 const { Provider, resolveFiles } = require('electron-updater/out/providers/Provider')
 // Same Minisign key as Tauri v0.2.x. Keep the private key in the existing CI secret.
+// Releases must use legacy (non-prehashed) signatures: Electron's BoringSSL has no
+// BLAKE2b, so a prehashed signature fails with "Digest method not supported".
 const publicKey = 'RWQSGQ8mWZtpT8uMqfsU4tVijnXz1Vv/MBPgU0E8LPWi+tYk3OtmXI90'
 const releaseRoot = 'https://github.com/nhclink16/den/releases/'
 async function verifyManifest(bytes, signature, key = publicKey) {
@@ -27,16 +30,27 @@ class SignedProvider extends Provider {
   }
   resolveFiles(info) { return resolveFiles(info, new URL(`${releaseRoot}download/v${info.version}/`)) }
 }
-function updater() {
+// Updates run unattended, so keep a small log to diagnose the next silent failure.
+function fileLog(file) {
+  return message => {
+    try {
+      if (fs.statSync(file, { throwIfNoEntry: false })?.size > 256 * 1024) fs.renameSync(file, file + '.old')
+      fs.appendFileSync(file, `${new Date().toISOString()} ${message}\n`)
+    } catch { /* logging must never break updates */ }
+  }
+}
+function updater(logFile) {
   const { autoUpdater } = require('electron-updater')
-  autoUpdater.logger = null
+  const log = fileLog(logFile)
+  autoUpdater.logger = { info: log, warn: m => log(`warn ${m}`), error: m => log(`error ${m}`) }
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
   autoUpdater.allowDowngrade = false
   autoUpdater.disableDifferentialDownload = true
+  autoUpdater.disableWebInstaller = true
   autoUpdater.setFeedURL({ provider: 'custom', updateProvider: SignedProvider })
   let ready = false, checking
-  autoUpdater.on('error', () => {})
+  autoUpdater.on('error', e => log(`error ${e?.stack || e}`))
   return {
     check() {
       if (ready) return Promise.resolve(true)

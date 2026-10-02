@@ -53,8 +53,6 @@ jobs:
             arch: x64
     runs-on: ${{ matrix.runner }}
     env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       CSC_LINK: ${{ matrix.platform == 'darwin' && secrets.APPLE_CERTIFICATE || '' }}
       CSC_KEY_PASSWORD: ${{ matrix.platform == 'darwin' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
       WIN_CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -91,11 +89,9 @@ jobs:
           done
           [[ -n ${CSC_LINK:-}${WIN_CSC_LINK:-} ]] || export CSC_IDENTITY_AUTO_DISCOVERY=false
           npm --prefix apps/desktop run build -- ${{ matrix.args }}
-      - name: Sign updater manifest with the existing Den update key
+      - name: Write updater manifest
         shell: bash
-        run: |
-          node deploy/electron-manifest.cjs apps/desktop/dist '${{ matrix.platform }}' '${{ matrix.arch }}'
-          apps/desktop/node_modules/.bin/tauri signer sign 'apps/desktop/dist/electron-${{ matrix.platform }}-${{ matrix.arch }}.json'
+        run: node deploy/electron-manifest.cjs apps/desktop/dist '${{ matrix.platform }}' '${{ matrix.arch }}'
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform }}
@@ -126,6 +122,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release download v0.2.2 -R "$GITHUB_REPOSITORY" -p latest.json -D release-artifacts
+      - name: Sign updater manifests with the existing Den update key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          sudo apt-get update -q && sudo apt-get install -yq minisign
+          bash deploy/sign-electron-manifests.sh release-artifacts
       - run: bash deploy/finalize-release.sh "$GITHUB_REF_NAME"
       - name: Publish binaries, matching source, and checksums
         env:

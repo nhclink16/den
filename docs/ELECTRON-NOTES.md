@@ -99,7 +99,10 @@ web storage.
 The signed updater verifies the existing Den Minisign key against a platform
 manifest before electron-updater receives a version or artifact checksum. Linux
 manifests include AppImage and deb, Windows uses NSIS, and macOS uses zip. Release
-CI signs manifests with the existing update key. A new PR-only workflow builds
+CI signs manifests with the existing update key, using minisign's legacy format:
+Electron's BoringSSL has no BLAKE2b, so the prehashed signatures `tauri signer`
+makes can't be verified in the app. That broke every update from 0.3.0 and 0.3.1.
+The app logs update activity and errors to `updater.log` in its data folder. A new PR-only workflow builds
 unsigned installers on all three platforms without releasing them. No release,
 deployment, or public server change was made for this lane.
 
