@@ -10,6 +10,34 @@ final class TextFlowTests: XCTestCase {
     private var fixture: Fixture!
     private var fixturePath = ""
 
+    func testAttachmentMenuWithNeutralGlassInLightAndDarkAppearance() async throws {
+        try configureFixture()
+        defer { app.terminate() }
+        app.launch()
+        XCTAssertTrue(element("login-submit").waitForExistence(timeout: 10))
+        element("login-submit").tap()
+        try await waitForRooms()
+        for mode in ["Dark", "Light"] {
+            selectTab("Settings")
+            app.buttons["Appearance"].tap()
+            app.buttons[mode].tap()
+            let den = element("theme-den")
+            XCTAssertTrue(den.waitForExistence(timeout: 5))
+            den.tap()
+            let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: den)
+            XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed)
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            showRoomsList()
+            openRoom(fixture.generalChannelId)
+            element("composer-attach").tap()
+            XCTAssertTrue(app.buttons["Take photo"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["Photos and videos"].isEnabled)
+            XCTAssertTrue(app.buttons["Choose a file"].isEnabled)
+            screenshot("attachment-menu-neutral-" + mode.lowercased())
+            app.navigationBars.firstMatch.tap()
+        }
+    }
+
     private func configureFixture() throws {
         continueAfterFailure = false
         fixturePath = ProcessInfo.processInfo.environment["DEN_UI_FIXTURE_PATH"] ?? "/tmp/den-ios-qa.json"
