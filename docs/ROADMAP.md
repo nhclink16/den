@@ -77,3 +77,28 @@ Shared theme schema in den-core, nine built-in themes, fonts, radius, density, a
 
 ## Dictation (started 2026-09-14, brief in `docs/DICTATION-BRIEF.md`)
 On-device speech to text in the composer: iOS 26 SpeechAnalyzer on the phone, Whisper in WebAssembly on web and desktop. Audio never leaves the device.
+
+## Shipped since 2026-09-24 (desktop 0.3.2)
+Electron replaced Tauri for the desktop app (0.3.0 was the first Electron release; 0.3.2 is the first one whose updates the app can actually verify). Also shipped:
+- Hidden title bar on Windows and Linux, and an in-app screen-share picker.
+- 720p screen-share layers for phone viewers.
+- Spotify Jam moved into the hangout.
+- The Servers page with a live Minecraft relay.
+- A Desktop app download section in web Settings.
+- Activity status, wallpapers, admin member tools and the live Appearance panel.
+
+## Backlog (decided or asked for, not built)
+- **Servers follow-ups:**
+  - modpack download: the relay rebuilds a Modrinth `.mrpack` when server mods change
+  - sleep-when-empty via lazymc
+  - a 7 Days to Die server, runnable only while Minecraft is down
+  - Spark mod for TPS and CPU (needs a Minecraft restart)
+  - the playit join address on the page
+- **MW2 1v1s:** a private IW4x server (`sv_lanonly 1` plus a password), a Start 1v1 button on the Servers page, and a hangout card with an `iw4x://` Join link. Waiting on Nicholas owning MW2.
+- **GIF search** via Klipy. Open question: Klipy's terms forbid proxying or re-hosting.
+- **Animated (GIF) and non-square profile pictures.**
+- **Landing page at `/`, app at `/app`** (deferred 2026-09-16).
+- **Usability pass:** an agent uses Den like a friend would (desktop, web, phone) and ranks the rough spots.
+- **iOS "Take photo" (PR #55):** needs a Mac build and a device test.
+- **Mac code signing:** needs an Apple Developer ID. Until then Mac builds are unsigned and Mac auto-update does not work.
+- **RCON hardening:** Minecraft RCON listens on all interfaces with its password in the system unit. Bind it to localhost (needs approval: system unit change).
