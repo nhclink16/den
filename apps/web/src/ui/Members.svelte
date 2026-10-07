@@ -27,7 +27,7 @@
   {#snippet person(u: import('../lib/types').User)}
     {@const doing = shownActivities(store.activities.get(u.id))[0]}
     <div class="member">
-    <button class="person" class:off={!store.online.has(u.id)} aria-haspopup="dialog" onclick={(e) => profileCard.open(u.id, e.currentTarget, instances.active)}>
+    <button class="person" data-hover-animates class:off={!store.online.has(u.id)} aria-haspopup="dialog" onclick={(e) => profileCard.open(u.id, e.currentTarget, instances.active)}>
       <Avatar userId={u.id} size={28} />
       <span class="who">
         <span class="top">

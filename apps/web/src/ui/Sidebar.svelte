@@ -67,7 +67,7 @@
           {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
         </button>
       {:else}
-      <a href="/c/{c.id}" class="row" class:active={active(c.id)} aria-current={active(c.id) ? 'page' : undefined} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
+      <a href="/c/{c.id}" class="row" data-hover-animates class:active={active(c.id)} aria-current={active(c.id) ? 'page' : undefined} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
         {#if c.kind === 'dm'}
           {@const other = (c.member_ids || []).find((id) => id !== store.me?.id) || store.me?.id || ''}
           <Avatar userId={other} size={20} />

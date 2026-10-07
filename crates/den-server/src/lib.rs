@@ -215,6 +215,7 @@ impl AppState {
             .await
             .map_err(|e| anyhow::anyhow!("Mention indexing failed: {}", e.2))?;
         backgrounds::migrate(&state).await?;
+        state.migrate_profile_images().await?;
         Ok(state)
     }
     /// Override the external music executables before starting the server.

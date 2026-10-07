@@ -2,18 +2,36 @@
   import { store, type Store } from '../lib/store.svelte'
   import { mediaUrl } from '../lib/native'
   import { personHue } from '../lib/people.svelte'
-  let { userId, size = 32, instance = store, presence = true }: { userId: string; size?: number; instance?: Store; presence?: boolean } = $props()
+  import { isAnimated, reducedMotion, stillUrl } from '../lib/motion.svelte'
+  /** `animate` plays a GIF picture all the time (profile cards); otherwise it plays
+   *  only while the pointer or keyboard focus is on it, or on the row marked
+   *  `data-hover-animates`. Focus that lands there on its own, like a popover opening, doesn't count. */
+  let { userId, size = 32, instance = store, presence = true, animate = false }: { userId: string; size?: number; instance?: Store; presence?: boolean; animate?: boolean } = $props()
   const user = $derived(instance.user(userId))
   const label = $derived(user ? (user.display_name || user.username) : '?')
   const online = $derived(instance.online.has(userId))
   // Everyone gets a colour of their own, so a glance at the gutter says who is talking
   // before the name does.
   const hue = $derived(personHue(userId, user))
+  const animated = $derived(isAnimated(user?.avatar_url))
+  let el = $state<HTMLSpanElement>()
+  let pointer = $state(false), focus = $state(false)
+  $effect(() => {
+    if (!animated || !el) return
+    const row = el.closest<HTMLElement>('[data-hover-animates]') ?? el
+    const events = [
+      ['pointerenter', () => (pointer = true)], ['pointerleave', () => (pointer = false)],
+      ['focusin', (e: Event) => (focus = (e.target as Element).matches(':focus-visible'))], ['focusout', (e: Event) => (focus = row.contains((e as FocusEvent).relatedTarget as Node | null))],
+    ] as const
+    for (const [name, fn] of events) row.addEventListener(name, fn)
+    return () => { for (const [name, fn] of events) row.removeEventListener(name, fn); pointer = focus = false }
+  })
+  const playing = $derived(animated && (pointer || focus || (animate && !reducedMotion.current)))
 </script>
 
-<span class="avatar" class:online={online && presence} style="--s:{size}px; --hue:{hue}" title={label}>
+<span bind:this={el} class="avatar" class:online={online && presence} style="--s:{size}px; --hue:{hue}" title={label}>
   {#if user?.avatar_url}
-    <img src={mediaUrl(user.avatar_url, instance.origin)} alt="" />
+    <img src={mediaUrl(animated && !playing ? stillUrl(user.avatar_url) : user.avatar_url, instance.origin)} alt="" />
   {:else}
     <span class="initial" aria-hidden="true">{label.slice(0, 1).toUpperCase()}</span>
   {/if}

@@ -58,7 +58,7 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
         avatar
     );
     for (path, limit) in [
-        ("/users/me/avatar", 4 * 1024 * 1024),
+        ("/users/me/avatar", 8 * 1024 * 1024),
         ("/users/me/banner", 8 * 1024 * 1024),
     ] {
         assert_eq!(
@@ -130,7 +130,7 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
         for color in [[255, 0, 0, 255], [0, 255, 0, 255]] {
             encoder
                 .encode_frame(image::Frame::from_parts(
-                    image::RgbaImage::from_pixel(2, 2, image::Rgba(color)),
+                    image::RgbaImage::from_pixel(4, 2, image::Rgba(color)),
                     0,
                     0,
                     image::Delay::from_numer_denom_ms(100, 1),
@@ -148,6 +148,7 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
     assert_eq!(put.status(), 200);
     let gif_url = put.json::<User>().await.unwrap().avatar_url.unwrap();
     assert_ne!(gif_url, url);
+    assert!(gif_url.contains("?v=a_"));
     let fetched = t
         .req(Method::GET, &gif_url, &bob.token)
         .send()
@@ -166,13 +167,63 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
             .len(),
         2
     );
-    assert!(!t
+    let still_path = t
         .state
         .uploads
         .join("profiles")
         .join(&t.admin.user.id)
-        .join("avatar.png")
-        .exists());
+        .join("avatar.png");
+    assert!(still_path.exists());
+    let fetched = t
+        .req(Method::GET, &format!("{gif_url}&still=1"), &bob.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(fetched.status(), 200);
+    assert_eq!(fetched.headers()["content-type"], "image/png");
+    let still_etag = fetched.headers()["etag"].clone();
+    let still_bytes = fetched.bytes().await.unwrap();
+    let decoded = image::load_from_memory(&still_bytes).unwrap().to_rgba8();
+    assert_eq!(decoded.dimensions(), (256, 256));
+    assert_eq!(decoded.get_pixel(128, 128).0, [255, 0, 0, 255]);
+    use sha2::Digest;
+    assert_eq!(
+        still_etag.to_str().unwrap(),
+        format!("\"{:x}\"", sha2::Sha256::digest(&still_bytes))
+    );
+    std::fs::remove_file(&still_path).unwrap();
+    let regenerated = t
+        .req(Method::GET, &format!("{gif_url}&still"), &bob.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(regenerated.status(), 200);
+    assert_eq!(regenerated.bytes().await.unwrap(), still_bytes);
+    assert_eq!(std::fs::read(&still_path).unwrap(), still_bytes);
+    assert_eq!(
+        t.req(Method::GET, &format!("{gif_url}&still=1"), &bob.token)
+            .header("If-None-Match", still_etag)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        304
+    );
+    // Old uploads have the same original, but no animation marker in the URL.
+    sqlx::query("UPDATE users SET avatar_url=? WHERE id=?")
+        .bind(gif_url.replace("?v=a_", "?v="))
+        .bind(&t.admin.user.id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    t.state.migrate_profile_images().await.unwrap();
+    t.state.migrate_profile_images().await.unwrap();
+    let migrated: String = sqlx::query_scalar("SELECT avatar_url FROM users WHERE id=?")
+        .bind(&t.admin.user.id)
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!(migrated, gif_url);
     let bot = t
         .post(
             "/bots",
@@ -262,6 +313,7 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
     );
     let root = restored.join("uploads/profiles").join(&t.admin.user.id);
     assert_eq!(std::fs::read(root.join("avatar")).unwrap(), gif);
+    assert_eq!(std::fs::read(root.join("avatar.png")).unwrap(), still_bytes);
     assert_eq!(std::fs::read(root.join("banner")).unwrap(), banner);
     assert_eq!(
         std::fs::read(root.join("banner.png")).unwrap(),
@@ -306,6 +358,26 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
         .unwrap();
     assert_eq!(fetched.status(), 200);
     assert_eq!(fetched.bytes().await.unwrap(), gif);
+    let restored_user: User = t
+        .http
+        .get(format!("{origin}/users/me"))
+        .bearer_auth(&t.admin.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(restored_user.avatar_url.as_deref(), Some(gif_url.as_str()));
+    let restored_still = t
+        .http
+        .get(format!("{origin}{gif_url}&still=1"))
+        .bearer_auth(&bob.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(restored_still.status(), 200);
+    assert_eq!(restored_still.bytes().await.unwrap(), still_bytes);
     for (kind, url) in [("avatar", gif_url), ("banner", banner_url)] {
         let response = t
             .http

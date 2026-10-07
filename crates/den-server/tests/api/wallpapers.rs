@@ -143,6 +143,13 @@ async fn the_library_keeps_the_newest_24() {
     let t = Test::new().await;
     let alice = t.member("lib_many").await;
     let kept = upload(&t, &alice.token, png(12, 0)).await;
+    let still_path = t
+        .state
+        .uploads
+        .join("backgrounds")
+        .join(&alice.user.id)
+        .join(format!("{}.still.jpg", kept.id));
+    std::fs::write(&still_path, b"cached still").unwrap();
     let mut value = json!(Appearance::default());
     value["background"] = json!({"source":{"type":"upload","id":kept.id},"blur":0,"dim":0,"saturate":100,"scope":"app","fit":"cover"});
     t.req(Method::PUT, "/users/me/appearance", &alice.token)
@@ -169,6 +176,7 @@ async fn the_library_keeps_the_newest_24() {
         listed.iter().all(|i| i.id != kept.id),
         "unselected old uploads age out"
     );
+    assert!(!still_path.exists());
 }
 
 #[tokio::test]
@@ -283,4 +291,92 @@ async fn the_sidebar_keeps_its_own_wallpaper_through_older_clients() {
         .await
         .sidebar_background
         .is_none());
+}
+
+#[tokio::test]
+async fn gif_wallpaper_stills_are_cached_and_removed() {
+    let t = Test::new().await;
+    let mut gif = Vec::new();
+    {
+        let mut encoder = image::codecs::gif::GifEncoder::new(&mut gif);
+        for color in [[255, 0, 0, 255], [0, 255, 0, 255]] {
+            encoder
+                .encode_frame(image::Frame::new(image::RgbaImage::from_pixel(
+                    4,
+                    2,
+                    image::Rgba(color),
+                )))
+                .unwrap();
+        }
+    }
+    let uploaded = t
+        .req(Method::PUT, "/users/me/background/image", &t.admin.token)
+        .header("Content-Type", "image/gif")
+        .body(gif.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(uploaded.status(), 200);
+    let uploaded: BackgroundImage = uploaded.json().await.unwrap();
+    let path = format!("/users/me/backgrounds/{}", uploaded.id);
+    let still_path = t
+        .state
+        .uploads
+        .join("backgrounds")
+        .join(&t.admin.user.id)
+        .join(format!("{}.still.jpg", uploaded.id));
+    assert!(!still_path.exists());
+    let original = t
+        .req(Method::GET, &path, &t.admin.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(original.status(), 200);
+    assert_eq!(original.bytes().await.unwrap(), gif);
+    let still = t
+        .req(Method::GET, &format!("{path}?still=1"), &t.admin.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(still.status(), 200);
+    assert_eq!(still.headers()["content-type"], "image/jpeg");
+    assert_eq!(still.headers()["cache-control"], "private, max-age=3600");
+    let etag = still.headers()["etag"].clone();
+    let bytes = still.bytes().await.unwrap();
+    let decoded = image::load_from_memory(&bytes).unwrap().to_rgb8();
+    assert_eq!(decoded.dimensions(), (4, 2));
+    let pixel = decoded.get_pixel(0, 0).0;
+    assert!(pixel[0] > 240 && pixel[1] < 10 && pixel[2] < 10);
+    assert_eq!(std::fs::read(&still_path).unwrap(), bytes);
+    assert_eq!(
+        t.req(Method::GET, &format!("{path}?still"), &t.admin.token)
+            .header("If-None-Match", etag)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        304
+    );
+    t.state.migrate_backgrounds().await.unwrap();
+    assert_eq!(library(&t, &t.admin.token).await.len(), 1);
+    let png_bytes = png(12, 80);
+    let static_image = upload(&t, &t.admin.token, png_bytes.clone()).await;
+    let fetched = t
+        .req(
+            Method::GET,
+            &format!("/users/me/backgrounds/{}?still=1", static_image.id),
+            &t.admin.token,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(fetched.status(), 200);
+    assert_eq!(fetched.bytes().await.unwrap(), png_bytes);
+    let deleted = t
+        .req(Method::DELETE, &path, &t.admin.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(deleted.status(), 204);
+    assert!(!still_path.exists());
 }

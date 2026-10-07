@@ -24,13 +24,13 @@
     void run(u.id, 'Saved.', async () => { await store.renameMember(u.id, { username: username.trim(), display_name: display.trim() }); editing = null })
   }
 
-  /** Avatars are square: a square GIF goes up as is, anything else is cropped to its centre. */
+  /** A GIF goes up as is so it keeps moving; anything else is cropped to its centre. */
   async function square(file: File): Promise<Blob> {
+    if (file.type === 'image/gif') return file
     const url = URL.createObjectURL(file)
     try {
       const img = await new Promise<HTMLImageElement>((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url })
       const w = img.naturalWidth, h = img.naturalHeight
-      if (w === h && file.type === 'image/gif') return file
       const side = Math.min(w, h), size = Math.min(side, 1024), canvas = document.createElement('canvas')
       canvas.width = canvas.height = size
       canvas.getContext('2d')!.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size)
@@ -54,7 +54,7 @@
 <ul class="people">
   {#each people as u (u.id)}
     {@const me = u.id === store.me?.id}
-    <li class:busy={busy === u.id}>
+    <li data-hover-animates class:busy={busy === u.id}>
       <Avatar userId={u.id} size={40} presence={false} />
       {#if editing === u.id}
         <form class="rename" onsubmit={(e) => rename(u, e)}>

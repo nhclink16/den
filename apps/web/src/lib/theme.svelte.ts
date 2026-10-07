@@ -40,6 +40,8 @@ class Themes {
   constructor() {
     this.apply()
     matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => { this.systemLight = e.matches; this.apply() })
+    // GIF wallpapers hold still while the system asks for less motion.
+    matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => this.apply())
   }
   receive(a: Appearance, force = false) {
     if (this.pending && !force) return

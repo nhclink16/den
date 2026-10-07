@@ -116,7 +116,7 @@
           {#if g.mention}<span class="at">mentions you</span>{/if}
         </button>
         {#each g.msgs.slice(-4) as m (m.id)}
-          <button class="line" onclick={() => open(g.s, g.c.id)}>
+          <button class="line" data-hover-animates onclick={() => open(g.s, g.c.id)}>
             <Avatar instance={g.s} userId={m.author_id} size={22} />
             <span class="who">{g.s.name(m.author_id)}</span>
             <span class="text">{@html render(m.content, g.s.users) || '<i>sent a file</i>'}</span>

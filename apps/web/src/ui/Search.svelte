@@ -61,7 +61,7 @@
       <div class="eyebrow count">{results.length}{results.length === 50 ? '+' : ''} results</div>
       {#each results as m (m.id)}
         {@const c = store.channel(m.channel_id)}
-        <button class="hit" onclick={() => open(m)}>
+        <button class="hit" data-hover-animates onclick={() => open(m)}>
           <div class="where faint mono">{c ? (c.kind === 'dm' ? store.title(c) : `#${c.name}`) : ''} · {dayLabel(m.created_at)} {shortTime(m.created_at)}</div>
           <div class="line">
             <Avatar userId={m.author_id} size={24} />
