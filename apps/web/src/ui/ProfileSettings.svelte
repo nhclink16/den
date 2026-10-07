@@ -77,8 +77,8 @@
   }
 
   // --- pictures ---------------------------------------------------------------
-  // The server wants a square avatar. A square GIF goes up untouched so it keeps
-  // its animation; anything else is framed here and sent as a PNG.
+  // A GIF goes up untouched so it keeps its animation; Den shows its centre when it
+  // isn't square. Anything else is framed here and sent as a square PNG.
   let crop = $state<{ url: string; w: number; h: number; zoom: number; x: number; y: number } | null>(null)
   const FRAME = 240
   let drag: { x: number; y: number; ox: number; oy: number } | null = null
@@ -91,12 +91,12 @@
   async function choose(kind: 'avatar' | 'banner', file: File | undefined) {
     if (!file) return
     error = ''; message = ''
-    const limit = kind === 'avatar' ? 4 : 8
+    const limit = 8
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) { error = 'Use a PNG, JPEG, WebP or GIF.'; return }
     const url = URL.createObjectURL(file)
     const img = await load(url).catch(() => null)
     if (!img) { URL.revokeObjectURL(url); error = 'That image could not be opened.'; return }
-    if (kind === 'banner' || (file.type === 'image/gif' && img.naturalWidth === img.naturalHeight)) {
+    if (kind === 'banner' || file.type === 'image/gif') {
       URL.revokeObjectURL(url)
       if (file.size > limit * 1024 * 1024) { error = `Pictures can be up to ${limit} MB.`; return }
       return upload(kind, file)
@@ -141,7 +141,7 @@
     <section>
       <h3>Pictures</h3>
       <div class="group">
-        <SettingRow label="Profile picture" hint="Square works best. You can frame it before it uploads.">
+        <SettingRow label="Profile picture" hint="Square works best. You can frame a photo before it uploads; a GIF keeps moving and shows its centre.">
           {#snippet control()}
             <label class="btn" class:busy={busyImage === 'avatar'}><Icon name="plus" size={14} />{busyImage === 'avatar' ? 'Uploading…' : 'Upload'}<input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={(e) => { void choose('avatar', e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
             {#if me.avatar_url}<button type="button" class="btn quiet danger" onclick={() => upload('avatar', null)} disabled={!!busyImage}>Remove</button>{/if}

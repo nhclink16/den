@@ -1,5 +1,9 @@
 use crate::{auth::Auth, *};
-use axum::{body::to_bytes, extract::Path, http::header};
+use axum::{
+    body::to_bytes,
+    extract::{Path, Query},
+    http::header,
+};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -17,8 +21,7 @@ impl Kind {
     }
     fn limit(self) -> usize {
         match self {
-            Self::Avatar => 4 * 1024 * 1024,
-            Self::Banner => 8 * 1024 * 1024,
+            Self::Avatar | Self::Banner => 8 * 1024 * 1024,
         }
     }
 }
@@ -74,6 +77,17 @@ async fn set_url(s: &AppState, user: &str, kind: Kind, url: Option<String>) -> R
     profiles::broadcast(s, &user);
     Ok(user)
 }
+fn derivative(decoded: image::DynamicImage, kind: Kind) -> Result<Vec<u8>> {
+    let resized = match kind {
+        Kind::Avatar => decoded.resize_to_fill(256, 256, image::imageops::FilterType::Triangle),
+        Kind::Banner => decoded.resize(1200, 8192, image::imageops::FilterType::Triangle),
+    };
+    let mut output = std::io::Cursor::new(Vec::new());
+    resized
+        .write_to(&mut output, image::ImageFormat::Png)
+        .map_err(|_| Error::bad("Cannot create profile image preview"))?;
+    Ok(output.into_inner())
+}
 async fn put(s: AppState, user: String, kind: Kind, req: Request) -> Result<Json<User>> {
     let content_type = req
         .headers()
@@ -117,28 +131,16 @@ async fn put(s: AppState, user: String, kind: Kind, req: Request) -> Result<Json
         ))
         .map_err(|_| Error::bad("Invalid image or image exceeds decoding limits"))?;
         if matches!(kind, Kind::Avatar)
-            && (decoded.width() != decoded.height() || decoded.width() > 4096)
+            && ((format != image::ImageFormat::Gif && decoded.width() != decoded.height())
+                || decoded.width() > 4096
+                || decoded.height() > 4096)
         {
             return Err(Error::bad(
-                "Avatar must be square and at most 4096 pixels on a side",
+                "Avatar must be at most 4096 pixels on a side, and square unless it is a GIF",
             ));
         }
         // Keep GIFs byte-for-byte, including every animation frame and its timing.
-        let derivative = if format == image::ImageFormat::Gif {
-            None
-        } else {
-            let resized = match kind {
-                Kind::Avatar => {
-                    decoded.resize_exact(256, 256, image::imageops::FilterType::Triangle)
-                }
-                Kind::Banner => decoded.resize(1200, 8192, image::imageops::FilterType::Triangle),
-            };
-            let mut output = std::io::Cursor::new(Vec::new());
-            resized
-                .write_to(&mut output, image::ImageFormat::Png)
-                .map_err(|_| Error::bad("Cannot create profile image preview"))?;
-            Some(output.into_inner())
-        };
+        let derivative = derivative(decoded, kind)?;
         Ok((bytes, derivative))
     })
     .await
@@ -148,22 +150,21 @@ async fn put(s: AppState, user: String, kind: Kind, req: Request) -> Result<Json
     tokio::fs::create_dir_all(&root).await?;
     let original_path = root.join(kind.name());
     let derivative_path = original_path.with_extension("png");
-    if let Some(bytes) = &derivative {
-        atomic_write(&derivative_path, bytes).await?;
-    }
+    atomic_write(&derivative_path, &derivative).await?;
     atomic_write(&original_path, &original).await?;
-    if derivative.is_none() {
-        match tokio::fs::remove_file(&derivative_path).await {
-            Ok(()) => (),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.into()),
-        }
-    }
-    let id = hash(derivative.as_deref().unwrap_or(&original));
+    let gif = image::guess_format(&original).ok() == Some(image::ImageFormat::Gif);
+    let id = if gif {
+        format!("a_{}", hash(&original))
+    } else {
+        hash(&derivative)
+    };
     let url = format!("/users/{user}/{}?v={id}", kind.name());
     Ok(Json(set_url(&s, &user, kind, Some(url)).await?))
 }
 async fn get(s: AppState, user: String, kind: Kind, req: Request) -> Result<Response> {
+    let still = Query::<HashMap<String, String>>::try_from_uri(req.uri())
+        .map_err(|_| Error::bad("Invalid image query"))?
+        .contains_key("still");
     let _guard = s.writes.lock().await;
     let record = auth::user(&s, &user).await?;
     if match kind {
@@ -181,10 +182,31 @@ async fn get(s: AppState, user: String, kind: Kind, req: Request) -> Result<Resp
         .join(kind.name());
     let bytes = read(&original, kind.limit()).await?;
     let gif = image::guess_format(&bytes).ok() == Some(image::ImageFormat::Gif);
-    let bytes = if gif {
+    let bytes = if gif && !still {
         bytes
     } else {
-        read(&original.with_extension("png"), 64 * 1024 * 1024).await?
+        let path = original.with_extension("png");
+        if gif && !tokio::fs::try_exists(&path).await? {
+            let permit = s
+                .thumbnails
+                .clone()
+                .acquire_owned()
+                .await
+                .map_err(|_| Error::conflict("Image worker unavailable"))?;
+            let output = tokio::task::spawn_blocking(move || -> Result<_> {
+                let _permit = permit;
+                let decoded = thumbnails::decode(image::ImageReader::with_format(
+                    std::io::Cursor::new(bytes),
+                    image::ImageFormat::Gif,
+                ))
+                .map_err(|_| Error::bad("Invalid image or image exceeds decoding limits"))?;
+                derivative(decoded, kind)
+            })
+            .await
+            .map_err(|_| Error::conflict("Image processing interrupted"))??;
+            atomic_write(&path, &output).await?;
+        }
+        read(&path, 64 * 1024 * 1024).await?
     };
     let etag = format!("\"{}\"", hash(&bytes));
     let unchanged = req
@@ -204,7 +226,13 @@ async fn get(s: AppState, user: String, kind: Kind, req: Request) -> Result<Resp
     let headers = response.headers_mut();
     headers.insert(
         header::CONTENT_TYPE,
-        if gif { "image/gif" } else { "image/png" }.parse().unwrap(),
+        if gif && !still {
+            "image/gif"
+        } else {
+            "image/png"
+        }
+        .parse()
+        .unwrap(),
     );
     headers.insert(header::ETAG, etag.parse().unwrap());
     headers.insert(
@@ -297,7 +325,7 @@ pub(crate) async fn delete_user_banner(
     let id = editable(&s, &a, &id).await?;
     remove(s, id, Kind::Banner).await
 }
-#[utoipa::path(get,path="/users/{id}/avatar",params(("id"=String,Path)),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
+#[utoipa::path(get,path="/users/{id}/avatar",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
 pub(crate) async fn get_avatar(
     State(s): State<AppState>,
     _a: Auth,
@@ -306,7 +334,7 @@ pub(crate) async fn get_avatar(
 ) -> Result<Response> {
     get(s, id, Kind::Avatar, req).await
 }
-#[utoipa::path(get,path="/users/{id}/banner",params(("id"=String,Path)),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
+#[utoipa::path(get,path="/users/{id}/banner",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
 pub(crate) async fn get_banner(
     State(s): State<AppState>,
     _a: Auth,
@@ -322,4 +350,40 @@ pub(crate) async fn delete_avatar(State(s): State<AppState>, a: Auth) -> Result<
 #[utoipa::path(delete,path="/users/me/banner",responses((status=200,body=User)))]
 pub(crate) async fn delete_banner(State(s): State<AppState>, a: Auth) -> Result<Json<User>> {
     remove(s, a.user.id, Kind::Banner).await
+}
+
+impl AppState {
+    #[doc(hidden)]
+    pub async fn migrate_profile_images(&self) -> anyhow::Result<()> {
+        let rows: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT id, avatar_url, banner_url FROM users WHERE instr(avatar_url, '?v=a_')=0 OR instr(banner_url, '?v=a_')=0",
+        )
+        .fetch_all(&self.db)
+        .await?;
+        for (user, avatar, banner) in rows {
+            for (kind, url) in [(Kind::Avatar, avatar), (Kind::Banner, banner)] {
+                let Some(_) = url.filter(|url| !url.contains("?v=a_")) else {
+                    continue;
+                };
+                let path = self.uploads.join("profiles").join(&user).join(kind.name());
+                let file = match tokio::fs::File::open(&path).await {
+                    Ok(file) => file,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(e) => return Err(e.into()),
+                };
+                let mut signature = Vec::new();
+                file.take(6).read_to_end(&mut signature).await?;
+                if image::guess_format(&signature).ok() == Some(image::ImageFormat::Gif) {
+                    let bytes = read(&path, kind.limit())
+                        .await
+                        .map_err(|e| anyhow::anyhow!(e.2))?;
+                    let url = format!("/users/{user}/{}?v=a_{}", kind.name(), hash(&bytes));
+                    set_url(self, &user, kind, Some(url))
+                        .await
+                        .map_err(|e| anyhow::anyhow!(e.2))?;
+                }
+            }
+        }
+        Ok(())
+    }
 }

@@ -169,7 +169,7 @@ function paint(prefix: 'bg' | 'sb', b: AppearanceBackground | null | undefined, 
   }, {} as Record<string, string>) as unknown as ThemeColors)
   const image = b.source.type === 'builtin'
     ? wallpaperImage(b.source.name, c)
-    : `url("${uploadedBackgroundUrl(b.source.id)}")`
+    : `url("${uploadedBackgroundUrl(b.source.id, false, matchMedia('(prefers-reduced-motion: reduce)').matches)}")`
   if (image === 'none') { s.removeProperty(`--${prefix}-image`); return false }
   s.setProperty(`--${prefix}-image`, image)
   s.setProperty(`--${prefix}-blur`, `${Math.max(0, Math.min(40, b.blur))}px`)
@@ -182,6 +182,6 @@ function paint(prefix: 'bg' | 'sb', b: AppearanceBackground | null | undefined, 
   return true
 }
 
-/** Cache-busted so a replaced image shows immediately. */
-/** A library image by content ID. The ID changes with the bytes, so it caches safely. */
-export function uploadedBackgroundUrl(id: string, preview = false) { return mediaUrl(`/users/me/backgrounds/${id}${preview ? '/preview' : ''}`) }
+/** A library image by content ID. The ID changes with the bytes, so it caches safely.
+ *  `still` asks for a GIF's first frame (any other picture comes back as it is). */
+export function uploadedBackgroundUrl(id: string, preview = false, still = false) { return mediaUrl(`/users/me/backgrounds/${id}${preview ? '/preview' : ''}${still ? '?still=1' : ''}`) }

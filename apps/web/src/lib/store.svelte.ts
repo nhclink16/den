@@ -186,7 +186,7 @@ export class Store {
   async saveProfile(patch: import('./types').ProfilePatch) {
     this.receiveUser(await this.api.patch<User>('/users/me/profile', patch))
   }
-  /** Avatars must be square; callers crop first. The server keeps the original.
+  /** Avatars must be square unless they are GIFs; callers crop the rest first. The server keeps the original.
    *  Admins may pass someone else's id. */
   async setProfileImage(kind: 'avatar' | 'banner', image: Blob | null, userId = 'me') {
     const u = image

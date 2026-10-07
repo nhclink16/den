@@ -6,6 +6,7 @@
   import { mediaUrl } from '../lib/native'
   import { liveStatus } from '../lib/status'
   import { personHue } from '../lib/people.svelte'
+  import { isAnimated, reducedMotion, stillUrl } from '../lib/motion.svelte'
   import type { User } from '../lib/types'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
@@ -28,14 +29,17 @@
   const me = $derived(userId === instance.me?.id)
   const doing = $derived(shownActivities(instance.activities.get(userId)))
   // The half-minute `now` above also moves "for 12m" while the card is open.
+  // A GIF banner plays on the card, unless the system asks for less motion: then only on hover.
+  let hovered = $state(false)
+  const banner = $derived(user?.banner_url && isAnimated(user.banner_url) && reducedMotion.current && !hovered ? stillUrl(user.banner_url) : user?.banner_url)
 </script>
 
 {#if user}
-  <article class="card" style="--hue:{hue}" aria-label={`${name}'s profile`}>
+  <article class="card" style="--hue:{hue}" aria-label={`${name}'s profile`} data-hover-animates onpointerenter={() => (hovered = true)} onpointerleave={() => (hovered = false)}>
     <div class="banner" class:image={!!user.banner_url}>
-      {#if user.banner_url}<img src={mediaUrl(user.banner_url, instance.origin)} alt="" />{/if}
+      {#if banner}<img src={mediaUrl(banner, instance.origin)} alt="" />{/if}
     </div>
-    <div class="face"><Avatar {userId} {instance} size={76} /></div>
+    <div class="face"><Avatar {userId} {instance} size={76} animate /></div>
 
     <div class="body">
       <h2 class="display">{name}</h2>

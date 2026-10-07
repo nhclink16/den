@@ -5,7 +5,7 @@
 use crate::{auth::Auth, *};
 use axum::{
     body::to_bytes,
-    extract::Path,
+    extract::{Path, Query},
     http::{header, HeaderMap},
 };
 use sha2::{Digest, Sha256};
@@ -191,7 +191,11 @@ pub(crate) async fn resolve(s: &AppState, user: &str, value: &mut Appearance) ->
 
 async fn remove_image(s: &AppState, user: &str, id: &str) -> Result<()> {
     let dir = folder(s, user);
-    for name in [id.to_string(), format!("{id}.jpg")] {
+    for name in [
+        id.to_string(),
+        format!("{id}.jpg"),
+        format!("{id}.still.jpg"),
+    ] {
         match tokio::fs::remove_file(dir.join(name)).await {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -365,17 +369,63 @@ pub(crate) async fn list(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<
     Ok(Json(library(&s, &a.user.id).await?))
 }
 
-#[utoipa::path(get,path="/users/me/backgrounds/{id}",params(("id"=String,Path)),responses((status=200,description="The original image"),(status=404,body=ApiError)))]
+#[utoipa::path(get,path="/users/me/backgrounds/{id}",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve a GIF first frame as full-size JPEG")),responses((status=200,description="The original image"),(status=404,body=ApiError)))]
 pub(crate) async fn image(
     State(s): State<AppState>,
     a: Auth,
     Path(id): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response> {
     if !is_id(&id) {
         return Err(Error::missing());
     }
-    serve(folder(&s, &a.user.id).join(id), &headers).await
+    let path = folder(&s, &a.user.id).join(&id);
+    if query.contains_key("still") {
+        let _guard = s.writes.lock().await;
+        let bytes = tokio::fs::read(&path).await.map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                Error::missing()
+            } else {
+                e.into()
+            }
+        })?;
+        if image::guess_format(&bytes).ok() == Some(image::ImageFormat::Gif) {
+            let still = path.with_extension("still.jpg");
+            if !tokio::fs::try_exists(&still).await? {
+                let permit = s
+                    .thumbnails
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| Error::conflict("Image worker unavailable"))?;
+                let output = tokio::task::spawn_blocking(move || -> Result<_> {
+                    let _permit = permit;
+                    let decoded = thumbnails::decode_within(
+                        image::ImageReader::with_format(
+                            std::io::Cursor::new(bytes),
+                            image::ImageFormat::Gif,
+                        ),
+                        BOUNDS,
+                    )
+                    .map_err(|_| Error::bad("Invalid image or image exceeds decoding limits"))?;
+                    let mut output = Vec::new();
+                    image::DynamicImage::ImageRgb8(decoded.to_rgb8())
+                        .write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(
+                            &mut output,
+                            85,
+                        ))
+                        .map_err(|_| Error::conflict("Could not make a still image"))?;
+                    Ok(output)
+                })
+                .await
+                .map_err(|_| Error::conflict("Image processing interrupted"))??;
+                write_atomic(&still, &output).await?;
+            }
+            return serve(still, &headers).await;
+        }
+    }
+    serve(path, &headers).await
 }
 
 #[utoipa::path(get,path="/users/me/backgrounds/{id}/preview",params(("id"=String,Path)),responses((status=200,description="A small JPEG for the gallery"),(status=404,body=ApiError)))]

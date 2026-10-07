@@ -52,7 +52,9 @@ async function media(store, req) {
   try {
     const u = new URL(req.url)
     if (!mediaPath(u.pathname) || !['GET', 'HEAD'].includes(req.method)) return new Response(null, { status: 400 })
-    const r = await request(store, u.searchParams.get('origin'), req.method, u.pathname, null, Object.fromEntries(req.headers))
+    // `still` asks for a GIF's first frame; every other query part stays behind.
+    const route = u.pathname + (u.searchParams.has('still') ? '?still=1' : '')
+    const r = await request(store, u.searchParams.get('origin'), req.method, route, null, Object.fromEntries(req.headers))
     const headers = { 'access-control-allow-origin': 'den://app', 'cache-control': 'no-store' }
     for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'content-disposition']) if (r.headers.has(key)) headers[key] = r.headers.get(key)
     return new Response(r.body, { status: r.status, headers })

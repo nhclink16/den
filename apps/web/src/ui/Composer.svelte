@@ -266,7 +266,7 @@
   {#if people.length}
     <div class="commands people" role="listbox" id="mention-people" aria-label="People">
       {#each people as u, i}
-        <button id={`mention-${i}`} role="option" aria-selected={i === selected % people.length} class:chosen={i === selected % people.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickPerson(u)}>
+        <button id={`mention-${i}`} data-hover-animates role="option" aria-selected={i === selected % people.length} class:chosen={i === selected % people.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickPerson(u)}>
           <Avatar userId={u.id} size={22} />
           <b>{u.display_name || u.username}</b>
           <span class="handle">@{u.username}</span>

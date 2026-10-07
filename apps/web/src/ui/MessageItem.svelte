@@ -61,7 +61,7 @@
   }
 </script>
 
-<article class="msg" class:compact class:me={mentionsMe} class:fresh class:replying={!!parent} id="{prefix}-{m.id}">
+<article class="msg" data-hover-animates class:compact class:me={mentionsMe} class:fresh class:replying={!!parent} id="{prefix}-{m.id}">
   {#if parent}
     <!-- The quoted message may be outside the loaded page, or in another
          conversation entirely; the shared resolver finds it either way. -->
