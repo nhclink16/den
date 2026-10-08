@@ -174,12 +174,13 @@ async fn put_link(
     let root = s.uploads.join("profiles").join(&user);
     tokio::fs::create_dir_all(&root).await?;
     let original_path = root.join(kind.name());
+    // Link first: if saving fails, the old picture and its preview still match.
+    atomic_write(&original_path, &link).await?;
     match tokio::fs::remove_file(original_path.with_extension("png")).await {
         Ok(()) => (),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
-    atomic_write(&original_path, &link).await?;
     let url = format!("/users/{user}/{}?v=a_{}", kind.name(), hash(&link));
     Ok(Json(set_url(&s, &user, kind, Some(url)).await?))
 }
