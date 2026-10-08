@@ -5,6 +5,7 @@
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
   import { render } from '../lib/markdown'
+  import { klipyGif } from '../lib/klipy'
   import { dayLabel, shortTime } from '../lib/time'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
@@ -66,7 +67,7 @@
           <div class="line">
             <Avatar userId={m.author_id} size={24} />
             <span class="who">{store.name(m.author_id)}</span>
-            <span class="text">{@html render(m.content, store.users) || '<i>sent a file</i>'}</span>
+            <span class="text">{@html klipyGif(m.content) ? '<i>sent a GIF</i>' : render(m.content, store.users) || '<i>sent a file</i>'}</span>
           </div>
         </button>
       {/each}

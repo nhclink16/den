@@ -30,7 +30,7 @@ function storage(directory, safeStorage) {
     remember(origins) { if (!Array.isArray(origins) || origins.length > 100) throw Error('Invalid server list'); state.origins = [...new Set(origins.map(origin))]; save() },
   }
 }
-async function request(store, server, method, route, body, headers = {}) {
+async function request(store, server, method, route, body, headers = {}, redirect = 'error') {
   const url = requestUrl(server, route), outgoing = {}
   if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw Error('Invalid method')
   for (const [key, value] of Object.entries(headers)) if (['content-type', 'range', 'upload-offset', 'if-range'].includes(key.toLowerCase())) outgoing[key.toLowerCase()] = value
@@ -38,7 +38,7 @@ async function request(store, server, method, route, body, headers = {}) {
     const token = store.get(server)
     if (token) outgoing.authorization = `Bearer ${token}`
   }
-  try { return await fetch(url, { method, headers: outgoing, body: body == null ? undefined : Buffer.from(body), redirect: 'error', signal: AbortSignal.timeout(60000) }) }
+  try { return await fetch(url, { method, headers: outgoing, body: body == null ? undefined : Buffer.from(body), redirect, signal: AbortSignal.timeout(60000) }) }
   catch { throw Error('Cannot reach this server') }
 }
 async function apiRequest(store, args) {
@@ -54,7 +54,14 @@ async function media(store, req) {
     if (!mediaPath(u.pathname) || !['GET', 'HEAD'].includes(req.method)) return new Response(null, { status: 400 })
     // `still` asks for a GIF's first frame; every other query part stays behind.
     const route = u.pathname + (u.searchParams.has('still') ? '?still=1' : '')
-    const r = await request(store, u.searchParams.get('origin'), req.method, route, null, Object.fromEntries(req.headers))
+    let r = await request(store, u.searchParams.get('origin'), req.method, route, null, Object.fromEntries(req.headers), 'manual')
+    // A GIF picked from KLIPY: Den points at KLIPY's copy, and this device loads
+    // it from there directly, without its Den session. Nowhere else.
+    if (r.status >= 300 && r.status < 400) {
+      const location = r.headers.get('location') ?? ''
+      if (!/^https:\/\/static[12]?\.klipy\.com\//.test(location)) return new Response(null, { status: 502 })
+      r = await fetch(location, { method: req.method, redirect: 'error', signal: AbortSignal.timeout(60000) })
+    }
     const headers = { 'access-control-allow-origin': 'den://app', 'cache-control': 'no-store' }
     for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'content-disposition']) if (r.headers.has(key)) headers[key] = r.headers.get(key)
     return new Response(r.body, { status: r.status, headers })

@@ -12,6 +12,8 @@
   import { router } from '../lib/router.svelte'
   import { activityShare } from '../lib/activity-share.svelte'
   import { activityVerb } from '../lib/activity'
+  import GifPicker from './GifPicker.svelte'
+  import { picture, type Gif } from '../lib/klipy'
 
   const me = $derived(store.me!)
   let displayName = $state(''), bio = $state(''), accent = $state<string | null>(null)
@@ -125,6 +127,13 @@
     if (blob) await upload('avatar', blob)
   }
   function cancelCrop() { if (crop) URL.revokeObjectURL(crop.url); crop = null }
+  async function useGif(kind: 'avatar' | 'banner', g: Gif) {
+    const chosen = picture(g, kind === 'avatar' ? 'md' : 'hd')
+    if (!chosen) throw Error('That GIF has no still frame to show when it rests. Pick another.')
+    error = ''
+    await store.setProfileGif(kind, chosen)
+    message = kind === 'avatar' ? 'Picture updated.' : 'Banner updated.'
+  }
   async function upload(kind: 'avatar' | 'banner', image: Blob | null) {
     busyImage = kind; error = ''
     try { await store.setProfileImage(kind, image); message = image ? (kind === 'avatar' ? 'Picture updated.' : 'Banner updated.') : (kind === 'avatar' ? 'Picture removed.' : 'Banner removed.') }
@@ -141,9 +150,10 @@
     <section>
       <h3>Pictures</h3>
       <div class="group">
-        <SettingRow label="Profile picture" hint="Square works best. You can frame a photo before it uploads; a GIF keeps moving and shows its centre.">
+        <SettingRow label="Profile picture" hint="Square works best. You can frame a photo before it uploads. A GIF keeps moving and shows its centre.">
           {#snippet control()}
             <label class="btn" class:busy={busyImage === 'avatar'}><Icon name="plus" size={14} />{busyImage === 'avatar' ? 'Uploading…' : 'Upload'}<input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={(e) => { void choose('avatar', e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
+            <GifPicker label="Choose a GIF for your picture" onpick={(g) => useGif('avatar', g)} disabled={!!busyImage}><span class="btn">GIF</span></GifPicker>
             {#if me.avatar_url}<button type="button" class="btn quiet danger" onclick={() => upload('avatar', null)} disabled={!!busyImage}>Remove</button>{/if}
           {/snippet}
         </SettingRow>
@@ -170,6 +180,7 @@
         <SettingRow label="Banner" hint="The strip across the top of your card. Wide pictures work best.">
           {#snippet control()}
             <label class="btn" class:busy={busyImage === 'banner'}><Icon name="plus" size={14} />{busyImage === 'banner' ? 'Uploading…' : 'Upload'}<input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={(e) => { void choose('banner', e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
+            <GifPicker label="Choose a GIF for your banner" onpick={(g) => useGif('banner', g)} disabled={!!busyImage}><span class="btn">GIF</span></GifPicker>
             {#if me.banner_url}<button type="button" class="btn quiet danger" onclick={() => upload('banner', null)} disabled={!!busyImage}>Remove</button>{/if}
           {/snippet}
         </SettingRow>

@@ -5,6 +5,7 @@ import { native, invoke, listen } from './native'
 import type { DesktopEvent } from './desktop'
 import { router } from './router.svelte'
 import type { Event } from './types'
+import { snippet } from './klipy'
 
 class Desktop {
   platform = $state('')
@@ -37,7 +38,7 @@ class Desktop {
       if (!s || !c || lookingAt(s, c.id, a.message.thread_id)) return
       const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in #${c.name}`}`
       void invoke('notify', {
-        title, body: a.message.content.slice(0, 140) || 'Sent a file',
+        title, body: snippet(a.message.content).slice(0, 140) || 'Sent a file',
         origin, channel: c.id, message: a.message.id,
       }).catch(() => {})
     }

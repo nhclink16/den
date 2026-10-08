@@ -161,6 +161,28 @@ async fn put(s: AppState, user: String, kind: Kind, req: Request) -> Result<Json
     let url = format!("/users/{user}/{}?v={id}", kind.name());
     Ok(Json(set_url(&s, &user, kind, Some(url)).await?))
 }
+/// A GIF picked from KLIPY. The file holds its links in place of an image.
+async fn put_link(
+    s: AppState,
+    user: String,
+    kind: Kind,
+    picture: KlipyPicture,
+) -> Result<Json<User>> {
+    klipy::check(&picture)?;
+    let link = klipy::save(&picture);
+    let _guard = s.writes.lock().await;
+    let root = s.uploads.join("profiles").join(&user);
+    tokio::fs::create_dir_all(&root).await?;
+    let original_path = root.join(kind.name());
+    match tokio::fs::remove_file(original_path.with_extension("png")).await {
+        Ok(()) => (),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+        Err(e) => return Err(e.into()),
+    }
+    atomic_write(&original_path, &link).await?;
+    let url = format!("/users/{user}/{}?v=a_{}", kind.name(), hash(&link));
+    Ok(Json(set_url(&s, &user, kind, Some(url)).await?))
+}
 async fn get(s: AppState, user: String, kind: Kind, req: Request) -> Result<Response> {
     let still = Query::<HashMap<String, String>>::try_from_uri(req.uri())
         .map_err(|_| Error::bad("Invalid image query"))?
@@ -181,6 +203,14 @@ async fn get(s: AppState, user: String, kind: Kind, req: Request) -> Result<Resp
         .join(&record.id)
         .join(kind.name());
     let bytes = read(&original, kind.limit()).await?;
+    if let Some(picture) = klipy::load(&bytes) {
+        let url = if still {
+            &picture.still_url
+        } else {
+            &picture.url
+        };
+        return Ok(klipy::redirect(url, 86400));
+    }
     let gif = image::guess_format(&bytes).ok() == Some(image::ImageFormat::Gif);
     let bytes = if gif && !still {
         bytes
@@ -272,6 +302,22 @@ pub(crate) async fn put_banner(
 ) -> Result<Json<User>> {
     put(s, a.user.id, Kind::Banner, req).await
 }
+#[utoipa::path(put,path="/users/me/avatar/klipy",request_body=KlipyPicture,responses((status=200,body=User),(status=400,body=ApiError)))]
+pub(crate) async fn put_avatar_link(
+    State(s): State<AppState>,
+    a: Auth,
+    ApiJson(picture): ApiJson<KlipyPicture>,
+) -> Result<Json<User>> {
+    put_link(s, a.user.id, Kind::Avatar, picture).await
+}
+#[utoipa::path(put,path="/users/me/banner/klipy",request_body=KlipyPicture,responses((status=200,body=User),(status=400,body=ApiError)))]
+pub(crate) async fn put_banner_link(
+    State(s): State<AppState>,
+    a: Auth,
+    ApiJson(picture): ApiJson<KlipyPicture>,
+) -> Result<Json<User>> {
+    put_link(s, a.user.id, Kind::Banner, picture).await
+}
 /// Someone else's pictures: an admin tidying profiles, or the owner of an agent.
 async fn editable(s: &AppState, a: &Auth, id: &str) -> Result<String> {
     let owner: Option<Option<String>> = sqlx::query_scalar("SELECT owner_id FROM users WHERE id=?")
@@ -325,7 +371,7 @@ pub(crate) async fn delete_user_banner(
     let id = editable(&s, &a, &id).await?;
     remove(s, id, Kind::Banner).await
 }
-#[utoipa::path(get,path="/users/{id}/avatar",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
+#[utoipa::path(get,path="/users/{id}/avatar",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=302,description="A GIF picked from KLIPY: redirects to it, or to its still frame"),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
 pub(crate) async fn get_avatar(
     State(s): State<AppState>,
     _a: Auth,
@@ -334,7 +380,7 @@ pub(crate) async fn get_avatar(
 ) -> Result<Response> {
     get(s, id, Kind::Avatar, req).await
 }
-#[utoipa::path(get,path="/users/{id}/banner",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
+#[utoipa::path(get,path="/users/{id}/banner",params(("id"=String,Path),("still"=Option<String>,Query,description="When present, serve the first frame as PNG")),responses((status=200,description="PNG derivative or original GIF; strong ETag and private, max-age=86400",content((Vec<u8>="image/png"),(Vec<u8>="image/gif"))),(status=302,description="A GIF picked from KLIPY: redirects to it, or to its still frame"),(status=304,description="Matching ETag"),(status=404,body=ApiError)))]
 pub(crate) async fn get_banner(
     State(s): State<AppState>,
     _a: Auth,

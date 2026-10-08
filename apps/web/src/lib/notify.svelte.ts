@@ -6,6 +6,7 @@ import type { Event } from './types'
 import type { Store } from './store.svelte'
 import { instances } from './store.svelte'
 import { router } from './router.svelte'
+import { snippet } from './klipy'
 
 /// What the chat view is actually showing, published by ChannelView because only
 /// it knows whether the room is beside the panel or behind it. A room with a
@@ -45,7 +46,7 @@ function fire(source: Store, authorId: string, where: string, body: string, chan
   // The closure captures THIS account and THIS message. Reading the active proxy
   // when the click finally happens would open whichever server is selected then.
   const n = new Notification(`${source.settings.instance_name}: ${source.name(authorId)}${where}`,
-    { body: body.slice(0, 140) || 'sent a file', tag: channelId, silent: true })
+    { body: snippet(body).slice(0, 140) || 'sent a file', tag: channelId, silent: true })
   n.onclick = () => {
     window.focus()
     void goToMessage(source, channelId, messageId)

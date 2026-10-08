@@ -2,6 +2,8 @@
 // picture used last month is still one click away. Files live at
 // `uploads/backgrounds/<user>/<sha256>` with a JPEG preview beside each; the
 // content hash is the ID, so uploading the same picture twice stores it once.
+// A GIF picked from KLIPY is a file holding its links instead of an image, and
+// its URLs redirect to KLIPY.
 use crate::{auth::Auth, *};
 use axum::{
     body::to_bytes,
@@ -97,10 +99,40 @@ fn process(bytes: &[u8], format: image::ImageFormat) -> Result<(u32, u32, Vec<u8
     Ok((decoded.width(), decoded.height(), preview))
 }
 
+/// The links of a GIF picked from KLIPY, when this library file holds one.
+async fn link(path: &FsPath) -> Option<KlipyPicture> {
+    if tokio::fs::metadata(path).await.ok()?.len() > 4096 {
+        return None;
+    }
+    klipy::load(&tokio::fs::read(path).await.ok()?)
+}
 /// An image and its exact modification time, which orders the library: whole
 /// seconds would tie uploads made together and let pruning drop the newer one.
 async fn describe(path: &FsPath, id: &str) -> Option<(Duration, BackgroundImage)> {
     let meta = tokio::fs::metadata(path).await.ok()?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .unwrap_or_default();
+    if let Some(picture) = link(path).await {
+        return Some((
+            modified,
+            BackgroundImage {
+                id: id.to_string(),
+                content_type: if picture.url.ends_with(".gif") {
+                    "image/gif"
+                } else {
+                    "image/webp"
+                }
+                .into(),
+                size: meta.len(),
+                width: picture.width,
+                height: picture.height,
+                uploaded_at: modified.as_secs() as i64,
+            },
+        ));
+    }
     let path = path.to_path_buf();
     let (format, (width, height)) = tokio::task::spawn_blocking(move || {
         let reader = image::ImageReader::open(&path)
@@ -112,11 +144,6 @@ async fn describe(path: &FsPath, id: &str) -> Option<(Duration, BackgroundImage)
     })
     .await
     .ok()??;
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .unwrap_or_default();
     Some((
         modified,
         BackgroundImage {
@@ -290,6 +317,9 @@ async fn serve(path: PathBuf, headers: &HeaderMap) -> Result<Response> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(Error::missing()),
         Err(e) => return Err(e.into()),
     };
+    if let Some(picture) = klipy::load(&bytes) {
+        return Ok(klipy::redirect(&picture.url, 3600));
+    }
     let format = image::guess_format(&bytes).map_err(|_| Error::missing())?;
     let etag = format!("\"{}\"", content_id(&bytes));
     let unchanged = headers
@@ -390,6 +420,9 @@ pub(crate) async fn image(
                 e.into()
             }
         })?;
+        if let Some(picture) = klipy::load(&bytes) {
+            return Ok(klipy::redirect(&picture.still_url, 3600));
+        }
         if image::guess_format(&bytes).ok() == Some(image::ImageFormat::Gif) {
             let still = path.with_extension("still.jpg");
             if !tokio::fs::try_exists(&still).await? {
@@ -438,7 +471,37 @@ pub(crate) async fn preview(
     if !is_id(&id) {
         return Err(Error::missing());
     }
-    serve(folder(&s, &a.user.id).join(format!("{id}.jpg")), &headers).await
+    let dir = folder(&s, &a.user.id);
+    if let Some(picture) = link(&dir.join(&id)).await {
+        return Ok(klipy::redirect(&picture.still_url, 3600));
+    }
+    serve(dir.join(format!("{id}.jpg")), &headers).await
+}
+#[utoipa::path(post,path="/users/me/backgrounds/klipy",request_body=KlipyPicture,responses((status=200,body=BackgroundImage),(status=400,body=ApiError)))]
+pub(crate) async fn put_link(
+    State(s): State<AppState>,
+    a: Auth,
+    ApiJson(picture): ApiJson<KlipyPicture>,
+) -> Result<Json<BackgroundImage>> {
+    klipy::check(&picture)?;
+    let bytes = klipy::save(&picture);
+    let id = content_id(&bytes);
+    let _guard = s.writes.lock().await;
+    let dir = folder(&s, &a.user.id);
+    tokio::fs::create_dir_all(&dir).await?;
+    write_atomic(&dir.join(&id), &bytes).await?;
+    let keep = in_use(&appearance::load(&s, &a.user.id).await?);
+    let mut images = library(&s, &a.user.id).await?;
+    for old in images.split_off(LIBRARY.min(images.len())) {
+        if !keep.contains(&old.id) && old.id != id {
+            remove_image(&s, &a.user.id, &old.id).await?;
+        }
+    }
+    images
+        .into_iter()
+        .find(|image| image.id == id)
+        .map(Json)
+        .ok_or_else(Error::missing)
 }
 
 #[utoipa::path(delete,path="/users/me/backgrounds/{id}",params(("id"=String,Path)),responses((status=204,description="Removed; unselected if it was in use"),(status=404,body=ApiError)))]

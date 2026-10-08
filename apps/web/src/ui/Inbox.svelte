@@ -3,6 +3,7 @@
   import { instances, store, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { render } from '../lib/markdown'
+  import { klipyGif } from '../lib/klipy'
   import { shortTime, dayLabel } from '../lib/time'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
@@ -119,7 +120,7 @@
           <button class="line" data-hover-animates onclick={() => open(g.s, g.c.id)}>
             <Avatar instance={g.s} userId={m.author_id} size={22} />
             <span class="who">{g.s.name(m.author_id)}</span>
-            <span class="text">{@html render(m.content, g.s.users) || '<i>sent a file</i>'}</span>
+            <span class="text">{@html klipyGif(m.content) ? '<i>sent a GIF</i>' : render(m.content, g.s.users) || '<i>sent a file</i>'}</span>
             <span class="when faint mono">{dayLabel(m.created_at) === 'Today' ? shortTime(m.created_at) : dayLabel(m.created_at)}</span>
           </button>
         {/each}

@@ -9,6 +9,7 @@
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
   import { profileCard } from '../lib/people.svelte'
+  import { klipyGif, snippet } from '../lib/klipy'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
   // room does, so an unscoped id would exist twice and a deep link could reveal
@@ -27,6 +28,8 @@
   const canDelete = $derived(mine || store.me?.role === 'admin')
   const author = $derived(store.user(m.author_id))
   const html = $derived(render(m.content, store.users))
+  // A message that is only a GIF link from KLIPY shows the GIF itself.
+  const gif = $derived(klipyGif(m.content))
   let parent = $state<Message | undefined>()
   // Decoration only: a lookup that fails leaves the reference undecorated. It
   // is never a cancellation, and it never touches a draft's quote.
@@ -70,7 +73,7 @@
     <button class="reply-ref" onclick={() => goToMessage(instances.active, parent!.channel_id, parent!.id)}>
       <Icon name="reply" size={12} />
       <span class="who">{store.name(parent.author_id)}</span>
-      <span class="snippet">{parent.content.slice(0, 90) || 'sent a file'}</span>
+      <span class="snippet">{snippet(parent.content).slice(0, 90) || 'sent a file'}</span>
     </button>
   {/if}
   <div class="row">
@@ -88,6 +91,8 @@
       {#if editing}
         <textarea class="field edit" bind:value={draft} onkeydown={saveEdit} rows="2"></textarea>
         <div class="faint hint">Enter to save · Esc to cancel</div>
+      {:else if gif}
+        <a class="gif" href={gif} target="_blank" rel="noopener noreferrer"><img src={gif} alt="GIF" loading="lazy" onload={onmediaready} /></a>
       {:else}
         <div class="text" class:jumbo>{@html html}{#if m.edited_at}<span class="edited" title={m.edited_at}> (edited)</span>{/if}</div>
       {/if}
@@ -186,6 +191,8 @@
   .edited { color: var(--ink-3); font-size: 12px; }
   .edit { resize: vertical; margin-top: 2px; }
   .hint { font-size: 12px; margin-top: 2px; }
+  .gif { display: inline-block; margin-top: 4px; border-radius: var(--r); overflow: hidden; line-height: 0; background: var(--bg-3); }
+  .gif img { display: block; max-width: min(320px, 100%); max-height: 260px; min-width: 80px; min-height: 60px; object-fit: contain; }
   .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .reply-ref {
     position: relative; display: flex; text-align: left; max-width: calc(100% - 48px); align-items: center; gap: 6px; margin: 0 0 2px 48px;

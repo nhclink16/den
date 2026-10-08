@@ -4,6 +4,7 @@
   import { conversationKey, type Conversation } from '../lib/conversation'
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
+  import { snippet } from '../lib/klipy'
   import MessageItem from './MessageItem.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
   import Composer from './Composer.svelte'
@@ -185,7 +186,7 @@
       />
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
-      <h2 class="display">{summary?.title ?? root?.content.split('\n')[0]?.slice(0, 80) ?? 'New conversation'}</h2>
+      <h2 class="display">{summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation'}</h2>
       {#if resolved}<span class="tag mono">Resolved</span>{/if}
     {/if}
     <span class="spacer"></span>

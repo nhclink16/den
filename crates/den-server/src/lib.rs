@@ -14,6 +14,7 @@ mod invitation_state;
 mod invitation_tickets;
 mod invitations;
 mod jams;
+mod klipy;
 mod members;
 mod messages;
 mod music;
@@ -376,6 +377,15 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
             axum::routing::put(profile_images::put_banner).delete(profile_images::delete_banner),
         )
         .route(
+            "/users/me/avatar/klipy",
+            axum::routing::put(profile_images::put_avatar_link),
+        )
+        .route(
+            "/users/me/banner/klipy",
+            axum::routing::put(profile_images::put_banner_link),
+        )
+        .route("/klipy", get(klipy::config))
+        .route(
             "/users/{id}",
             axum::routing::patch(members::patch).delete(members::remove),
         )
@@ -399,6 +409,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
                 .delete(backgrounds::remove),
         )
         .route("/users/me/backgrounds", get(backgrounds::list))
+        .route("/users/me/backgrounds/klipy", post(backgrounds::put_link))
         .route(
             "/users/me/backgrounds/{id}",
             get(backgrounds::image).delete(backgrounds::delete),
