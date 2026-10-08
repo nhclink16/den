@@ -26,7 +26,7 @@ Done when: two terminals can chat through the CLI, a 41-second clip uploads and 
 Done when: the group can use it in a browser at a real URL instead of Discord for text.
 
 ## M2.5 — iOS feasibility spike
-Retired 2026-09-14. Decision: the iPhone app is native SwiftUI, not a webview. See M5.
+Retired 2026-09-14 without running the call test, and the iPhone app went native. Reopened 2026-10-08: see M5.
 
 ## M3 — voice and video
 - LiveKit in compose, server mints tokens, hangout room and DM calls.
@@ -36,11 +36,13 @@ Done when: a gaming session runs on it with cams.
 ## M4 — desktop (started 2026-09-14, brief in `docs/M4-DESKTOP-BRIEF.md`)
 - One Tauri 2 project for macOS, Windows, Linux: native sessions in the keychain, multi-server switcher, global PTT, native notifications, tray, updater, signed releases.
 
-## M5 — iOS, native SwiftUI (decided 2026-09-14)
-Native app, iOS 26 and Liquid Glass materials, LiveKit Swift SDK for calls. Canvas and terminal tiles embed a web view inside native tiles. Built on the iMac by Astra.
-- M5a text: login, rooms, messages, DMs, inbox, uploads and video, settings, APNs push (server gains push sending). Started 2026-09-14, brief in `docs/M5A-IOS-BRIEF.md`.
-- M5b calls: LiveKit Swift, CallKit ringing for DM calls, background audio, picture-in-picture, phone-sized layouts with every share visible.
-- M5c: plugin tiles in embedded web views, multi-server switcher, QR pairing to add a server.
+## M5 — iOS, thin Swift shell (decided 2026-10-08)
+The native SwiftUI app (about 7,800 lines, decided 2026-09-14) is retired. It rebuilt every screen, so each feature had to be built twice and the phone fell behind: no Jam, Servers, wallpapers, customizer, music or GIFs. The new app shows the same Svelte SPA the desktop shells use, so a feature built once reaches the phone. Swift does only what a web page cannot on an iPhone:
+- APNs push (the server already sends it) and the login token in the keychain.
+- Calls, decided by a one-hour test on the iMac with a real iPhone: load the SPA in a bare WKWebView shell, join the hangout, then lock the screen, switch apps, use AirPods and take a phone call mid-call.
+  - If the call survives, calls stay in the web page and the shell is about 500 lines.
+  - If not (expected), a native call engine taken from the old app (LiveKit Swift, CallKit, background audio, about 1,500 lines) runs the call. The web Join button tells it to join or leave, and the call tiles are the one native screen.
+- The old app stays in `apps/ios` until the shell replaces it, then is deleted. PR #55 (Take photo) was closed with it.
 
 ## M6 — deploy and integrations
 - Link previews with an SSRF-safe fetcher.
@@ -86,6 +88,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - The Servers page with a live Minecraft relay.
 - A Desktop app download section in web Settings.
 - Activity status, wallpapers, admin member tools and the live Appearance panel.
+- 0.3.3: GIF profile pictures, banners and wallpapers stay still until hovered, and GIF avatars can be any shape.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
@@ -95,10 +98,8 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
   - Spark mod for TPS and CPU (needs a Minecraft restart)
   - the playit join address on the page
 - **MW2 1v1s:** a private IW4x server (`sv_lanonly 1` plus a password), a Start 1v1 button on the Servers page, and a hangout card with an `iw4x://` Join link. Waiting on Nicholas owning MW2.
-- **GIF search** via Klipy. Open question: Klipy's terms forbid proxying or re-hosting.
-- **Animated (GIF) and non-square profile pictures.**
+- **GIF search** via Klipy (in progress 2026-10-08). Klipy's rules: every search and GIF load goes straight from the client to Klipy, never through Den, and nothing is copied or re-hosted. Sent GIFs and GIF profile pictures and wallpapers are Klipy links. The search box says "Search KLIPY". Submit the production key form once it is live; the test key allows 100 searches an hour.
 - **Landing page at `/`, app at `/app`** (deferred 2026-09-16).
 - **Usability pass:** an agent uses Den like a friend would (desktop, web, phone) and ranks the rough spots.
-- **iOS "Take photo" (PR #55):** needs a Mac build and a device test.
 - **Mac code signing:** needs an Apple Developer ID. Until then Mac builds are unsigned and Mac auto-update does not work.
 - **RCON hardening:** Minecraft RCON listens on all interfaces with its password in the system unit. Bind it to localhost (needs approval: system unit change).
