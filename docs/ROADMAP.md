@@ -89,6 +89,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - A Desktop app download section in web Settings.
 - Activity status, wallpapers, admin member tools and the live Appearance panel.
 - 0.3.3: GIF profile pictures, banners and wallpapers stay still until hovered, and GIF avatars can be any shape.
+- 0.3.4: GIF search from KLIPY in the composer, and GIF pictures, banners and wallpapers picked from it. Everything loads straight from KLIPY, and Den stores only KLIPY's links, per KLIPY's rules. The server reads the key from `DEN_KLIPY_KEY`. Production key requested 2026-10-09; the test key allows 100 searches an hour until KLIPY approves it.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
@@ -98,7 +99,6 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
   - Spark mod for TPS and CPU (needs a Minecraft restart)
   - the playit join address on the page
 - **MW2 1v1s:** a private IW4x server (`sv_lanonly 1` plus a password), a Start 1v1 button on the Servers page, and a hangout card with an `iw4x://` Join link. Waiting on Nicholas owning MW2.
-- **GIF search** via Klipy (in progress 2026-10-08). Klipy's rules: every search and GIF load goes straight from the client to Klipy, never through Den, and nothing is copied or re-hosted. Sent GIFs and GIF profile pictures and wallpapers are Klipy links. The search box says "Search KLIPY". Submit the production key form once it is live; the test key allows 100 searches an hour.
 - **Landing page at `/`, app at `/app`** (deferred 2026-09-16).
 - **Usability pass:** an agent uses Den like a friend would (desktop, web, phone) and ranks the rough spots.
 - **Mac code signing:** needs an Apple Developer ID. Until then Mac builds are unsigned and Mac auto-update does not work.
