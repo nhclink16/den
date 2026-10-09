@@ -579,6 +579,8 @@ mod desktop;
 #[path = "api/backgrounds.rs"]
 mod backgrounds;
 
+#[path = "api/klipy.rs"]
+mod klipy;
 #[path = "api/members.rs"]
 mod members;
 #[path = "api/profile_images.rs"]

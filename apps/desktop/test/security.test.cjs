@@ -37,3 +37,24 @@ test('the media protocol serves account images and nothing else', () => {
   for (const ok of ['/uploads/01ABC/file', '/uploads/01ABC/thumbnail', '/users/01ABC/avatar', '/users/01ABC/banner', '/users/me/background/image', `/users/me/backgrounds/${hash}`, `/users/me/backgrounds/${hash}/preview`]) assert.ok(mediaPath(ok), ok)
   for (const bad of ['/users/me', '/users/me/appearance', '/users/01ABC/avatar/../../tokens', '/users/me/backgrounds/../den.db', '/users/me/backgrounds/zzz', '/tokens', '/auth/logout', '/uploads/x/file/extra']) assert.ok(!mediaPath(bad), bad)
 })
+test('a KLIPY picture loads from KLIPY without the Den session, and no other redirect is followed', async () => {
+  const { media } = require('../electron/session.cjs')
+  const store = { get: () => 'secret-token' }
+  const real = global.fetch
+  try {
+    for (const [location, status] of [['https://static.klipy.com/ii/a/x.webp', 200], ['https://evil.example/x.webp', 502]]) {
+      const calls = []
+      global.fetch = async (url, init) => {
+        calls.push({ url: String(url), auth: init.headers?.authorization })
+        return calls.length === 1 ? new Response(null, { status: 302, headers: { location } }) : new Response('gif', { headers: { 'content-type': 'image/webp' } })
+      }
+      const r = await media(store, { url: 'den-media://app/users/01ABC/avatar?origin=https%3A%2F%2Fden.example&v=a_1', method: 'GET', headers: new Headers() })
+      assert.equal(r.status, status, location)
+      assert.equal(calls[0].auth, 'Bearer secret-token')
+      if (status === 200) {
+        assert.deepEqual(calls[1], { url: location, auth: undefined })
+        assert.equal(r.headers.get('content-type'), 'image/webp')
+      } else assert.equal(calls.length, 1)
+    }
+  } finally { global.fetch = real }
+})

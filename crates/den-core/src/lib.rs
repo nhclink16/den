@@ -59,6 +59,27 @@ pub struct Instance {
     pub version: String,
 }
 
+/// GIF search settings for signed-in clients. Clients call KLIPY themselves:
+/// its terms forbid routing searches or GIFs through Den.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Klipy {
+    /// Absent when this server has no KLIPY key, so there is no GIF search.
+    pub app_key: Option<String>,
+}
+
+/// A GIF picked from KLIPY to use as a profile picture, banner or wallpaper.
+/// Den keeps these links, never the GIF: its picture URLs redirect to them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KlipyPicture {
+    /// The animated file, exactly as KLIPY returned it.
+    pub url: String,
+    /// KLIPY's still frame of the same GIF.
+    pub still_url: String,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct User {
     pub id: Id,

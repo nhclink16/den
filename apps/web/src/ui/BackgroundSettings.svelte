@@ -7,6 +7,8 @@
   import { activeOrigin } from '../lib/native'
   import type { AppearanceBackground, BackgroundBuiltin, BackgroundImage } from '../lib/types'
   import SettingRow from './SettingRow.svelte'
+  import GifPicker from './GifPicker.svelte'
+  import { picture, type Gif } from '../lib/klipy'
 
   let fileInput: HTMLInputElement
   let busy = $state(false)
@@ -78,6 +80,19 @@
     } finally { busy = false }
   }
 
+  // A GIF from KLIPY joins the library as a link; Den never stores the GIF.
+  async function useGif(g: Gif) {
+    const chosen = picture(g, 'hd')
+    if (!chosen) throw Error('That GIF has no still frame to show when motion is reduced. Pick another.')
+    error = ''
+    const saved = await api().post<BackgroundImage>('/users/me/backgrounds/klipy', chosen)
+    await load()
+    // KLIPY GIFs are small, so stretched across a screen they look blocky.
+    // A first wallpaper starts a little soft; the slider takes it back off.
+    if (!bg && chosen.width < 1000) put({ ...defaults, blur: 6, source: { type: 'upload', id: saved.id } })
+    else pickUpload(saved.id)
+  }
+
   async function remove(id: string) {
     if (confirming !== id) { confirming = id; return }
     confirming = null; error = ''
@@ -127,6 +142,12 @@
       </span>
       <span class="label">{busy ? 'Uploading…' : 'Upload'}</span>
     </button>
+    <GifPicker label="Choose a GIF wallpaper" onpick={useGif} disabled={busy}>
+      <span class="swatch add">
+        <span class="chip"><span class="gif-mark">GIF</span></span>
+        <span class="label">Search GIFs</span>
+      </span>
+    </GifPicker>
     {#each uploads as image (image.id)}
       {@const active = chosenUpload === image.id}
       <div class="swatch mine" class:chosen={active}>
@@ -139,7 +160,7 @@
     {/each}
     <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept="image/*" aria-label="Choose a background picture" onchange={upload} />
   </div>
-  <p class="note faint">Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation.</p>
+  <p class="note faint">Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation, and stay still if your device asks for less motion.</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#if bg}
@@ -208,6 +229,8 @@
   .eyebrow { margin: 18px 0 8px; }
   .add .chip { border-style: dashed; background: var(--bg2); color: var(--ink2); }
   .add:disabled { cursor: progress; }
+  .swatches > :global(details) > :global(summary) { display: grid; width: 100%; }
+  .gif-mark { font-weight: 800; font-size: 11px; line-height: 1; letter-spacing: .06em; padding: 3px 4px 2px; border: 1.5px solid currentColor; border-radius: 4px; }
   .mine { position: relative; }
   .mine .pick { display: grid; gap: 6px; text-align: start; }
   .mine .chip { background-color: var(--bg3); }

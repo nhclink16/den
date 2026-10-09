@@ -700,6 +700,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/klipy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get__klipy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/livekit/webhook": {
         parameters: {
             query?: never;
@@ -1501,6 +1517,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/avatar/klipy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_avatar_klipy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/background/image": {
         parameters: {
             query?: never;
@@ -1527,6 +1559,22 @@ export interface paths {
         get: operations["get__users_me_backgrounds"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/backgrounds/klipy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post__users_me_backgrounds_klipy"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1576,6 +1624,22 @@ export interface paths {
         put: operations["put__users_me_banner"];
         post?: never;
         delete: operations["delete__users_me_banner"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/banner/klipy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__users_me_banner_klipy"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2659,6 +2723,28 @@ export interface components {
             /** Format: int64 */
             started_at: number;
             url: string;
+        };
+        /**
+         * @description GIF search settings for signed-in clients. Clients call KLIPY themselves:
+         *     its terms forbid routing searches or GIFs through Den.
+         */
+        Klipy: {
+            /** @description Absent when this server has no KLIPY key, so there is no GIF search. */
+            app_key?: string | null;
+        };
+        /**
+         * @description A GIF picked from KLIPY to use as a profile picture, banner or wallpaper.
+         *     Den keeps these links, never the GIF: its picture URLs redirect to them.
+         */
+        KlipyPicture: {
+            /** Format: int32 */
+            height: number;
+            /** @description KLIPY's still frame of the same GIF. */
+            still_url: string;
+            /** @description The animated file, exactly as KLIPY returned it. */
+            url: string;
+            /** Format: int32 */
+            width: number;
         };
         Login: {
             password: string;
@@ -5080,6 +5166,42 @@ export interface operations {
             };
         };
     };
+    get__klipy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Klipy"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     post__livekit_webhook: {
         parameters: {
             query?: never;
@@ -7389,6 +7511,46 @@ export interface operations {
             };
         };
     };
+    put__users_me_avatar_klipy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KlipyPicture"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     get__users_me_background_image: {
         parameters: {
             query?: never;
@@ -7551,9 +7713,52 @@ export interface operations {
             };
         };
     };
-    get__users_me_backgrounds__id_: {
+    post__users_me_backgrounds_klipy: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KlipyPicture"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackgroundImage"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get__users_me_backgrounds__id_: {
+        parameters: {
+            query?: {
+                /** @description When present, serve a GIF first frame as full-size JPEG */
+                still?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -7728,6 +7933,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__users_me_banner_klipy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KlipyPicture"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
@@ -8563,7 +8808,10 @@ export interface operations {
     };
     get__users__id__avatar: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When present, serve the first frame as PNG */
+                still?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8581,6 +8829,13 @@ export interface operations {
                     "image/png": number[];
                     "image/gif": number[];
                 };
+            };
+            /** @description A GIF picked from KLIPY: redirects to it, or to its still frame */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Matching ETag */
             304: {
@@ -8709,7 +8964,10 @@ export interface operations {
     };
     get__users__id__banner: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When present, serve the first frame as PNG */
+                still?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8727,6 +8985,13 @@ export interface operations {
                     "image/png": number[];
                     "image/gif": number[];
                 };
+            };
+            /** @description A GIF picked from KLIPY: redirects to it, or to its still frame */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Matching ETag */
             304: {

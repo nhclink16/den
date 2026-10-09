@@ -11,6 +11,8 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import DictationButton from './DictationButton.svelte'
+  import GifPicker from './GifPicker.svelte'
+  import { messageUrl, snippet, type Gif } from '../lib/klipy'
 
   // `conversation` defaults to the room, so every existing caller keeps its
   // current behaviour untouched while a thread composer can pass its own root.
@@ -176,6 +178,26 @@
   // whichever instance is active by then.
   function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
 
+  // A GIF goes out as its own message, in the same place and quoting the same
+  // message a typed one would. Whatever is in the box stays there.
+  async function sendGif(g: Gif) {
+    const url = messageUrl(g)
+    if (!url || locked) return
+    const conversation = here
+    const owner = store.drafts
+    const token = owner.token
+    const send = store.send
+    const replyToId = owner.for(conversation).replyToId
+    const placement: { thread_id?: string; reply_to?: string } =
+      threadId ? { thread_id: threadId } : here.rootId ? { reply_to: here.rootId } : {}
+    await send(channel.id, url, { ...placement, reply_to: replyToId ?? placement.reply_to })
+    if (owner.holds(token) && owner.for(conversation).replyToId === replyToId) {
+      owner.setReplyTo(conversation, null)
+      if (alive && sameConversation(conversation, here)) replyTo = null
+    }
+    if (alive) ta?.focus()
+  }
+
   async function submit() {
     const channelId = channel.id
     // Everything this send will still need afterwards is captured NOW, off the
@@ -278,7 +300,7 @@
     <div class="reply-bar">
       <Icon name="reply" size={13} />
       <span>Replying to <b>{store.name(replyTo.author_id)}</b></span>
-      <span class="snippet faint">{replyTo.content.slice(0, 80)}</span>
+      <span class="snippet faint">{snippet(replyTo.content).slice(0, 80)}</span>
       <button class="x" onclick={cancelReply} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
     </div>
   {/if}
@@ -300,6 +322,7 @@
   <div class="box" class:uploading>
     <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
+    <GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked}><span class="gifbtn"><span class="badge">GIF</span></span></GifPicker>
     <textarea bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'}><Icon name="send" size={16} /></button>
@@ -332,7 +355,9 @@
   /* A long room name must not wrap the placeholder onto a hidden second line. */
   textarea::placeholder { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .attach, .sendbtn { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-2); flex: none; transition: color var(--t-fast), background-color var(--t-fast), box-shadow var(--t), transform var(--t) var(--ease-out); }
-  .attach:hover { color: var(--ink); background: var(--bg-2); }
+  .attach:hover, .gifbtn:hover { color: var(--ink); background: var(--bg-2); }
+  .gifbtn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r); color: inherit; transition: color var(--t-fast), background-color var(--t-fast); }
+  .badge { font: 800 9.5px/1 var(--body); letter-spacing: .04em; padding: 3px 3.5px 2.5px; border: 1.5px solid currentColor; border-radius: 4px; }
   /* The send button lights once there is something to send. */
   .sendbtn.ready { color: var(--bg); background: var(--lamp); box-shadow: var(--glow); }
   .sendbtn.ready:hover { transform: translateY(-1px); filter: brightness(1.06); }

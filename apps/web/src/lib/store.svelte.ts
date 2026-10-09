@@ -194,6 +194,10 @@ export class Store {
       : await this.api.del<User>(`/users/${userId}/${kind}`)
     this.receiveUser(u)
   }
+  /** A GIF from KLIPY as your picture or banner. Den keeps only its links. */
+  async setProfileGif(kind: 'avatar' | 'banner', picture: import('./types').KlipyPicture) {
+    this.receiveUser(await this.api.put<User>(`/users/me/${kind}/klipy`, picture))
+  }
   /** Admin: a new username or display name for someone. */
   async renameMember(id: string, patch: import('./types').MemberPatch) {
     this.receiveUser(await this.api.patch<User>(`/users/${id}`, patch))
