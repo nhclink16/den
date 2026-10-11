@@ -91,6 +91,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - Activity status, wallpapers, admin member tools and the live Appearance panel.
 - 0.3.3: GIF profile pictures, banners and wallpapers stay still until hovered, and GIF avatars can be any shape.
 - 0.3.4: GIF search from KLIPY in the composer, and GIF pictures, banners and wallpapers picked from it. Everything loads straight from KLIPY, and Den stores only KLIPY's links, per KLIPY's rules. The server reads the key from `DEN_KLIPY_KEY`. Production key requested 2026-10-09; the test key allows 100 searches an hour until KLIPY approves it.
+- 0.3.5: fixes from the 2026-10-11 usability pass. On the iPhone, no stuck zoom after typing, a picture viewer you can close, clip first frames, and long-press for react, reply and copy. Search looks everywhere, the thread strip hides when empty, and a thread's newest reply shows under its message in the room.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
@@ -101,6 +102,5 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
   - the playit join address on the page
 - **MW2 1v1s:** a private IW4x server (`sv_lanonly 1` plus a password), a Start 1v1 button on the Servers page, and a hangout card with an `iw4x://` Join link. Waiting on Nicholas owning MW2.
 - **Landing page at `/`, app at `/app`** (deferred 2026-09-16).
-- **Usability pass:** an agent uses Den like a friend would (desktop, web, phone) and ranks the rough spots.
 - **Mac code signing:** needs an Apple Developer ID. Until then Mac builds are unsigned and Mac auto-update does not work.
 - **RCON hardening:** Minecraft RCON listens on all interfaces with its password in the system unit. Bind it to localhost (needs approval: system unit change).
