@@ -43,12 +43,15 @@
   })
   // The room's open conversations, ordered once per visit. With none open, one
   // resolved conversation is enough to show the strip and its Resolved history.
+  // A failed load shows the strip anyway, so its Retry is there.
+  let threadsFailed = $state(false)
   $effect(() => {
+    threadsFailed = false
     if (channel.kind === 'voice') return
     const id = channel.id
     void store.loadThreads(id, { resolved: false })
       .then(async () => { if (!store.threadsIn(id).length) await store.loadThreads(id, { resolved: true, limit: 1 }) })
-      .then(() => store.orderThreads(id)).catch(() => {})
+      .then(() => store.orderThreads(id)).catch(() => { if (channel.id === id) threadsFailed = true })
   })
 
   // Which conversation is open comes from the URL, so back, forward, reload and
@@ -284,7 +287,7 @@
     >
       <!-- Only where there is something to show: an empty strip takes a phone's
            worth of header for nothing, and DMs open their threads from the pills. -->
-      {#if !isDm && store.threadsIn(channel.id, false).length}
+      {#if !isDm && (store.threadsIn(channel.id, false).length || threadsFailed)}
         <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
       {/if}
       {#if roomError}
