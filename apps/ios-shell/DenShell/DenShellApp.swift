@@ -53,7 +53,7 @@ struct Origin: Equatable {
 struct DenWebView: UIViewRepresentable {
     func makeCoordinator() -> Shell { Shell(den: Origin(startURL)!) }
 
-    func makeUIView(context: Context) -> WKWebView {
+    func makeUIView(context: Context) -> UIView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -69,15 +69,32 @@ struct DenWebView: UIViewRepresentable {
         #endif
         context.coordinator.watchCalls(webView)
         webView.load(URLRequest(url: startURL))
-        return webView
+
+        // The web app does not pad for the notch or home indicator, so the page stays inside the safe area
+        // and the strips around it take the page's theme color. WebKit handles the keyboard, as in Safari.
+        let container = UIView()
+        container.addSubview(webView)
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        let safe = container.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: safe.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: safe.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: safe.trailingAnchor),
+        ])
+        context.coordinator.themeObservation = webView.observe(\.themeColor, options: [.initial]) { [weak container] webView, _ in
+            MainActor.assumeIsolated { container?.backgroundColor = webView.themeColor ?? .systemBackground }
+        }
+        return container
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ container: UIView, context: Context) {}
 }
 
 @MainActor final class Shell: NSObject, WKNavigationDelegate, WKUIDelegate {
     let den: Origin
     private var observations: [NSKeyValueObservation] = []
+    var themeObservation: NSKeyValueObservation?
     private var inCall = false
 
     init(den: Origin) { self.den = den }
@@ -91,6 +108,7 @@ struct DenWebView: UIViewRepresentable {
     ) {
         // Both the page and the asking frame must be Den: an embedded frame from elsewhere gets nothing.
         let allowed = Origin(origin) == den && Origin(frame.securityOrigin) == den
+        log.info("media capture \(allowed ? "granted" : "denied", privacy: .public) for \(frame.securityOrigin.host, privacy: .public):\(frame.securityOrigin.port, privacy: .public)")
         decisionHandler(allowed ? .grant : .deny)
     }
 
