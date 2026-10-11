@@ -18,7 +18,8 @@
   import { tick } from 'svelte'
   let q = $state('')
   let listening = $state(false)
-  function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}&in=${channel.id}`) }
+  // Searches everywhere: a miss in this room reads as "the message is gone".
+  function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}`) }
 
   let { channel, onmenu, narrow }: { channel: Channel; onmenu: () => void; narrow: boolean } = $props()
   let replyTo = $state<Message | null>(null)
@@ -249,7 +250,7 @@
     <h1 class="display" tabindex="-1">{store.title(channel)}</h1>
     <span class="spacer"></span>
     {#if isDm}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
-    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder={narrow ? 'Search' : isDm ? `Search ${store.title(channel)}` : `Search #${channel.name}`} aria-label={isDm ? 'Search this conversation' : 'Search this room'} /></form>
+    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
     {#if !narrow}
       <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
@@ -278,7 +279,11 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
       ondrop={onDrop}
     >
-      <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
+      <!-- Only where there is something to show: an empty strip takes a phone's
+           worth of header for nothing, and DMs open their threads from the pills. -->
+      {#if !isDm && store.threadsIn(channel.id, false).length}
+        <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
+      {/if}
       {#if roomError}
         <p class="windowed" role="alert">
           {roomError}
