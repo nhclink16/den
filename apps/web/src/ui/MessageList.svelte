@@ -24,6 +24,9 @@
     identity: string
     /// Distinguishes a window from the latest list of the same conversation.
     identityExtra?: string
+    /// Stowed out of sight behind a panel: laid out at a width nobody sees, so
+    /// nothing here counts as having reached the newest message.
+    hidden?: boolean
   }
 </script>
 
@@ -77,15 +80,14 @@
 
   // Where the view opens: the "new" line near the top when it would be off
   // screen, otherwise the bottom. A conversation never read has no place to
-  // keep, so it opens at the bottom as before. A room stowed behind a panel is
-  // laid out at a width nobody sees, so it never counts as read from there; the
-  // resize check below decides once it is shown.
+  // keep, so it opens at the bottom as before. A hidden view never counts as
+  // read from there; `reached` decides once it is shown.
   function land() {
     const line = openedAt ? el.querySelector<HTMLElement>(':scope > .new') : null
     const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
     const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
     el.scrollTop = top
-    stickToBottom = bottom && !el.closest('[inert]')
+    stickToBottom = bottom && !source.hidden
     far = el.scrollHeight - top - el.clientHeight > 400
   }
   // Until the reader scrolls, media that settles late above the bottom moves the
@@ -130,17 +132,18 @@
     stickToBottom = true
   })
 
-  // A view that grows until the tail is on screen has reached it, though
-  // nothing scrolled to say so: a bigger window, or a panel closing beside it.
-  // Not while it is stowed out of sight behind a panel; showing it again
-  // resizes it, and that is checked then.
+  // A view that grows until the tail is on screen, or is shown again with the
+  // tail on screen, has reached it though nothing scrolled to say so: a bigger
+  // window, or a panel closing beside it.
+  function reached() {
+    if (landed && !stickToBottom && !source.target && !source.hidden && el && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
+  }
   $effect(() => {
-    const ro = new ResizeObserver(() => {
-      if (landed && !stickToBottom && !source.target && !el.closest('[inert]') && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
-    })
+    const ro = new ResizeObserver(reached)
     ro.observe(el)
     return () => ro.disconnect()
   })
+  $effect(() => { if (!source.hidden) void tick().then(reached) })
 
   // Reveal a requested target. This depends on the LIST as well as the target:
   // the window it lives in usually arrives after this first runs, and an effect
@@ -197,7 +200,8 @@
     const scroller = el
     if (!scroller) return
     const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)
+    // A hidden view scrolls only programmatically, at a width nobody sees.
+    stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight) && !source.hidden
     far = fromBottom > 400
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
       const before = el.scrollHeight, key = shownKey

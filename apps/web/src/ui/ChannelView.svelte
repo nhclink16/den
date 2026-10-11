@@ -175,6 +175,7 @@
     prefix: 'm',
     identity: `room:${channel.id}`,
     identityExtra: roomKey,
+    hidden: stowed,
   })
 
   // Opening a conversation from the room PUSHES, recording the room as its
