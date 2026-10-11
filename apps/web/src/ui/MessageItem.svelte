@@ -58,6 +58,44 @@
     picker = !picker
   }
 
+  // Touch screens have no hover. A tap on the message, or a long press anywhere on
+  // it, shows its actions (plus Copy, since the text can't be selected there) until
+  // the next tap elsewhere. A scroll is neither: the browser cancels the pointer.
+  let held = $state(false)
+  let article = $state<HTMLElement>()
+  let touch = false
+  let press: ReturnType<typeof setTimeout> | undefined
+  let pressAt = { x: 0, y: 0 }
+  let pressed = false
+  const own = (e: Event) => !(e.target as Element).closest('dialog')
+  // A tap that closes a popup (a profile card) is spent on closing it.
+  let dismissing = false
+  function down(e: PointerEvent) {
+    touch = e.pointerType === 'touch'
+    if (!touch || !e.isPrimary || !own(e)) return
+    dismissing = !!document.querySelector(':popover-open')
+    pressed = false
+    pressAt = { x: e.clientX, y: e.clientY }
+    press = setTimeout(() => { press = undefined; pressed = true; held = true }, 450)
+  }
+  function move(e: PointerEvent) { if (press && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 10) lift() }
+  function lift() { clearTimeout(press); press = undefined }
+  // A long press is not also a tap on whatever was under the finger.
+  function swallow(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault(); e.stopPropagation() } }
+  function tap(e: MouseEvent) {
+    if (!touch || dismissing || !own(e) || (e.target as Element).closest('a, button, video, audio, textarea, .mention')) return
+    held = !held
+  }
+  $effect(() => {
+    if (!held) return
+    // The bar sits above the message, so on a message at the top edge it would be cut off.
+    article?.querySelector('.tools')?.scrollIntoView({ block: 'nearest' })
+    const away = (e: PointerEvent) => { if (!article?.contains(e.target as Node)) { held = false; picker = false } }
+    document.addEventListener('pointerdown', away, true)
+    return () => document.removeEventListener('pointerdown', away, true)
+  })
+  function done() { held = false; picker = false }
+
   function startEdit() { draft = m.content; editing = true }
   async function saveEdit(e: KeyboardEvent) {
     if (e.key === 'Escape') { editing = false; return }
@@ -72,7 +110,10 @@
   }
 </script>
 
-<article class="msg" data-hover-animates class:compact class:me={mentionsMe} class:fresh class:replying={!!parent} id="{prefix}-{m.id}">
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (touch only; keyboards reach the actions by focus) -->
+<article class="msg" data-hover-animates class:compact class:me={mentionsMe} class:fresh class:replying={!!parent} class:held id="{prefix}-{m.id}" bind:this={article}
+  onpointerdown={down} onpointermove={move} onpointerup={lift} onpointercancel={lift}
+  onclickcapture={swallow} onclick={tap} oncontextmenu={(e) => { if (touch && own(e)) e.preventDefault() }}>
   {#if parent}
     <!-- The quoted message may be outside the loaded page, or in another
          conversation entirely; the shared resolver finds it either way. -->
@@ -140,12 +181,13 @@
         <button title="React" aria-label="React to this message" onclick={togglePicker}><span aria-hidden="true">😶</span></button>
         {#if picker}
           <div class="picker" class:up={pickUp} role="menu">
-            {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); picker = false }}>{e}</button>{/each}
+            {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); done() }}>{e}</button>{/each}
           </div>
         {/if}
       </div>
-      <button title="Reply" onclick={() => onreply(m)}><Icon name="reply" /></button>
-      {#if mine}<button title="Edit" onclick={startEdit}><Icon name="edit" /></button>{/if}
+      <button title="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
+      {#if held && m.content}<button title="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
+      {#if mine}<button title="Edit" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
       {#if canDelete}<button title="Delete" class="danger" onclick={del}><Icon name="trash" /></button>{/if}
     </div>
   </div>
@@ -165,10 +207,25 @@
   }
   .msg { position: relative; padding: calc(2px * var(--density)) var(--gutter); margin-top: calc(14px * var(--density)); transition: background-color var(--t-fast); }
   .msg.compact { margin-top: 0; }
-  .msg:hover { background: var(--hover); }
+  /* Hover only where there is one: iOS spends a tap on any :hover that reveals
+     something, so the avatar or a picture needed two taps, and the hover stuck
+     to wherever a scroll ended. */
+  @media (hover: hover) {
+    .msg:hover { background: var(--hover); }
+    .msg.me:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 24%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent) 70%); }
+    .msg:hover .stamp { opacity: 1; }
+    .msg:hover .tools { opacity: 1; pointer-events: auto; transform: none; }
+    .face:hover { transform: translateY(-1px); }
+  }
+  .msg.held { background: var(--hover); }
+  .msg.held .stamp { opacity: 1; }
+  /* On touch, a long press offers the message's actions, not a text selection or the link menu. */
+  @media (hover: none) {
+    .msg { -webkit-touch-callout: none; }
+    .meta, .text, .reply-ref { -webkit-user-select: none; user-select: none; }
+  }
   /* A mention is lit from the left edge and fades out, like light through a doorway. */
   .msg.me { box-shadow: inset 3px 0 0 var(--lamp); background: linear-gradient(90deg, var(--lamp-glow), color-mix(in srgb, var(--lamp) 5%, transparent) 70%); }
-  .msg.me:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 24%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent) 70%); }
   @media (prefers-reduced-motion: no-preference) {
     .msg.fresh { animation: arrive .32s var(--ease-out) both; }
   }
@@ -177,13 +234,11 @@
   .gutter { width: 36px; flex: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; }
   .msg.compact .gutter { height: 22px; }
   .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; white-space: nowrap; color: var(--ink-2); opacity: 0; transition: opacity var(--t-fast); }
-  .msg:hover .stamp { opacity: 1; }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
   .author { font-weight: 700; }
   .author:hover { text-decoration: underline; text-underline-offset: 3px; }
   .face { display: grid; border-radius: var(--avatar-r, 35%); transition: transform var(--t) var(--ease-out); }
-  .face:hover { transform: translateY(-1px); }
   .face:active { transform: scale(.96); }
   .bot {
     display: inline-flex; align-items: center; gap: 3px; align-self: center; padding: 1px 6px 1px 5px;
@@ -221,7 +276,7 @@
     background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 2px;
     box-shadow: var(--lift);
   }
-  .msg:hover .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; transform: none; }
+  .msg.held .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; transform: none; }
   .tools button { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   .tools button:hover { background: var(--bg-3); color: var(--ink); }
   .tools button.danger:hover { color: var(--ember); }
