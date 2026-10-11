@@ -77,13 +77,15 @@
 
   // Where the view opens: the "new" line near the top when it would be off
   // screen, otherwise the bottom. A conversation never read has no place to
-  // keep, so it opens at the bottom as before.
+  // keep, so it opens at the bottom as before. A room stowed behind a panel is
+  // laid out at a width nobody sees, so it never counts as read from there; the
+  // resize check below decides once it is shown.
   function land() {
     const line = openedAt ? el.querySelector<HTMLElement>(':scope > .new') : null
     const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
     const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
     el.scrollTop = top
-    stickToBottom = bottom
+    stickToBottom = bottom && !el.closest('[inert]')
     far = el.scrollHeight - top - el.clientHeight > 400
   }
   // Until the reader scrolls, media that settles late above the bottom moves the
