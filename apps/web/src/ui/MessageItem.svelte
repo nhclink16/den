@@ -215,7 +215,10 @@
   .thread-link.lit { border-color: var(--lamp); color: var(--ink); }
   .thread-link.resolved { opacity: .6; }
   .thread-link.resolved:hover { opacity: 1; }
-  .thread-link .who { font-weight: 700; color: var(--ink); flex: none; max-width: 8em; }
+  /* The text starts from nothing and takes what is left, so a name only shrinks
+     once the text is gone (a long name on a narrow phone). */
+  .thread-link .who { font-weight: 700; color: var(--ink); max-width: 8em; }
+  .thread-link .said { flex: 1 1 0; }
   .thread-link .who, .thread-link .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .thread-link .replies, .thread-link .mono, .thread-link .count { flex: none; }
   .thread-link .count {
