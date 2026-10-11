@@ -86,8 +86,8 @@
     stickToBottom = bottom
     far = el.scrollHeight - top - el.clientHeight > 400
   }
-  // Until the reader scrolls, media that settles late moves the view back to
-  // where it opened rather than wherever the growth pushed it.
+  // Until the reader scrolls, media that settles late above the bottom moves the
+  // view back to the "new" line rather than wherever the growth pushed it.
   let touched = false
   // Set when fetching back to the first unread message failed: open anyway.
   let gaveUp = $state(false)
@@ -100,7 +100,8 @@
   $effect(() => {
     if (landed || (!list.length && !source.exhausted)) return
     if (openedAt && list.length && list.length < 250 && list[0].id > openedAt && !source.exhausted && !gaveUp) {
-      if (!source.loadingOlder) source.older().catch(() => { gaveUp = true })
+      const key = shownKey
+      if (!source.loadingOlder) source.older().catch(() => { if (shownKey === key) gaveUp = true })
       return
     }
     void tick().then(() => {
@@ -122,7 +123,7 @@
   let followed = store.lastSent
   $effect(() => {
     const sent = store.lastSent
-    if (!landed || source.target || sent === followed || list.at(-1)?.id !== sent) return
+    if (!landed || source.target || sent === followed || !list.some((m) => m.id === sent)) return
     followed = sent
     stickToBottom = true
   })
@@ -173,8 +174,8 @@
   function mediaReady() {
     void tick().then(() => {
       if (!landed || source.target || !el?.isConnected) return
-      if (!touched) land()
-      else if (stickToBottom) el.scrollTo({ top: el.scrollHeight })
+      if (stickToBottom) el.scrollTo({ top: el.scrollHeight })
+      else if (!touched) land()
     })
   }
 
