@@ -1,0 +1,62 @@
+name: DenShell
+options:
+  bundleIdPrefix: app.denchat
+  deploymentTarget:
+    iOS: '26.0'
+  xcodeVersion: '27.0'
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: UH434K44A3
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  DenShell:
+    type: application
+    platform: iOS
+    sources: DenShell
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.shell
+        TARGETED_DEVICE_FAMILY: '1'
+        GENERATE_INFOPLIST_FILE: YES
+    info:
+      path: DenShell/Info.plist
+      properties:
+        CFBundleDisplayName: Den Shell
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSMicrophoneUsageDescription: Use your microphone in Den calls.
+        NSCameraUsageDescription: Share your camera in Den calls.
+        UIBackgroundModes:
+          - audio
+  DenShellTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: DenShellTests
+    dependencies:
+      - target: DenShell
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.shell.tests
+schemes:
+  DenShell:
+    build:
+      targets:
+        DenShell: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - DenShellTests
+    archive:
+      config: Release
