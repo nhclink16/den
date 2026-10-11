@@ -27,16 +27,19 @@
     e.preventDefault()
     viewing = true
   }
-  // Swipe down to close, as in Photos.
-  let start: number | undefined
+  // Swipe down to close, as in Photos. Any drag is not also a tap outside the picture.
+  let start: { x: number; y: number } | undefined
   let drop = $state(0)
   let swiped = false
-  function grab(e: PointerEvent) { if (e.isPrimary) { start = e.clientY; drop = 0; swiped = false } }
-  function drag(e: PointerEvent) { if (start !== undefined) drop = Math.max(0, e.clientY - start) }
+  function grab(e: PointerEvent) { if (e.isPrimary) { start = { x: e.clientX, y: e.clientY }; drop = 0; swiped = false } }
+  function drag(e: PointerEvent) {
+    if (!start) return
+    drop = Math.max(0, e.clientY - start.y)
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) swiped = true
+  }
   function release() {
-    if (start === undefined) return
+    if (!start) return
     start = undefined
-    swiped = drop > 10
     if (drop > 80) viewing = false
     drop = 0
   }
@@ -51,14 +54,17 @@
 {:else if kind === 'image'}
   <a class="image" href={url} target="_blank" rel="noopener" onclick={view} style:aspect-ratio={shape?.ratio} style:inline-size={shape && `min(512px, 100%, ${shape.width}px, ${420 * shape.ratio}px)`}><img class="media" src={upload.thumbnail_url ? mediaUrl(upload.thumbnail_url) : url} alt={upload.filename} loading="lazy" onload={loaded} /></a>
   {#if viewing}
-    <dialog class="viewer" use:modal aria-label={upload.filename} style:background-color="rgb(0 0 0 / {0.96 - drop / 500})" oncancel={(e) => { e.preventDefault(); viewing = false }}
-      onclick={(e) => { if (!swiped && !(e.target as Element).closest('img, a, button')) viewing = false }}>
+    <!-- The explicit role keeps call shortcuts (push-to-talk, V for camera) out of the viewer. -->
+    <!-- svelte-ignore a11y_no_redundant_roles -->
+    <dialog class="viewer" role="dialog" use:modal aria-label={upload.filename} style:background-color="rgb(0 0 0 / {0.96 - drop / 500})" oncancel={(e) => { e.preventDefault(); viewing = false }}
+      onclick={(e) => { if (!swiped && !(e.target as Element).closest('img, a, button')) viewing = false }}
+      onpointermove={drag} onpointerup={release} onpointercancel={release}>
       <div class="bar">
         <span class="name">{upload.filename}</span>
         <a class="act" href={url} target="_blank" rel="noopener"><Icon name="popout" />Open original</a>
         <button class="act" aria-label="Close" data-initial-focus onclick={() => (viewing = false)}><Icon name="x" size={20} /></button>
       </div>
-      <div class="stage" role="presentation" onpointerdown={grab} onpointermove={drag} onpointerup={release} onpointercancel={release}>
+      <div class="stage" role="presentation" onpointerdown={grab}>
         <img src={url} alt={upload.filename} style:transform={drop ? `translateY(${drop}px)` : null} />
       </div>
     </dialog>
