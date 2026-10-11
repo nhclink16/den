@@ -135,8 +135,11 @@
   // A view that grows until the tail is on screen, or is shown again with the
   // tail on screen, has reached it though nothing scrolled to say so: a bigger
   // window, or a panel closing beside it.
+  // The Jump to latest pill follows the same layout changes.
   function reached() {
-    if (landed && !stickToBottom && !source.target && !source.hidden && el && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
+    if (!landed || !el || source.hidden) return
+    far = el.scrollHeight - el.scrollTop - el.clientHeight > 400
+    if (!stickToBottom && !source.target && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
   }
   $effect(() => {
     const ro = new ResizeObserver(reached)
