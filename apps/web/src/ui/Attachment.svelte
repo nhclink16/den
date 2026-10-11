@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mediaUrl } from '../lib/native'
+  import { mediaUrl, native } from '../lib/native'
   import { modal } from '../lib/modal'
   import type { Upload } from '../lib/types'
   import { fileUrl } from '../lib/upload'
@@ -61,7 +61,8 @@
       onpointermove={drag} onpointerup={release} onpointercancel={release}>
       <div class="bar">
         <span class="name">{upload.filename}</span>
-        <a class="act" href={url} target="_blank" rel="noopener"><Icon name="popout" />Open original</a>
+        <!-- The desktop apps can't open a den-media: file in a window; the viewer already shows it full size. -->
+        {#if !native}<a class="act" href={url} target="_blank" rel="noopener"><Icon name="popout" />Open original</a>{/if}
         <button class="act" aria-label="Close" data-initial-focus onclick={() => (viewing = false)}><Icon name="x" size={20} /></button>
       </div>
       <div class="stage" role="presentation" onpointerdown={grab}>
