@@ -130,9 +130,11 @@
 
   // A view that grows until the tail is on screen has reached it, though
   // nothing scrolled to say so: a bigger window, or a panel closing beside it.
+  // Not while it is stowed out of sight behind a panel; showing it again
+  // resizes it, and that is checked then.
   $effect(() => {
     const ro = new ResizeObserver(() => {
-      if (landed && !stickToBottom && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
+      if (landed && !stickToBottom && !source.target && !el.closest('[inert]') && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
     })
     ro.observe(el)
     return () => ro.disconnect()
