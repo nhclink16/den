@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT t.id,t.channel_id,t.root_message_id,t.title,t.created_by,t.created_at,\n            t.resolved_at as \"resolved_at?\",t.resolved_by as \"resolved_by?\",\n            (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) as \"reply_count!: i64\",\n            (SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id) as \"last_reply_id?\",\n            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as \"last_activity_at!\"\n            FROM threads t WHERE t.id=?",
+  "query": "SELECT t.id,t.channel_id,t.root_message_id,t.title,t.created_by,t.created_at,\n            t.resolved_at as \"resolved_at?\",t.resolved_by as \"resolved_by?\",\n            (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) as \"reply_count!: i64\",\n            (SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id) as \"last_reply_id?\",\n            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as \"last_activity_at!\",\n            r.author_id as \"last_author_id?\",substr(r.content,1,200) as \"last_excerpt?: String\",r.created_at as \"last_created_at?\"\n            FROM threads t\n            LEFT JOIN messages r ON r.id=(SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id)\n            WHERE t.id=?",
   "describe": {
     "columns": [
       {
@@ -108,6 +108,34 @@
         "ordinal": 10,
         "type_info": "Text",
         "origin": "Expression"
+      },
+      {
+        "name": "last_author_id?",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "name": "last_excerpt?: String",
+        "ordinal": 12,
+        "type_info": "Null",
+        "origin": "Expression"
+      },
+      {
+        "name": "last_created_at?",
+        "ordinal": 13,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -124,8 +152,11 @@
       true,
       false,
       true,
-      false
+      false,
+      true,
+      null,
+      true
     ]
   },
-  "hash": "4c36026c075f0b142c625af5ba51e09c43248a0ac20d7e1432a084093429a592"
+  "hash": "289e676ef127b7ea1bafef60275c4ffaae4d85eca181c9031acc6148138fd2fd"
 }

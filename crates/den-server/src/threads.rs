@@ -12,8 +12,11 @@ pub(crate) async fn summary<'a>(
             t.resolved_at as "resolved_at?",t.resolved_by as "resolved_by?",
             (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) as "reply_count!: i64",
             (SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id) as "last_reply_id?",
-            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as "last_activity_at!"
-            FROM threads t WHERE t.id=?"#,
+            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as "last_activity_at!",
+            r.author_id as "last_author_id?",substr(r.content,1,200) as "last_excerpt?: String",r.created_at as "last_created_at?"
+            FROM threads t
+            LEFT JOIN messages r ON r.id=(SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id)
+            WHERE t.id=?"#,
         id
     )
     .fetch_optional(db)
@@ -31,6 +34,14 @@ pub(crate) async fn summary<'a>(
         reply_count: r.reply_count,
         last_reply_id: r.last_reply_id,
         last_activity_at: r.last_activity_at,
+        last_reply: match (r.last_author_id, r.last_excerpt, r.last_created_at) {
+            (Some(author_id), Some(excerpt), Some(created_at)) => Some(ReplyPreview {
+                author_id,
+                excerpt,
+                created_at,
+            }),
+            _ => None,
+        },
     })
 }
 /// The summary a root message carries, or None when the message roots nothing.

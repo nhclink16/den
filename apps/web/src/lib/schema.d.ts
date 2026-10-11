@@ -2794,6 +2794,13 @@ export interface components {
                 created_by: components["schemas"]["String"];
                 id: components["schemas"]["String"];
                 last_activity_at: string;
+                /** @description Enough of one reply for a single line in the room. */
+                last_reply?: {
+                    author_id: components["schemas"]["String"];
+                    created_at: string;
+                    /** @description The first 200 characters of the reply. Empty when it only carries files. */
+                    excerpt: string;
+                } | null;
                 last_reply_id?: string | null;
                 /** Format: int64 */
                 reply_count: number;
@@ -3004,6 +3011,13 @@ export interface components {
             ok: boolean;
             /** @enum {string} */
             type: "result";
+        };
+        /** @description Enough of one reply for a single line in the room. */
+        ReplyPreview: {
+            author_id: components["schemas"]["String"];
+            created_at: string;
+            /** @description The first 200 characters of the reply. Empty when it only carries files. */
+            excerpt: string;
         };
         RequestAccess: {
             capability: components["schemas"]["Capability"];
@@ -3442,6 +3456,13 @@ export interface components {
             created_by: components["schemas"]["String"];
             id: components["schemas"]["String"];
             last_activity_at: string;
+            /** @description Enough of one reply for a single line in the room. */
+            last_reply?: {
+                author_id: components["schemas"]["String"];
+                created_at: string;
+                /** @description The first 200 characters of the reply. Empty when it only carries files. */
+                excerpt: string;
+            } | null;
             last_reply_id?: string | null;
             /** Format: int64 */
             reply_count: number;

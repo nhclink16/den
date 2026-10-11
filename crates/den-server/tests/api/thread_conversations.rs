@@ -289,6 +289,86 @@ async fn a_first_reply_opens_one_thread_and_replies_never_nest() {
     );
 }
 
+/// The room shows a thread's newest reply under its root, so the room's own
+/// message list carries it, and it follows edits and deletes of that reply.
+#[tokio::test]
+async fn the_room_carries_each_threads_newest_reply() {
+    let t = Test::new().await;
+    let bob = t.member("bob").await;
+    let channel = t.general().await;
+    let path = format!("/channels/{channel}/messages");
+    let root = id(&t
+        .post(&path, &t.admin.token, json!({"content":"cabin saturday?"}))
+        .await);
+    let latest = |token: String| {
+        let (t, path, root) = (&t, &path, &root);
+        async move {
+            let room: Vec<Message> = t
+                .req(Method::GET, path, &token)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+            let root = room.into_iter().find(|m| &m.id == root).unwrap();
+            root.thread.unwrap().last_reply
+        }
+    };
+
+    let first = t
+        .post(
+            &path,
+            &bob.token,
+            json!({"content":"got you both","reply_to":root}),
+        )
+        .await;
+    let preview = latest(t.admin.token.clone()).await.unwrap();
+    assert_eq!(preview.author_id, bob.user.id);
+    assert_eq!(preview.excerpt, "got you both");
+    assert_eq!(preview.created_at, first["created_at"].as_str().unwrap());
+
+    // Long replies are cut by characters, so a multi-byte one cannot split.
+    let long = t
+        .post(
+            &path,
+            &t.admin.token,
+            json!({"content":"é".repeat(250),"thread_id":first["thread_id"]}),
+        )
+        .await;
+    let preview = latest(bob.token.clone()).await.unwrap();
+    assert_eq!(preview.author_id, t.admin.user.id);
+    assert_eq!(preview.excerpt, "é".repeat(200));
+
+    t.req(
+        Method::PATCH,
+        &format!("/messages/{}", id(&long)),
+        &t.admin.token,
+    )
+    .json(&json!({"content":"never mind"}))
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(
+        latest(bob.token.clone()).await.unwrap().excerpt,
+        "never mind"
+    );
+
+    // Deleting the newest reply brings the one before it back.
+    t.req(
+        Method::DELETE,
+        &format!("/messages/{}", id(&long)),
+        &t.admin.token,
+    )
+    .send()
+    .await
+    .unwrap();
+    assert_eq!(
+        latest(bob.token.clone()).await.unwrap().excerpt,
+        "got you both"
+    );
+}
+
 #[tokio::test]
 async fn refused_placement_leaves_no_rows_and_private_threads_stay_private() {
     let t = Test::new().await;

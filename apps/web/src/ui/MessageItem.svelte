@@ -153,15 +153,24 @@
         <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} author={store.name(m.author_id)} {onmediaready} />{/each}</div>
       {/if}
       {#if conversation && prefix === 'm'}
+        {@const last = conversation.last_reply}
+        <!-- The newest reply, not the parent's text again: the parent is right above. -->
         <a
           class="thread-link"
           class:lit={!!unread?.count}
+          class:resolved={!!conversation.resolved_at}
           href="/c/{m.channel_id}/t/{conversation.id}"
+          title={last ? shortTime(last.created_at) : undefined}
           onclick={(e) => { if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); onreply(m) } }}
         >
-          <Icon name="reply" size={12} />
-          <span class="thread-title">{conversation.title}</span>
-          <span class="faint">{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
+          {#if last}
+            <Avatar userId={last.author_id} size={18} presence={false} />
+            <span class="who">{store.name(last.author_id)}</span>
+            <span class="said">{snippet(last.excerpt) || 'sent a file'}</span>
+          {:else}
+            <Icon name="reply" size={12} />
+          {/if}
+          <span class="replies faint">{last ? '· ' : ''}{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
           {#if unread?.count}<span class="count" class:at={unread.mention}>{unread.mention ? '@' : unread.count}</span>{/if}
           {#if conversation.resolved_at}<span class="faint mono">resolved</span>{/if}
         </a>
@@ -194,13 +203,20 @@
 </article>
 
 <style>
+  /* One line under the parent: who answered last, what they said, how many replies.
+     The reply text is what gives way when the line runs out of room. */
   .thread-link {
-    display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px 10px;
-    border: 1px solid var(--line); border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: 12px; max-width: 100%;
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px 10px 4px 6px;
+    border: 1px solid var(--line); border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: 13px; max-width: 100%;
+    white-space: nowrap;
   }
   .thread-link:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
   .thread-link.lit { border-color: var(--lamp); color: var(--ink); }
-  .thread-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thread-link.resolved { opacity: .6; }
+  .thread-link.resolved:hover { opacity: 1; }
+  .thread-link .who { font-weight: 700; color: var(--ink); flex: none; }
+  .thread-link .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .thread-link .replies, .thread-link .mono, .thread-link .count { flex: none; }
   .thread-link .count {
     min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000);
     font-family: var(--mono); font-size: 11px; text-align: center;
