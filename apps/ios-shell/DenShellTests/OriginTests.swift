@@ -28,6 +28,12 @@ struct OriginTests {
         #expect(Origin(URL(string: "data:text/html,hi")!) == nil)
     }
 
+    @Test func blobTakesTheOriginOfItsMaker() {
+        #expect(Origin(URL(string: "blob:https://denchat.app/1b6e1c1e-0f1a-4c8e-9d1e-3f0c2a1b2c3d")!) == den)
+        #expect(Origin(URL(string: "blob:https://evil.com/1b6e1c1e-0f1a-4c8e-9d1e-3f0c2a1b2c3d")!) != den)
+        #expect(Origin(URL(string: "blob:null/1b6e1c1e")!) == nil)
+    }
+
     @Test func testServerPortIsPartOfTheOrigin() {
         let test = Origin(URL(string: "https://box.example.ts.net:4203")!)!
         #expect(Origin(scheme: "https", host: "box.example.ts.net", port: 4203) == test)

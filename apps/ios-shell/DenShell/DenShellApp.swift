@@ -32,7 +32,13 @@ struct Origin: Equatable {
         self.port = port == 0 ? defaultPort : port
     }
 
+    /// A `blob:` URL has the origin of the page that made it, written after the scheme.
     init?(_ url: URL) {
+        if url.scheme?.lowercased() == "blob" {
+            guard let inner = URL(string: String(url.absoluteString.dropFirst("blob:".count))) else { return nil }
+            self.init(inner)
+            return
+        }
         guard let scheme = url.scheme, let host = url.host() else { return nil }
         self.init(scheme: scheme, host: host, port: url.port ?? 0)
     }
@@ -97,7 +103,19 @@ struct DenWebView: UIViewRepresentable {
     var themeObservation: NSKeyValueObservation?
     private var inCall = false
 
-    init(den: Origin) { self.den = den }
+    init(den: Origin) {
+        self.den = den
+        super.init()
+        // A phone call or Siri switches the session off, and capture can stay on throughout,
+        // so switch it back on when the interruption ends or the app comes back.
+        for name in [AVAudioSession.interruptionNotification, UIApplication.didBecomeActiveNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let ended = note.name != AVAudioSession.interruptionNotification
+                    || note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.ended.rawValue
+                MainActor.assumeIsolated { if ended, self?.inCall == true { self?.applyCallAudio() } }
+            }
+        }
+    }
 
     // MARK: Camera and microphone
 
@@ -126,17 +144,21 @@ struct DenWebView: UIViewRepresentable {
         let capturing = webView.microphoneCaptureState != .none || webView.cameraCaptureState != .none
         guard capturing != inCall else { return }
         inCall = capturing
+        applyCallAudio()
+    }
+
+    private func applyCallAudio() {
         let session = AVAudioSession.sharedInstance()
         do {
-            if capturing {
+            if inCall {
                 try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
                 try session.setActive(true)
             } else {
                 try session.setActive(false, options: .notifyOthersOnDeactivation)
             }
-            log.info("call audio session \(capturing ? "on" : "off", privacy: .public)")
+            log.info("call audio session \(self.inCall ? "on" : "off", privacy: .public)")
         } catch {
-            log.error("call audio session \(capturing ? "on" : "off", privacy: .public) failed: \(error, privacy: .public)")
+            log.error("call audio session \(self.inCall ? "on" : "off", privacy: .public) failed: \(error, privacy: .public)")
         }
     }
 
@@ -149,13 +171,14 @@ struct DenWebView: UIViewRepresentable {
         // Frames inside the page (embeds, previews) load where they are.
         if let frame = action.targetFrame, !frame.isMainFrame { return decisionHandler(.allow) }
         guard let url = action.request.url else { return decisionHandler(.cancel) }
-        if ["about", "blob", "data"].contains(url.scheme?.lowercased() ?? "") { return decisionHandler(.allow) }
         if Origin(url) == den {
             // A Den link meant for a new window stays in the shell.
             if action.targetFrame == nil { webView.load(action.request); return decisionHandler(.cancel) }
             return decisionHandler(.allow)
         }
-        UIApplication.shared.open(url)
+        // Other sites go to Safari, mailto: and tel: to their apps. A blank, data or foreign blob page
+        // never replaces Den.
+        if !["about", "blob", "data"].contains(url.scheme?.lowercased() ?? "") { UIApplication.shared.open(url) }
         decisionHandler(.cancel)
     }
 
