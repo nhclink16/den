@@ -49,6 +49,14 @@
   // svelte-ignore state_referenced_locally
   const fresh = Date.now() - new Date(m.created_at).getTime() < 8000
   let picker = $state(false)
+  // The newest message sits on the composer, so its picker opens upward when the
+  // list has no room for it below.
+  let pickUp = $state(false)
+  function togglePicker(e: MouseEvent) {
+    const btn = e.currentTarget as HTMLElement, list = btn.closest('.list')
+    pickUp = !!list && btn.getBoundingClientRect().bottom + 56 > list.getBoundingClientRect().bottom
+    picker = !picker
+  }
 
   function startEdit() { draft = m.content; editing = true }
   async function saveEdit(e: KeyboardEvent) {
@@ -129,9 +137,9 @@
     </div>
     <div class="tools">
       <div class="pick-wrap">
-        <button title="React" aria-label="React to this message" onclick={() => (picker = !picker)}><span aria-hidden="true">😶</span></button>
+        <button title="React" aria-label="React to this message" onclick={togglePicker}><span aria-hidden="true">😶</span></button>
         {#if picker}
-          <div class="picker" role="menu">
+          <div class="picker" class:up={pickUp} role="menu">
             {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); picker = false }}>{e}</button>{/each}
           </div>
         {/if}
@@ -230,6 +238,7 @@
   .rx.mine .n { color: var(--lamp); }
   .pick-wrap { position: relative; }
   .picker { position: absolute; right: 0; top: 100%; margin-top: 6px; display: flex; gap: 2px; padding: 4px; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-pill, 999px); z-index: 3; box-shadow: var(--lift); }
+  .picker.up { top: auto; bottom: 100%; margin: 0 0 6px; }
   .picker button { font-size: 19px; padding: 4px 6px; border-radius: var(--r-pill, 999px); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }
   .picker button:hover { transform: scale(1.22); background: none; }
 </style>

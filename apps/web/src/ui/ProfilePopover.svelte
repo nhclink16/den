@@ -6,6 +6,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { router } from '../lib/router.svelte'
   import UserCard from './UserCard.svelte'
+  import { focusComposer } from './Composer.svelte'
 
   let node = $state<HTMLDivElement>()
 
@@ -43,6 +44,9 @@
     profileCard.close()
     const c = await s.openDm([id])
     router.go(`/c/${c.id}`)
+    await tick()
+    // A DM route has no thread panel, so its composer is the only one.
+    focusComposer(document)
   }
   function edit() { profileCard.close(); router.go('/settings/profile') }
 </script>

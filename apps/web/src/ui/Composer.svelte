@@ -1,3 +1,15 @@
+<script module lang="ts">
+  /// Puts the cursor in the reply box inside `root`, for a conversation someone
+  /// just opened. A touch screen gets it only straight after their own tap, so a
+  /// reload or a Back never pops the keyboard up. Returns whether it did.
+  export function focusComposer(root: ParentNode | null | undefined): boolean {
+    if (matchMedia('(pointer: coarse)').matches && !navigator.userActivation?.isActive) return false
+    const box = root?.querySelector<HTMLTextAreaElement>('textarea[data-composer]')
+    box?.focus()
+    return !!box && document.activeElement === box
+  }
+</script>
+
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import { plugins } from '../plugins'
@@ -130,7 +142,7 @@
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
 
-  const placeholder = $derived(channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
+  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
@@ -323,7 +335,7 @@
     <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
     <GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked}><span class="gifbtn"><span class="badge">GIF</span></span></GifPicker>
-    <textarea bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
+    <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'}><Icon name="send" size={16} /></button>
   </div>

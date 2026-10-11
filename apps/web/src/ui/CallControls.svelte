@@ -10,6 +10,8 @@
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
   // shows the disabled control and says why.
   const blurAvailable = blurSupported()
+  // Phones have no screen to share: the button would only ever show an error.
+  const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia
 </script>
 
 <div class="controls" class:large>
@@ -26,7 +28,7 @@
   <button class:muted={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} /></button>
   <button class:muted={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} /></button>
   {#if call.cameraOn && blurAvailable}<button class:blurred={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" /></button>{/if}
-  <button class:sharing={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" /></button>
+  {#if shareAvailable}<button class:sharing={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" /></button>{/if}
   {#if call.screenOn}<button class="another" disabled={call.screenAdding || call.participants.find(p => p.local)?.screens.length === 3} aria-label="Share another" title={call.participants.find(p => p.local)?.screens.length === 3 ? 'Up to 3 at once' : 'Share another'} onclick={() => call.addScreen()}><Icon name="plus" size={12} /></button>{/if}
   {#if call.screenOn}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->

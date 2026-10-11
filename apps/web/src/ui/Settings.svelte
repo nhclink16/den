@@ -47,7 +47,8 @@
   const go = (s: string) => (e: MouseEvent) => { e.preventDefault(); router.go(`/settings/${s}`) }
 
   // --- notifications ---
-  let perm = $state(typeof Notification !== 'undefined' ? Notification.permission : 'denied')
+  // The iPhone app's page has no Notification at all: nothing to unblock there.
+  let perm = $state<NotificationPermission | 'unsupported'>(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
   async function enable() { await notify.ask(); perm = Notification.permission }
   function toggleSub(id: string) {
     const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
@@ -158,7 +159,7 @@
         <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
         {#if perm !== 'granted'}
           <div class="callout">
-            <span>{perm === 'denied' ? 'Notifications are blocked in your browser settings.' : 'Desktop notifications are off.'}</span>
+            <span>{perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Notifications are blocked in your browser settings.' : 'Desktop notifications are off.'}</span>
             {#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}
           </div>
         {/if}

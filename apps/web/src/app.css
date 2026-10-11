@@ -236,9 +236,11 @@ kbd {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-/* Safari zooms the page when a focused field is under 16px and never zooms back. */
+/* Safari zooms the page when a focused field is under 16px and never zooms back.
+   Important because any component rule is more specific than this one, and a
+   single field that slips under 16px strands the phone zoomed in. */
 @media (pointer: coarse) {
-  input, textarea, select { font-size: 16px; }
+  input, textarea, select { font-size: 16px !important; }
 }
 
 /* Shells that manage their own focus ring: keep the inner field quiet. */
