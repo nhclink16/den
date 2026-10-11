@@ -45,7 +45,8 @@
     const c = await s.openDm([id])
     router.go(`/c/${c.id}`)
     await tick()
-    focusComposer(document.querySelector('.room'))
+    // A DM route has no thread panel, so its composer is the only one.
+    focusComposer(document)
   }
   function edit() { profileCard.close(); router.go('/settings/profile') }
 </script>
