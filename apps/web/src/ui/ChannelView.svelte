@@ -41,11 +41,14 @@
     if (!key) return
     return () => store.closeWindow(key)
   })
-  // The room's open conversations, ordered once per visit.
+  // The room's open conversations, ordered once per visit. With none open, one
+  // resolved conversation is enough to show the strip and its Resolved history.
   $effect(() => {
     if (channel.kind === 'voice') return
     const id = channel.id
-    void store.loadThreads(id, { resolved: false }).then(() => store.orderThreads(id)).catch(() => {})
+    void store.loadThreads(id, { resolved: false })
+      .then(async () => { if (!store.threadsIn(id).length) await store.loadThreads(id, { resolved: true, limit: 1 }) })
+      .then(() => store.orderThreads(id)).catch(() => {})
   })
 
   // Which conversation is open comes from the URL, so back, forward, reload and
