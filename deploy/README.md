@@ -35,7 +35,8 @@ envsubst '${LIVEKIT_NODE_IP} ${DEN_LIVEKIT_API_KEY} ${DEN_LIVEKIT_API_SECRET}' \
 docker run -d --name den-livekit --restart unless-stopped --network host \
   -v "$HOME/.config/den/livekit.yaml:/etc/livekit.yaml:ro" -e LIVEKIT_NODE_IP \
   --entrypoint sh livekit/livekit-server:v1.9.0 -c \
-  'until ip -4 addr | grep -qF "inet $LIVEKIT_NODE_IP/"; do sleep 1; done
+  'echo "waiting for tailnet IP $LIVEKIT_NODE_IP"
+   until ip -4 addr | grep -qF "inet $LIVEKIT_NODE_IP/"; do sleep 1; done
    exec /livekit-server --config /etc/livekit.yaml'
 tailscale serve --bg --https=4202 http://127.0.0.1:7880
 ```
@@ -43,7 +44,8 @@ tailscale serve --bg --https=4202 http://127.0.0.1:7880
 LiveKit reads the host's addresses once, at startup. After a reboot Docker can
 start it before Tailscale assigns the tailnet IP; LiveKit then offers clients
 no ICE candidates and every call fails with "could not establish pc
-connection". The wait loop above holds LiveKit until the IP exists.
+connection". The wait loop above holds LiveKit until the IP exists. A
+container that is up but has only that line in `docker logs` is still waiting.
 
 The YAML is a template; LiveKit does not expand environment variables in YAML.
 The rendered file is mode 600. Its webhooks go to the loopback dev server on
