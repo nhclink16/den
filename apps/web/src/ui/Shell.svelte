@@ -34,7 +34,8 @@
   // Remember the last place outside Settings, for the customizer to open over.
   $effect(() => { if (router.route.name !== 'settings') customizer.lastPlace = location.pathname + location.search })
 
-  // Close the drawer when a route changes on narrow screens.
+  // Close the drawer when a route changes on narrow screens, and on any link
+  // tapped inside it: the room you're already in changes no route.
   $effect(() => { void router.route; drawer = false })
 
   function key(e: KeyboardEvent) {
@@ -72,7 +73,7 @@
 <div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
   {#if showSidebar}
     {#if narrow}
-      <dialog class="drawer" use:modal aria-label="Room list" aria-modal="true" oncancel={(e) => { e.preventDefault(); drawer = false }} onclick={(e) => { if (outsideDialog(e)) drawer = false }}>
+      <dialog class="drawer" use:modal aria-label="Room list" aria-modal="true" oncancel={(e) => { e.preventDefault(); drawer = false }} onclick={(e) => { if (outsideDialog(e) || (e.target as HTMLElement).closest('a[href]')) drawer = false }}>
         <aside class="sidebar bg-host scope-sidebar" tabindex="-1" data-initial-focus><Sidebar {narrow} /></aside>
       </dialog>
     {:else}
