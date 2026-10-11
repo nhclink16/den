@@ -103,7 +103,9 @@
   .viewer[open] { display: flex; flex-direction: column; }
   .viewer::backdrop { background: transparent; }
   .bar {
-    display: flex; align-items: center; gap: 4px; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+    display: flex; align-items: center; gap: 4px;
+    /* Clear the notch, and the desktop app's native window controls (--wco-*). */
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right), var(--wco-right, 0px)) 8px max(16px, env(safe-area-inset-left), calc(var(--wco-left, 0px) + 16px));
   }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: rgb(255 255 255 / .75); }
   .act {
