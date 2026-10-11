@@ -35,6 +35,7 @@
   import MessageItem from './MessageItem.svelte'
   import Icon from './Icon.svelte'
   import { profileCard } from '../lib/people.svelte'
+  import { atBottom, landing } from '../lib/landing'
 
   let { channel, source, onreply }: { channel: Channel; source: Source; onreply: (m: Message) => void } = $props()
   let el: HTMLDivElement
@@ -50,6 +51,11 @@
   // correction could, and would acknowledge a tail nobody is looking at.
   // svelte-ignore state_referenced_locally
   let stickToBottom = $state(!source.target)
+  // Nothing follows the tail or acknowledges it until the view has decided where
+  // to open: at the bottom, or at the "new" line when that would be off screen.
+  // A target decides for itself.
+  // svelte-ignore state_referenced_locally
+  let landed = $state(!!source.target)
   // svelte-ignore state_referenced_locally
   let shownKey = $state(`${source.identity}:${source.identityExtra ?? ''}:${source.target ?? ''}`)
   $effect(() => {
@@ -58,13 +64,36 @@
     shownKey = key
     openedAt = source.lastRead
     stickToBottom = !source.target
+    landed = !!source.target
+  })
+
+  // Open once the first page is here (or known to be empty). Catching up starts
+  // where the reader left off; the tail is acknowledged only once they reach it.
+  $effect(() => {
+    if (landed || (!list.length && !source.exhausted)) return
+    void tick().then(() => {
+      if (landed || !el) return
+      const line = el.querySelector<HTMLElement>(':scope > .new')
+      const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
+      const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
+      el.scrollTop = top
+      stickToBottom = bottom
+      landed = true
+    })
   })
 
   // Keep the newest message in view unless the reader scrolled up, or is looking
-  // at an older target they asked for.
+  // at an older target they asked for. Your own new message brings you down to
+  // it wherever you were: posting is taken as having caught up.
+  let tailSeen = ''
   $effect(() => {
     void list.length
-    if (stickToBottom && !source.target) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
+    const tail = list.at(-1)
+    const posted = !!tail && tailSeen !== '' && tail.id > tailSeen && tail.author_id === store.me?.id
+    tailSeen = landed ? tail?.id ?? '' : ''
+    if (!landed || source.target) return
+    if (posted) stickToBottom = true
+    if (stickToBottom) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
   })
 
   // Reveal a requested target. This depends on the LIST as well as the target:
@@ -90,7 +119,7 @@
   // brief wants that watermark, so a reply arriving between the load and the
   // acknowledgement stays unread instead of being swallowed.
   $effect(() => {
-    if (!stickToBottom) return
+    if (!landed || !stickToBottom) return
     const tail = list.at(-1)?.id ?? source.watermark
     if (tail) source.onread?.(tail)
   })
@@ -111,7 +140,7 @@
 
   function mediaReady() {
     void tick().then(() => {
-      if (stickToBottom && !source.target && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
+      if (landed && stickToBottom && !source.target && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
     })
   }
 
@@ -119,7 +148,7 @@
     const scroller = el
     if (!scroller) return
     const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    stickToBottom = fromBottom < 80
+    stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)
     far = fromBottom > 400
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
       const before = el.scrollHeight
@@ -159,7 +188,7 @@
     {#if m.id === firstUnread}
       <div class="new"><span>new</span></div>
     {/if}
-    <MessageItem {m} {prefix} compact={continues(prev, m)} {onreply} onmediaready={mediaReady} />
+    <MessageItem {m} {prefix} compact={m.id !== firstUnread && continues(prev, m)} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
 {#if far}
