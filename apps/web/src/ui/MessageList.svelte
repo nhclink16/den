@@ -128,6 +128,16 @@
     stickToBottom = true
   })
 
+  // A view that grows until the tail is on screen has reached it, though
+  // nothing scrolled to say so: a bigger window, or a panel closing beside it.
+  $effect(() => {
+    const ro = new ResizeObserver(() => {
+      if (landed && !stickToBottom && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+
   // Reveal a requested target. This depends on the LIST as well as the target:
   // the window it lives in usually arrives after this first runs, and an effect
   // that only watched the target would query a tick later, find nothing, and
