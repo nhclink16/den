@@ -38,6 +38,9 @@ and the reasoning matters more than the list:
   no naming step; the title is inferred from the parent and can be changed later.
 - **Visible in the room.** Open threads appear as a collapsed strip in the
   channel, not hidden behind an icon you have to remember to check.
+  Under its root, the room shows the thread's newest reply in one line
+  (who, what, how many replies), so an answer is seen where people are
+  looking without a reply leaving its thread (Nicholas, 2026-10-11).
 - **Agent activity threads itself.** A long agent task collapses into a thread
   instead of flooding the room, and a thread can contain objects — the terminal
   session where the bug was chased, living inside the thread about the bug.

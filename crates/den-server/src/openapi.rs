@@ -277,6 +277,7 @@ use utoipa::OpenApi;
         MarkRead,
         ChannelReadState,
         ThreadSummary,
+        ReplyPreview,
         ThreadReadState,
         ThreadView,
         ThreadQuery,

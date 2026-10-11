@@ -25,6 +25,19 @@ pub struct ThreadSummary {
     #[schema(value_type = Option<String>)]
     pub last_reply_id: Option<Id>,
     pub last_activity_at: String,
+    /// The newest reply, so the room can show it under the root without fetching it.
+    #[serde(default)]
+    #[schema(schema_with = crate::nullable_object_schema::<ReplyPreview>)]
+    pub last_reply: Option<ReplyPreview>,
+}
+
+/// Enough of one reply for a single line in the room.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct ReplyPreview {
+    pub author_id: Id,
+    /// The first 200 characters of the reply. Empty when it only carries files.
+    pub excerpt: String,
+    pub created_at: String,
 }
 
 /// One user's position in one thread. Following changes unread accounting, never access.
