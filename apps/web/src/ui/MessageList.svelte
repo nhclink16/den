@@ -186,11 +186,12 @@
     stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)
     far = fromBottom > 400
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
-      const before = el.scrollHeight
+      const before = el.scrollHeight, key = shownKey
       await source.older()
       await tick()
-      // The history request can outlive this view.
-      if (el === scroller && scroller.isConnected) scroller.scrollTop += scroller.scrollHeight - before
+      // The history request can outlive this view, and this conversation: a
+      // thread panel reuses its scroller for the next thread.
+      if (el === scroller && scroller.isConnected && shownKey === key) scroller.scrollTop += scroller.scrollHeight - before
     }
   }
 
