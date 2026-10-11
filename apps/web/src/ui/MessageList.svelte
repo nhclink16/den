@@ -171,7 +171,7 @@
   // brief wants that watermark, so a reply arriving between the load and the
   // acknowledgement stays unread instead of being swallowed.
   $effect(() => {
-    if (!landed || !stickToBottom) return
+    if (!landed || !stickToBottom || source.hidden) return
     const tail = list.at(-1)?.id ?? source.watermark
     if (tail) source.onread?.(tail)
   })
