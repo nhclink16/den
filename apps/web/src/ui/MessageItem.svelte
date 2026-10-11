@@ -167,7 +167,7 @@
             <Avatar userId={last.author_id} size={18} presence={false} />
             <span class="who">{store.name(last.author_id)}</span>
             <!-- An empty reply carries a file or a card; the preview cannot tell which. -->
-            <span class="said">{snippet(last.excerpt) || 'shared something'}</span>
+            <span class="said">{snippet(last.excerpt).trim() || 'shared something'}</span>
           {:else}
             <Icon name="reply" size={12} />
           {/if}
