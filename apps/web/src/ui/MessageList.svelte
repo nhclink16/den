@@ -24,6 +24,9 @@
     identity: string
     /// Distinguishes a window from the latest list of the same conversation.
     identityExtra?: string
+    /// Stowed out of sight behind a panel: laid out at a width nobody sees, so
+    /// nothing here counts as having reached the newest message.
+    hidden?: boolean
   }
 </script>
 
@@ -35,6 +38,7 @@
   import MessageItem from './MessageItem.svelte'
   import Icon from './Icon.svelte'
   import { profileCard } from '../lib/people.svelte'
+  import { atBottom, landing } from '../lib/landing'
 
   let { channel, source, onreply }: { channel: Channel; source: Source; onreply: (m: Message) => void } = $props()
   let el: HTMLDivElement
@@ -50,22 +54,99 @@
   // correction could, and would acknowledge a tail nobody is looking at.
   // svelte-ignore state_referenced_locally
   let stickToBottom = $state(!source.target)
+  // Nothing follows the tail or acknowledges it until the view has decided where
+  // to open: at the bottom, or at the "new" line when that would be off screen.
+  // A target decides for itself.
+  // svelte-ignore state_referenced_locally
+  let landed = $state(!!source.target)
   // svelte-ignore state_referenced_locally
   let shownKey = $state(`${source.identity}:${source.identityExtra ?? ''}:${source.target ?? ''}`)
+  // svelte-ignore state_referenced_locally
+  let shown = { identity: source.identity, target: source.target }
   $effect(() => {
     const key = `${source.identity}:${source.identityExtra ?? ''}:${source.target ?? ''}`
     if (key === shownKey) return
+    // Leaving a target for the same conversation is "Jump to newest": the
+    // newest message, not the unread line.
+    const toNewest = shown.identity === source.identity && !!shown.target && !source.target
     shownKey = key
+    shown = { identity: source.identity, target: source.target }
     openedAt = source.lastRead
     stickToBottom = !source.target
+    landed = !!source.target || toNewest
+    touched = false
+    gaveUp = false
+  })
+
+  // Where the view opens: the "new" line near the top when it would be off
+  // screen, otherwise the bottom. A conversation never read has no place to
+  // keep, so it opens at the bottom as before. A hidden view never counts as
+  // read from there; `reached` decides once it is shown.
+  function land() {
+    const line = openedAt ? el.querySelector<HTMLElement>(':scope > .new') : null
+    const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
+    const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
+    el.scrollTop = top
+    stickToBottom = bottom && !source.hidden
+    far = el.scrollHeight - top - el.clientHeight > 400
+  }
+  // Until the reader scrolls, media that settles late above the bottom moves the
+  // view back to the "new" line rather than wherever the growth pushed it.
+  let touched = false
+  // Set when fetching back to the first unread message failed: open anyway.
+  let gaveUp = $state(false)
+
+  // Open once the first page is here (or known to be empty), and once the first
+  // unread message is in it: older pages are fetched for that, up to 250
+  // messages so a room left for weeks does not pull its whole history first.
+  // Catching up starts where the reader left off; the tail is acknowledged only
+  // once they reach it.
+  $effect(() => {
+    if (landed || (!list.length && !source.exhausted)) return
+    if (openedAt && list.length && list.length < 250 && list[0].id > openedAt && !source.exhausted && !gaveUp) {
+      const key = shownKey
+      if (!source.loadingOlder) source.older().catch(() => { if (shownKey === key) gaveUp = true })
+      return
+    }
+    void tick().then(() => {
+      if (landed || !el) return
+      land()
+      landed = true
+    })
   })
 
   // Keep the newest message in view unless the reader scrolled up, or is looking
   // at an older target they asked for.
   $effect(() => {
     void list.length
-    if (stickToBottom && !source.target) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
+    if (landed && stickToBottom && !source.target) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
   })
+  // A message sent from here brings you down to it wherever you were: posting is
+  // taken as having caught up. Its socket echo can arrive before the send
+  // returns, so this watches both rather than the order they come in.
+  let followed = store.lastSent
+  $effect(() => {
+    const sent = store.lastSent
+    if (!landed || source.target || sent === followed || !list.some((m) => m.id === sent)) return
+    followed = sent
+    stickToBottom = true
+  })
+
+  // A view that grows until the tail is on screen, or is shown again with the
+  // tail on screen, has reached it though nothing scrolled to say so: a bigger
+  // window, or a panel closing beside it.
+  // The Jump to latest pill follows the same layout changes.
+  function reached() {
+    if (!landed || !el || source.hidden) return
+    far = el.scrollHeight - el.scrollTop - el.clientHeight > 400
+    if (!stickToBottom && !source.target && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
+  }
+  $effect(() => {
+    const ro = new ResizeObserver(reached)
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+  $effect(() => { if (!source.hidden) void tick().then(reached) })
 
   // Reveal a requested target. This depends on the LIST as well as the target:
   // the window it lives in usually arrives after this first runs, and an effect
@@ -90,7 +171,7 @@
   // brief wants that watermark, so a reply arriving between the load and the
   // acknowledgement stays unread instead of being swallowed.
   $effect(() => {
-    if (!stickToBottom) return
+    if (!landed || !stickToBottom || source.hidden) return
     const tail = list.at(-1)?.id ?? source.watermark
     if (tail) source.onread?.(tail)
   })
@@ -105,13 +186,16 @@
     if (tag?.dataset.user) profileCard.open(tag.dataset.user, tag, instances.active)
   }
   function latest() {
+    touched = true
     const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
     el?.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
   }
 
   function mediaReady() {
     void tick().then(() => {
-      if (stickToBottom && !source.target && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
+      if (!landed || source.target || !el?.isConnected) return
+      if (stickToBottom) el.scrollTo({ top: el.scrollHeight })
+      else if (!touched) land()
     })
   }
 
@@ -119,14 +203,16 @@
     const scroller = el
     if (!scroller) return
     const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    stickToBottom = fromBottom < 80
+    // A hidden view scrolls only programmatically, at a width nobody sees.
+    stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight) && !source.hidden
     far = fromBottom > 400
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
-      const before = el.scrollHeight
+      const before = el.scrollHeight, key = shownKey
       await source.older()
       await tick()
-      // The history request can outlive this view.
-      if (el === scroller && scroller.isConnected) scroller.scrollTop += scroller.scrollHeight - before
+      // The history request can outlive this view, and this conversation: a
+      // thread panel reuses its scroller for the next thread.
+      if (el === scroller && scroller.isConnected && shownKey === key) scroller.scrollTop += scroller.scrollHeight - before
     }
   }
 
@@ -139,7 +225,7 @@
 <div class="wrap">
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
-<div class="list" bind:this={el} onscroll={onScroll} onclick={mention}>
+<div class="list" bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => (touched = true)} ontouchstart={() => (touched = true)} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <div class="start">
@@ -159,7 +245,7 @@
     {#if m.id === firstUnread}
       <div class="new"><span>new</span></div>
     {/if}
-    <MessageItem {m} {prefix} compact={continues(prev, m)} {onreply} onmediaready={mediaReady} />
+    <MessageItem {m} {prefix} compact={m.id !== firstUnread && continues(prev, m)} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
 {#if far}

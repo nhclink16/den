@@ -148,6 +148,9 @@ export class Store {
   sendEvent(event: ClientEvent) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(event)) }
   sendTerminal(event: TerminalFrame) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(new TextEncoder().encode(JSON.stringify(event))) }
   me = $state<User | null>(null)
+  /// The last message this device sent, so a conversation scrolled back can
+  /// bring its own sender down to it without doing that for other devices.
+  lastSent = $state('')
   users = $state<Map<string, User>>(new Map())
   /** What each person is doing now, newest first. Replaced whole on every update. */
   activities = $state<Map<string, import('./types').Activity[]>>(new Map())
@@ -1049,6 +1052,7 @@ export class Store {
     // send moving a DIFFERENT account's cache or read cursor, which is what an
     // acknowledgement issued under the new epoch would do.
     if (epoch !== this.generation) return
+    this.lastSent = m.id
     this.upsert(m)
     // Posting is not reading: an existing follower's unseen replies stay unread.
     if (!m.thread_id) this.markRead(channelId)
