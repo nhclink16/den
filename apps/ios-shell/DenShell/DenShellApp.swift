@@ -102,6 +102,7 @@ struct DenWebView: UIViewRepresentable {
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     private var inCall = false
+    private weak var sheet: WKWebView?
 
     init(den: Origin) {
         self.den = den
@@ -172,8 +173,7 @@ struct DenWebView: UIViewRepresentable {
         if let frame = action.targetFrame, !frame.isMainFrame { return decisionHandler(.allow) }
         guard let url = action.request.url else { return decisionHandler(.cancel) }
         if Origin(url) == den {
-            // A Den link meant for a new window stays in the shell.
-            if action.targetFrame == nil { webView.load(action.request); return decisionHandler(.cancel) }
+            if action.targetFrame == nil { openInSheet(action.request, from: webView); return decisionHandler(.cancel) }
             return decisionHandler(.allow)
         }
         // Other sites go to Safari, mailto: and tel: to their apps. A blank, data or foreign blob page
@@ -188,9 +188,27 @@ struct DenWebView: UIViewRepresentable {
         for action: WKNavigationAction, windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         if let url = action.request.url, Origin(url) != nil {
-            if Origin(url) == den { webView.load(action.request) } else { UIApplication.shared.open(url) }
+            if Origin(url) == den { openInSheet(action.request, from: webView) } else { UIApplication.shared.open(url) }
         }
         return nil
+    }
+
+    /// A Den link meant for a new window (a picture's Open original) opens in a sheet over Den with a Done button,
+    /// never in place of Den: the shell has no back button. The sheet shares Den's cookies and these rules.
+    private func openInSheet(_ request: URLRequest, from webView: WKWebView) {
+        if webView === sheet { webView.load(request); return }
+        let viewer = WKWebView(frame: .zero, configuration: webView.configuration)
+        viewer.navigationDelegate = self
+        viewer.uiDelegate = self
+        viewer.load(request)
+        let page = UIViewController()
+        page.view = viewer
+        page.navigationItem.rightBarButtonItem = UIBarButtonItem(
+            systemItem: .done, primaryAction: UIAction { [weak page] _ in page?.dismiss(animated: true) })
+        var top = webView.window?.rootViewController
+        while let presented = top?.presentedViewController { top = presented }
+        top?.present(UINavigationController(rootViewController: page), animated: true)
+        sheet = viewer
     }
 
     /// iOS can kill the page's process under memory pressure; reload rather than show a blank screen.
