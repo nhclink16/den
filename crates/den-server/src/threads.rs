@@ -2,7 +2,8 @@ use crate::{auth::Auth, chat::visible, *};
 use axum::extract::{Path, Query};
 
 /// Shared metadata for one thread. Counts come from the reply rows themselves, so
-/// deleting a reply cannot leave a cached total behind.
+/// deleting a reply cannot leave a cached total behind. Every lookup names the
+/// channel so it walks the (channel_id, thread_id, id) index, not every message.
 pub(crate) async fn summary<'a>(
     db: impl sqlx::SqliteExecutor<'a>,
     id: &str,
@@ -10,12 +11,12 @@ pub(crate) async fn summary<'a>(
     let r = sqlx::query!(
         r#"SELECT t.id,t.channel_id,t.root_message_id,t.title,t.created_by,t.created_at,
             t.resolved_at as "resolved_at?",t.resolved_by as "resolved_by?",
-            (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) as "reply_count!: i64",
-            (SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id) as "last_reply_id?",
-            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.thread_id=t.id),t.created_at) as "last_activity_at!",
+            (SELECT count(*) FROM messages m WHERE m.channel_id=t.channel_id AND m.thread_id=t.id) as "reply_count!: i64",
+            r.id as "last_reply_id?",
+            coalesce((SELECT max(m.created_at) FROM messages m WHERE m.channel_id=t.channel_id AND m.thread_id=t.id),t.created_at) as "last_activity_at!",
             r.author_id as "last_author_id?",substr(r.content,1,200) as "last_excerpt?: String",r.created_at as "last_created_at?"
             FROM threads t
-            LEFT JOIN messages r ON r.id=(SELECT max(m.id) FROM messages m WHERE m.thread_id=t.id)
+            LEFT JOIN messages r ON r.id=(SELECT max(m.id) FROM messages m WHERE m.channel_id=t.channel_id AND m.thread_id=t.id)
             WHERE t.id=?"#,
         id
     )

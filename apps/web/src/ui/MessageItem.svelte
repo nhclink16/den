@@ -166,7 +166,8 @@
           {#if last}
             <Avatar userId={last.author_id} size={18} presence={false} />
             <span class="who">{store.name(last.author_id)}</span>
-            <span class="said">{snippet(last.excerpt) || 'sent a file'}</span>
+            <!-- An empty reply carries a file or a card; the preview cannot tell which. -->
+            <span class="said">{snippet(last.excerpt) || 'shared something'}</span>
           {:else}
             <Icon name="reply" size={12} />
           {/if}
@@ -214,8 +215,8 @@
   .thread-link.lit { border-color: var(--lamp); color: var(--ink); }
   .thread-link.resolved { opacity: .6; }
   .thread-link.resolved:hover { opacity: 1; }
-  .thread-link .who { font-weight: 700; color: var(--ink); flex: none; }
-  .thread-link .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .thread-link .who { font-weight: 700; color: var(--ink); flex: none; max-width: 8em; }
+  .thread-link .who, .thread-link .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .thread-link .replies, .thread-link .mono, .thread-link .count { flex: none; }
   .thread-link .count {
     min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000);
