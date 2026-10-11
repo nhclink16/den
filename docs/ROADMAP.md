@@ -42,6 +42,7 @@ The native SwiftUI app (about 7,800 lines, decided 2026-09-14) is retired. It re
 - Calls, decided by a one-hour test on the iMac with a real iPhone: load the SPA in a bare WKWebView shell, join the hangout, then lock the screen, switch apps, use AirPods and take a phone call mid-call.
   - If the call survives, calls stay in the web page and the shell is about 500 lines.
   - If not (expected), a native call engine taken from the old app (LiveKit Swift, CallKit, background audio, about 1,500 lines) runs the call. The web Join button tells it to join or leave, and the call tiles are the one native screen.
+- Step one done 2026-10-11 (#72): a bare shell in `apps/ios-shell` ("Den Shell", `app.denchat.shell`) is built and signed, waiting for the call test. On the simulator WebKit ends the page's mic when the app goes to the background, so the native call engine is the likely outcome.
 - The old app stays in `apps/ios` until the shell replaces it, then is deleted. PR #55 (Take photo) was closed with it.
 
 ## M6 — deploy and integrations
