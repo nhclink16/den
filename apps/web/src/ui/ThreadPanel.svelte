@@ -7,7 +7,7 @@
   import { snippet } from '../lib/klipy'
   import MessageItem from './MessageItem.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
-  import Composer from './Composer.svelte'
+  import Composer, { focusComposer } from './Composer.svelte'
 
   // One conversation. Its identity is channel plus ROOT message, which exists
   // before the server has a thread for it: replying opens this panel immediately
@@ -107,8 +107,9 @@
     const id = live
     if (id && !store.thread(id)) void store.loadThread(id).catch(() => {})
   })
-  // Focus the panel when it opens so the keyboard lands somewhere sensible.
-  $effect(() => { void conversationKey(here); void tick().then(() => head?.focus()) })
+  // Focus the panel when it opens: the reply box, so typing goes somewhere,
+  // or the header when there is nothing to reply to or a phone didn't ask.
+  $effect(() => { void conversationKey(here); void tick().then(() => { if (resolved || !focusComposer(head?.parentElement)) head?.focus() }) })
 
   // An old target gets a contiguous window, owned by the Store so every update
   // reaches it, kept apart from the latest cache so a gap cannot look like read

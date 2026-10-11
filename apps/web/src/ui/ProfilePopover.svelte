@@ -6,6 +6,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { router } from '../lib/router.svelte'
   import UserCard from './UserCard.svelte'
+  import { focusComposer } from './Composer.svelte'
 
   let node = $state<HTMLDivElement>()
 
@@ -43,6 +44,8 @@
     profileCard.close()
     const c = await s.openDm([id])
     router.go(`/c/${c.id}`)
+    await tick()
+    focusComposer(document.querySelector('.room'))
   }
   function edit() { profileCard.close(); router.go('/settings/profile') }
 </script>

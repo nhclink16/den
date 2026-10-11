@@ -1,3 +1,15 @@
+<script module lang="ts">
+  /// Puts the cursor in the reply box inside `root`, for a conversation someone
+  /// just opened. A touch screen gets it only straight after their own tap, so a
+  /// reload or a Back never pops the keyboard up. Returns whether it did.
+  export function focusComposer(root: ParentNode | null | undefined): boolean {
+    if (matchMedia('(pointer: coarse)').matches && !navigator.userActivation?.isActive) return false
+    const box = root?.querySelector<HTMLTextAreaElement>('textarea')
+    box?.focus()
+    return !!box && document.activeElement === box
+  }
+</script>
+
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import { plugins } from '../plugins'
@@ -130,7 +142,7 @@
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
 
-  const placeholder = $derived(channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
+  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
