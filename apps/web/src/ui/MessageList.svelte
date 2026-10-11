@@ -58,42 +58,73 @@
   let landed = $state(!!source.target)
   // svelte-ignore state_referenced_locally
   let shownKey = $state(`${source.identity}:${source.identityExtra ?? ''}:${source.target ?? ''}`)
+  // svelte-ignore state_referenced_locally
+  let shown = { identity: source.identity, target: source.target }
   $effect(() => {
     const key = `${source.identity}:${source.identityExtra ?? ''}:${source.target ?? ''}`
     if (key === shownKey) return
+    // Leaving a target for the same conversation is "Jump to newest": the
+    // newest message, not the unread line.
+    const toNewest = shown.identity === source.identity && !!shown.target && !source.target
     shownKey = key
+    shown = { identity: source.identity, target: source.target }
     openedAt = source.lastRead
     stickToBottom = !source.target
-    landed = !!source.target
+    landed = !!source.target || toNewest
+    touched = false
+    gaveUp = false
   })
 
-  // Open once the first page is here (or known to be empty). Catching up starts
-  // where the reader left off; the tail is acknowledged only once they reach it.
+  // Where the view opens: the "new" line near the top when it would be off
+  // screen, otherwise the bottom. A conversation never read has no place to
+  // keep, so it opens at the bottom as before.
+  function land() {
+    const line = openedAt ? el.querySelector<HTMLElement>(':scope > .new') : null
+    const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
+    const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
+    el.scrollTop = top
+    stickToBottom = bottom
+    far = el.scrollHeight - top - el.clientHeight > 400
+  }
+  // Until the reader scrolls, media that settles late moves the view back to
+  // where it opened rather than wherever the growth pushed it.
+  let touched = false
+  // Set when fetching back to the first unread message failed: open anyway.
+  let gaveUp = $state(false)
+
+  // Open once the first page is here (or known to be empty), and once the first
+  // unread message is in it: older pages are fetched for that, up to 250
+  // messages so a room left for weeks does not pull its whole history first.
+  // Catching up starts where the reader left off; the tail is acknowledged only
+  // once they reach it.
   $effect(() => {
     if (landed || (!list.length && !source.exhausted)) return
+    if (openedAt && list.length && list.length < 250 && list[0].id > openedAt && !source.exhausted && !gaveUp) {
+      if (!source.loadingOlder) source.older().catch(() => { gaveUp = true })
+      return
+    }
     void tick().then(() => {
       if (landed || !el) return
-      const line = el.querySelector<HTMLElement>(':scope > .new')
-      const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
-      const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
-      el.scrollTop = top
-      stickToBottom = bottom
+      land()
       landed = true
     })
   })
 
   // Keep the newest message in view unless the reader scrolled up, or is looking
-  // at an older target they asked for. Your own new message brings you down to
-  // it wherever you were: posting is taken as having caught up.
-  let tailSeen = ''
+  // at an older target they asked for.
   $effect(() => {
     void list.length
-    const tail = list.at(-1)
-    const posted = !!tail && tailSeen !== '' && tail.id > tailSeen && tail.author_id === store.me?.id
-    tailSeen = landed ? tail?.id ?? '' : ''
-    if (!landed || source.target) return
-    if (posted) stickToBottom = true
-    if (stickToBottom) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
+    if (landed && stickToBottom && !source.target) tick().then(() => el?.scrollTo({ top: el.scrollHeight }))
+  })
+  // A message sent from here brings you down to it wherever you were: posting is
+  // taken as having caught up. Its socket echo can arrive before the send
+  // returns, so this watches both rather than the order they come in.
+  let followed = store.lastSent
+  $effect(() => {
+    const sent = store.lastSent
+    if (!landed || source.target || sent === followed || list.at(-1)?.id !== sent) return
+    followed = sent
+    stickToBottom = true
   })
 
   // Reveal a requested target. This depends on the LIST as well as the target:
@@ -134,13 +165,16 @@
     if (tag?.dataset.user) profileCard.open(tag.dataset.user, tag, instances.active)
   }
   function latest() {
+    touched = true
     const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
     el?.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
   }
 
   function mediaReady() {
     void tick().then(() => {
-      if (landed && stickToBottom && !source.target && el?.isConnected) el.scrollTo({ top: el.scrollHeight })
+      if (!landed || source.target || !el?.isConnected) return
+      if (!touched) land()
+      else if (stickToBottom) el.scrollTo({ top: el.scrollHeight })
     })
   }
 
@@ -168,7 +202,7 @@
 <div class="wrap">
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
-<div class="list" bind:this={el} onscroll={onScroll} onclick={mention}>
+<div class="list" bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => (touched = true)} ontouchstart={() => (touched = true)} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <div class="start">
