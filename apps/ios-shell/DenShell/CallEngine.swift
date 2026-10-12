@@ -82,6 +82,13 @@ enum CallRules {
 
     private let provider: CXProvider
     private let system = CXCallController()
+    // The simulator has no system call screen, so CallKit ends every call there about a second after it starts.
+    // Debug simulator builds switch the audio session on themselves instead; every phone build uses CallKit.
+    #if DEBUG && targetEnvironment(simulator)
+    private let usesCallKit = false
+    #else
+    private let usesCallKit = true
+    #endif
     private var call: Call?
     private var reconciling = false
     private var reconcileAgain = false
@@ -137,10 +144,23 @@ enum CallRules {
         publish()
         do {
             try Self.prepareAudioSession()
-            let start = CXStartCallAction(call: call.id, handle: CXHandle(type: .generic, value: request.title))
-            try await system.request(CXTransaction(action: start))
+            if usesCallKit {
+                let start = CXStartCallAction(call: call.id, handle: CXHandle(type: .generic, value: request.title))
+                try await system.request(CXTransaction(action: start))
+            } else {
+                try AVAudioSession.sharedInstance().setActive(true)
+                call.audioActive = true
+                log.info("simulator: call audio session on without CallKit")
+            }
             try require(call)
-            try await room.connect(url: request.url.absoluteString, token: request.token)
+            do { try await room.connect(url: request.url.absoluteString, token: request.token) }
+            catch let error as LiveKitError where error.type == .timedOut {
+                // LiveKit Swift 2.17.0 can drop its answer to the server's first offer (it is sent while its
+                // request queue is still suspended), and the join then times out. A second try goes through.
+                try require(call)
+                log.error("join timed out, trying once more")
+                try await room.connect(url: request.url.absoluteString, token: request.token)
+            }
             try require(call)
             let local = room.localParticipant.identity?.stringValue ?? ""
             if CallRules.joinsQuietly(localIdentity: local, remoteIdentities: room.remoteParticipants.keys.map(\.stringValue)) {
@@ -162,6 +182,7 @@ enum CallRules {
 
     func leave() async {
         guard let call else { return }
+        guard usesCallKit else { await finish(call, reason: nil); return }
         do { try await system.request(CXTransaction(action: CXEndCallAction(call: call.id))) }
         catch {
             // CallKit no longer knows the call (it failed to start, or was reset): end it here.
@@ -173,7 +194,8 @@ enum CallRules {
     func setMuted(_ muted: Bool) async throws -> CallSnapshot {
         guard let call else { throw CallError.ended }
         if !muted, !(await microphoneAllowed()) { throw CallError.microphone }
-        try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted)))
+        if usesCallKit { try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted))) }
+        else { setMicrophone(call, on: !muted) }
         return snapshot(call)
     }
 
@@ -199,8 +221,14 @@ enum CallRules {
         }
     }
 
+    private func setMicrophone(_ call: Call, on: Bool) {
+        call.wantsMic = on
+        applyAudioGate()
+        Task { await reconcile() }
+    }
+
     private func reportConnected(_ call: Call) {
-        guard !call.reportedConnected else { return }
+        guard usesCallKit, !call.reportedConnected else { return }
         call.reportedConnected = true
         provider.reportOutgoingCall(with: call.id, connectedAt: nil)
     }
@@ -253,8 +281,9 @@ enum CallRules {
         guard self.call === call else { return }
         self.call = nil
         call.phase = .ended
-        if let reason { provider.reportCall(with: call.id, endedAt: nil, reason: reason) }
+        if usesCallKit, let reason { provider.reportCall(with: call.id, endedAt: nil, reason: reason) }
         applyAudioGate()
+        if !usesCallKit { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
         call.room.remove(delegate: self)
         await call.room.disconnect()
         log.info("call ended \(call.id, privacy: .public)")
@@ -331,10 +360,8 @@ enum CallRules {
         case let mute as CXSetMutedCallAction:
             // From Den or from iOS's call screen.
             if !mute.isMuted, AVAudioApplication.shared.recordPermission != .granted { action.fail(); return }
-            call.wantsMic = !mute.isMuted
-            applyAudioGate()
+            setMicrophone(call, on: !mute.isMuted)
             action.fulfill()
-            Task { await reconcile() }
         case let hold as CXSetHeldCallAction:
             // A phone call took over with "Hold & Accept": mic and sound off until it's released.
             call.held = hold.isOnHold

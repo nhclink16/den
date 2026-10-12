@@ -7,8 +7,9 @@ import OSLog
 // is compiled into Release.
 //
 // The simulator records the Mac's real microphone, which can't be fed a known sound. So the mic's audio is
-// replaced by a quiet 150 Hz hum, the same as WebKit's fake mic, inside LiveKit's capture step. LiveKit only
+// replaced by a quiet 150 Hz hum, the pitch of WebKit's fake mic, inside LiveKit's capture step. LiveKit only
 // runs that step while it is really capturing, so a far end that hears the hum proves the mic path is live.
+// The hum is pulsed (0.4 s of every second): a steady tone is learnt as background noise and suppressed.
 // The playback side logs, every 2 s, how much audio LiveKit actually rendered and its level at 440 Hz (the
 // test robot's tone), as `playout` lines under the `test` category.
 
@@ -28,19 +29,26 @@ private final class TestTone: AudioCustomProcessingDelegate, @unchecked Sendable
     // Only touched on the audio capture thread.
     private var phase = 0.0
     private var rate = 48_000.0
+    private var position = 0
 
     func audioProcessingInitialize(sampleRate sampleRateHz: Int, channels: Int) { rate = Double(sampleRateHz) }
 
     func audioProcessingProcess(audioBuffer: LKAudioBuffer) {
         let step = 2 * Double.pi * 150 / rate
+        let second = Int(rate)
         var end = phase
         for channel in 0 ..< audioBuffer.channels {
             let samples = audioBuffer.rawBuffer(forChannel: channel)
             var p = phase
             // Replace, not add: the test sends a known sound and nothing of the room.
-            for i in 0 ..< audioBuffer.frames { samples[i] = Float(sin(p)) * 0.1 * fullScale; p += step }
+            for i in 0 ..< audioBuffer.frames {
+                let on = (position + i) % second < second * 2 / 5
+                samples[i] = on ? Float(sin(p)) * 0.1 * fullScale : 0
+                p += step
+            }
             end = p
         }
+        position = (position + audioBuffer.frames) % second
         phase = end.truncatingRemainder(dividingBy: 2 * .pi)
     }
 
