@@ -10,6 +10,9 @@ import OSLog
 private let log = Logger(subsystem: "app.denchat.shell", category: "call")
 
 /// What the page needs to draw the call. Always sent whole, so a missed one is fixed by the next.
+/// `revision` grows with every snapshot, so the page can drop one that arrives after a newer one (replies and
+/// pushed snapshots travel separately). `micSeq`/`soundSeq` echo the last mute/sound command applied, so the page
+/// keeps showing its own newer tap until the engine has caught up with it.
 struct CallSnapshot: Encodable, Equatable {
     enum Phase: String, Encodable { case connecting, connected, reconnecting, ended }
     struct Person: Encodable, Equatable {
@@ -22,8 +25,11 @@ struct CallSnapshot: Encodable, Equatable {
         let camera: Bool
         let screen: Bool
     }
+    var revision: Int
     var phase: Phase
     var channelId: String
+    var micSeq: Int
+    var soundSeq: Int
     var micOn: Bool
     var soundOff: Bool
     var otherDevices: Int
@@ -80,6 +86,8 @@ enum CallRules {
         /// Set once `finish` has torn the call down; `leave` waits for it.
         var finished = false
         var finishWaiters: [CheckedContinuation<Void, Never>] = []
+        var micSeq = 0
+        var soundSeq = 0
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
     }
 
@@ -93,6 +101,7 @@ enum CallRules {
     private let usesCallKit = true
     #endif
     private var call: Call?
+    private var revision = 0
     private var reconciling = false
     private var reconcileAgain = false
 
@@ -202,17 +211,25 @@ enum CallRules {
     /// Goes through CallKit, so iOS's own mute button agrees with Den's.
     /// The replies below describe the current call, never the one the command began with: a reply that arrives
     /// after Leave and a rejoin must not end the new call in the page.
-    func setMuted(_ muted: Bool) async throws -> CallSnapshot? {
+    /// `seq` is recorded even when the command fails, and the state is pushed, so the page stops waiting for it.
+    func setMuted(_ muted: Bool, seq: Int) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
-        if !muted, !(await microphoneAllowed()) { throw CallError.microphone }
-        guard self.call === call else { return snapshot }
-        if usesCallKit { try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted))) }
-        else { setMicrophone(call, on: !muted) }
+        call.micSeq = seq
+        do {
+            if !muted, !(await microphoneAllowed()) { throw CallError.microphone }
+            guard self.call === call else { return snapshot }
+            if usesCallKit { try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted))) }
+            else { setMicrophone(call, on: !muted) }
+        } catch {
+            publish()
+            throw error
+        }
         return snapshot
     }
 
-    func setSoundOff(_ off: Bool) async throws -> CallSnapshot? {
+    func setSoundOff(_ off: Bool, seq: Int) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
+        call.soundSeq = seq
         call.soundOff = off
         applyAudioGate()
         await reconcile()
@@ -326,8 +343,10 @@ enum CallRules {
                          camera: p.isCameraEnabled(), screen: p.isScreenShareEnabled())
         }
         let ownAccount = CallRules.accountID(local.identity?.stringValue ?? "")
+        revision += 1
         return CallSnapshot(
-            phase: call.phase, channelId: call.join.channelId, micOn: call.wantsMic, soundOff: call.soundOff,
+            revision: revision, phase: call.phase, channelId: call.join.channelId, micSeq: call.micSeq, soundSeq: call.soundSeq,
+            micOn: call.wantsMic, soundOff: call.soundOff,
             otherDevices: remotes.filter { CallRules.accountID($0.identity?.stringValue ?? "") == ownAccount && !ownAccount.isEmpty }.count,
             error: call.error, participants: people)
     }

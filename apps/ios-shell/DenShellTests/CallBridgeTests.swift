@@ -46,14 +46,18 @@ struct CallBridgeTests {
         var numeric = join; numeric["micOn"] = 1
         #expect(throws: CallError.self, "a number is not a yes/no") { try CallCommand(numeric, allowLocalWS: false) }
         #expect(throws: CallError.self) { try CallCommand(["type": "mute"], allowLocalWS: false) }
+        #expect(throws: CallError.self, "a mute needs its sequence number") { try CallCommand(["type": "mute", "muted": true], allowLocalWS: false) }
+        #expect(throws: CallError.self, "a yes/no is not a number") { try CallCommand(["type": "mute", "muted": true, "seq": true], allowLocalWS: false) }
+        #expect(throws: CallError.self) { try CallCommand(["type": "sound", "off": true, "seq": -1], allowLocalWS: false) }
+        #expect(throws: CallError.self) { try CallCommand(["type": "sound", "off": true, "seq": 1.5], allowLocalWS: false) }
         #expect(throws: CallError.self) { try CallCommand(["type": "camera", "on": true], allowLocalWS: false) }
         #expect(throws: CallError.self) { try CallCommand("leave", allowLocalWS: false) }
     }
 
     @Test func readsTheSmallCommands() throws {
         #expect(try CallCommand(["type": "leave"], allowLocalWS: false) == .leave)
-        #expect(try CallCommand(["type": "mute", "muted": true], allowLocalWS: false) == .mute(true))
-        #expect(try CallCommand(["type": "sound", "off": false], allowLocalWS: false) == .sound(off: false))
+        #expect(try CallCommand(["type": "mute", "muted": true, "seq": 3], allowLocalWS: false) == .mute(true, seq: 3))
+        #expect(try CallCommand(["type": "sound", "off": false, "seq": 1], allowLocalWS: false) == .sound(off: false, seq: 1))
         #expect(try CallCommand(["type": "state"], allowLocalWS: false) == .state)
     }
 

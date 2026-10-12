@@ -410,14 +410,21 @@ class Call {
    * after Leave must not bring back the call that is ending. */
   applyShell(state: ShellCall | null, adopt = false) {
     if (this.joining && !this.channel) return
-    // No call in the shell: one that ended while the page slept, so its end never arrived.
-    if (!state) state = this.channel && !adopt ? { phase: 'ended', channelId: this.channel.id, micOn: false, soundOff: false, otherDevices: 0, participants: [] } : null
-    if (!state) return
+    if (!state) {
+      // No call in the shell: one that ended while the page slept, so its end never arrived.
+      if (this.channel && !adopt) { const quiet = this.outputMuted; this.clear(); if (!quiet) this.sound(false) }
+      return
+    }
+    // Replies and pushed snapshots travel separately; one older than what the page has seen is out of date.
+    if (state.revision <= this.shellRevision) return
+    this.shellRevision = state.revision
     if (!this.channel) {
       if (!adopt) return
       const owner = instances.active, channel = state.phase === 'ended' ? undefined : owner.channel(state.channelId)
       if (!channel) return
       this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
+      // A fresh page has sent nothing: take up the shell's count where it is.
+      this.micSent = state.micSeq; this.soundSent = state.soundSeq
     }
     if (state.channelId !== this.channel.id) return
     if (state.phase === 'ended') {
@@ -428,12 +435,14 @@ class Call {
     }
     const owner = this.owner || store
     this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
-    // While taps are on their way, the button shows the latest one, not an older reply.
-    this.micOn = state.micOn; this.otherDevices = state.otherDevices
-    if (this.soundPending === 0) this.outputMuted = state.soundOff
-    // iOS's call screen can mute too. The mic button toggles the saved choice, so keep it in step, but not while
-    // Den's own mute commands are on their way: their older replies would undo the latest tap.
-    if (this.micPending === 0 && this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
+    this.otherDevices = state.otherDevices
+    // Until the shell has applied the page's latest tap, the button keeps showing that tap. After that, the shell's
+    // word goes, including a mute from iOS's call screen, and the saved choice the mic button toggles follows it.
+    if (state.micSeq === this.micSent) {
+      this.micOn = state.micOn
+      if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
+    }
+    if (state.soundSeq === this.soundSent) this.outputMuted = state.soundOff
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
     if (state.error && state.error !== this.shellError) this.error = state.error
@@ -450,9 +459,10 @@ class Call {
     if (generation === this.generation) this.applyShell(state, true)
   }
   private resumed = false
-  private micPending = 0
   private soundQueue = Promise.resolve()
-  private soundPending = 0
+  private shellRevision = 0
+  private micSent = 0
+  private soundSent = 0
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -465,7 +475,7 @@ class Call {
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
-    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''
+    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0
   }
   async leave() {
     ++this.generation; this.joining = null
@@ -499,10 +509,10 @@ class Call {
     if (shell) {
       // Show the choice at once and send taps in order, so two quick taps can't both say "off".
       // A tap still queued when the call ends is dropped, never sent to the next call.
-      const off = !this.outputMuted, generation = this.generation
-      this.outputMuted = off; this.soundPending++
+      const off = !this.outputMuted, seq = ++this.soundSent, generation = this.generation
+      this.outputMuted = off
       this.soundQueue = this.soundQueue.then(async () => {
-        try { if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'sound', off })) } finally { this.soundPending-- }
+        if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'sound', off, seq }))
       }).catch((err) => this.report(err))
       return this.soundQueue
     }
@@ -526,12 +536,16 @@ class Call {
   }
   private applyMic() {
     const room = this.room
-    if (shell) this.micPending++
+    if (shell) {
+      // Same rules as sound: shown at once, sent in order, dropped if the call ended meanwhile.
+      const on = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn, seq = ++this.micSent, generation = this.generation
+      this.micOn = on
+      this.micQueue = this.micQueue.then(async () => {
+        if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'mute', muted: !on, seq }))
+      }).catch((err) => this.report(err))
+      return this.micQueue
+    }
     this.micQueue = this.micQueue.then(async () => {
-      if (shell) {
-        try { if (this.channel) this.applyShell(await shell.call({ type: 'mute', muted: !(this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn) })) } finally { this.micPending-- }
-        return
-      }
       if (!room || this.room !== room) return
       await this.enableMicrophone(room, this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
       this.refresh()

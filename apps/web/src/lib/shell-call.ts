@@ -5,16 +5,17 @@ import type { ConnectionQuality } from 'livekit-client'
 import type { CallParticipant } from './call.svelte'
 
 export type ShellPerson = { identity: string; name: string; local: boolean; speaking: boolean; muted: boolean; quality: string; camera: boolean; screen: boolean }
+/** `revision` grows with every snapshot; `micSeq`/`soundSeq` echo the last mute/sound command the shell applied. */
 export type ShellCall = {
-  phase: 'connecting' | 'connected' | 'reconnecting' | 'ended'
-  channelId: string; micOn: boolean; soundOff: boolean; otherDevices: number; error?: string
+  revision: number; phase: 'connecting' | 'connected' | 'reconnecting' | 'ended'
+  channelId: string; micSeq: number; soundSeq: number; micOn: boolean; soundOff: boolean; otherDevices: number; error?: string
   participants: ShellPerson[]
 }
 export type ShellCommand =
   | { type: 'join'; url: string; token: string; channelId: string; title: string; micOn: boolean }
-  | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean } | { type: 'sound'; off: boolean }
+  | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean; seq: number } | { type: 'sound'; off: boolean; seq: number }
 declare global {
-  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellCall | null>; onCall: ((call: ShellCall) => void) | null } }
+  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellCall | null>; onCall: ((call: ShellCall | null) => void) | null } }
 }
 
 export const shell = typeof window !== 'undefined' ? window.denShell : undefined

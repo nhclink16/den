@@ -7,7 +7,7 @@ import { shellParticipants, type ShellCall, type ShellPerson } from '../apps/web
 const person = (identity: string, extra: Partial<ShellPerson> = {}): ShellPerson =>
   ({ identity, name: '', local: false, speaking: false, muted: false, quality: 'good', camera: false, screen: false, ...extra })
 const snapshot = (participants: ShellPerson[]): ShellCall =>
-  ({ phase: 'connected', channelId: 'hangout1', micOn: true, soundOff: false, otherDevices: 0, participants })
+  ({ revision: 1, phase: 'connected', channelId: 'hangout1', micSeq: 0, soundSeq: 0, micOn: true, soundOff: false, otherDevices: 0, participants })
 const names: Record<string, string> = { maple: 'Maple', robin: 'Robin' }
 const list = (s: ShellCall) => shellParticipants(s, (id) => names[id] || 'Someone', 'Den DJ')
 

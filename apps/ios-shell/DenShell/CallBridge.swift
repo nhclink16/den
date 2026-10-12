@@ -11,8 +11,8 @@ private let log = Logger(subsystem: "app.denchat.shell", category: "bridge")
 enum CallCommand: Equatable {
     case join(CallJoin)
     case leave
-    case mute(Bool)
-    case sound(off: Bool)
+    case mute(Bool, seq: Int)
+    case sound(off: Bool, seq: Int)
     case state
 
     /// `allowLocalWS`: plain `ws://` to this machine, for debug builds against a local LiveKit.
@@ -22,6 +22,11 @@ enum CallCommand: Equatable {
             // JavaScript booleans arrive as NSNumber; refuse plain numbers so 0/1 can't pass as a choice.
             guard let value = body[key] as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() else { throw CallError(message: "Missing \(key).") }
             return value.boolValue
+        }
+        func count(_ key: String) throws -> Int {
+            guard let value = body[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(), value.intValue >= 0,
+                  Double(value.intValue) == value.doubleValue else { throw CallError(message: "Missing \(key).") }
+            return value.intValue
         }
         func text(_ key: String) throws -> String {
             guard let value = body[key] as? String, !value.isEmpty else { throw CallError(message: "Missing \(key).") }
@@ -35,8 +40,8 @@ enum CallCommand: Equatable {
             self = .join(CallJoin(url: url, token: try text("token"), channelId: try text("channelId"),
                                   title: try text("title"), micOn: try flag("micOn")))
         case "leave": self = .leave
-        case "mute": self = .mute(try flag("muted"))
-        case "sound": self = .sound(off: try flag("off"))
+        case "mute": self = .mute(try flag("muted"), seq: try count("seq"))
+        case "sound": self = .sound(off: try flag("off"), seq: try count("seq"))
         case "state": self = .state
         default: throw CallError(message: "Unknown call message.")
         }
@@ -91,8 +96,8 @@ enum CallCommand: Equatable {
             switch try CallCommand(message.body, allowLocalWS: allowLocalWS) {
             case .join(let request): snapshot = try await engine.join(request)
             case .leave: await engine.leave(); snapshot = nil
-            case .mute(let muted): snapshot = try await engine.setMuted(muted)
-            case .sound(let off): snapshot = try await engine.setSoundOff(off)
+            case .mute(let muted, let seq): snapshot = try await engine.setMuted(muted, seq: seq)
+            case .sound(let off, let seq): snapshot = try await engine.setSoundOff(off, seq: seq)
             case .state: snapshot = engine.snapshot
             }
             return (try snapshot.map(Self.json), nil)
