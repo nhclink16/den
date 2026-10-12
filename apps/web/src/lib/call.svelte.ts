@@ -4,6 +4,7 @@ import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Partici
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
+import { shell, shellParticipants, type ShellUpdate } from './shell-call'
 import type { CallState, CallToken, Channel } from './types'
 
 type Preferences = {
@@ -20,6 +21,8 @@ function load(): Preferences {
 export type CallParticipant = {
   id: string; userId: string; device: string; name: string; music: boolean; local: boolean; speaking: boolean; muted: boolean
   camera?: Track; screen?: Track; screens: Share[]; quality: ConnectionQuality
+  /** A camera or share this device can't show yet (Den Shell runs voice only). */
+  unseen?: 'camera' | 'screen'
 }
 
 class Call {
@@ -85,6 +88,8 @@ class Call {
     else if (this.ducked && !this.duckTimer) this.duckTimer = setTimeout(() => { this.ducked = false; this.duckTimer = undefined; this.applyAudioLevels() }, 700)
   }
   private generation = 0
+  private joinTicket = 0
+  private micChosenWhileJoining = false
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
   private avQueue = Promise.resolve()
@@ -317,10 +322,14 @@ class Call {
   async join(channel: Channel) {
     if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
     const owner = instances.active
+    const ticket = ++this.joinTicket
     await this.leave()
+    // Den Shell's Leave waits for the native call to end, so a later Join can overtake this one meanwhile.
+    if (shell && ticket !== this.joinTicket) return
     this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
     const generation = ++this.generation
     this.joining = channel.id; this.error = ''
+    if (shell) return this.joinShell(channel, owner, generation)
     const prefs = this.prefs
     const camera = owner.voice.cameras[prefs.camera || 'default'] || defaultCamera
     const room = new Room({
@@ -385,6 +394,109 @@ class Call {
       if (generation === this.generation) this.joining = null
     }
   }
+  /** Den Shell: the token goes to the native engine, which runs the call and reports it back. */
+  private async joinShell(channel: Channel, owner: Store, generation: number) {
+    try {
+      const { url, token } = await owner.api.post<CallToken>(`/calls/${channel.id}/token`)
+      if (generation !== this.generation) return
+      this.pushedWhileWaiting = null; this.micChosenWhileJoining = false
+      const answer = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
+      if (generation !== this.generation) return
+      const state = this.newest(answer, channel.id)
+      // The choice as it stands now: applying the answer rewrites the saved one.
+      const wanted = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn
+      this.channel = channel
+      this.applyShell(state)
+      if (!this.channel) return // it ended before the answer arrived
+      if (this.otherDevices > 0) this.save({ micOn: false })
+      // A mic choice made on the page while joining (push to talk picked meanwhile, say) goes out now. Only
+      // that: a mute from iOS's call screen meanwhile stands. Nor after the join's own error, a refused mic.
+      else if (this.micChosenWhileJoining && !this.error && this.micOn !== wanted) {
+        if (this.prefs.mode === 'activity') this.save({ micOn: wanted })
+        void this.applyMic()
+      }
+      this.sound(true)
+    } catch (err) {
+      if (generation === this.generation) { this.clear(); this.report(err) }
+    } finally {
+      if (generation === this.generation) this.joining = null
+    }
+  }
+  /** `adopt`: a call that outlived a page reload may be shown again. Only resumeShell adopts: a stray snapshot
+   * after Leave must not bring back the call that is ending. */
+  applyShell(state: ShellUpdate | null, adopt = false) {
+    if (!state) return
+    if (!this.channel) {
+      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then, but
+      // while a Join or the reload pickup waits for its answer the newest pushed update is kept: it may say the
+      // call has already ended.
+      if (!adopt) { if ((this.joining || this.resuming) && state.revision > (this.pushedWhileWaiting?.revision ?? 0)) this.pushedWhileWaiting = state; return }
+      if (!state.phase || state.phase === 'ended') return
+      const owner = instances.active, channel = owner.channel(state.channelId)
+      if (!channel) return
+      this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
+      // A fresh page has sent nothing: take up the shell's count where it is.
+      this.micSent = state.micSeq; this.soundSent = state.soundSeq
+    }
+    // Replies and pushed updates travel separately; one older than what the page has seen is out of date.
+    if (state.revision <= this.shellRevision) return
+    this.shellRevision = state.revision
+    if (!state.phase) {
+      // The shell has no call: it ended while the page slept, so its end never arrived.
+      const quiet = this.outputMuted
+      this.clear(); if (!quiet) this.sound(false)
+      return
+    }
+    if (state.channelId !== this.channel.id) return
+    if (state.phase === 'ended') {
+      const quiet = this.outputMuted
+      this.clear(); if (state.error) this.error = state.error
+      if (!quiet) this.sound(false)
+      return
+    }
+    const owner = this.owner || store
+    this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
+    this.otherDevices = state.otherDevices
+    // Until the shell has applied the page's latest tap, the button keeps showing that tap. After that, the shell's
+    // word goes, including a mute from iOS's call screen, and the saved choice the mic button toggles follows it.
+    // A higher count than this page ever sent is a command from before a reload: take it up.
+    if (state.micSeq >= this.micSent) {
+      this.micSent = state.micSeq
+      this.micOn = state.micOn
+      if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
+    }
+    if (state.soundSeq >= this.soundSent) { this.soundSent = state.soundSeq; this.outputMuted = state.soundOff }
+    this.reconnecting = state.phase === 'reconnecting'
+    // Every snapshot repeats the last error; show it once.
+    if (state.error && state.error !== this.shellError) this.error = state.error
+    this.shellError = state.error || ''
+  }
+  private shellError = ''
+  /** After a page reload, pick up a call the shell kept running. Once per page, when the rooms are known. */
+  async resumeShell() {
+    if (!shell || this.resumed || this.channel || this.joining) return
+    this.resumed = true; this.resuming = true; this.pushedWhileWaiting = null
+    const generation = this.generation
+    const answer = await shell.call({ type: 'state' }).catch(() => null)
+    this.resuming = false
+    // A Join or Leave meanwhile knows better than this older answer, and so does a newer pushed update.
+    const state = this.newest(answer)
+    if (generation === this.generation) this.applyShell(state, true)
+  }
+  /** The newer of an answer and what was pushed while waiting for it (for `channelId`, if given). */
+  private newest(answer: ShellUpdate | null, channelId?: string) {
+    const pushed = this.pushedWhileWaiting
+    this.pushedWhileWaiting = null
+    if (!pushed || channelId && pushed.phase && pushed.channelId !== channelId) return answer
+    return !answer || pushed.revision > answer.revision ? pushed : answer
+  }
+  private resumed = false
+  private resuming = false
+  private pushedWhileWaiting: ShellUpdate | null = null
+  private soundQueue = Promise.resolve()
+  private shellRevision = 0
+  private micSent = 0
+  private soundSent = 0
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -397,10 +509,17 @@ class Call {
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
-    this.outputMuted = false; this.otherDevices = 0
+    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0
   }
   async leave() {
     ++this.generation; this.joining = null
+    if (shell) {
+      const was = !!this.channel, quiet = this.outputMuted
+      this.clear()
+      await shell.call({ type: 'leave' }).catch(() => {})
+      if (was && !quiet) this.sound(false)
+      return
+    }
     const room = this.room, quiet = this.outputMuted
     const pendingBlur = this.cancelPendingBlur(room)
     this.clear()
@@ -421,6 +540,18 @@ class Call {
     }
   }
   async toggleOutput() {
+    if (shell) {
+      // Show the choice at once and send taps in order, so two quick taps can't both say "off".
+      // A tap still queued when the call ends is dropped, never sent to the next call.
+      const off = !this.outputMuted, seq = ++this.soundSent, generation = this.generation
+      this.outputMuted = off
+      this.soundQueue = this.soundQueue.then(async () => {
+        if (!this.channel || generation !== this.generation) return
+        const reply = await shell!.call({ type: 'sound', off, seq })
+        if (generation === this.generation) this.applyShell(reply)
+      }).catch((err) => this.report(err))
+      return this.soundQueue
+    }
     this.outputMuted = !this.outputMuted
     this.subscriptions()
     if (this.outputMuted) {
@@ -441,6 +572,19 @@ class Call {
   }
   private applyMic() {
     const room = this.room
+    if (shell) {
+      // Same rules as sound: shown at once, sent in order, dropped if the call ended meanwhile. While joining
+      // there is no call yet: the Join applies the choice when it completes.
+      if (!this.channel) { this.micChosenWhileJoining = true; return this.micQueue }
+      const on = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn, seq = ++this.micSent, generation = this.generation
+      this.micOn = on
+      this.micQueue = this.micQueue.then(async () => {
+        if (!this.channel || generation !== this.generation) return
+        const reply = await shell!.call({ type: 'mute', muted: !on, seq })
+        if (generation === this.generation) this.applyShell(reply)
+      }).catch((err) => this.report(err))
+      return this.micQueue
+    }
     this.micQueue = this.micQueue.then(async () => {
       if (!room || this.room !== room) return
       await this.enableMicrophone(room, this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
@@ -515,15 +659,17 @@ class Call {
     } catch (err) { this.report(err) }
   }
   keydown(e: KeyboardEvent) {
-    if (!this.room || this.joining || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
+    if (!(this.room || shell && this.channel) || this.joining || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
     const target = e.target as HTMLElement
     if (target.closest('[data-terminal-focus="true"],.tl-container,input,textarea,select,[contenteditable="true"],[role="dialog"]')) return
     if (this.prefs.mode === 'ptt' && e.code === this.prefs.pttKey) { e.preventDefault(); this.setHeld(true); return }
     const key = e.key.toLowerCase()
     if (key === 'm' && this.prefs.mode === 'activity') { e.preventDefault(); void this.toggleMic() }
+    if (shell) return // voice only for now
     if (key === 'v') { e.preventDefault(); void this.toggleCamera() }
     if (key === 's') { e.preventDefault(); void this.toggleScreen() }
   }
   keyup(e: KeyboardEvent) { if (e.code === this.prefs.pttKey) this.setHeld(false) }
 }
 export const call = new Call()
+if (shell) shell.onCall = (state) => call.applyShell(state)

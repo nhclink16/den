@@ -8,7 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		113799ECDE8C4B8F1F9AEF0C /* OriginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640BB40042AD461BB7D3EAA8 /* OriginTests.swift */; };
+		11C736E722051529A584F628 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A1C415263ABD0C2ACD64B27 /* LiveKit */; };
+		8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */; };
+		904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AFE942C4056FB331CD898A /* CallTestTone.swift */; };
+		E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */; };
 		EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B48E12D014890145BF8A95 /* DenShellApp.swift */; };
+		FC6CAFAAF9863C649E9FC449 /* CallBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B68CD8935418E42801B3969 /* CallBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -22,17 +27,35 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallEngine.swift; sourceTree = "<group>"; };
 		640BB40042AD461BB7D3EAA8 /* OriginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginTests.swift; sourceTree = "<group>"; };
 		66B48E12D014890145BF8A95 /* DenShellApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenShellApp.swift; sourceTree = "<group>"; };
+		75AFE942C4056FB331CD898A /* CallTestTone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallTestTone.swift; sourceTree = "<group>"; };
+		9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallBridgeTests.swift; sourceTree = "<group>"; };
 		9A315DC6859FDC5356E4EFBC /* DenShellTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DenShellTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B68CD8935418E42801B3969 /* CallBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallBridge.swift; sourceTree = "<group>"; };
 		AA90BB5F9855E4491A3341E2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D31F7408E33D1B344EB0D9BA /* DenShell.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DenShell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7AA696A72B1876851346EA0B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11C736E722051529A584F628 /* LiveKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		130A932740CA705D9D504318 /* DenShell */ = {
 			isa = PBXGroup;
 			children = (
+				9B68CD8935418E42801B3969 /* CallBridge.swift */,
+				5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */,
+				75AFE942C4056FB331CD898A /* CallTestTone.swift */,
 				66B48E12D014890145BF8A95 /* DenShellApp.swift */,
 				AA90BB5F9855E4491A3341E2 /* Info.plist */,
 			);
@@ -42,6 +65,7 @@
 		48E3A9DA52DE35F809078D29 /* DenShellTests */ = {
 			isa = PBXGroup;
 			children = (
+				9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */,
 				640BB40042AD461BB7D3EAA8 /* OriginTests.swift */,
 			);
 			path = DenShellTests;
@@ -73,6 +97,7 @@
 			buildConfigurationList = 6B721E8179982029456B8CA3 /* Build configuration list for PBXNativeTarget "DenShell" */;
 			buildPhases = (
 				B8F7073ECA211F9599DD0E2F /* Sources */,
+				7AA696A72B1876851346EA0B /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -80,6 +105,7 @@
 			);
 			name = DenShell;
 			packageProductDependencies = (
+				1A1C415263ABD0C2ACD64B27 /* LiveKit */,
 			);
 			productName = DenShell;
 			productReference = D31F7408E33D1B344EB0D9BA /* DenShell.app */;
@@ -131,6 +157,9 @@
 			);
 			mainGroup = 524702E6E4FC810F494AFA9B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				349E0DE8122014B90486F3ED /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BFE46C4B13F1AA634A03B4EE /* Products */;
 			projectDirPath = "";
@@ -147,6 +176,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC6CAFAAF9863C649E9FC449 /* CallBridge.swift in Sources */,
+				8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */,
+				904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */,
 				EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -155,6 +187,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */,
 				113799ECDE8C4B8F1F9AEF0C /* OriginTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -398,6 +431,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		349E0DE8122014B90486F3ED /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/client-sdk-swift.git";
+			requirement = {
+				kind = exactVersion;
+				version = 2.17.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1A1C415263ABD0C2ACD64B27 /* LiveKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 349E0DE8122014B90486F3ED /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9DA4593047DC4CC8F79551E8 /* Project object */;
 }

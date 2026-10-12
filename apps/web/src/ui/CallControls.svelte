@@ -5,13 +5,14 @@
   import { blurSupported } from '../lib/av'
   import { callLayouts } from '../lib/call-layout.svelte'
   import { disclosurePopover } from '../lib/disclosure-popover'
+  import { shell } from '../lib/shell-call'
   import Icon from './Icon.svelte'
   let { large = false }: { large?: boolean } = $props()
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
   // shows the disabled control and says why.
   const blurAvailable = blurSupported()
   // Phones have no screen to share: the button would only ever show an error.
-  const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia
+  const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia && !shell
   const shares = $derived(call.participants.find(p => p.local)?.screens || [])
 </script>
 
@@ -27,7 +28,8 @@
     <button class:muted={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} /></button>
   {/if}
   <button class:muted={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} /></button>
-  <button class:muted={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} /></button>
+  <!-- Den Shell runs calls voice-only for now. -->
+  {#if !shell}<button class:muted={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} /></button>{/if}
   {#if call.cameraOn && blurAvailable}<button class:blurred={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" /></button>{/if}
   {#if shareAvailable}<button class:sharing={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" /></button>{/if}
   {#if call.screenOn}

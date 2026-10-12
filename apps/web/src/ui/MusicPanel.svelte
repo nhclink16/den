@@ -5,6 +5,7 @@
   import MusicComposer from './MusicComposer.svelte'
   import ParticipantVolume from './ParticipantVolume.svelte'
   import Icon from './Icon.svelte'
+  import { shell } from '../lib/shell-call'
   let { roomId, owner }: { roomId: string; owner: Store } = $props()
   let clock = $state(Date.now()), busy = $state(false), error = $state(''), dragged = $state('')
   const q = $derived(owner.music.get(roomId))
@@ -54,7 +55,7 @@
   </ol>
   {#if !pending.length}<p class="empty">The next song is up to you.</p>{/if}
   <MusicComposer {roomId} {owner} />
-  <div class="listener"><details><summary>Your listening volume</summary>{#if q}<ParticipantVolume userId={q.participant_id} name={`${owner.settings.instance_name} DJ`} />{/if}</details><label class="duck"><input type="checkbox" checked={call.prefs.musicDucking} onchange={e => call.save({ musicDucking: e.currentTarget.checked })} /> Lower music while people talk</label></div>
+  <div class="listener"><details><summary>Your listening volume</summary>{#if q}<ParticipantVolume userId={q.participant_id} name={`${owner.settings.instance_name} DJ`} />{/if}</details>{#if !shell}<label class="duck"><input type="checkbox" checked={call.prefs.musicDucking} onchange={e => call.save({ musicDucking: e.currentTarget.checked })} /> Lower music while people talk</label>{/if}</div>
   <p class="error" role="status">{error}</p>
 </section>
 <style>

@@ -46,9 +46,18 @@ struct Origin: Equatable {
     @MainActor init?(_ origin: WKSecurityOrigin) {
         self.init(scheme: origin.protocol, host: origin.host, port: origin.port)
     }
+
+    /// As `location.origin` writes it: the port only when it isn't the scheme's default.
+    var serialized: String { "\(scheme)://\(host)" + (port == (scheme == "https" ? 443 : 80) ? "" : ":\(port)") }
 }
 
 @main struct DenShellApp: App {
+    init() {
+        #if DEBUG && targetEnvironment(simulator)
+        CallTestHooks.install()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             DenWebView().ignoresSafeArea()
@@ -66,7 +75,9 @@ struct DenWebView: UIViewRepresentable {
         // Keep the page's timers and sockets running in the background, or a call drops for a reason
         // that has nothing to do with web calls themselves.
         config.preferences.inactiveSchedulingPolicy = .none
+        context.coordinator.calls.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
+        context.coordinator.calls.webView = webView
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -99,6 +110,8 @@ struct DenWebView: UIViewRepresentable {
 
 @MainActor final class Shell: NSObject, WKNavigationDelegate, WKUIDelegate {
     let den: Origin
+    let engine = CallEngine()
+    lazy var calls = CallBridge(den: den, engine: engine)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     private var inCall = false
@@ -126,7 +139,8 @@ struct DenWebView: UIViewRepresentable {
         decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
     ) {
         // Both the page and the asking frame must be Den: an embedded frame from elsewhere gets nothing.
-        let allowed = Origin(origin) == den && Origin(frame.securityOrigin) == den
+        // During a native call the engine has the mic; a second capture from the page would fight it.
+        let allowed = Origin(origin) == den && Origin(frame.securityOrigin) == den && !engine.inCall
         log.info("media capture \(allowed ? "granted" : "denied", privacy: .public) for \(frame.securityOrigin.host, privacy: .public):\(frame.securityOrigin.port, privacy: .public)")
         decisionHandler(allowed ? .grant : .deny)
     }
@@ -149,6 +163,8 @@ struct DenWebView: UIViewRepresentable {
     }
 
     private func applyCallAudio() {
+        // CallKit owns the session during a native call.
+        guard !engine.inCall else { return }
         let session = AVAudioSession.sharedInstance()
         do {
             if inCall {

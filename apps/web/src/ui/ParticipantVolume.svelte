@@ -1,18 +1,22 @@
 <script lang="ts">
   import { call } from '../lib/call.svelte'
   import Icon from './Icon.svelte'
+  import { shell } from '../lib/shell-call'
   let { userId, name }: { userId: string; name: string } = $props()
   const level = $derived(call.level(userId))
 </script>
 
+{#if shell}<p class="volume-control soon">Volume for each person is coming soon on iPhone.</p>{:else}
 <div class="volume-control">
   <label><span>Volume <output>{Math.round(call.volume(userId) * 100)}%</output></span>
     <input type="range" min="0" max="100" step="1" value={Math.round(call.volume(userId) * 100)} aria-label={`${name} volume`} oninput={(e) => call.setVolume(userId, Number(e.currentTarget.value) / 100)} />
   </label>
   <button aria-pressed={level.muted} onclick={() => call.muteForMe(userId)}><Icon name={call.volume(userId) === 0 ? 'sound-off' : 'sound'} size={14} />Mute for me</button>
 </div>
+{/if}
 <style>
   .volume-control { width: 176px; padding: 8px; color: var(--ink); font-size: 12px; }
+  .soon { margin: 0; }
   label, label > span { display: block; }
   label > span { display: flex; justify-content: space-between; }
   output { font: 11px var(--mono); color: var(--ink-2); }
