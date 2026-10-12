@@ -95,6 +95,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - 0.3.5: fixes from the 2026-10-11 usability pass. On the iPhone, no stuck zoom after typing, a picture viewer you can close, clip first frames, and long-press for react, reply and copy. Search looks everywhere, the thread strip hides when empty, and a thread's newest reply shows under its message in the room.
 - 0.3.6: opening a room with unread messages starts at the first unread, and the room counts as read only once you reach the newest message.
 - 0.3.7: the small usability fixes. On phones, long messages get the box's full width, the expanded call shows one row of buttons, and Appearance opens full screen. Settings groups Machines, Access, API keys and Agents under Advanced. Thread titles show names, the Resolved list keeps up, the sidebar call bar fits on one row while sharing, and Servers Playtime shows Den names for players online.
+- 0.3.8: a searchable emoji picker for reactions, the message box and the status emoji, with recent emoji first and a bottom sheet on phones. The emoji list loads only when a picker first opens.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
