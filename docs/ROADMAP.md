@@ -44,7 +44,7 @@ The native SwiftUI app (about 7,800 lines, decided 2026-09-14) is retired. It re
   - If not (expected), a native call engine taken from the old app (LiveKit Swift, CallKit, background audio, about 1,500 lines) runs the call. The web Join button tells it to join or leave, and the call tiles are the one native screen.
 - Step one done 2026-10-11 (#72): a bare shell in `apps/ios-shell` ("Den Shell", `app.denchat.shell`) is built and signed, waiting for the call test. On the simulator WebKit ends the page's mic when the app goes to the background, so the native call engine is the likely outcome.
 - Call test run on the simulator instead of a real phone (2026-10-11, Nicholas's call): web calls fail. Locking or switching apps, even for 10 seconds, cuts your mic for everyone, in Den Shell and as a home screen web app alike. Den Shell also stops playing the others after about 27 seconds. So the native call engine is being built, voice first; AirPods, a real phone call and the camera get a short real-phone check at the end.
-- Native call engine phase 1 (voice) merged 2026-10-12 (#84): inside Den Shell the call runs in Swift (LiveKit Swift, CallKit, background audio) and the web page drives it through `window.denShell`. On the simulator, with CallKit off (the simulator can't host CallKit calls), both directions keep flowing for 2 minutes locked and in another app. Waiting on a release (the page runs the web half) and a 20-minute real-phone check of CallKit, AirPods and a phone call. Phase 2: native video tiles; then push.
+- Native call engine phase 1 (voice) merged 2026-10-12 (#84): inside Den Shell the call runs in Swift (LiveKit Swift, CallKit, background audio) and the web page drives it through `window.denShell`. On the simulator, with CallKit off (the simulator can't host CallKit calls), both directions keep flowing for 2 minutes locked and in another app. Released in 0.3.9; waiting on a 20-minute real-phone check of CallKit, AirPods and a phone call. Phase 2: native video tiles; then push.
 - The old app stays in `apps/ios` until the shell replaces it, then is deleted. PR #55 (Take photo) was closed with it.
 
 ## M6 — deploy and integrations
@@ -97,6 +97,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - 0.3.6: opening a room with unread messages starts at the first unread, and the room counts as read only once you reach the newest message.
 - 0.3.7: the small usability fixes. On phones, long messages get the box's full width, the expanded call shows one row of buttons, and Appearance opens full screen. Settings groups Machines, Access, API keys and Agents under Advanced. Thread titles show names, the Resolved list keeps up, the sidebar call bar fits on one row while sharing, and Servers Playtime shows Den names for players online.
 - 0.3.8: a searchable emoji picker for reactions, the message box and the status emoji, with recent emoji first and a bottom sheet on phones. The emoji list loads only when a picker first opens.
+- 0.3.9: the web half of native calls in Den Shell (#84). No change outside Den Shell.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
