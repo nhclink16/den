@@ -26,7 +26,7 @@
     <Icon name="music" size={32} />
   {:else}
     <Avatar userId={participant.userId} size={56} presence={false} />
-    {#if participant.unseen}<span class="unseen">{participant.unseen === 'screen' ? 'Sharing their screen' : 'Camera on'} · video coming soon on iPhone</span>{/if}
+    {#if participant.unseen}<span class="unseen">{participant.unseen === 'screen' ? 'Sharing their screen' : 'Camera on'}<span class="soon"> · video coming soon on iPhone</span></span>{/if}
   {/if}
   <div class="label">
     {#if screen}<Icon name={share?.surface || 'monitor'} size={14} />{/if}
@@ -61,7 +61,9 @@
   video { width: 100%; height: 100%; min-height: 0; object-fit: cover; position: absolute; inset: 0; }
   .screen video { object-fit: contain; }
   .mirror { transform: scaleX(-1); }
-  .unseen { position: absolute; top: 8px; inset-inline: 8px; text-align: center; font-size: 11px; color: var(--ink-2); }
+  /* Clear of the layout pin and the corner controls. A small tile says only what is on. */
+  .unseen { position: absolute; top: 8px; inset-inline: 40px; text-align: center; font-size: 11px; color: var(--ink-2); }
+  @container (max-width: 300px) { .soon { display: none; } }
   .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; color: var(--ink); }
   .label > span:first-of-type { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tile-controls { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: var(--r); background: var(--overlay); }
