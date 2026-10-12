@@ -51,9 +51,10 @@
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
   const showSidebar = $derived(narrow ? drawer : store.layout.sidebar)
-  // The expanded call brings its own toolbar, except under an expanded canvas or
-  // terminal in a room, which hides the call view: the dock keeps Mute and Leave then.
-  const callToolbar = $derived(call.expanded && !(router.route.name === 'channel' && objects.expanded))
+  // The expanded call brings its own toolbar, but only where a call view renders:
+  // a room under an expanded canvas or terminal, or a room that isn't there, has
+  // none, and the dock keeps Mute and Leave then.
+  const callToolbar = $derived(call.expanded && (router.route.name !== 'channel' || (!!currentChannel && !objects.expanded)))
   // Appearance covers the whole screen on phones, so the app behind it is out of reach.
   let phone = $state(matchMedia('(max-width: 650px)').matches)
   $effect(() => {
