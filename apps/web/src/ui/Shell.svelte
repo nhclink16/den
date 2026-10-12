@@ -16,6 +16,7 @@
   import ProfilePopover from './ProfilePopover.svelte'
   import Customizer from './Customizer.svelte'
   import { customizer } from '../lib/customizer.svelte'
+  import { objects } from '../lib/objects.svelte'
   import Search from './Search.svelte'
   import ServerView from './ServerView.svelte'
   import { notify } from '../lib/notify.svelte'
@@ -50,6 +51,17 @@
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
   const showSidebar = $derived(narrow ? drawer : store.layout.sidebar)
+  // The expanded call brings its own toolbar, except under an expanded canvas or
+  // terminal in a room, which hides the call view: the dock keeps Mute and Leave then.
+  const callToolbar = $derived(call.expanded && !(router.route.name === 'channel' && objects.expanded))
+  // Appearance covers the whole screen on phones, so the app behind it is out of reach.
+  let phone = $state(matchMedia('(max-width: 650px)').matches)
+  $effect(() => {
+    const mq = matchMedia('(max-width: 650px)')
+    const fn = () => { phone = mq.matches }
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  })
 
   $effect(() => {
     const down = (e: KeyboardEvent) => call.keydown(e), up = (e: KeyboardEvent) => call.keyup(e)
@@ -70,7 +82,7 @@
 
 <svelte:window onkeydown={key} />
 
-<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers}>
+<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
     {#if narrow}
       <dialog class="drawer" use:modal aria-label="Room list" aria-modal="true" oncancel={(e) => { e.preventDefault(); drawer = false }} onclick={(e) => { if (outsideDialog(e) || (e.target as HTMLElement).closest('a[href]')) drawer = false }}>
@@ -108,7 +120,7 @@
       <SpotifyCallback route={router.route} />
     {/if}
     {/if}
-    {#if !showSidebar && call.channel}<CallDock controls={!call.expanded} />{/if}
+    {#if !showSidebar && call.channel}<CallDock controls={!callToolbar} />{/if}
   </main>
 
   {#if showMembers && currentChannel}
