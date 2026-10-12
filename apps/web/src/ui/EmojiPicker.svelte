@@ -153,7 +153,7 @@
     .grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
     .grid button { height: 44px; font-size: 28px; }
     .tabs button { min-width: 36px; height: 44px; }
-    .clear { padding: 12px; margin-right: -10px; }
+    .clear { padding: 16px; margin: -4px -14px -4px 0; }
   }
   @media (prefers-reduced-motion: reduce) { .quick button:hover { transform: none; } }
 </style>
