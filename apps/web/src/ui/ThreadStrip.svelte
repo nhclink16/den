@@ -35,7 +35,10 @@
   let lists = $state<Record<Mode, List>>({ open: blank(), unread: blank(), resolved: blank() })
   const here = $derived(lists[mode])
 
-  function reset() { lists = { open: blank(), unread: blank(), resolved: blank() } }
+  // What was already resolved when the Resolved list loaded. Only a conversation
+  // resolved after that is added ahead of the server's pages.
+  let resolvedBefore = $state.raw(new Set<string>())
+  function reset() { lists = { open: blank(), unread: blank(), resolved: blank() }; resolvedBefore = new Set() }
   // A different room is a different set of conversations.
   // svelte-ignore state_referenced_locally
   let shown = $state(channel.id)
@@ -58,6 +61,7 @@
     try {
       const page = await store.loadThreads(channel.id, query(m, more ? from.cursor : undefined))
       const ids = page.map((v) => v.thread.id)
+      if (m === 'resolved' && !more) resolvedBefore = new Set(store.threadsIn(channel.id, false).filter((t) => t.resolved_at).map((t) => t.id))
       lists = {
         ...lists,
         [m]: {
@@ -110,7 +114,7 @@
       // Likewise a conversation resolved while this list is showing, newest first.
       const known = new Set(rows.map((t) => t.id))
       const justResolved = store.threadsIn(channel.id, false)
-        .filter((t) => t.resolved_at && !known.has(t.id))
+        .filter((t) => t.resolved_at && !known.has(t.id) && !resolvedBefore.has(t.id))
         .sort((a, b) => (b.resolved_at! > a.resolved_at! ? 1 : -1))
       return [...justResolved, ...rows.filter((t) => t.resolved_at)]
     }
