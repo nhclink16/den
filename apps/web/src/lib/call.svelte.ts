@@ -4,7 +4,7 @@ import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Partici
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
-import { shell, shellParticipants, type ShellCall } from './shell-call'
+import { shell, shellParticipants, type ShellUpdate } from './shell-call'
 import type { CallState, CallToken, Channel } from './types'
 
 type Preferences = {
@@ -408,23 +408,25 @@ class Call {
   }
   /** `adopt`: a call that outlived a page reload may be shown again. Only resumeShell adopts: a stray snapshot
    * after Leave must not bring back the call that is ending. */
-  applyShell(state: ShellCall | null, adopt = false) {
-    if (this.joining && !this.channel) return
-    if (!state) {
-      // No call in the shell: one that ended while the page slept, so its end never arrived.
-      if (this.channel && !adopt) { const quiet = this.outputMuted; this.clear(); if (!quiet) this.sound(false) }
-      return
-    }
-    // Replies and pushed snapshots travel separately; one older than what the page has seen is out of date.
-    if (state.revision <= this.shellRevision) return
-    this.shellRevision = state.revision
+  applyShell(state: ShellUpdate | null, adopt = false) {
+    if (!state || this.joining && !this.channel) return
     if (!this.channel) {
-      if (!adopt) return
-      const owner = instances.active, channel = state.phase === 'ended' ? undefined : owner.channel(state.channelId)
+      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then.
+      if (!adopt || !state.phase || state.phase === 'ended') return
+      const owner = instances.active, channel = owner.channel(state.channelId)
       if (!channel) return
       this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
       // A fresh page has sent nothing: take up the shell's count where it is.
       this.micSent = state.micSeq; this.soundSent = state.soundSeq
+    }
+    // Replies and pushed updates travel separately; one older than what the page has seen is out of date.
+    if (state.revision <= this.shellRevision) return
+    this.shellRevision = state.revision
+    if (!state.phase) {
+      // The shell has no call: it ended while the page slept, so its end never arrived.
+      const quiet = this.outputMuted
+      this.clear(); if (!quiet) this.sound(false)
+      return
     }
     if (state.channelId !== this.channel.id) return
     if (state.phase === 'ended') {
@@ -512,7 +514,9 @@ class Call {
       const off = !this.outputMuted, seq = ++this.soundSent, generation = this.generation
       this.outputMuted = off
       this.soundQueue = this.soundQueue.then(async () => {
-        if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'sound', off, seq }))
+        if (!this.channel || generation !== this.generation) return
+        const reply = await shell!.call({ type: 'sound', off, seq })
+        if (generation === this.generation) this.applyShell(reply)
       }).catch((err) => this.report(err))
       return this.soundQueue
     }
@@ -541,7 +545,9 @@ class Call {
       const on = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn, seq = ++this.micSent, generation = this.generation
       this.micOn = on
       this.micQueue = this.micQueue.then(async () => {
-        if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'mute', muted: !on, seq }))
+        if (!this.channel || generation !== this.generation) return
+        const reply = await shell!.call({ type: 'mute', muted: !on, seq })
+        if (generation === this.generation) this.applyShell(reply)
       }).catch((err) => this.report(err))
       return this.micQueue
     }

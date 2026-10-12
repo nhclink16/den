@@ -11,11 +11,14 @@ export type ShellCall = {
   channelId: string; micSeq: number; soundSeq: number; micOn: boolean; soundOff: boolean; otherDevices: number; error?: string
   participants: ShellPerson[]
 }
+/** The shell has no call (a revision alone). Ordered like snapshots, so a late one can't end a newer call. */
+export type ShellNoCall = { revision: number; phase?: undefined }
+export type ShellUpdate = ShellCall | ShellNoCall
 export type ShellCommand =
   | { type: 'join'; url: string; token: string; channelId: string; title: string; micOn: boolean }
   | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean; seq: number } | { type: 'sound'; off: boolean; seq: number }
 declare global {
-  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellCall | null>; onCall: ((call: ShellCall | null) => void) | null } }
+  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellUpdate | null>; onCall: ((update: ShellUpdate) => void) | null } }
 }
 
 export const shell = typeof window !== 'undefined' ? window.denShell : undefined

@@ -59,7 +59,7 @@ enum CallCommand: Equatable {
         super.init()
         engine.onChange = { [weak self] in self?.send($0) }
         // The page may have slept through changes while the app was away, even a call's end. Catch it up on
-        // return: no call is sent as null.
+        // return: "no call" is sent as a revision alone.
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.send(self?.engine.snapshot) }
         }
@@ -100,14 +100,14 @@ enum CallCommand: Equatable {
             case .sound(let off, let seq): snapshot = try await engine.setSoundOff(off, seq: seq)
             case .state: snapshot = engine.snapshot
             }
-            return (try snapshot.map(Self.json), nil)
+            return (try snapshot.map(Self.json) ?? engine.noCall(), nil)
         } catch {
             return (nil, error.localizedDescription)
         }
     }
 
     private func send(_ snapshot: CallSnapshot?) {
-        guard let webView, let json = try? snapshot.map(Self.json) ?? "null" else { return }
+        guard let webView, let json = try? snapshot.map(Self.json) ?? engine.noCall() else { return }
         webView.callAsyncJavaScript("window.denShell?.onCall?.(JSON.parse(s))", arguments: ["s": json], in: nil, in: .page) { result in
             if case .failure(let error) = result { log.error("call snapshot not delivered: \(error, privacy: .public)") }
         }

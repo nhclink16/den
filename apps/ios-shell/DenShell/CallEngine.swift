@@ -88,6 +88,8 @@ enum CallRules {
         var finishWaiters: [CheckedContinuation<Void, Never>] = []
         var micSeq = 0
         var soundSeq = 0
+        /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
+        var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
     }
 
@@ -139,6 +141,12 @@ enum CallRules {
     }
 
     var snapshot: CallSnapshot? { call.map(snapshot) }
+
+    /// "No call", as JSON for the page, ordered with the snapshots so an old one can't override a newer call.
+    func noCall() -> String {
+        revision += 1
+        return "{\"revision\":\(revision)}"
+    }
 
     // MARK: Page commands
 
@@ -211,17 +219,24 @@ enum CallRules {
     /// Goes through CallKit, so iOS's own mute button agrees with Den's.
     /// The replies below describe the current call, never the one the command began with: a reply that arrives
     /// after Leave and a rejoin must not end the new call in the page.
-    /// `seq` is recorded even when the command fails, and the state is pushed, so the page stops waiting for it.
+    /// `seq` counts as applied when the mute takes effect (with CallKit: when its action runs), or when it fails;
+    /// then the state is pushed, so the page stops waiting for it.
     func setMuted(_ muted: Bool, seq: Int) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
-        call.micSeq = seq
         do {
             if !muted, !(await microphoneAllowed()) { throw CallError.microphone }
             guard self.call === call else { return snapshot }
-            if usesCallKit { try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted))) }
-            else { setMicrophone(call, on: !muted) }
+            if usesCallKit {
+                let action = CXSetMutedCallAction(call: call.id, muted: muted)
+                call.muteSeqs[action.uuid] = seq
+                do { try await system.request(CXTransaction(action: action)) }
+                catch { call.muteSeqs[action.uuid] = nil; throw error }
+            } else {
+                call.micSeq = seq
+                setMicrophone(call, on: !muted)
+            }
         } catch {
-            publish()
+            if self.call === call { call.micSeq = seq; publish() }
             throw error
         }
         return snapshot
@@ -397,7 +412,9 @@ enum CallRules {
             Task { await finish(call, reason: nil); action.fulfill() }
         case let mute as CXSetMutedCallAction:
             // From Den or from iOS's call screen.
-            if !mute.isMuted, AVAudioApplication.shared.recordPermission != .granted { action.fail(); return }
+            let seq = call.muteSeqs.removeValue(forKey: mute.uuid)
+            if let seq { call.micSeq = seq }
+            if !mute.isMuted, AVAudioApplication.shared.recordPermission != .granted { action.fail(); publish(); return }
             setMicrophone(call, on: !mute.isMuted)
             action.fulfill()
         case let hold as CXSetHeldCallAction:
