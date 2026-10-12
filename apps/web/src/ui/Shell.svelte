@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { modal, outsideDialog } from '../lib/modal'
   import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
@@ -72,7 +73,7 @@
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
   })
   // Den Shell keeps a call running through a page reload; show it again once the rooms have loaded.
-  $effect(() => { if (store.channels.length) void call.resumeShell() })
+  $effect(() => { if (store.channels.length) untrack(() => void call.resumeShell()) })
   // Per-device avatar preferences, read by Avatar through root attributes.
   $effect(() => {
     const root = document.documentElement

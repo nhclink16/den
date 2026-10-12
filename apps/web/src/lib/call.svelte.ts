@@ -406,10 +406,12 @@ class Call {
       if (generation === this.generation) this.joining = null
     }
   }
-  applyShell(state: ShellCall | null) {
+  /** `adopt`: a call that outlived a page reload may be shown again. Only resumeShell adopts: a stray snapshot
+   * after Leave must not bring back the call that is ending. */
+  applyShell(state: ShellCall | null, adopt = false) {
     if (!state || this.joining && !this.channel) return
     if (!this.channel) {
-      // A call that outlived a page reload: show it again once the room is known.
+      if (!adopt) return
       const owner = instances.active, channel = state.phase === 'ended' ? undefined : owner.channel(state.channelId)
       if (!channel) return
       this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
@@ -430,10 +432,13 @@ class Call {
     this.shellError = state.error || ''
   }
   private shellError = ''
-  /** After a page reload, pick up a call the shell kept running. */
+  /** After a page reload, pick up a call the shell kept running. Once per page, when the rooms are known. */
   async resumeShell() {
-    if (shell && !this.channel && !this.joining) this.applyShell(await shell.call({ type: 'state' }).catch(() => null))
+    if (!shell || this.resumed || this.channel || this.joining) return
+    this.resumed = true
+    this.applyShell(await shell.call({ type: 'state' }).catch(() => null), true)
   }
+  private resumed = false
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
