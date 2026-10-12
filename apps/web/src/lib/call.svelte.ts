@@ -411,8 +411,10 @@ class Call {
   applyShell(state: ShellUpdate | null, adopt = false) {
     if (!state || this.joining && !this.channel) return
     if (!this.channel) {
-      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then.
-      if (!adopt || !state.phase || state.phase === 'ended') return
+      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then,
+      // but while it waits for its answer the newest pushed update is kept: it may say the call has ended.
+      if (!adopt) { if (this.resuming && state.revision > (this.pushedWhileResuming?.revision ?? 0)) this.pushedWhileResuming = state; return }
+      if (!state.phase || state.phase === 'ended') return
       const owner = instances.active, channel = owner.channel(state.channelId)
       if (!channel) return
       this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
@@ -454,13 +456,18 @@ class Call {
   /** After a page reload, pick up a call the shell kept running. Once per page, when the rooms are known. */
   async resumeShell() {
     if (!shell || this.resumed || this.channel || this.joining) return
-    this.resumed = true
+    this.resumed = true; this.resuming = true
     const generation = this.generation
-    const state = await shell.call({ type: 'state' }).catch(() => null)
-    // A Join or Leave meanwhile knows better than this older answer.
-    if (generation === this.generation) this.applyShell(state, true)
+    const answer = await shell.call({ type: 'state' }).catch(() => null)
+    const pushed = this.pushedWhileResuming
+    this.resuming = false; this.pushedWhileResuming = null
+    // A Join or Leave meanwhile knows better than this older answer, and so does a newer pushed update.
+    const newest = pushed && (!answer || pushed.revision > answer.revision) ? pushed : answer
+    if (generation === this.generation) this.applyShell(newest, true)
   }
   private resumed = false
+  private resuming = false
+  private pushedWhileResuming: ShellUpdate | null = null
   private soundQueue = Promise.resolve()
   private shellRevision = 0
   private micSent = 0
