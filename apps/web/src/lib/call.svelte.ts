@@ -428,7 +428,9 @@ class Call {
     }
     const owner = this.owner || store
     this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
-    this.micOn = state.micOn; this.outputMuted = state.soundOff; this.otherDevices = state.otherDevices
+    // While taps are on their way, the button shows the latest one, not an older reply.
+    this.micOn = state.micOn; this.otherDevices = state.otherDevices
+    if (this.soundPending === 0) this.outputMuted = state.soundOff
     // iOS's call screen can mute too. The mic button toggles the saved choice, so keep it in step, but not while
     // Den's own mute commands are on their way: their older replies would undo the latest tap.
     if (this.micPending === 0 && this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
@@ -450,6 +452,7 @@ class Call {
   private resumed = false
   private micPending = 0
   private soundQueue = Promise.resolve()
+  private soundPending = 0
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -495,9 +498,12 @@ class Call {
   async toggleOutput() {
     if (shell) {
       // Show the choice at once and send taps in order, so two quick taps can't both say "off".
-      const off = !this.outputMuted
-      this.outputMuted = off
-      this.soundQueue = this.soundQueue.then(async () => { if (this.channel) this.applyShell(await shell!.call({ type: 'sound', off })) }).catch((err) => this.report(err))
+      // A tap still queued when the call ends is dropped, never sent to the next call.
+      const off = !this.outputMuted, generation = this.generation
+      this.outputMuted = off; this.soundPending++
+      this.soundQueue = this.soundQueue.then(async () => {
+        try { if (this.channel && generation === this.generation) this.applyShell(await shell!.call({ type: 'sound', off })) } finally { this.soundPending-- }
+      }).catch((err) => this.report(err))
       return this.soundQueue
     }
     this.outputMuted = !this.outputMuted
