@@ -88,6 +88,7 @@ class Call {
     else if (this.ducked && !this.duckTimer) this.duckTimer = setTimeout(() => { this.ducked = false; this.duckTimer = undefined; this.applyAudioLevels() }, 700)
   }
   private generation = 0
+  private joinTicket = 0
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
   private avQueue = Promise.resolve()
@@ -320,7 +321,10 @@ class Call {
   async join(channel: Channel) {
     if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
     const owner = instances.active
+    const ticket = ++this.joinTicket
     await this.leave()
+    // Den Shell's Leave waits for the native call to end, so a later Join can overtake this one meanwhile.
+    if (shell && ticket !== this.joinTicket) return
     this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
     const generation = ++this.generation
     this.joining = channel.id; this.error = ''
@@ -402,6 +406,9 @@ class Call {
       this.applyShell(state)
       if (!this.channel) return // it ended before the answer arrived
       if (this.otherDevices > 0) this.save({ micOn: false })
+      // A mic choice made while joining (push to talk picked meanwhile, say) goes out now.
+      // (Not after the join's own error, a refused mic: that would only say it twice.)
+      else if (!this.error && this.micOn !== (this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)) void this.applyMic()
       this.sound(true)
     } catch (err) {
       if (generation === this.generation) { this.clear(); this.report(err) }
@@ -558,7 +565,9 @@ class Call {
   private applyMic() {
     const room = this.room
     if (shell) {
-      // Same rules as sound: shown at once, sent in order, dropped if the call ended meanwhile.
+      // Same rules as sound: shown at once, sent in order, dropped if the call ended meanwhile. While joining
+      // there is no call yet: the Join applies the choice when it completes.
+      if (!this.channel) return this.micQueue
       const on = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn, seq = ++this.micSent, generation = this.generation
       this.micOn = on
       this.micQueue = this.micQueue.then(async () => {
