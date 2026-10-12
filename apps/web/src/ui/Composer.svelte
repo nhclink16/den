@@ -24,6 +24,7 @@
   import Avatar from './Avatar.svelte'
   import DictationButton from './DictationButton.svelte'
   import GifPicker from './GifPicker.svelte'
+  import EmojiPicker from './EmojiPicker.svelte'
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
 
   // `conversation` defaults to the room, so every existing caller keeps its
@@ -207,6 +208,18 @@
     if (ta.scrollHeight > oneLine * 1.5) stacked = true
   }
 
+  // An emoji goes where the cursor was (the box keeps its selection while the
+  // picker has focus). A phone gets the keyboard back only when it taps the box.
+  function insertEmoji(emoji: string) {
+    const start = ta.selectionStart, end = ta.selectionEnd
+    setText(text.slice(0, start) + emoji + text.slice(end))
+    const pos = start + emoji.length
+    requestAnimationFrame(() => {
+      if (!matchMedia('(pointer: coarse)').matches) ta?.focus()
+      ta?.setSelectionRange(pos, pos); caret = pos; grow()
+    })
+  }
+
   // A GIF goes out as its own message, in the same place and quoting the same
   // message a typed one would. Whatever is in the box stays there.
   async function sendGif(g: Gif) {
@@ -352,6 +365,7 @@
     <button class="attach" title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
     <GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked}><span class="gifbtn"><span class="badge">GIF</span></span></GifPicker>
+    <EmojiPicker label="Add an emoji" onpick={insertEmoji}><span class="gifbtn"><Icon name="smile" size={18} /></span></EmojiPicker>
     <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
     <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="send" size={16} /></button>

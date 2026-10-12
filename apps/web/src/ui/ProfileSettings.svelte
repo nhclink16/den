@@ -13,6 +13,7 @@
   import { activityShare } from '../lib/activity-share.svelte'
   import { activityVerb } from '../lib/activity'
   import GifPicker from './GifPicker.svelte'
+  import EmojiPicker from './EmojiPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
 
   const me = $derived(store.me!)
@@ -216,7 +217,12 @@
         <SettingRow label="What you're up to" hint="One emoji and a short line, shown on your card." wide>
           {#snippet control()}
             <div class="status-row">
-              <input class="field emoji" bind:value={emoji} placeholder="Emoji" aria-label="Status emoji" />
+              <div class="emoji-pick">
+                <EmojiPicker label={emoji ? `Status emoji ${emoji}, change it` : 'Choose a status emoji'} onpick={(e) => (emoji = e)}>
+                  <span class="field emoji" class:empty={!emoji}>{#if emoji}{emoji}{:else}<Icon name="smile" size={18} />{/if}</span>
+                </EmojiPicker>
+                {#if emoji}<button type="button" class="unset" onclick={() => (emoji = '')} aria-label="Remove status emoji"><Icon name="x" size={11} /></button>{/if}
+              </div>
               <input class="field" bind:value={statusText} maxlength="80" placeholder="Grinding the End city" aria-label="Status text" />
             </div>
           {/snippet}
@@ -310,9 +316,14 @@
   .swatch { width: 44px; height: 36px; padding: 2px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); cursor: pointer; }
   .small { font-size: 13px; }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
-  .emoji { text-align: center; font-size: 18px; }
-  /* An emoji placeholder looked like a status already set. */
-  .emoji::placeholder { font-size: 13px; color: var(--ink-3); }
+  .emoji-pick { position: relative; display: grid; }
+  .emoji { display: grid; place-items: center; width: 64px; height: 100%; font-size: 24px; line-height: 1; }
+  /* An emoji placeholder looked like a status already set: an empty one is a quiet outline. */
+  .emoji.empty { color: var(--ink-3); }
+  .unset { position: absolute; top: -6px; right: -6px; display: grid; padding: 3px; border-radius: 50%; background: var(--bg-3); border: 1px solid var(--line-strong); color: var(--ink-2); }
+  .unset:hover { color: var(--ink); }
+  /* A corner badge, but a fingertip-sized target. */
+  .unset::after { content: ''; position: absolute; inset: -10px; }
   select.field { width: auto; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   /* Pictures save at once; the rest waits for Save. While something is unsaved
