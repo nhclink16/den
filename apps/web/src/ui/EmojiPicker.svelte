@@ -48,7 +48,8 @@
   const results = $derived(q.trim() ? searchEmoji(entries, q) : null)
 
   function pick(emoji: string) {
-    if (store.me) { recent = pushRecent(recent, emoji); saveRecent(store.origin, store.me.id, recent) }
+    // Re-read first: another tab may have picked something since this opened.
+    if (store.me) { recent = pushRecent(readRecent(store.origin, store.me.id), emoji); saveRecent(store.origin, store.me.id, recent) }
     onpick(emoji)
     open = false
   }
@@ -87,7 +88,7 @@
           <Icon name="search" size={14} />
           <input
             bind:value={q} placeholder="Search emoji" aria-label="Search emoji" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" use:focusOnDesktop
-            onkeydown={(e) => { if (e.key === 'Enter' && results?.[0]) { e.preventDefault(); pick(results[0].emoji) } }}
+            onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (results?.[0]) pick(results[0].emoji) } }}
           />
           {#if q}<button type="button" class="clear" onclick={() => (q = '')} aria-label="Clear search"><Icon name="x" size={12} /></button>{/if}
         </label>
@@ -151,7 +152,8 @@
     .picker { width: 100%; height: min(440px, 62vh); }
     .grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
     .grid button { height: 44px; font-size: 28px; }
-    .tabs button { min-width: 36px; height: 36px; }
+    .tabs button { min-width: 36px; height: 44px; }
+    .clear { padding: 12px; margin-right: -10px; }
   }
   @media (prefers-reduced-motion: reduce) { .quick button:hover { transform: none; } }
 </style>

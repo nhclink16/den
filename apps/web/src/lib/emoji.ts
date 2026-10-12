@@ -81,6 +81,9 @@ export function saveRecent(origin: string, userId: string, recent: string[]) {
 // An emoji the system font can't draw shows as an empty box (a single code
 // point) or as its parts side by side (a sequence). Test one emoji per Emoji
 // version, newest first, and keep everything up to the first one that draws.
+// Emoji 12 (2019) is the floor: every system friends use draws it, and some
+// fonts here draw older emoji in black and white, which this colour test would
+// take for missing.
 function draws(emoji: string, ctx: CanvasRenderingContext2D, ref: number): boolean {
   ctx.clearRect(0, 0, 40, 40)
   ctx.fillText(emoji, 0, 0)
