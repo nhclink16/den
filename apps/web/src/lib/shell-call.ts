@@ -1,0 +1,39 @@
+// Inside Den Shell (the iPhone app) the call runs natively, so it survives a locked phone. The page still
+// draws it: the shell sends the whole call state each time something changes, and this file turns that
+// into what the call view reads. Everywhere else `window.denShell` is missing and none of this runs.
+import type { ConnectionQuality } from 'livekit-client'
+import type { CallParticipant } from './call.svelte'
+
+export type ShellPerson = { identity: string; name: string; local: boolean; speaking: boolean; muted: boolean; quality: string; camera: boolean; screen: boolean }
+export type ShellCall = {
+  phase: 'connecting' | 'connected' | 'reconnecting' | 'ended'
+  channelId: string; micOn: boolean; soundOff: boolean; otherDevices: number; error?: string
+  participants: ShellPerson[]
+}
+export type ShellCommand =
+  | { type: 'join'; url: string; token: string; channelId: string; title: string; micOn: boolean }
+  | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean } | { type: 'sound'; off: boolean }
+declare global {
+  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellCall | null>; onCall: ((call: ShellCall) => void) | null } }
+}
+
+export const shell = typeof window !== 'undefined' ? window.denShell : undefined
+
+const accountId = (identity: string) => identity.split(':', 1)[0]!
+
+/** The same people the web engine would list, so the dock, the grid and the people count read them alike. */
+export function shellParticipants(call: ShellCall, name: (userId: string) => string, djName: string): CallParticipant[] {
+  const people = call.participants
+  return people.map((p) => {
+    const devices = people.filter((m) => accountId(m.identity) === accountId(p.identity)).sort((a, b) => a.identity.localeCompare(b.identity))
+    const music = p.identity === `den-dj-${call.channelId}`
+    return {
+      id: p.identity, userId: accountId(p.identity),
+      device: devices.length > 1 ? p.local ? 'This device' : `Device ${devices.indexOf(p) + 1}` : '',
+      music, name: music ? p.name || djName : name(accountId(p.identity)), local: p.local,
+      speaking: p.speaking, muted: p.muted, screens: [], quality: p.quality as ConnectionQuality,
+      // The phone can't show streams yet; the tile says so instead.
+      unseen: p.screen ? 'screen' : p.camera ? 'camera' : undefined,
+    }
+  })
+}

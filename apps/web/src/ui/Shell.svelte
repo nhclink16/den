@@ -71,6 +71,8 @@
     window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
   })
+  // Den Shell keeps a call running through a page reload; show it again once the rooms have loaded.
+  $effect(() => { if (store.channels.length) void call.resumeShell() })
   // Per-device avatar preferences, read by Avatar through root attributes.
   $effect(() => {
     const root = document.documentElement

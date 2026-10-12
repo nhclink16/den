@@ -4,6 +4,7 @@ import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Partici
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
+import { shell, shellParticipants, type ShellCall } from './shell-call'
 import type { CallState, CallToken, Channel } from './types'
 
 type Preferences = {
@@ -20,6 +21,8 @@ function load(): Preferences {
 export type CallParticipant = {
   id: string; userId: string; device: string; name: string; music: boolean; local: boolean; speaking: boolean; muted: boolean
   camera?: Track; screen?: Track; screens: Share[]; quality: ConnectionQuality
+  /** A camera or share this device can't show yet (Den Shell runs voice only). */
+  unseen?: 'camera' | 'screen'
 }
 
 class Call {
@@ -321,6 +324,7 @@ class Call {
     this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
     const generation = ++this.generation
     this.joining = channel.id; this.error = ''
+    if (shell) return this.joinShell(channel, owner, generation)
     const prefs = this.prefs
     const camera = owner.voice.cameras[prefs.camera || 'default'] || defaultCamera
     const room = new Room({
@@ -385,6 +389,51 @@ class Call {
       if (generation === this.generation) this.joining = null
     }
   }
+  /** Den Shell: the token goes to the native engine, which runs the call and reports it back. */
+  private async joinShell(channel: Channel, owner: Store, generation: number) {
+    try {
+      const { url, token } = await owner.api.post<CallToken>(`/calls/${channel.id}/token`)
+      if (generation !== this.generation) return
+      const state = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
+      if (generation !== this.generation) return
+      this.channel = channel
+      this.applyShell(state)
+      if (this.otherDevices > 0) this.save({ micOn: false })
+      this.sound(true)
+    } catch (err) {
+      if (generation === this.generation) { this.clear(); this.report(err) }
+    } finally {
+      if (generation === this.generation) this.joining = null
+    }
+  }
+  applyShell(state: ShellCall | null) {
+    if (!state || this.joining && !this.channel) return
+    if (!this.channel) {
+      // A call that outlived a page reload: show it again once the room is known.
+      const owner = instances.active, channel = state.phase === 'ended' ? undefined : owner.channel(state.channelId)
+      if (!channel) return
+      this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
+    }
+    if (state.channelId !== this.channel.id) return
+    if (state.phase === 'ended') {
+      const quiet = this.outputMuted
+      this.clear(); if (state.error) this.error = state.error
+      if (!quiet) this.sound(false)
+      return
+    }
+    const owner = this.owner || store
+    this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
+    this.micOn = state.micOn; this.outputMuted = state.soundOff; this.otherDevices = state.otherDevices
+    this.reconnecting = state.phase === 'reconnecting'
+    // Every snapshot repeats the last error; show it once.
+    if (state.error && state.error !== this.shellError) this.error = state.error
+    this.shellError = state.error || ''
+  }
+  private shellError = ''
+  /** After a page reload, pick up a call the shell kept running. */
+  async resumeShell() {
+    if (shell && !this.channel && !this.joining) this.applyShell(await shell.call({ type: 'state' }).catch(() => null))
+  }
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -401,6 +450,13 @@ class Call {
   }
   async leave() {
     ++this.generation; this.joining = null
+    if (shell) {
+      const was = !!this.channel, quiet = this.outputMuted
+      this.clear()
+      await shell.call({ type: 'leave' }).catch(() => {})
+      if (was && !quiet) this.sound(false)
+      return
+    }
     const room = this.room, quiet = this.outputMuted
     const pendingBlur = this.cancelPendingBlur(room)
     this.clear()
@@ -421,6 +477,7 @@ class Call {
     }
   }
   async toggleOutput() {
+    if (shell) { try { this.applyShell(await shell.call({ type: 'sound', off: !this.outputMuted })) } catch (err) { this.report(err) } return }
     this.outputMuted = !this.outputMuted
     this.subscriptions()
     if (this.outputMuted) {
@@ -442,6 +499,7 @@ class Call {
   private applyMic() {
     const room = this.room
     this.micQueue = this.micQueue.then(async () => {
+      if (shell && this.channel) { this.applyShell(await shell.call({ type: 'mute', muted: !(this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn) })); return }
       if (!room || this.room !== room) return
       await this.enableMicrophone(room, this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
       this.refresh()
@@ -527,3 +585,4 @@ class Call {
   keyup(e: KeyboardEvent) { if (e.code === this.prefs.pttKey) this.setHeld(false) }
 }
 export const call = new Call()
+if (shell) shell.onCall = (state) => call.applyShell(state)
