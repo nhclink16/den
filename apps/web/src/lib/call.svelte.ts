@@ -461,7 +461,7 @@ class Call {
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
-    this.outputMuted = false; this.otherDevices = 0
+    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''
   }
   async leave() {
     ++this.generation; this.joining = null
