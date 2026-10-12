@@ -20,10 +20,13 @@
 
   let { section = 'profile', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
+  // Everyday settings first. Machines, access and keys are for people running
+  // agents and terminals, so they sit last under Advanced, still one click away.
   const sections = $derived([
-    ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['machines', 'Machines'], ['access', 'Access'], ...(admin ? [['plugins', 'Plugins']] : []), ['layout', 'Layout'], ['keys', 'API keys'], ['agents', 'Agents'],
-    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms']] : []), ...(isDesktop() ? [] : [['desktop', 'Desktop app']]), ['account', 'Account'],
-  ] as [string, string][])
+    ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['layout', 'Layout'],
+    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms'], ['plugins', 'Plugins']] : []), ...(isDesktop() ? [] : [['desktop', 'Desktop app']]), ['account', 'Account'],
+    ['machines', 'Machines', true], ['access', 'Access', true], ['keys', 'API keys', true], ['agents', 'Agents', true],
+  ] as [string, string, boolean?][])
   // Appearance isn't a page: it opens over the room you came from, so each change
   // shows where it matters.
   $effect(() => {
@@ -143,7 +146,8 @@
   <div class="body">
     <nav class="toc" bind:this={toc} aria-label="Settings sections">
       <div class="search"><Icon name="search" size={14} /><input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" /></div>
-      {#each visible as [id, label] (id)}
+      {#each visible as [id, label, advanced], i (id)}
+        {#if advanced && !visible[i - 1]?.[2]}<span class="group-label eyebrow">Advanced</span>{/if}
         <a href="/settings/{id}" class:active={section === id} aria-current={section === id ? 'page' : undefined} onclick={go(id)}>{label}</a>
       {/each}
     </nav>
@@ -319,13 +323,14 @@
   .toc a { padding: 7px 10px; border-radius: var(--r); color: var(--ink-2); }
   .toc a:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
   .toc a.active { background: var(--bg-3); color: var(--ink); font-weight: 700; }
+  .group-label { margin: 14px 10px 4px; }
   .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: var(--r); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 13px; }
   .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .pane { overflow-y: auto; padding: 20px 28px 40px; min-width: 0; }
+  .pane { --pane-end: 40px; overflow-y: auto; padding: 20px 28px var(--pane-end); min-width: 0; }
   .pane-inner { width: 100%; max-width: 760px; margin-inline: auto; }
   .appearance-pane .pane-inner { max-width: 940px; }
-  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .pane { padding: 20px 16px; } }
+  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .group-label { margin: 0 0 0 8px; padding: 7px 4px 7px 12px; align-self: center; white-space: nowrap; border-left: 1px solid var(--line); } .pane { --pane-end: 20px; padding: 20px 16px; } }
   h3.eyebrow { margin: 22px 0 8px; }
   .muted.small, .faint.small { font-size: 13px; }
   .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }

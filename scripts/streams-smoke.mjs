@@ -85,11 +85,11 @@ try {
  })
  await a.getByLabel('Share screen',{exact:true}).first().click()
  if(phase==='after'){
-  await a.getByLabel('Share another',{exact:true}).first().waitFor()
+  await a.getByLabel('Share another',{exact:true}).first().waitFor({state:'attached'})
   assert(await a.getByLabel('Share another',{exact:true}).first().isDisabled(),'another share waits for paired publication')
   await a.evaluate(()=>window.__releaseShareAudio())
  }
- await a.getByLabel('Share another',{exact:true}).first().click()
+ await a.getByLabel('Your shares',{exact:true}).first().click();await a.getByLabel('Share another',{exact:true}).first().click()
  await wait(async()=>await screens(a).count()===3,'three shares')
  await wait(async()=>await a.locator('video').evaluateAll(es=>es.every(e=>e.videoWidth>0)),'decoded videos')
  if(phase==='after'){assert(await a.getByTestId('call-dock').evaluate(dock=>{const outer=dock.getBoundingClientRect();return [...dock.querySelectorAll('.room,.controls > button,.controls > details > summary')].every(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.x>=outer.x&&r.right<=outer.right})}), 'room name and all dock controls fit with multiple shares');await a.getByLabel('Your shares',{exact:true}).first().click();await a.locator('.shares [popover]').first().waitFor({state:'visible'});const box=await a.locator('.shares [popover]').first().boundingBox();assert(box.x>=0&&box.x+box.width<=1440,'dock share menu fits viewport')}
@@ -140,7 +140,7 @@ try {
   await wait(async()=>!(await audio()).length,'global deafen removes audio')
   await a.getByLabel('Play sound on this device',{exact:true}).click()
   await wait(async()=>{const es=await audio();return es.length>=2&&es.every(e=>e.volume===.35)},'saved volume survives deafen cycle')
-  await a.getByLabel('Share screen',{exact:true}).first().click();await a.getByLabel('Share another',{exact:true}).first().click()
+  await a.getByLabel('Share screen',{exact:true}).first().click();await a.getByLabel('Your shares',{exact:true}).first().click();await a.getByLabel('Share another',{exact:true}).first().click()
   await wait(async()=>await screens(a).count()===3,'two shares for main stop')
   await a.getByLabel('Stop sharing screen',{exact:true}).first().click();await wait(async()=>await screens(a).count()===1,'main share button stops all local shares')
   console.log('Passed desktop controls, persistence and audio checks')

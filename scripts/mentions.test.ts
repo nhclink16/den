@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { render, mentions } from '../apps/web/src/lib/markdown.ts'
+import { render, mentions, plainMentions } from '../apps/web/src/lib/markdown.ts'
 import type { User } from '../apps/web/src/lib/types.ts'
 
 const user = (id: string, username: string, display_name: string): User =>
@@ -29,4 +29,9 @@ test('mentions stay out of addresses, code and unknown names', () => {
   assert.doesNotMatch(render('`@Andy`', users), /class="mention"/)
   assert.doesNotMatch(render('```\n@Andy\n```', users), /class="mention"/)
   assert.doesNotMatch(render('who is @nobody', users), /class="mention"/)
+})
+
+test('titles and previews show plain names for the same mentions', () => {
+  assert.equal(plainMentions('@andy are you in? cc @an.dy-2.', users), '@Andy 🎧 are you in? cc @The Other Andy.')
+  assert.equal(plainMentions('mail a@Andy or ask @nobody', users), 'mail a@Andy or ask @nobody', 'addresses and unknown names stay as typed')
 })

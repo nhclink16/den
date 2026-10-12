@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Theme } from '../lib/types'
+  import { themes } from '../lib/theme.svelte'
   import ThemePreview from './ThemePreview.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
 
@@ -16,9 +17,16 @@
 
   const halves = ['light', 'dark'] as const
   const chosen = (half: 'light' | 'dark') => (half === 'light' ? lightChosen : darkChosen)
+  // Clicking the name or the card's edges picks the theme for the appearance on
+  // screen now. The two previews stay the precise, keyboard-reachable choice.
+  function pickCard(e: MouseEvent) {
+    if ((e.target as HTMLElement).closest('button, details, a, input, .tools')) return
+    onpick(themes.half)
+  }
 </script>
 
-<div class="card" class:active={lightChosen || darkChosen}>
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (the preview buttons are the keyboard path) -->
+<div class="card" class:active={lightChosen || darkChosen} onclick={pickCard}>
   <div class="previews">
     {#each halves as half (half)}
       <button
@@ -64,7 +72,7 @@
 <style>
   .card {
     border: 1px solid var(--line); border-radius: var(--r-lg);
-    background: var(--bg2); padding: 10px 10px 4px; transition: border-color .15s;
+    background: var(--bg2); padding: 10px 10px 4px; transition: border-color .15s; cursor: pointer;
   }
   .card:hover { border-color: var(--ink3); }
   .card.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }

@@ -51,7 +51,7 @@
   <div class="light" aria-hidden="true"></div>
   <form class="card" onsubmit={submit}>
     <h1 class="display"><span class="mark"><Mark size={44} /></span><span>{store.settings.instance_name}</span></h1>
-    {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{:else if invite}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Open in Den</a>{/if}
+    {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{/if}
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
     {#if mode === 'register'}
@@ -95,6 +95,8 @@
     <button class="btn quiet" type="button" onclick={() => { mode = mode === 'login' ? 'register' : 'login'; error = '' }}>
       {mode === 'login' ? 'Have an invite?' : 'Already a member? Log in'}
     </button>
+    <!-- Only useful with the desktop app installed, so it comes after the form. -->
+    {#if !native && invite && mode === 'register'}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Have the desktop app? Open in Den</a>{/if}
   </form>
 </main>
 

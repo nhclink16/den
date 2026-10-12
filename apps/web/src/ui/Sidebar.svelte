@@ -122,7 +122,7 @@
         <Avatar userId={store.me.id} size={28} />
         <span class="name">{store.me.display_name || store.me.username}</span>
       </button>
-      <a href="/settings" class="gear" class:active={router.route.name === 'settings'} aria-current={router.route.name === 'settings' ? 'page' : undefined} title="Settings" onclick={go('/settings')}><Icon name="gear" /></a>
+      <a href="/settings" class="gear" class:active={router.route.name === 'settings'} aria-current={router.route.name === 'settings' ? 'page' : undefined} title="Settings" aria-label="Settings" onclick={go('/settings')}><Icon name="gear" /></a>
     {/if}
   </div>
 </nav>

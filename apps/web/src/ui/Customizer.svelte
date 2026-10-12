@@ -1,6 +1,6 @@
 <script lang="ts">
   // Appearance as a panel over the live app, like a theme preview: pick, and the
-  // rooms behind it change. A bottom sheet on phones so the chat stays in view.
+  // rooms behind it change. Full screen on phones.
   import { customizer } from '../lib/customizer.svelte'
   import { themes } from '../lib/theme.svelte'
   import Appearance from './Appearance.svelte'
@@ -52,13 +52,12 @@
   .body { overflow-y: auto; padding: 0 16px; overscroll-behavior: contain; }
   footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 
-  /* Phones: a sheet over the bottom of the room, so the conversation stays visible. */
+  /* Phones: the whole screen. A half-height sheet left the theme list too cramped
+     to browse, and a swipe meant to close it only scrolled the list. */
   @media (max-width: 650px) {
-    .customizer {
-      inset: auto 0 0 0; width: 100%; height: min(62vh, 560px);
-      border-left: 0; border-top: 1px solid var(--line-strong); border-radius: var(--r-lg) var(--r-lg) 0 0;
-      box-shadow: 0 -18px 50px -20px var(--shadow-lg);
-    }
+    .customizer { inset: 0; width: 100%; border-left: 0; box-shadow: none; }
+    header { padding-top: max(16px, env(safe-area-inset-top)); }
+    footer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
     @media (prefers-reduced-motion: no-preference) { .customizer { animation-name: sheet-in; } }
   }
   @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }

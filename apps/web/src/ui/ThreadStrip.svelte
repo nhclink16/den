@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
+  import { plainMentions } from '../lib/markdown'
   import type { Channel, ThreadSummary } from '../lib/types'
 
   // The conversations in a room: the open ones, always visible rather than
@@ -34,6 +36,26 @@
   let lists = $state<Record<Mode, List>>({ open: blank(), unread: blank(), resolved: blank() })
   const here = $derived(lists[mode])
 
+  // Conversations seen going from open to resolved during this visit, newest
+  // first. The Resolved list shows them ahead of the server's pages without a
+  // reload. Only a seen transition counts: a resolved conversation that merely
+  // arrives (a rename, an older page, a cache from an earlier visit) does not.
+  let knownOpen = new Set<string>()
+  let watching = ''
+  let justResolved = $state.raw<string[]>([])
+  $effect(() => {
+    const room = channel.id
+    const now = store.threadsIn(room, false)
+    untrack(() => {
+      if (watching !== room) { watching = room; knownOpen = new Set(); justResolved = [] }
+      const fresh = now.filter((t) => t.resolved_at && knownOpen.has(t.id)).map((t) => t.id)
+      for (const t of now) {
+        if (t.resolved_at) knownOpen.delete(t.id)
+        else knownOpen.add(t.id)
+      }
+      if (fresh.length) justResolved = [...fresh, ...justResolved.filter((id) => !fresh.includes(id))]
+    })
+  })
   function reset() { lists = { open: blank(), unread: blank(), resolved: blank() } }
   // A different room is a different set of conversations.
   // svelte-ignore state_referenced_locally
@@ -105,7 +127,13 @@
         .filter((t) => !known.has(t.id) && store.threadUnread(t.id).count > 0)
       return [...rows.filter((t) => store.threadUnread(t.id).count > 0), ...alsoUnread]
     }
-    return mode === 'resolved' ? rows.filter((t) => t.resolved_at) : rows
+    if (mode === 'resolved') {
+      // Likewise a conversation resolved here since the list loaded.
+      const known = new Set(rows.map((t) => t.id))
+      const fresh = justResolved.map((id) => store.thread(id)).filter((t): t is ThreadSummary => !!t?.resolved_at && !known.has(t.id))
+      return [...fresh, ...rows.filter((t) => t.resolved_at)]
+    }
+    return rows
   })
   const empty = $derived({
     open: 'No open conversations yet. Reply to a message to start one.',
@@ -144,7 +172,7 @@
           aria-current={selected === t.id ? 'true' : undefined}
           onclick={() => onopen(t.id, t.root_message_id)}
         >
-          <span class="name">{t.title}</span>
+          <span class="name">{plainMentions(t.title, store.users)}</span>
           <span class="faint mono">{t.reply_count}</span>
           {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
           {#if t.resolved_at && mode !== 'resolved'}<span class="faint mono">resolved</span>{/if}

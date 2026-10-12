@@ -4,7 +4,11 @@ const events = new Set(['ptt', 'tray-action', 'notification-open', 'deep-link://
 contextBridge.exposeInMainWorld('denDesktop', {
   invoke(command, args) {
     if (!commands.has(command)) return Promise.reject(Error('Unknown desktop command'))
-    return ipcRenderer.invoke('den:command', command, args)
+    // Electron prefixes every error from main with "Error invoking remote method
+    // 'den:command': Error: ". People should only read the message itself.
+    return ipcRenderer.invoke('den:command', command, args).catch((e) => {
+      throw Error(String(e?.message ?? e).replace(/^Error invoking remote method '[^']*': (?:\w*Error: )?/, ''))
+    })
   },
   async listen(event, handler) {
     if (!events.has(event)) throw Error('Unknown desktop event')
