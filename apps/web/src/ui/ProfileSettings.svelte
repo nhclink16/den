@@ -168,7 +168,7 @@
               <span class="mask" aria-hidden="true"></span>
             </div>
             <div class="crop-controls">
-              <p class="muted">Drag to move. Zoom to fill the circle with the part you want.</p>
+              <p class="muted">Drag to move. Zoom to fill the frame with the part you want.</p>
               <label class="zoom">Zoom<input type="range" min="1" max="4" step="0.01" value={crop.zoom} oninput={(e) => zoom(+e.currentTarget.value)} /></label>
               <div class="row">
                 <button type="button" class="btn lit" onclick={confirmCrop}>Use this picture</button>
@@ -216,7 +216,7 @@
         <SettingRow label="What you're up to" hint="One emoji and a short line, shown on your card." wide>
           {#snippet control()}
             <div class="status-row">
-              <input class="field emoji" bind:value={emoji} placeholder="🎮" aria-label="Status emoji" />
+              <input class="field emoji" bind:value={emoji} placeholder="Emoji" aria-label="Status emoji" />
               <input class="field" bind:value={statusText} maxlength="80" placeholder="Grinding the End city" aria-label="Status text" />
             </div>
           {/snippet}
@@ -279,7 +279,7 @@
       </div>
     </section>
 
-    <div class="actions">
+    <div class="actions" class:dirty>
       <button class="btn lit" disabled={!dirty || !!problem || saving}>{saving ? 'Saving…' : 'Save profile'}</button>
       {#if dirty}<button type="button" class="btn quiet" onclick={reset}>Discard changes</button>{/if}
       <p class="note" class:error={!!(problem || error)} role="status">{problem || error || message}</p>
@@ -311,8 +311,17 @@
   .small { font-size: 13px; }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
   .emoji { text-align: center; font-size: 18px; }
+  /* An emoji placeholder looked like a status already set. */
+  .emoji::placeholder { font-size: 13px; color: var(--ink-3); }
   select.field { width: auto; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  /* Pictures save at once; the rest waits for Save. While something is unsaved
+     the button stays in view, wherever on the page you made the change. */
+  .actions.dirty {
+    position: sticky; z-index: 2; margin-inline: -12px; padding: 10px 12px 4px; background: var(--bg); border-top: 1px solid var(--line);
+    /* Covers the pane's bottom padding too, or text scrolls by underneath it. */
+    bottom: calc(-1 * var(--pane-end, 0px)); padding-bottom: calc(4px + var(--pane-end, 0px)); margin-bottom: calc(-1 * var(--pane-end, 0px));
+  }
   .note { margin: 0; font-size: 13px; color: var(--ink-2); flex-basis: 100%; min-height: 1.4em; }
   .note.error { color: var(--danger); }
 
