@@ -394,10 +394,13 @@ class Call {
     try {
       const { url, token } = await owner.api.post<CallToken>(`/calls/${channel.id}/token`)
       if (generation !== this.generation) return
-      const state = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
+      this.pushedWhileWaiting = null
+      const answer = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
       if (generation !== this.generation) return
+      const state = this.newest(answer, channel.id)
       this.channel = channel
       this.applyShell(state)
+      if (!this.channel) return // it ended before the answer arrived
       if (this.otherDevices > 0) this.save({ micOn: false })
       this.sound(true)
     } catch (err) {
@@ -409,11 +412,12 @@ class Call {
   /** `adopt`: a call that outlived a page reload may be shown again. Only resumeShell adopts: a stray snapshot
    * after Leave must not bring back the call that is ending. */
   applyShell(state: ShellUpdate | null, adopt = false) {
-    if (!state || this.joining && !this.channel) return
+    if (!state) return
     if (!this.channel) {
-      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then,
-      // but while it waits for its answer the newest pushed update is kept: it may say the call has ended.
-      if (!adopt) { if (this.resuming && state.revision > (this.pushedWhileResuming?.revision ?? 0)) this.pushedWhileResuming = state; return }
+      // Only resumeShell adopts, and only a live call. Nothing here counts towards the revision until then, but
+      // while a Join or the reload pickup waits for its answer the newest pushed update is kept: it may say the
+      // call has already ended.
+      if (!adopt) { if ((this.joining || this.resuming) && state.revision > (this.pushedWhileWaiting?.revision ?? 0)) this.pushedWhileWaiting = state; return }
       if (!state.phase || state.phase === 'ended') return
       const owner = instances.active, channel = owner.channel(state.channelId)
       if (!channel) return
@@ -456,18 +460,24 @@ class Call {
   /** After a page reload, pick up a call the shell kept running. Once per page, when the rooms are known. */
   async resumeShell() {
     if (!shell || this.resumed || this.channel || this.joining) return
-    this.resumed = true; this.resuming = true
+    this.resumed = true; this.resuming = true; this.pushedWhileWaiting = null
     const generation = this.generation
     const answer = await shell.call({ type: 'state' }).catch(() => null)
-    const pushed = this.pushedWhileResuming
-    this.resuming = false; this.pushedWhileResuming = null
+    this.resuming = false
     // A Join or Leave meanwhile knows better than this older answer, and so does a newer pushed update.
-    const newest = pushed && (!answer || pushed.revision > answer.revision) ? pushed : answer
-    if (generation === this.generation) this.applyShell(newest, true)
+    const state = this.newest(answer)
+    if (generation === this.generation) this.applyShell(state, true)
+  }
+  /** The newer of an answer and what was pushed while waiting for it (for `channelId`, if given). */
+  private newest(answer: ShellUpdate | null, channelId?: string) {
+    const pushed = this.pushedWhileWaiting
+    this.pushedWhileWaiting = null
+    if (!pushed || channelId && pushed.phase && pushed.channelId !== channelId) return answer
+    return !answer || pushed.revision > answer.revision ? pushed : answer
   }
   private resumed = false
   private resuming = false
-  private pushedWhileResuming: ShellUpdate | null = null
+  private pushedWhileWaiting: ShellUpdate | null = null
   private soundQueue = Promise.resolve()
   private shellRevision = 0
   private micSent = 0
