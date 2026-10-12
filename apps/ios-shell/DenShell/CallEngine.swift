@@ -138,14 +138,15 @@ enum CallRules {
             guard call.join.channelId == request.channelId else { throw CallError.busy }
             return snapshot(call)
         }
-        let micAllowed = request.micOn ? await microphoneAllowed() : true
         let room = Room(delegate: self, connectOptions: ConnectOptions(autoSubscribe: false),
                         roomOptions: RoomOptions(adaptiveStream: true, dynacast: true))
-        let call = Call(join: request, room: room, wantsMic: request.micOn && micAllowed)
-        if !micAllowed { call.error = CallError.microphone.message }
+        let call = Call(join: request, room: room, wantsMic: request.micOn)
+        // Registered before the permission prompt, so a Leave during it finds and cancels this call.
         self.call = call
         publish()
         do {
+            if request.micOn, !(await microphoneAllowed()) { call.wantsMic = false; call.error = CallError.microphone.message }
+            try require(call)
             try Self.prepareAudioSession()
             if usesCallKit {
                 let start = CXStartCallAction(call: call.id, handle: CXHandle(type: .generic, value: request.title))

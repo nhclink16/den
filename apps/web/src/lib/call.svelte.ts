@@ -429,8 +429,9 @@ class Call {
     const owner = this.owner || store
     this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
     this.micOn = state.micOn; this.outputMuted = state.soundOff; this.otherDevices = state.otherDevices
-    // iOS's call screen can mute too. The mic button toggles the saved choice, so keep it in step.
-    if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
+    // iOS's call screen can mute too. The mic button toggles the saved choice, so keep it in step, but not while
+    // Den's own mute commands are on their way: their older replies would undo the latest tap.
+    if (this.micPending === 0 && this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
     if (state.error && state.error !== this.shellError) this.error = state.error
@@ -441,9 +442,13 @@ class Call {
   async resumeShell() {
     if (!shell || this.resumed || this.channel || this.joining) return
     this.resumed = true
-    this.applyShell(await shell.call({ type: 'state' }).catch(() => null), true)
+    const generation = this.generation
+    const state = await shell.call({ type: 'state' }).catch(() => null)
+    // A Join or Leave meanwhile knows better than this older answer.
+    if (generation === this.generation) this.applyShell(state, true)
   }
   private resumed = false
+  private micPending = 0
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -508,8 +513,12 @@ class Call {
   }
   private applyMic() {
     const room = this.room
+    if (shell) this.micPending++
     this.micQueue = this.micQueue.then(async () => {
-      if (shell && this.channel) { this.applyShell(await shell.call({ type: 'mute', muted: !(this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn) })); return }
+      if (shell) {
+        try { if (this.channel) this.applyShell(await shell.call({ type: 'mute', muted: !(this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn) })) } finally { this.micPending-- }
+        return
+      }
       if (!room || this.room !== room) return
       await this.enableMicrophone(room, this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)
       this.refresh()
