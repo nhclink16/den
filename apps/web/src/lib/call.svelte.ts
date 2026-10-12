@@ -449,6 +449,7 @@ class Call {
   }
   private resumed = false
   private micPending = 0
+  private soundQueue = Promise.resolve()
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -492,7 +493,13 @@ class Call {
     }
   }
   async toggleOutput() {
-    if (shell) { try { this.applyShell(await shell.call({ type: 'sound', off: !this.outputMuted })) } catch (err) { this.report(err) } return }
+    if (shell) {
+      // Show the choice at once and send taps in order, so two quick taps can't both say "off".
+      const off = !this.outputMuted
+      this.outputMuted = off
+      this.soundQueue = this.soundQueue.then(async () => { if (this.channel) this.applyShell(await shell!.call({ type: 'sound', off })) }).catch((err) => this.report(err))
+      return this.soundQueue
+    }
     this.outputMuted = !this.outputMuted
     this.subscriptions()
     if (this.outputMuted) {
