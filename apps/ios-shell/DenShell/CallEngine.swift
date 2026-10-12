@@ -148,9 +148,11 @@ enum CallRules {
                 let start = CXStartCallAction(call: call.id, handle: CXHandle(type: .generic, value: request.title))
                 try await system.request(CXTransaction(action: start))
             } else {
+                #if DEBUG && targetEnvironment(simulator)
                 try AVAudioSession.sharedInstance().setActive(true)
                 call.audioActive = true
                 log.info("simulator: call audio session on without CallKit")
+                #endif
             }
             try require(call)
             do { try await room.connect(url: request.url.absoluteString, token: request.token) }
@@ -283,7 +285,9 @@ enum CallRules {
         call.phase = .ended
         if usesCallKit, let reason { provider.reportCall(with: call.id, endedAt: nil, reason: reason) }
         applyAudioGate()
-        if !usesCallKit { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
+        #if DEBUG && targetEnvironment(simulator)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
         call.room.remove(delegate: self)
         await call.room.disconnect()
         log.info("call ended \(call.id, privacy: .public)")
