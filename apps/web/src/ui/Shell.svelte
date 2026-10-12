@@ -108,7 +108,7 @@
       <SpotifyCallback route={router.route} />
     {/if}
     {/if}
-    {#if !showSidebar && call.channel}<CallDock />{/if}
+    {#if !showSidebar && call.channel}<CallDock controls={!call.expanded} />{/if}
   </main>
 
   {#if showMembers && currentChannel}

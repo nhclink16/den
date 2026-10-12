@@ -12,6 +12,7 @@
   const blurAvailable = blurSupported()
   // Phones have no screen to share: the button would only ever show an error.
   const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia
+  const shares = $derived(call.participants.find(p => p.local)?.screens || [])
 </script>
 
 <div class="controls" class:large>
@@ -29,13 +30,14 @@
   <button class:muted={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} /></button>
   {#if call.cameraOn && blurAvailable}<button class:blurred={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" /></button>{/if}
   {#if shareAvailable}<button class:sharing={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" /></button>{/if}
-  {#if call.screenOn}<button class="another" disabled={call.screenAdding || call.participants.find(p => p.local)?.screens.length === 3} aria-label="Share another" title={call.participants.find(p => p.local)?.screens.length === 3 ? 'Up to 3 at once' : 'Share another'} onclick={() => call.addScreen()}><Icon name="plus" size={12} /></button>{/if}
   {#if call.screenOn}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
     <details class="overflow shares" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
       <summary aria-label="Your shares" title="Your shares"><Icon name="more" /></summary>
       <div popover="auto" use:disclosurePopover>
-        {#each call.participants.find(p => p.local)?.screens || [] as share (share.name)}
+        <!-- Lives in this menu rather than beside it, so a sidebar-wide dock keeps one row. -->
+        <button disabled={call.screenAdding || shares.length === 3} aria-label="Share another" title={shares.length === 3 ? 'Up to 3 at once' : 'Share another'} onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); void call.addScreen() }}><Icon name="plus" size={14} /><span>{shares.length === 3 ? 'Up to 3 at once' : 'Share another'}</span></button>
+        {#each shares as share (share.name)}
           <button aria-label={`Stop sharing ${share.label}`} title={`Stop sharing ${share.label}`} onclick={() => call.stopScreen(share.name)}><Icon name={share.surface} size={14} /><span>{share.label}</span><span class="stop-label">Stop</span></button>
         {/each}
       </div>
@@ -58,7 +60,6 @@
   .shares > div button { display: flex; gap: 8px; width: 100%; min-height: 40px; height: auto; text-align: left; }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
-  .controls .another { width: 20px; height: 20px; margin-right: 2px; color: var(--lamp); border: 1px solid var(--line); }
   .controls { display: flex; align-items: center; gap: 4px; flex: none; }
   button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r); color: var(--ink); }
   /* bg-3 is the dock's own background, so that hover was invisible. A surface-relative

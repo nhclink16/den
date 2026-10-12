@@ -41,7 +41,7 @@
     <label class="seek">Playback position<input aria-label="Playback position" type="range" min="0" max={Math.max(0, (current.duration || 1) - 1)} step="1" value={position} disabled={busy || !current.duration || current.state === 'loading'} onchange={e => change('/seek', { position_seconds: +e.currentTarget.value })} /></label>
     <div class="times"><span>{time(position)}</span><span>{current.duration ? time(current.duration) : '—'}</span></div>
   {/if}
-  <div class="playback"><button class="btn" disabled={busy} onclick={() => change('/pause', { paused: !q?.paused })}>{q?.paused ? 'Play' : 'Pause'}</button><button class="btn" disabled={busy || !q?.queue.some(t => t.state !== 'failed')} onclick={() => change('/skip')}>Skip track</button></div>
+  <div class="playback"><button class="btn" disabled={busy || (!current && !q?.paused)} onclick={() => change('/pause', { paused: !q?.paused })}>{q?.paused ? 'Play' : 'Pause'}</button><button class="btn" disabled={busy || !q?.queue.some(t => t.state !== 'failed')} onclick={() => change('/skip')}>Skip track</button></div>
   <div class="queue-head"><h3>Up next</h3><span>{pending.length}</span></div>
   <ol aria-label="Queued tracks">
     {#each pending as track, i (track.id)}

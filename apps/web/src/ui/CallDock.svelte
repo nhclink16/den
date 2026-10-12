@@ -3,22 +3,37 @@
   import { native } from '../lib/native'
   import CallControls from './CallControls.svelte'
   import CallJam from './CallJam.svelte'
+  // `controls` off drops the button row: the expanded call has its own toolbar,
+  // and two identical rows of call buttons on a phone is one too many.
+  let { controls = true }: { controls?: boolean } = $props()
   const people = $derived(new Set(call.participants.filter(p => !p.music).map((p) => p.userId)).size)
 </script>
 
 {#if call.channel}
   <CallJam />
+  {#if controls}
   <div class="dock" class:ptt={call.prefs.mode === 'ptt'} data-testid="call-dock" aria-label="Current call">
     <span class="dot" aria-hidden="true"></span>
     <button class="room" title={call.title} onclick={() => (call.expanded = !call.expanded)}>{call.title}{#if native}<small class="mono"> · {call.instanceName}</small>{/if}</button>
     <span class="count" title={`${people} people on ${call.participants.filter(p => !p.music).length} devices`} aria-label={`${people} people on ${call.participants.filter(p => !p.music).length} devices`}>{people}</span>
     <CallControls />
   </div>
+  {/if}
 {/if}
 
 <style>
   .dock { min-height: 44px; height: auto; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--lamp) 9%, var(--bg-3)), var(--bg-3)); border-top: 1px solid color-mix(in srgb, var(--lamp) 30%, var(--line)); }
   .dock :global(.controls) { margin-inline-start: auto; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+  /* The sidebar's dock is about 230px inside. With camera, blur and a share on,
+     full-size buttons wrapped Leave onto a line of its own. */
+  .dock { container: dock / inline-size; }
+  @media (pointer: fine) {
+    @container dock (max-width: 320px) {
+      .dock :global(.controls) { gap: 2px; }
+      .dock :global(.controls > button:not(.ptt)), .dock :global(.controls > details:not(.shares) > summary) { width: 26px; }
+      .dock :global(.controls > .leave) { margin-inline-start: 4px; }
+    }
+  }
   .dot { width: 8px; height: 8px; margin-inline: 2px; flex: none; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
   @media (prefers-reduced-motion: no-preference) { .dot { animation: breathe 2.4s ease-in-out infinite; } }
   @keyframes breathe { 50% { box-shadow: 0 0 2px var(--lamp); } }

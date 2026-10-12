@@ -240,6 +240,8 @@
 
   const typing = $derived(store.typingNames(channel.id))
   const isDm = $derived(channel.kind === 'dm')
+  // An expanded call hides this room completely, so the header names the call.
+  const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
 
   function onDrop(e: DragEvent) {
     e.preventDefault(); e.stopPropagation(); dragging = 0
@@ -253,13 +255,13 @@
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
-    <span class="kind">{#if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
-    <h1 class="display" tabindex="-1">{store.title(channel)}</h1>
+    <span class="kind">{#if callCovers}<Icon name="headset" size={18} />{:else if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
+    <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
     <span class="spacer"></span>
-    {#if isDm}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
+    {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
     <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
     {#if !narrow}
-      <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
+      <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
   </header>
 
