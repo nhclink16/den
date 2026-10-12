@@ -156,6 +156,12 @@
   })
 
   function add(files: File[]) { store.uploads.add(here, files); ta?.focus() }
+  // A staged picture shows itself, so you can tell which one you're about to send.
+  function preview(img: HTMLImageElement, file: File) {
+    const url = URL.createObjectURL(file)
+    img.src = url
+    return { destroy: () => URL.revokeObjectURL(url) }
+  }
   function removePending(p: PendingUpload) { store.uploads.remove(here, p) }
 
   function onPaste(e: ClipboardEvent) {
@@ -188,7 +194,18 @@
   // A send can finish after navigation or call expansion removes this composer.
   // A destroyed one must not measure a detached box or announce typing to
   // whichever instance is active by then.
-  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
+  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; restack(); if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
+
+  // On a phone the buttons beside a long message left it half the width. Once the
+  // text wraps they move to a row underneath, and stay there until the box is
+  // empty: moving back as soon as it fits again would make the layout flicker.
+  let stacked = $state(false)
+  function restack() {
+    if (!text || !matchMedia('(max-width: 600px)').matches) { stacked = false; return }
+    const cs = getComputedStyle(ta)
+    const oneLine = parseFloat(cs.lineHeight) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+    if (ta.scrollHeight > oneLine * 1.5) stacked = true
+  }
 
   // A GIF goes out as its own message, in the same place and quoting the same
   // message a typed one would. Whatever is in the box stays there.
@@ -322,7 +339,7 @@
       {#each pending as p (p.id)}
         {@const pct = p.progress.total ? Math.round((p.progress.sent / p.progress.total) * 100) : 0}
         <div class="chip" class:err={!!p.error} class:done={!!p.done}>
-          <span class="ring" style="--p:{p.done ? 100 : pct}"></span>
+          {#if p.file.type.startsWith('image/')}<img class="thumb" alt="" use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
           <span class="fname">{p.file.name}</span>
           <span class="faint mono">{p.error || (p.done ? bytes(p.file.size) : `${pct}%`)}</span>
           <button class="x" onclick={() => removePending(p)} aria-label="Remove"><Icon name="x" size={13} /></button>
@@ -331,13 +348,13 @@
     </div>
   {/if}
 
-  <div class="box" class:uploading>
-    <button class="attach" title="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
+  <div class="box" class:uploading class:stacked>
+    <button class="attach" title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
     <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
     <GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked}><span class="gifbtn"><span class="badge">GIF</span></span></GifPicker>
     <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
     <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
-    <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'}><Icon name="send" size={16} /></button>
+    <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="send" size={16} /></button>
   </div>
 </div>
 
@@ -360,6 +377,9 @@
     transition: border-color var(--t), box-shadow var(--t);
   }
   .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow), var(--lift); }
+  .box.stacked { flex-wrap: wrap; row-gap: 0; }
+  .box.stacked textarea { order: -1; flex-basis: 100%; }
+  .box.stacked .sendbtn { margin-inline-start: auto; }
   textarea {
     flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
     max-height: 220px; line-height: 1.4; color: var(--ink);
@@ -395,5 +415,7 @@
     mask: radial-gradient(circle, transparent 45%, var(--bg) 50%);
   }
   .chip.done .ring { background: var(--lamp); mask: none; }
+  .thumb { width: 32px; height: 32px; margin: -3px 0; flex: none; object-fit: cover; border-radius: calc(var(--r) * .75); }
+  .chip:not(.done) .thumb { opacity: .6; }
   .fname { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

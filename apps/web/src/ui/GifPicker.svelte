@@ -111,7 +111,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
   <summary class:disabled title={label} aria-label={label}>{@render children()}</summary>
-  <div popover="auto" use:disclosurePopover>
+  <div popover="auto" use:disclosurePopover={'start'}>
     {#if open}
       <div class="picker">
         <label class="search">
