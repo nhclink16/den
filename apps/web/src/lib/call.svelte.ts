@@ -459,11 +459,13 @@ class Call {
     this.otherDevices = state.otherDevices
     // Until the shell has applied the page's latest tap, the button keeps showing that tap. After that, the shell's
     // word goes, including a mute from iOS's call screen, and the saved choice the mic button toggles follows it.
-    if (state.micSeq === this.micSent) {
+    // A higher count than this page ever sent is a command from before a reload: take it up.
+    if (state.micSeq >= this.micSent) {
+      this.micSent = state.micSeq
       this.micOn = state.micOn
       if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
     }
-    if (state.soundSeq === this.soundSent) this.outputMuted = state.soundOff
+    if (state.soundSeq >= this.soundSent) { this.soundSent = state.soundSeq; this.outputMuted = state.soundOff }
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
     if (state.error && state.error !== this.shellError) this.error = state.error
