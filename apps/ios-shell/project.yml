@@ -12,11 +12,17 @@ settings:
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: '0.1.0'
     CURRENT_PROJECT_VERSION: '1'
+packages:
+  LiveKit:
+    url: https://github.com/livekit/client-sdk-swift.git
+    exactVersion: 2.17.0
 targets:
   DenShell:
     type: application
     platform: iOS
     sources: DenShell
+    dependencies:
+      - package: LiveKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.denchat.shell
@@ -37,6 +43,7 @@ targets:
         NSCameraUsageDescription: Share your camera in Den calls.
         UIBackgroundModes:
           - audio
+          - voip
   DenShellTests:
     type: bundle.unit-test
     platform: iOS
