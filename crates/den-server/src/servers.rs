@@ -115,6 +115,15 @@ pub(crate) async fn detail(
             });
         }
     }
+    // Rows from Den's own session log carry no account. Someone online now has
+    // one in the live list, so Playtime names them the way Online Now does.
+    for p in playtime.iter_mut().filter(|p| p.user_id.is_none()) {
+        p.user_id = server
+            .players
+            .iter()
+            .find(|live| live.name == p.name)
+            .and_then(|live| live.user_id.clone());
+    }
     playtime.sort_by(|a, b| {
         b.total_seconds
             .cmp(&a.total_seconds)

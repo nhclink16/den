@@ -775,6 +775,32 @@ async fn action_without_relay_and_after_reconnect() {
 }
 
 #[tokio::test]
+async fn session_playtime_names_the_linked_player() {
+    let t = Test::new().await;
+    let member = t.member("server_linked").await;
+    let token = api_token(&t, &t.admin).await;
+    let mut peer = relay(&t, &token).await;
+    let mut online = status(&["SteveTheo", "Stranger"]);
+    online.players[0].user_id = Some(member.user.id.clone());
+    send(&mut peer, RelayFrame::Status { status: online }).await;
+    sqlx::query("UPDATE game_server_sessions SET started_at=started_at-60")
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    let page = detail(&t, &member.token).await;
+    let linked = |name: &str| {
+        page.playtime
+            .iter()
+            .find(|p| p.name == name)
+            .unwrap_or_else(|| panic!("{name} has a playtime row"))
+            .user_id
+            .clone()
+    };
+    assert_eq!(linked("SteveTheo"), Some(member.user.id.clone()));
+    assert_eq!(linked("Stranger"), None);
+}
+
+#[tokio::test]
 async fn week_playtime_counts_sessions() {
     let t = Test::new().await;
     let member = t.member("server_playtime").await;
