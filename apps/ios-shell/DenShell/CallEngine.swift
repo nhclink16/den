@@ -199,20 +199,23 @@ enum CallRules {
     }
 
     /// Goes through CallKit, so iOS's own mute button agrees with Den's.
-    func setMuted(_ muted: Bool) async throws -> CallSnapshot {
+    /// The replies below describe the current call, never the one the command began with: a reply that arrives
+    /// after Leave and a rejoin must not end the new call in the page.
+    func setMuted(_ muted: Bool) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
         if !muted, !(await microphoneAllowed()) { throw CallError.microphone }
+        guard self.call === call else { return snapshot }
         if usesCallKit { try await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: muted))) }
         else { setMicrophone(call, on: !muted) }
-        return snapshot(call)
+        return snapshot
     }
 
-    func setSoundOff(_ off: Bool) async throws -> CallSnapshot {
+    func setSoundOff(_ off: Bool) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
         call.soundOff = off
         applyAudioGate()
         await reconcile()
-        return snapshot(call)
+        return snapshot
     }
 
     // MARK: State
@@ -277,7 +280,8 @@ enum CallRules {
                     try await room.localParticipant.setMicrophone(enabled: call.wantsMic)
                 }
             } catch {
-                guard self.call === call else { return }
+                // An old call's pass failing after a new call began: still run the pass the new call asked for.
+                guard self.call === call else { continue }
                 log.error("call media update failed: \(error, privacy: .public)")
                 call.error = "Couldn't update call audio. Try that again."
             }
