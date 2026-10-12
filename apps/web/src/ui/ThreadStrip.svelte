@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
   import { plainMentions } from '../lib/markdown'
   import type { Channel, ThreadSummary } from '../lib/types'
@@ -35,10 +36,27 @@
   let lists = $state<Record<Mode, List>>({ open: blank(), unread: blank(), resolved: blank() })
   const here = $derived(lists[mode])
 
-  // What was already resolved when the Resolved list loaded. Only a conversation
-  // resolved after that is added ahead of the server's pages.
-  let resolvedBefore = $state.raw(new Set<string>())
-  function reset() { lists = { open: blank(), unread: blank(), resolved: blank() }; resolvedBefore = new Set() }
+  // Conversations seen going from open to resolved during this visit, newest
+  // first. The Resolved list shows them ahead of the server's pages without a
+  // reload. Only a seen transition counts: a resolved conversation that merely
+  // arrives (a rename, an older page, a cache from an earlier visit) does not.
+  let knownOpen = new Set<string>()
+  let watching = ''
+  let justResolved = $state.raw<string[]>([])
+  $effect(() => {
+    const room = channel.id
+    const now = store.threadsIn(room, false)
+    untrack(() => {
+      if (watching !== room) { watching = room; knownOpen = new Set(); justResolved = [] }
+      const fresh = now.filter((t) => t.resolved_at && knownOpen.has(t.id)).map((t) => t.id)
+      for (const t of now) {
+        if (t.resolved_at) knownOpen.delete(t.id)
+        else knownOpen.add(t.id)
+      }
+      if (fresh.length) justResolved = [...fresh, ...justResolved.filter((id) => !fresh.includes(id))]
+    })
+  })
+  function reset() { lists = { open: blank(), unread: blank(), resolved: blank() } }
   // A different room is a different set of conversations.
   // svelte-ignore state_referenced_locally
   let shown = $state(channel.id)
@@ -61,7 +79,6 @@
     try {
       const page = await store.loadThreads(channel.id, query(m, more ? from.cursor : undefined))
       const ids = page.map((v) => v.thread.id)
-      if (m === 'resolved' && !more) resolvedBefore = new Set(store.threadsIn(channel.id, false).filter((t) => t.resolved_at).map((t) => t.id))
       lists = {
         ...lists,
         [m]: {
@@ -111,12 +128,10 @@
       return [...rows.filter((t) => store.threadUnread(t.id).count > 0), ...alsoUnread]
     }
     if (mode === 'resolved') {
-      // Likewise a conversation resolved while this list is showing, newest first.
+      // Likewise a conversation resolved here since the list loaded.
       const known = new Set(rows.map((t) => t.id))
-      const justResolved = store.threadsIn(channel.id, false)
-        .filter((t) => t.resolved_at && !known.has(t.id) && !resolvedBefore.has(t.id))
-        .sort((a, b) => (b.resolved_at! > a.resolved_at! ? 1 : -1))
-      return [...justResolved, ...rows.filter((t) => t.resolved_at)]
+      const fresh = justResolved.map((id) => store.thread(id)).filter((t): t is ThreadSummary => !!t?.resolved_at && !known.has(t.id))
+      return [...fresh, ...rows.filter((t) => t.resolved_at)]
     }
     return rows
   })
