@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../lib/store.svelte'
+  import { plainMentions } from '../lib/markdown'
   import type { Channel, ThreadSummary } from '../lib/types'
 
   // The conversations in a room: the open ones, always visible rather than
@@ -105,7 +106,15 @@
         .filter((t) => !known.has(t.id) && store.threadUnread(t.id).count > 0)
       return [...rows.filter((t) => store.threadUnread(t.id).count > 0), ...alsoUnread]
     }
-    return mode === 'resolved' ? rows.filter((t) => t.resolved_at) : rows
+    if (mode === 'resolved') {
+      // Likewise a conversation resolved while this list is showing, newest first.
+      const known = new Set(rows.map((t) => t.id))
+      const justResolved = store.threadsIn(channel.id, false)
+        .filter((t) => t.resolved_at && !known.has(t.id))
+        .sort((a, b) => (b.resolved_at! > a.resolved_at! ? 1 : -1))
+      return [...justResolved, ...rows.filter((t) => t.resolved_at)]
+    }
+    return rows
   })
   const empty = $derived({
     open: 'No open conversations yet. Reply to a message to start one.',
@@ -144,7 +153,7 @@
           aria-current={selected === t.id ? 'true' : undefined}
           onclick={() => onopen(t.id, t.root_message_id)}
         >
-          <span class="name">{t.title}</span>
+          <span class="name">{plainMentions(t.title, store.users)}</span>
           <span class="faint mono">{t.reply_count}</span>
           {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
           {#if t.resolved_at && mode !== 'resolved'}<span class="faint mono">resolved</span>{/if}

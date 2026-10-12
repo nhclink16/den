@@ -3,7 +3,7 @@
   import { instances, store } from '../lib/store.svelte'
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
-  import { render, emojiOnly } from '../lib/markdown'
+  import { render, emojiOnly, plainMentions } from '../lib/markdown'
   import { shortTime, clockTime } from '../lib/time'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
@@ -31,10 +31,13 @@
   // A message that is only a GIF link from KLIPY shows the GIF itself.
   const gif = $derived(klipyGif(m.content))
   let parent = $state<Message | undefined>()
+  // Every reply in a thread answers its root, which sits at the top of the panel.
+  // A first reply, an agent or the CLI still sends reply_to=root: no quote for that.
+  const quotesRoot = $derived(!!m.thread_id && store.thread(m.thread_id)?.root_message_id === m.reply_to)
   // Decoration only: a lookup that fails leaves the reference undecorated. It
   // is never a cancellation, and it never touches a draft's quote.
   $effect(() => {
-    if (!m.reply_to) { parent = undefined; return }
+    if (!m.reply_to || quotesRoot) { parent = undefined; return }
     const want = m.reply_to
     void store.fetchMessage(want, m.channel_id)
       .then((p) => { if (m.reply_to === want) parent = p })
@@ -122,7 +125,7 @@
     <button class="reply-ref" onclick={() => goToMessage(instances.active, parent!.channel_id, parent!.id)}>
       <Icon name="reply" size={12} />
       <span class="who">{store.name(parent.author_id)}</span>
-      <span class="snippet">{snippet(parent.content).slice(0, 90) || 'sent a file'}</span>
+      <span class="snippet">{plainMentions(snippet(parent.content), store.users).slice(0, 90) || 'sent a file'}</span>
     </button>
   {/if}
   <div class="row">
@@ -167,7 +170,7 @@
             <Avatar userId={last.author_id} size={18} presence={false} />
             <span class="who">{store.name(last.author_id)}</span>
             <!-- An empty reply carries a file or a card; the preview cannot tell which. -->
-            <span class="said">{snippet(last.excerpt).trim() || 'shared something'}</span>
+            <span class="said">{plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}</span>
           {:else}
             <Icon name="reply" size={12} />
           {/if}
@@ -195,10 +198,10 @@
           </div>
         {/if}
       </div>
-      <button title="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
-      {#if held && m.content}<button title="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
-      {#if mine}<button title="Edit" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
-      {#if canDelete}<button title="Delete" class="danger" onclick={del}><Icon name="trash" /></button>{/if}
+      <button title="Reply" aria-label="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
+      {#if held && m.content}<button title="Copy text" aria-label="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
+      {#if mine}<button title="Edit" aria-label="Edit message" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
+      {#if canDelete}<button title="Delete" aria-label="Delete message" class="danger" onclick={del}><Icon name="trash" /></button>{/if}
     </div>
   </div>
 </article>
@@ -256,7 +259,9 @@
   .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; white-space: nowrap; color: var(--ink-2); opacity: 0; transition: opacity var(--t-fast); }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
-  .author { font-weight: 700; }
+  /* A very long name stops at one line; the time and agent badge stay whole. */
+  .author { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bot, .time { flex: none; }
   .author:hover { text-decoration: underline; text-underline-offset: 3px; }
   .face { display: grid; border-radius: var(--avatar-r, 35%); transition: transform var(--t) var(--ease-out); }
   .face:active { transform: scale(.96); }

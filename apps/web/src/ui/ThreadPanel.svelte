@@ -5,6 +5,7 @@
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
   import { snippet } from '../lib/klipy'
+  import { plainMentions } from '../lib/markdown'
   import MessageItem from './MessageItem.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
   import Composer, { focusComposer } from './Composer.svelte'
@@ -165,7 +166,7 @@
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
 <section
-  class="panel" data-thread-panel aria-label={summary ? `Conversation: ${summary.title}` : 'New conversation'}
+  class="panel" data-thread-panel aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -187,7 +188,7 @@
       />
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
-      <h2 class="display">{summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation'}</h2>
+      <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
       {#if resolved}<span class="tag mono">Resolved</span>{/if}
     {/if}
     <span class="spacer"></span>
