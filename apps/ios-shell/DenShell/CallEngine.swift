@@ -77,6 +77,9 @@ enum CallRules {
         var reportedConnected = false
         var error: String?
         var subscribed: [String: Bool] = [:]
+        /// Set once `finish` has torn the call down; `leave` waits for it.
+        var finished = false
+        var finishWaiters: [CheckedContinuation<Void, Never>] = []
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
     }
 
@@ -190,6 +193,9 @@ enum CallRules {
             // CallKit no longer knows the call (it failed to start, or was reset): end it here.
             await finish(call, reason: nil)
         }
+        // CallKit accepting the transaction is not the end yet: the end action tears the call down later.
+        // Wait for that, so a Join right after Leave doesn't find the old call still here.
+        if !call.finished { await withCheckedContinuation { call.finishWaiters.append($0) } }
     }
 
     /// Goes through CallKit, so iOS's own mute button agrees with Den's.
@@ -289,9 +295,13 @@ enum CallRules {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
         call.room.remove(delegate: self)
+        // Tell the page before the slow disconnect, so a call joined meanwhile can't be hidden by this one's end.
+        onChange?(snapshot(call))
         await call.room.disconnect()
         log.info("call ended \(call.id, privacy: .public)")
-        onChange?(snapshot(call))
+        call.finished = true
+        for waiter in call.finishWaiters { waiter.resume() }
+        call.finishWaiters = []
     }
 
     private func publish() {

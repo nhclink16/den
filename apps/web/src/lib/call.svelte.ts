@@ -409,7 +409,10 @@ class Call {
   /** `adopt`: a call that outlived a page reload may be shown again. Only resumeShell adopts: a stray snapshot
    * after Leave must not bring back the call that is ending. */
   applyShell(state: ShellCall | null, adopt = false) {
-    if (!state || this.joining && !this.channel) return
+    if (this.joining && !this.channel) return
+    // No call in the shell: one that ended while the page slept, so its end never arrived.
+    if (!state) state = this.channel && !adopt ? { phase: 'ended', channelId: this.channel.id, micOn: false, soundOff: false, otherDevices: 0, participants: [] } : null
+    if (!state) return
     if (!this.channel) {
       if (!adopt) return
       const owner = instances.active, channel = state.phase === 'ended' ? undefined : owner.channel(state.channelId)
@@ -426,6 +429,8 @@ class Call {
     const owner = this.owner || store
     this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
     this.micOn = state.micOn; this.outputMuted = state.soundOff; this.otherDevices = state.otherDevices
+    // iOS's call screen can mute too. The mic button toggles the saved choice, so keep it in step.
+    if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
     if (state.error && state.error !== this.shellError) this.error = state.error
@@ -578,12 +583,13 @@ class Call {
     } catch (err) { this.report(err) }
   }
   keydown(e: KeyboardEvent) {
-    if (!this.room || this.joining || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
+    if (!(this.room || shell && this.channel) || this.joining || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
     const target = e.target as HTMLElement
     if (target.closest('[data-terminal-focus="true"],.tl-container,input,textarea,select,[contenteditable="true"],[role="dialog"]')) return
     if (this.prefs.mode === 'ptt' && e.code === this.prefs.pttKey) { e.preventDefault(); this.setHeld(true); return }
     const key = e.key.toLowerCase()
     if (key === 'm' && this.prefs.mode === 'activity') { e.preventDefault(); void this.toggleMic() }
+    if (shell) return // voice only for now
     if (key === 'v') { e.preventDefault(); void this.toggleCamera() }
     if (key === 's') { e.preventDefault(); void this.toggleScreen() }
   }

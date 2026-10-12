@@ -53,9 +53,10 @@ enum CallCommand: Equatable {
         self.engine = engine
         super.init()
         engine.onChange = { [weak self] in self?.send($0) }
-        // The page may have slept through changes while the app was away. Catch it up on return.
+        // The page may have slept through changes while the app was away, even a call's end. Catch it up on
+        // return: no call is sent as null.
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if let snapshot = self?.engine.snapshot { self?.send(snapshot) } }
+            MainActor.assumeIsolated { self?.send(self?.engine.snapshot) }
         }
     }
 
@@ -100,8 +101,8 @@ enum CallCommand: Equatable {
         }
     }
 
-    private func send(_ snapshot: CallSnapshot) {
-        guard let webView, let json = try? Self.json(snapshot) else { return }
+    private func send(_ snapshot: CallSnapshot?) {
+        guard let webView, let json = try? snapshot.map(Self.json) ?? "null" else { return }
         webView.callAsyncJavaScript("window.denShell?.onCall?.(JSON.parse(s))", arguments: ["s": json], in: nil, in: .page) { result in
             if case .failure(let error) = result { log.error("call snapshot not delivered: \(error, privacy: .public)") }
         }

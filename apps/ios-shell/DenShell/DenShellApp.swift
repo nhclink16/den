@@ -53,7 +53,7 @@ struct Origin: Equatable {
 
 @main struct DenShellApp: App {
     init() {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         CallTestHooks.install()
         #endif
     }

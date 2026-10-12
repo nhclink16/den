@@ -1,10 +1,10 @@
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 import Foundation
 import LiveKit
 import OSLog
 
-// Test hooks for the simulator call test (launch with `-DenCallTestTone YES`). Debug builds only: none of this
-// is compiled into Release.
+// Test hooks for the simulator call test (launch with `-DenCallTestTone YES`). Debug simulator builds only: none
+// of this is compiled into a phone build.
 //
 // The simulator records the Mac's real microphone, which can't be fed a known sound. So the mic's audio is
 // replaced by a quiet 150 Hz hum, the pitch of WebKit's fake mic, inside LiveKit's capture step. LiveKit only
