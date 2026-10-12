@@ -8,6 +8,7 @@
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
+  import EmojiPicker from './EmojiPicker.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { klipyGif, snippet } from '../lib/klipy'
 
@@ -51,15 +52,6 @@
   // Read once on purpose: an edit must not replay the arrival.
   // svelte-ignore state_referenced_locally
   const fresh = Date.now() - new Date(m.created_at).getTime() < 8000
-  let picker = $state(false)
-  // The newest message sits on the composer, so its picker opens upward when the
-  // list has no room for it below.
-  let pickUp = $state(false)
-  function togglePicker(e: MouseEvent) {
-    const btn = e.currentTarget as HTMLElement, list = btn.closest('.list')
-    pickUp = !!list && btn.getBoundingClientRect().bottom + 56 > list.getBoundingClientRect().bottom
-    picker = !picker
-  }
 
   // Touch screens have no hover. A tap on the message, or a long press anywhere on
   // it, shows its actions (plus Copy, since the text can't be selected there) until
@@ -70,7 +62,8 @@
   let press: ReturnType<typeof setTimeout> | undefined
   let pressAt = { x: 0, y: 0 }
   let pressed = false
-  const own = (e: Event) => !(e.target as Element).closest('dialog')
+  // The emoji picker is a popover inside the message; it handles its own taps.
+  const own = (e: Event) => !(e.target as Element).closest('dialog, [popover]')
   // A tap that closes a popup (a profile card) is spent on closing it.
   let dismissing = false
   function down(e: PointerEvent) {
@@ -93,11 +86,11 @@
     if (!held) return
     // The bar sits above the message, so on a message at the top edge it would be cut off.
     article?.querySelector('.tools')?.scrollIntoView({ block: 'nearest' })
-    const away = (e: PointerEvent) => { if (!article?.contains(e.target as Node)) { held = false; picker = false } }
+    const away = (e: PointerEvent) => { if (!article?.contains(e.target as Node)) held = false }
     document.addEventListener('pointerdown', away, true)
     return () => document.removeEventListener('pointerdown', away, true)
   })
-  function done() { held = false; picker = false }
+  function done() { held = false }
 
   function startEdit() { draft = m.content; editing = true }
   async function saveEdit(e: KeyboardEvent) {
@@ -190,14 +183,7 @@
       {/if}
     </div>
     <div class="tools">
-      <div class="pick-wrap">
-        <button title="React" aria-label="React to this message" onclick={togglePicker}><span aria-hidden="true">😶</span></button>
-        {#if picker}
-          <div class="picker" class:up={pickUp} role="menu">
-            {#each QUICK as e (e)}<button role="menuitem" onclick={() => { store.react(m, e); done() }}>{e}</button>{/each}
-          </div>
-        {/if}
-      </div>
+      <EmojiPicker label="React to this message" quick={QUICK} align="end" onpick={(e) => { void store.react(m, e); done() }}><span class="tool" aria-hidden="true">😶</span></EmojiPicker>
       <button title="Reply" aria-label="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
       {#if held && m.content}<button title="Copy text" aria-label="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
       {#if mine}<button title="Edit" aria-label="Edit message" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
@@ -301,9 +287,10 @@
     background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 2px;
     box-shadow: var(--lift);
   }
-  .msg.held .tools, .msg:focus-within .tools, .msg:has(.picker) .tools { opacity: 1; pointer-events: auto; transform: none; }
-  .tools button { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
-  .tools button:hover { background: var(--bg-3); color: var(--ink); }
+  .msg.held .tools, .msg:focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
+  .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
+  .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); }
+  .tool { line-height: 20px; }
   .tools button.danger:hover { color: var(--ember); }
   .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
   .rx {
@@ -316,9 +303,4 @@
   .rx.mine { border-color: var(--lamp-dim); background: var(--lamp-glow); }
   .rx .n { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .rx.mine .n { color: var(--lamp); }
-  .pick-wrap { position: relative; }
-  .picker { position: absolute; right: 0; top: 100%; margin-top: 6px; display: flex; gap: 2px; padding: 4px; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-pill, 999px); z-index: 3; box-shadow: var(--lift); }
-  .picker.up { top: auto; bottom: 100%; margin: 0 0 6px; }
-  .picker button { font-size: 19px; padding: 4px 6px; border-radius: var(--r-pill, 999px); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }
-  .picker button:hover { transform: scale(1.22); background: none; }
 </style>
