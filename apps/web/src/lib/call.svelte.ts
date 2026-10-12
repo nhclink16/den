@@ -89,6 +89,7 @@ class Call {
   }
   private generation = 0
   private joinTicket = 0
+  private micChosenWhileJoining = false
   private audio = new Map<RemoteTrack, HTMLMediaElement>()
   private micQueue = Promise.resolve()
   private avQueue = Promise.resolve()
@@ -398,7 +399,7 @@ class Call {
     try {
       const { url, token } = await owner.api.post<CallToken>(`/calls/${channel.id}/token`)
       if (generation !== this.generation) return
-      this.pushedWhileWaiting = null
+      this.pushedWhileWaiting = null; this.micChosenWhileJoining = false
       const answer = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
       if (generation !== this.generation) return
       const state = this.newest(answer, channel.id)
@@ -408,9 +409,9 @@ class Call {
       this.applyShell(state)
       if (!this.channel) return // it ended before the answer arrived
       if (this.otherDevices > 0) this.save({ micOn: false })
-      // A mic choice made while joining (push to talk picked meanwhile, say) goes out now.
-      // (Not after the join's own error, a refused mic: that would only say it twice.)
-      else if (!this.error && this.micOn !== wanted) {
+      // A mic choice made on the page while joining (push to talk picked meanwhile, say) goes out now. Only
+      // that: a mute from iOS's call screen meanwhile stands. Nor after the join's own error, a refused mic.
+      else if (this.micChosenWhileJoining && !this.error && this.micOn !== wanted) {
         if (this.prefs.mode === 'activity') this.save({ micOn: wanted })
         void this.applyMic()
       }
@@ -572,7 +573,7 @@ class Call {
     if (shell) {
       // Same rules as sound: shown at once, sent in order, dropped if the call ended meanwhile. While joining
       // there is no call yet: the Join applies the choice when it completes.
-      if (!this.channel) return this.micQueue
+      if (!this.channel) { this.micChosenWhileJoining = true; return this.micQueue }
       const on = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn, seq = ++this.micSent, generation = this.generation
       this.micOn = on
       this.micQueue = this.micQueue.then(async () => {
