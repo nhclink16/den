@@ -191,6 +191,11 @@ enum CallRules {
             }
             call.phase = .connected
             reportConnected(call)
+            if usesCallKit, !call.wantsMic {
+                // CallKit takes a new call as unmuted; tell it, so iOS's mute button agrees from the start.
+                try? await system.request(CXTransaction(action: CXSetMutedCallAction(call: call.id, muted: true)))
+                try require(call)
+            }
             applyAudioGate()
             await reconcile()
             try require(call)
