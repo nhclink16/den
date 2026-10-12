@@ -402,13 +402,18 @@ class Call {
       const answer = await shell!.call({ type: 'join', url, token, channelId: channel.id, title: owner.title(channel) || channel.name, micOn: this.prefs.mode === 'activity' && this.prefs.micOn })
       if (generation !== this.generation) return
       const state = this.newest(answer, channel.id)
+      // The choice as it stands now: applying the answer rewrites the saved one.
+      const wanted = this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn
       this.channel = channel
       this.applyShell(state)
       if (!this.channel) return // it ended before the answer arrived
       if (this.otherDevices > 0) this.save({ micOn: false })
       // A mic choice made while joining (push to talk picked meanwhile, say) goes out now.
       // (Not after the join's own error, a refused mic: that would only say it twice.)
-      else if (!this.error && this.micOn !== (this.prefs.mode === 'ptt' ? this.held : this.prefs.micOn)) void this.applyMic()
+      else if (!this.error && this.micOn !== wanted) {
+        if (this.prefs.mode === 'activity') this.save({ micOn: wanted })
+        void this.applyMic()
+      }
       this.sound(true)
     } catch (err) {
       if (generation === this.generation) { this.clear(); this.report(err) }
