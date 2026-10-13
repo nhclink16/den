@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { SUGGESTED, defaultIcon, lastOf, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
+import { SUGGESTED, callFaces, callLine, defaultIcon, lastOf, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
 import type { Message } from '../apps/web/src/lib/types.ts'
 
 const lucide = new URL('../apps/web/node_modules/lucide-static/', import.meta.url)
@@ -61,4 +61,29 @@ test('icon search puts names before tags and needs every word', () => {
   assert.ok(both.length && both.every((i) => i.words.includes('game') && i.words.includes('controller')))
   assert.equal(searchIcons(icons, 'zzzz-nothing').length, 0)
   assert.ok(searchIcons(icons, 'a').length <= 120)
+})
+
+test('the call line names who is talking, never you or the music, and counts people once', () => {
+  const p = (userId: string, name: string, more: Partial<{ local: boolean; music: boolean; speaking: boolean }> = {}) => ({ userId, name, local: false, music: false, speaking: false, ...more })
+  const me = p('e', 'Ellis', { local: true, speaking: true })
+  const dj = p('den-dj-1', 'Music', { music: true, speaking: true })
+  assert.deepEqual(callLine([me]), { talking: '', people: 'Just you' })
+  assert.deepEqual(callLine([me, dj]), { talking: '', people: 'Just you' })
+  assert.deepEqual(callLine([me, p('m', 'Maya', { speaking: true }), p('t', 'Theo')]), { talking: 'Maya is talking', people: '3 people' })
+  // Maya on her phone and her laptop is one person, and talking once.
+  assert.deepEqual(callLine([p('m', 'Maya', { speaking: true }), p('m', 'Maya', { speaking: true }), me]), { talking: 'Maya is talking', people: '2 people' })
+  assert.equal(callLine([p('m', 'Maya', { speaking: true }), p('t', 'Theo', { speaking: true })]).talking, 'Maya and Theo are talking')
+  assert.equal(callLine([p('m', 'Maya', { speaking: true }), p('t', 'Theo', { speaking: true }), p('j', 'Juno', { speaking: true }), p('s', 'Sam', { speaking: true })]).talking, 'Maya, Theo and 2 more are talking')
+  assert.equal(callLine([p('m', 'Maya', { speaking: true }), me], true).talking, 'Reconnecting…')
+})
+
+test('call faces: one per person, you last, talking if any of their devices is', () => {
+  const faces = callFaces([
+    { userId: 'e', name: 'Ellis', local: true, music: false, speaking: false },
+    { userId: 'm', name: 'Maya', local: false, music: false, speaking: false },
+    { userId: 'm', name: 'Maya', local: false, music: false, speaking: true },
+    { userId: 'den-dj-1', name: 'Music', local: false, music: true, speaking: true },
+    { userId: 't', name: 'Theo', local: false, music: false, speaking: false },
+  ])
+  assert.deepEqual(faces.map((f) => [f.userId, f.speaking]), [['m', true], ['t', false], ['e', false]])
 })

@@ -75,3 +75,31 @@ export function searchIcons(icons: IconEntry[], query: string, limit = 120): Ico
   const byName = (i: IconEntry) => (i.name.startsWith(words.join('-')) ? 0 : words.every((w) => i.name.includes(w)) ? 1 : 2)
   return hits.sort((a, b) => byName(a) - byName(b) || a.name.localeCompare(b.name)).slice(0, limit)
 }
+
+// The call, as the hangout card, the call pill and the call's own header say it.
+type InCall = { userId: string; name: string; local: boolean; music: boolean; speaking: boolean }
+
+/// Who is in, once each (a second device is the same face), you last, with whether
+/// any of their devices is talking. The music bot is not a person.
+export function callFaces(participants: InCall[]) {
+  const faces = new Map<string, { userId: string; speaking: boolean; local: boolean }>()
+  for (const p of participants) {
+    if (p.music) continue
+    const face = faces.get(p.userId)
+    if (face) { face.speaking ||= p.speaking; face.local ||= p.local }
+    else faces.set(p.userId, { userId: p.userId, speaking: p.speaking, local: p.local })
+  }
+  return [...faces.values()].sort((a, b) => Number(a.local) - Number(b.local))
+}
+
+/// "Maya is talking" and "4 people". Your own voice isn't news to you.
+export function callLine(participants: InCall[], reconnecting = false) {
+  const faces = callFaces(participants)
+  const names = [...new Set(participants.filter((p) => p.speaking && !p.local && !p.music).map((p) => p.name))]
+  const talking = reconnecting ? 'Reconnecting…'
+    : names.length === 1 ? `${names[0]} is talking`
+    : names.length === 2 ? `${names[0]} and ${names[1]} are talking`
+    : names.length > 2 ? `${names[0]}, ${names[1]} and ${names.length - 2} more are talking` : ''
+  const people = faces.length > 1 ? `${faces.length} people` : 'Just you'
+  return { talking, people }
+}

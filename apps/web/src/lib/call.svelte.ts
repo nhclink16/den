@@ -370,6 +370,9 @@ class Call {
         track.detach().forEach((el) => el.remove()); this.audio.get(track)?.remove(); this.audio.delete(track)
       })
       room.on(RoomEvent.AudioPlaybackStatusChanged, () => { this.audioBlocked = !this.outputMuted && !room.canPlaybackAudio })
+      // LiveKit 2 reports a dropped connection it can resume as SignalReconnecting,
+      // and only a full restart as Reconnecting. Both end with Reconnected.
+      room.on(RoomEvent.SignalReconnecting, () => { this.reconnecting = true; this.setHeld(false) })
       room.on(RoomEvent.Reconnecting, () => { this.reconnecting = true; this.setHeld(false) })
       room.on(RoomEvent.Reconnected, () => { this.reconnecting = false; void this.applyAV(); this.refresh() })
       room.on(RoomEvent.Disconnected, () => {

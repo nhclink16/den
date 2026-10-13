@@ -66,20 +66,24 @@
 </div>
 
 <style>
-  .layout-tile { position: absolute; border-radius: var(--r-lg); background: var(--bg-3); min-width: 0; transition: left 140ms ease, top 140ms ease, width 140ms ease, height 140ms ease; }
+  .layout-tile { position: absolute; border-radius: var(--r-tile); background: var(--bg-3); min-width: 0; transition: left 140ms ease, top 140ms ease, width 140ms ease, height 140ms ease; }
   .layout-tile:not(.mobile) { touch-action: none; }
   .pinned { box-shadow: 0 0 0 2px var(--lamp-dim); }
+  /* Plugin tiles (canvas, terminal) draw their own corners; match the call's. */
+  .content-home :global(.canvas-tile), .content-home :global(.terminal-tile) { border-radius: inherit; }
   .layout-tile:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; }
   .content-home { width: 100%; height: 100%; overflow: hidden; border-radius: inherit; display: grid; place-items: center; }
   .content-home :global(.call-content) { width: 100%; height: 100%; min-height: 0; position: relative; display: grid; place-items: center; }
   .content-home :global(.tile) { width: 100%; height: 100%; aspect-ratio: auto; }
   .content-home :global(.canvas-tile) { height: auto; aspect-ratio: 16/9; max-height: 100%; }
-  .object-label { position: absolute; top: 6px; left: 66px; max-width: calc(100% - 78px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; background: var(--overlay); border-radius: var(--r); font-size: var(--fs-xs); }
-  .tile-actions { position: absolute; top: 6px; left: 6px; display: flex; gap: 2px; opacity: 0; border-radius: var(--r); background: var(--overlay); }
-  .tile-actions button { width: 26px; height: 26px; display: grid; place-items: center; color: var(--ink-2); }
-  .tile-actions button:hover, .tile-actions button[aria-pressed="true"] { color: var(--lamp); }
+  .object-label { position: absolute; top: 8px; left: 76px; max-width: calc(100% - 88px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; background: var(--glass); backdrop-filter: blur(10px); border-radius: var(--r-pill); font-size: var(--fs-xs); }
+  .tile-actions { position: absolute; z-index: 3; top: 8px; left: 8px; display: flex; gap: 2px; padding: 2px; opacity: 0; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); transition: opacity var(--t-fast); }
+  .tile-actions button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink-2); }
+  .mobile .tile-actions button { width: 32px; height: 32px; }
+  .tile-actions button:hover { color: var(--ink); }
+  .tile-actions button[aria-pressed="true"] { color: var(--on-lamp); background: var(--lamp); }
   .layout-tile:hover .tile-actions, .layout-tile:focus-within .tile-actions, .mobile .tile-actions { opacity: 1; }
-  .resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; opacity: 0; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); border-radius: 0 0 var(--r) 0; }
+  .resize { position: absolute; z-index: 3; right: 3px; bottom: 3px; width: 16px; height: 16px; cursor: nwse-resize; opacity: 0; border-right: 3px solid var(--ink-2); border-bottom: 3px solid var(--ink-2); border-radius: 0 0 8px 0; }
   .layout-tile:hover .resize, .layout-tile:focus-within .resize { opacity: 1; }
   .placeholder { position: absolute; inset: 0; width: 100%; font: var(--fs-xs) var(--body); color: var(--ink-3); border: 1px dashed var(--line); border-radius: inherit; }
   @media (prefers-reduced-motion: reduce) { .layout-tile { transition: none; } }

@@ -57,7 +57,11 @@
   // The expanded call brings its own toolbar, but only where a call view renders:
   // a room under an expanded canvas or terminal, or a room that isn't there, has
   // none, and the dock keeps Mute and Leave then.
-  const callToolbar = $derived(call.expanded && (router.route.name !== 'channel' || (!!currentChannel && !objects.expanded)))
+  const callShown = $derived(router.route.name !== 'channel' || (!!currentChannel && !objects.expanded))
+  // A phone shows the call as a pill at the top while you chat (CallView), so the
+  // bar at the bottom only carries the Jam then, or the buttons where no call view is.
+  const callDock = $derived(!!call.channel && !showSidebar && !(narrow && callShown && !call.expanded))
+  const backTo = $derived(({ inbox: 'Inbox', search: 'Search', settings: 'Settings' } as Record<string, string>)[router.route.name] ?? '')
   // Appearance covers the whole screen on phones, so the app behind it is out of reach.
   let phone = $state(matchMedia('(max-width: 650px)').matches)
   $effect(() => {
@@ -98,7 +102,7 @@
     {#if call.blurNotice}<div class="call-status" role="status"><span>{call.blurNotice}</span><button class="btn quiet" onclick={() => (call.blurNotice = '')}>Dismiss</button></div>{/if}
     {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
     {#if call.audioBlocked}<div class="call-status" role="status"><span>Your browser blocked the call audio.</span><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
-    {#if call.channel && router.route.name !== 'channel'}<CallView />{/if}
+    {#if call.channel && router.route.name !== 'channel'}<CallView {narrow} back={backTo} titled />{/if}
     {#if !call.channel || !call.expanded || router.route.name === 'channel'}
     {#if router.route.name === 'channel'}
       {#if currentChannel}
@@ -123,7 +127,7 @@
       <SpotifyCallback route={router.route} />
     {/if}
     {/if}
-    {#if !showSidebar && call.channel}<CallDock controls={!callToolbar} />{/if}
+    {#if callDock}<CallDock controls={!(callShown && (narrow || call.expanded))} />{/if}
   </main>
 
   {#if showMembers && currentChannel}

@@ -7,7 +7,11 @@
   import { objectKind } from '../plugins'
   import { bounds, pack, participantSlots, presetCells, type Preset, type Cell, type TileSpec } from '../lib/call-layout'
   import { callLayouts } from '../lib/call-layout.svelte'
+  import { callLine } from '../lib/room-list'
   import CallLayoutTile from './CallLayoutTile.svelte'
+  import Icon from './Icon.svelte'
+  let { back = '', titled = false }: { back?: string; titled?: boolean } = $props()
+  const line = $derived(callLine(call.participants, call.reconnecting))
   type Tile = TileSpec & { participant?: CallParticipant; share?: Share; object?: ObjectSummary }
   let mobile = $state(window.innerWidth < 900), width = $state(0), height = $state(0)
   // Two different questions, and conflating them swapped people's layouts. How to
@@ -94,9 +98,20 @@
   }
 </script>
 
-<div class="presets segments small" role="group" aria-label="Call layout">
-  {#each ['Auto', 'Even', 'Focus'] as p}<button aria-pressed={preset === p} onclick={() => choose(p as Preset)}>{p}</button>{/each}
-  {#if preset === 'Custom'}<span>Custom</span>{/if}
+<div class="call-head">
+  {#if mobile}<button class="icon-btn collapse" aria-label="Collapse call" title="Back to the chat" onclick={() => (call.expanded = false)}><Icon name="chevron" size={24} /></button>{/if}
+  <div class="what">
+    {#if titled}<h2>{call.title}</h2>{/if}
+    <span class="line" class:talking={!!line.talking && !call.reconnecting}>
+      {#if line.talking && !call.reconnecting}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span>{/if}
+      <span class="say">{[line.talking, line.people].filter(Boolean).join(' · ')}</span>
+    </span>
+  </div>
+  <div class="presets segments small" role="group" aria-label="Call layout">
+    {#each ['Auto', 'Even', 'Focus'] as p}<button aria-pressed={preset === p} onclick={() => choose(p as Preset)}>{p}</button>{/each}
+    {#if preset === 'Custom'}<span>Custom</span>{/if}
+  </div>
+  {#if !mobile}<button class="btn small collapse" title="Collapse call" onclick={() => (call.expanded = false)}><Icon name="collapse" /><span class="lbl">{back ? `Back to ${back}` : 'Back'}</span></button>{/if}
 </div>
 <div class="grid-scroll" bind:this={scroll} bind:clientHeight={height}>
   <div class="grid-canvas" class:dragging={!!dragging} bind:this={canvas} bind:clientWidth={width}
@@ -113,17 +128,30 @@
 </div>
 
 <style>
-  .presets { position: absolute; top: 10px; left: 16px; z-index: 2; }
+  .call-head { container-type: inline-size; flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 20px; }
+  .what { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  h2 { margin: 0; font-family: var(--display); font-size: var(--fs-title); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); }
+  .line.talking { color: var(--ink); }
+  .say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .presets { flex: none; }
   /* Custom is not a choice to click: it names a layout you dragged into. */
   .presets span { align-self: center; padding: 0 10px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
-  .grid-scroll { position: absolute; inset: 48px 16px 82px; overflow: auto; scrollbar-width: thin; display: flex; }
+  /* A long room name gives way before the layout switch does. */
+  .btn.small { flex: 0 1 auto; min-width: 0; max-width: 40%; min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
+  .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* A narrow room (both side panels open): Back is just its icon, and still says where it goes to a screen reader. */
+  @container (max-width: 560px) { .btn.small { padding: 4px 9px; } .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
+  /* Clear of the floating bar of buttons below. */
+  .grid-scroll { flex: 1; min-height: 0; margin: 0 20px 96px; overflow: auto; scrollbar-width: thin; display: flex; }
   /* Auto margins centre the rows when they are shorter than the viewport and
      collapse to nothing when they overflow, which keeps the top row reachable. */
   .grid-canvas { position: relative; width: 100%; flex: none; margin-block: auto; }
   .dragging { background-image: linear-gradient(to right, var(--grid-guide) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-guide) 1px, transparent 1px); background-size: var(--step-x) var(--step-y); }
   .dragging :global(.layout-tile) { opacity: .8; }
-  .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-lg); background: var(--grid-guide); }
-  @media (max-width: 899px) { .grid-scroll { left: 10px; right: 10px; } .presets { left: 10px; } }
-  /* The switch grows to a 36px touch target; keep the tiles clear of it. */
-  @media (pointer: coarse) { .grid-scroll { top: 56px; } }
+  .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-tile); background: var(--grid-guide); }
+  @media (max-width: 899px) {
+    .call-head { gap: 6px; padding: 6px 12px 10px 4px; }
+    .grid-scroll { margin: 0 12px calc(92px + env(safe-area-inset-bottom, 0px)); }
+  }
 </style>

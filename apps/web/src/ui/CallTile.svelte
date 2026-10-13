@@ -25,11 +25,11 @@
   {:else if participant.music}
     <Icon name="music" size={32} />
   {:else}
-    <Avatar userId={participant.userId} size={56} presence={false} />
+    <span class="face"><Avatar userId={participant.userId} size={72} instance={call.owner ?? undefined} presence={false} /></span>
     {#if participant.unseen}<span class="unseen">{participant.unseen === 'screen' ? 'Sharing their screen' : 'Camera on'}<span class="soon"> · video coming soon on iPhone</span></span>{/if}
   {/if}
   <div class="label">
-    {#if screen}<Icon name={share?.surface || 'monitor'} size={14} />{/if}
+    {#if screen}<Icon name={share?.surface || 'monitor'} size={14} />{:else if participant.speaking}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span>{/if}
     <span title={share?.label}>{#if share}{share.label}{' · '}{/if}{participant.name}{#if participant.device}<small> · {participant.device}</small>{/if}</span>
     <CallQuality {participant} {track} />
     {#if participant.muted}<span class="mute" data-testid="muted-mic" aria-label="Microphone muted"><Icon name="mic-off" size={14} /></span>{/if}
@@ -54,32 +54,40 @@
 </div>
 
 <style>
-  .tile { container-type: inline-size; width: 216px; aspect-ratio: 16/9; flex: none; position: relative; display: grid; place-items: center; border-radius: var(--r-lg); background: var(--bg-3); overflow: hidden; transition: box-shadow 120ms; }
+  .tile { container-type: inline-size; width: 216px; aspect-ratio: 16/9; flex: none; position: relative; display: grid; place-items: center; border-radius: var(--r-tile); background: var(--bg-3); overflow: hidden; }
   .tile.screen { width: 384px; }
-  .tile { background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--ink) 5%, var(--bg-3)), var(--bg-3)); }
-  .tile.speaking { box-shadow: 0 0 0 2px var(--lamp), 0 0 26px -4px color-mix(in srgb, var(--lamp) 70%, transparent); }
+  /* Who's talking: a ring drawn inside the tile, so neighbours and the strip's
+     edge never clip it. */
+  .tile::after { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 3px transparent; transition: box-shadow var(--t); }
+  .tile.speaking::after { box-shadow: inset 0 0 0 3px var(--lamp); }
   video { width: 100%; height: 100%; min-height: 0; object-fit: cover; position: absolute; inset: 0; }
   .screen video { object-fit: contain; }
   .mirror { transform: scaleX(-1); }
+  .face { display: flex; margin-bottom: 14px; }
+  @container (max-width: 300px) { .face { transform: scale(.66); margin-bottom: 0; } }
+  @container (max-width: 160px) { .face { transform: scale(.5); } }
   /* Clear of the layout pin and the corner controls. A small tile says only what is on. */
-  .unseen { position: absolute; top: 8px; inset-inline: 40px; text-align: center; font-size: var(--fs-xs); color: var(--ink-2); }
+  .unseen { position: absolute; top: 10px; inset-inline: 44px; text-align: center; font-size: var(--fs-xs); color: var(--ink-2); }
   @container (max-width: 300px) { .soon { display: none; } }
-  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); backdrop-filter: blur(6px); font-size: var(--fs-xs); font-weight: 600; color: var(--ink); }
-  .label > span:first-of-type { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .tile-controls { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: var(--r); background: var(--overlay); }
+  /* The name, on frosted glass so it reads on any camera or share. */
+  .label { position: absolute; z-index: 3; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 3px 10px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+  @container (max-width: 260px) { .label { left: 6px; bottom: 6px; min-height: 22px; padding: 2px 8px; font-size: var(--fs-xs); gap: 4px; } .label :global(.sent) { display: none; } }
+  .label > span:not(.talk-bars):first-of-type, .label > span.talk-bars + span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .label small { font-weight: 400; color: var(--ink-2); }
+  .tile-controls { position: absolute; z-index: 3; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); }
   .tile-controls:empty { display: none; }
-  .stop { padding: 0 6px; min-height: 24px; flex: none; font: var(--fs-xs) var(--body); color: var(--ink-2); }
+  .stop { padding: 0 10px; min-height: 26px; flex: none; border-radius: var(--r-pill); font: 600 var(--fs-xs) var(--body); color: var(--ink); }
   .stop:hover { color: var(--ember); }
   .volume-menu { flex: none; }
-  .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); }
+  .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--lift); }
   .quality-menu { flex: none; }
-  summary { cursor: pointer; list-style: none; display: grid; place-items: center; width: 24px; height: 24px; }
+  summary { cursor: pointer; list-style: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-pill); }
+  @media (hover: hover) { summary:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); } }
   summary::-webkit-details-marker { display: none; }
   .quality-panel { padding: 4px; }
-  @container (max-width: 260px) { .label :global(.sent) { display: none; } }
-  .quality-menu button { display: block; padding: 6px 12px; font: var(--fs-xs) var(--body); }
-  .quality-menu button:hover { background: var(--bg-3); }
+  .quality-menu button { display: block; width: 100%; padding: 8px 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
+  .quality-menu button:hover { background: var(--hover); }
   /* Muted is the call state people most need to read at a glance. */
   .label .mute { display: grid; flex: none; color: var(--danger); }
-  .tile-controls .mute { display: grid; flex: none; }
+  .tile-controls .mute { display: grid; flex: none; padding-inline: 4px; color: var(--danger); }
 </style>

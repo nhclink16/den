@@ -10,6 +10,7 @@
   import { call } from '../lib/call.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import CallDock from './CallDock.svelte'
+  import CallFaces from './CallFaces.svelte'
   import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
@@ -21,7 +22,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { themes } from '../lib/theme.svelte'
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
-  import { previewText } from '../lib/room-list'
+  import { callFaces, callLine, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
   import type { Channel } from '../lib/types'
@@ -164,15 +165,17 @@
       <!-- The server's list catches up a moment after you join; you're in already. -->
       {@const ids = here && store.me && !call.ids(c.id).includes(store.me.id) ? [store.me.id, ...call.ids(c.id)] : call.ids(c.id)}
       {@const jam = jamLine(c.id)}
+      <!-- In the call, the card says what the call pill says: who's talking. -->
+      {@const talking = here && !call.reconnecting ? callLine(call.participants).talking : ''}
       <div class="hang" class:live={ids.length > 0}>
         {#if ids.length}
-          <span class="faces">{#each ids.slice(0, 3) as id (id)}<span><Avatar userId={id} size={phone ? 32 : 28} presence={false} /></span>{/each}{#if ids.length > 3}<small>+{ids.length - 3}</small>{/if}</span>
+          <CallFaces faces={here && call.participants.length ? callFaces(call.participants) : ids.map((userId) => ({ userId }))} size={phone ? 32 : 28} max={phone ? 3 : 2} />
         {:else}
           <RoomIcon channel={c} size={phone ? 44 : 34} />
         {/if}
         <span class="txt">
-          <span class="nm">{c.name}{#if ids.length}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
-          <span class="who">{who(ids)}</span>
+          <span class="nm">{c.name}{#if ids.length && !talking}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
+          <span class="who" class:talking>{#if talking}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="say">{talking}</span>{:else}{who(ids)}{/if}</span>
           {#if jam}<span class="jam-line" data-testid="sidebar-jam" title={jam}><span aria-hidden="true">🎧</span> {jam}</span>{/if}
         </span>
         {#if here}
@@ -249,15 +252,14 @@
   .scroll { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
 
   /* The hangout: who's in it, and one button. */
-  .hang { display: flex; align-items: center; gap: 12px; margin: 4px 4px 6px; padding: 12px 12px 12px 14px; border-radius: calc(var(--r-lg) * 1.4); background: var(--bg-3); }
+  .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 12px; margin: 4px 4px 6px; padding: 12px 12px 12px 14px; border-radius: var(--r-tile); background: var(--bg-3); }
   .hang .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .hang .nm { font-weight: 700; display: flex; align-items: center; gap: 6px; }
   .hang .who, .hang .jam-line { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hang .jam-line { color: var(--lamp); }
+  .hang .who.talking { display: flex; align-items: center; gap: 6px; color: var(--lamp); }
+  .hang .who .say { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lamp); flex: none; }
-  .faces { display: flex; align-items: center; padding-left: 7px; flex: none; }
-  .faces > span { margin-left: -7px; display: flex; border-radius: var(--avatar-r, 50%); box-shadow: 0 0 0 2px var(--bg-3); }
-  .faces small { margin-left: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
   .btn.small { min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
 
   .cat { display: flex; align-items: center; gap: 4px; width: 100%; padding: 14px 10px 4px 12px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); text-align: left; border-radius: var(--r); }
@@ -310,7 +312,7 @@
   .find input:focus-visible { box-shadow: none; }
   .phone .scroll { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
   .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; background: var(--bg-2); }
-  .phone .hang .faces > span { box-shadow: 0 0 0 2px var(--bg-2); }
+  .phone .hang { --ring: var(--bg-2); }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
   .phone .row { position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }

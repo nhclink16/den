@@ -1,11 +1,31 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import { objectKind } from '../plugins'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
   import CallGrid from './CallGrid.svelte'
   import CallTile from './CallTile.svelte'
   import CallControls from './CallControls.svelte'
+  import CallJam from './CallJam.svelte'
+  import CallPill from './CallPill.svelte'
   import Icon from './Icon.svelte'
+  // `narrow` (a phone) shows the call as a pill while you chat instead of a strip
+  // of cameras. `back` names where collapsing the open call returns to, and
+  // `titled` gives it its own title where no room header names the call.
+  let { narrow = false, back = '', titled = false }: { narrow?: boolean; back?: string; titled?: boolean } = $props()
+  const strip = $derived(!call.expanded && !narrow)
+  // Opening or closing the call swaps the button you pressed for another view. When
+  // that drops keyboard focus, hand it to the matching control: Back once open,
+  // the opener once closed.
+  let wasExpanded = call.expanded
+  $effect(() => {
+    const now = call.expanded
+    if (now !== wasExpanded) void tick().then(() => {
+      if (document.activeElement && document.activeElement !== document.body) return
+      dock?.querySelector<HTMLElement>(now ? '.call-head .collapse' : '.expand, .call-pill .open')?.focus()
+    })
+    wasExpanded = now
+  })
   let dock: HTMLDivElement
   let height = $state(160)
   let maximum = $state(600)
@@ -36,9 +56,17 @@
   }
 </script>
 
-<div bind:this={dock} style:height={call.expanded ? undefined : `${shownHeight}px`} class="call-view" class:expanded={call.expanded} data-testid={call.expanded ? 'call-grid' : 'call-strip'}>
-  {#if call.otherDevices > 0 && !call.micOn && call.outputMuted}<p class="device-note" role="status">Mic and sound are off on this device. Your other device stays connected.</p>{/if}
-  {#if call.expanded}<CallGrid />{:else}
+<div bind:this={dock} style:height={strip ? `${shownHeight}px` : undefined} class="call-view" class:expanded={call.expanded} class:strip class:docked={!call.expanded && narrow} data-testid={call.expanded ? 'call-grid' : strip ? 'call-strip' : 'call-docked'}>
+  {#snippet deviceNote()}{#if call.otherDevices > 0 && !call.micOn && call.outputMuted}<p class="device-note" role="status">Mic and sound are off on this device. Your other device stays connected.</p>{/if}{/snippet}
+  {#if call.expanded || !narrow}{@render deviceNote()}{/if}
+  {#if call.expanded}
+    <CallGrid {back} {titled} />
+    <div class="toolbar"><CallControls variant="bar" /></div>
+  {:else if narrow}
+    <CallPill />
+    {@render deviceNote()}
+    <CallJam />
+  {:else}
   <div class="tiles">
     {#if objects.active}
       {@const Tile = objectKind(objects.active.kind)?.tile}
@@ -47,27 +75,32 @@
     {#each call.participants as participant (participant.id)}{#each participant.screens as share (share.name)}<CallTile {participant} {share} screen />{/each}{/each}
     {#each call.participants as participant (participant.id)}<CallTile {participant} />{/each}
   </div>
+  <button class="expand" aria-label="Expand call" title="Expand call" onclick={() => (call.expanded = true)}><Icon name="expand" /></button>
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={maximum} aria-valuenow={shownHeight} aria-valuetext={`${shownHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
   {/if}
-  <button class="expand" aria-label={call.expanded ? 'Collapse call' : 'Expand call'} title={call.expanded ? 'Collapse call' : 'Expand call'} onclick={() => (call.expanded = !call.expanded)}><Icon name={call.expanded ? 'collapse' : 'expand'} /></button>
-  {#if !call.expanded}
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-    <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={maximum} aria-valuenow={shownHeight} aria-valuetext={`${shownHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
-  {/if}
-  {#if call.expanded}<div class="toolbar"><CallControls large /></div>{/if}
 </div>
 
 <style>
-  .resize { position: absolute; z-index: 4; bottom: 0; height: 8px; width: 100%; cursor: ns-resize; touch-action: none; background: var(--line); }
-  .resize::after { content: ''; display: block; width: 36px; height: 2px; margin: 3px auto; border-radius: 2px; background: var(--ink-3); }
-  .resize:hover, .resize:focus-visible { background: var(--bg-3); }
-  .expanded .device-note { top: 40px; }
-  .device-note { position: absolute; left: 12px; top: 4px; z-index: 1; margin: 0; padding: 4px 8px; max-width: calc(100% - 56px); border-radius: var(--r); background: var(--bg); font-size: var(--fs-xs); color: var(--ink-2); }
-  .call-view { height: 160px; flex: none; position: relative; min-height: 0; background: var(--bg-2); border-bottom: 1px solid var(--line); }
-  .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; overflow-x: auto; scrollbar-width: none; }
-  .call-view:not(.expanded) .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }
+  .call-view { flex: none; position: relative; min-height: 0; }
+  /* A strip of cameras above the chat on a computer. Drag its bottom edge to resize. */
+  .strip { height: 160px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .resize { position: absolute; z-index: 4; bottom: 0; height: 8px; width: 100%; cursor: ns-resize; touch-action: none; }
+  .resize::after { content: ''; display: block; width: 36px; height: 4px; margin: 2px auto; border-radius: 2px; background: var(--ink-3); opacity: .5; transition: opacity var(--t-fast); }
+  .resize:hover::after, .resize:focus-visible::after { opacity: 1; }
+  .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 56px 14px 16px; overflow-x: auto; scrollbar-width: none; }
+  .strip .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }
   .tiles::-webkit-scrollbar { display: none; }
-  .expand { z-index: 3; position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); background: var(--bg-2); }
-  .expand:hover { color: var(--ink); }
-  .expanded { flex: 1; height: auto; }
-  .toolbar { z-index: 3; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 8px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); max-width: calc(100% - 16px); }
+  .expand { z-index: 3; position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink); background: color-mix(in srgb, var(--ink) 11%, transparent); }
+  @media (hover: hover) { .expand:hover { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
+  /* The open call fills the room: a header row, the tiles, and a floating bar of
+     round buttons. No backdrop of its own, so a chat wallpaper shows around the tiles. */
+  .expanded { flex: 1; display: flex; flex-direction: column; }
+  .toolbar { z-index: 3; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 16px); padding: 8px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(20px) saturate(1.2); box-shadow: var(--lift), 0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent); }
+  .toolbar :global(.controls) { flex-wrap: wrap; justify-content: center; }
+  /* Clear of the iPhone's home bar. */
+  @media (max-width: 600px) { .toolbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
+  .device-note { position: absolute; left: 12px; top: 4px; z-index: 5; margin: 0; padding: 4px 10px; max-width: calc(100% - 56px); border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); font-size: var(--fs-xs); color: var(--ink-2); }
+  .expanded .device-note { top: auto; bottom: 100px; left: 50%; transform: translateX(-50%); }
+  .docked .device-note { position: static; margin: 0 16px 6px; }
 </style>

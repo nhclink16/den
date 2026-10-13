@@ -19,6 +19,11 @@
   --on-lamp: var(--bg);
   --moss: var(--success); --ember: var(--danger);
   --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
+  /* Frosted glass for what floats over the call or the chat: the call bar, the pill,
+     the names on tiles. Solid enough to read on any camera, share or wallpaper. */
+  --glass: color-mix(in srgb, var(--bg-2) 80%, transparent);
+  /* Call tiles and the hangout card: a step rounder than a panel, square when Sharp. */
+  --r-tile: calc(var(--r-lg) * 1.4);
   /* A scrim darkens whatever is behind it, in either appearance. Deriving it from
      --ink made it a 45% white wash in every dark theme, brightening the app instead. */
   --scrim: rgba(0, 0, 0, 0.55);
@@ -100,6 +105,8 @@ html.desktop .shell.no-members .main > section > header.head { padding-right: ma
    Not :first-child: a notice bar above the call view still leaves it under the controls. */
 html.desktop .shell.no-members .main > .call-status { padding-right: max(12px, var(--wco-right)); }
 html.desktop .shell.no-members .main > .call-view .expand { right: calc(var(--wco-right) + 6px); }
+html.desktop .shell.no-members .main > .call-view > .call-head { padding-right: max(20px, var(--wco-right)); }
+html.desktop .shell.no-members .main > .call-view > .call-pill { margin-right: max(12px, var(--wco-right)); }
 /* The Appearance drawer is pinned to the right edge over everything. */
 html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
 
@@ -302,3 +309,14 @@ button.pill:hover { color: var(--ink); }
      not pushing the conversation down: 36pt, still a comfortable thumb. */
   .segments.small button, .pill { min-height: 36px; }
 }
+
+/* Someone is talking: three small bars in the accent. The call pill, the call's
+   header and the tile names use it. Still when motion is reduced. */
+.talk-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
+.talk-bars i { width: 3px; border-radius: 2px; background: var(--lamp); }
+.talk-bars i:nth-child(1) { height: 6px; } .talk-bars i:nth-child(2) { height: 11px; } .talk-bars i:nth-child(3) { height: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .talk-bars i { animation: talk 1s ease-in-out infinite; transform-origin: bottom; }
+  .talk-bars i:nth-child(2) { animation-delay: .2s; } .talk-bars i:nth-child(3) { animation-delay: .4s; }
+}
+@keyframes talk { 50% { transform: scaleY(.45); } }
