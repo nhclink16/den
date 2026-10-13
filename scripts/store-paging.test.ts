@@ -40,6 +40,7 @@ const source = read('store.svelte.ts')
 const cell = (x: unknown) => x
 ;(cell as any).raw = cell
 let api: any
+const sockets: any[] = []
 const globals = {
   ...compile(read('read-state.ts')),
   ...compile(read('message-fetch.ts')),
@@ -51,6 +52,7 @@ const globals = {
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
   activeListeners: new Set(), setCsrf() {},
+  WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
   lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
 }
 const classStart = source.indexOf('export class Store {')
@@ -383,4 +385,45 @@ test('a deletion that leaves the line alone cannot hold back a newer reconnect',
   lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
   await reconnect
   assert.equal(lastIn(s), 'C', 'the reconnect\'s newer line was thrown away')
+})
+
+test('an older resync landing after a newer one cannot bring back a cleared line', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const old = s.resync(), reconnect = s.resync()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: null }])   // B was deleted while offline
+  await reconnect
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await old
+  assert.equal(lastIn(s), undefined, 'the older list put the deleted message back')
+})
+
+test('events still queued on a replaced socket leave the new connection\'s previews alone', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  const old = sockets[0]
+  const send = (ws: any, ev: unknown) => ws.onmessage({ data: JSON.stringify(ev) })
+  send(old, { type: 'resync', reason: 'connect' })
+  send(old, { type: 'message_edited', ...room('B'), content: 'v1' })      // queued behind the slow resync
+  await tick()
+  old.onclose()                                                          // drops; the edit to v2 is missed
+  await s.connect()
+  send(sockets[1], { type: 'resync', reason: 'connect' })
+  await tick()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  await tick(); await tick()
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'an old socket\'s queued edit overwrote the newer connection\'s line')
+  s.ready = false   // stop the reconnect timer the closed socket scheduled
 })

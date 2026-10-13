@@ -721,7 +721,10 @@ export class Store {
     this.users = new Map(users.map((u) => [u.id, u]))
     // The list decides which rooms exist; previewsFrom decides their lines.
     const previews = this.previewsFrom(channels, previewAsked)
-    this.channels = channels.map((c) => ({ ...c, last_message: previews ? previews.get(c.id) : this.channel(c.id)?.last_message ?? c.last_message }))
+    this.channels = channels.map((c) => {
+      const mine = this.channel(c.id)
+      return { ...c, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
+    })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
     // version this snapshot was taken at, so it waits for an acknowledgement in
@@ -1260,7 +1263,7 @@ export class Store {
       // repopulating state that a logout deliberately cleared. `generation` is
       // the connection/account epoch this socket was opened for.
       events = events.then(() => generation === this.generation
-        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event)
+        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, !!this.ws && this.ws !== ws)
         : undefined)
         .catch(() => { ws.close() })
     }
@@ -1286,7 +1289,9 @@ export class Store {
     this.ws.send(JSON.stringify({ type: 'typing', channel_id: channelId, thread_id: threadId ?? null }))
   }
 
-  private async handle(ev: Event) {
+  /// `superseded`: the event was still queued on a socket a newer one replaced,
+  /// whose resync already covers it.
+  private async handle(ev: Event, superseded = false) {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
@@ -1308,7 +1313,7 @@ export class Store {
       case 'message_edited': {
         const { type: _t, ...m } = ev
         if (!this.channels.some((c) => c.id === m.channel_id)) await this.resync()
-        else { this.upsert(m as Message, true); this.preview(ev) }
+        else { this.upsert(m as Message, true); if (!superseded) this.preview(ev) }
         if (ev.type === 'message_created') {
           // They stopped typing IN THAT CONVERSATION. Clearing the room key for a
           // thread reply would leave the thread indicator running forever and
@@ -1321,7 +1326,7 @@ export class Store {
       }
       case 'message_deleted':
         if (this.active && objects.active?.message_id === ev.id) { objects.active = null; objects.expanded = false }
-        this.drop(ev.id, ev.channel_id); this.preview(ev); break
+        this.drop(ev.id, ev.channel_id); if (!superseded) this.preview(ev); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'thread_updated': {
