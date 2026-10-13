@@ -276,7 +276,11 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     assert_eq!(put(chose.token.clone(), older).await.status(), 200);
     let kept = get(chose.token.clone()).await;
     assert_eq!(
-        (kept["accent"].clone(), kept["mode"].clone(), kept["room_icons"].clone()),
+        (
+            kept["accent"].clone(),
+            kept["mode"].clone(),
+            kept["room_icons"].clone()
+        ),
         (json!("green"), json!("light"), json!("hash"))
     );
     body["room_icons"] = json!("squares");

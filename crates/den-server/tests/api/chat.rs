@@ -206,7 +206,11 @@ async fn room_list_previews_the_newest_room_message_and_never_a_private_one() {
 
     let path = format!("/channels/{general}/messages");
     let root = t
-        .post(&path, &alice.token, json!({"content":"who's driving saturday?"}))
+        .post(
+            &path,
+            &alice.token,
+            json!({"content":"who's driving saturday?"}),
+        )
         .await;
     // A reply lives in its thread, so the room's preview stays on the root.
     t.post(
@@ -219,8 +223,16 @@ async fn room_list_previews_the_newest_room_message_and_never_a_private_one() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        (preview.id.as_str(), preview.author_id.as_str(), preview.content.as_str()),
-        (root["id"].as_str().unwrap(), alice.user.id.as_str(), "who's driving saturday?")
+        (
+            preview.id.as_str(),
+            preview.author_id.as_str(),
+            preview.content.as_str()
+        ),
+        (
+            root["id"].as_str().unwrap(),
+            alice.user.id.as_str(),
+            "who's driving saturday?"
+        )
     );
     // Long text is cut by characters, not bytes.
     let long = "é".repeat(300);
@@ -259,7 +271,9 @@ async fn room_list_previews_the_newest_room_message_and_never_a_private_one() {
     )
     .await;
     for member in [&alice, &bob] {
-        let preview = last(&list(member.token.clone()).await, dm).unwrap().unwrap();
+        let preview = last(&list(member.token.clone()).await, dm)
+            .unwrap()
+            .unwrap();
         assert_eq!(preview.content, "the surprise is a puppy");
     }
     for outsider in [carol.token.clone(), t.admin.token.clone()] {
@@ -296,7 +310,11 @@ async fn only_admins_set_and_clear_a_room_icon() {
                 .json()
                 .await
                 .unwrap();
-            channels.into_iter().find(|c| c["id"] == general.as_str()).unwrap()["icon"].clone()
+            channels
+                .into_iter()
+                .find(|c| c["id"] == general.as_str())
+                .unwrap()["icon"]
+                .clone()
         }
     };
     // Rooms from before icons existed read as no icon.
@@ -305,13 +323,20 @@ async fn only_admins_set_and_clear_a_room_icon() {
     let a = t.admin.token.clone();
     let r = icon(a.clone(), general.clone(), json!({"icon":"flame"})).await;
     assert_eq!(r.status(), 200);
-    assert_eq!(r.json::<Channel>().await.unwrap().icon.as_deref(), Some("flame"));
+    assert_eq!(
+        r.json::<Channel>().await.unwrap().icon.as_deref(),
+        Some("flame")
+    );
     assert_eq!(listed(alice.token.clone()).await, "flame");
 
     assert_eq!(
-        icon(alice.token.clone(), general.clone(), json!({"icon":"skull"}))
-            .await
-            .status(),
+        icon(
+            alice.token.clone(),
+            general.clone(),
+            json!({"icon":"skull"})
+        )
+        .await
+        .status(),
         403
     );
     assert_eq!(
@@ -333,9 +358,13 @@ async fn only_admins_set_and_clear_a_room_icon() {
         .post("/dms", &a, json!({"member_ids":[alice.user.id]}))
         .await;
     assert_eq!(
-        icon(a.clone(), dm["id"].as_str().unwrap().into(), json!({"icon":"flame"}))
-            .await
-            .status(),
+        icon(
+            a.clone(),
+            dm["id"].as_str().unwrap().into(),
+            json!({"icon":"flame"})
+        )
+        .await
+        .status(),
         404
     );
     // Renaming keeps the icon; only an explicit null clears it.

@@ -228,7 +228,9 @@ pub(crate) async fn set_icon(
     // don't know as the default, so the server checks only the shape.
     if let Some(icon) = &v.icon {
         let words = icon.split('-').all(|w| {
-            !w.is_empty() && w.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+            !w.is_empty()
+                && w.bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
         });
         if icon.len() > 64 || !words {
             return Err(Error::bad("Icon must be a Lucide icon name, like flame"));
