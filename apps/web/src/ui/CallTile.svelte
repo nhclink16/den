@@ -55,7 +55,7 @@
 
 <style>
   .tile { container-type: inline-size; width: 216px; aspect-ratio: 16/9; flex: none; position: relative; display: grid; place-items: center; border-radius: var(--r-tile); background: var(--bg-3); overflow: hidden; }
-  .tile.screen { width: 384px; background: var(--bg-2); }
+  .tile.screen { width: 384px; }
   /* Who's talking: a ring drawn inside the tile, so neighbours and the strip's
      edge never clip it. */
   .tile::after { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 3px transparent; transition: box-shadow var(--t); }

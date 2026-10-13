@@ -67,12 +67,15 @@
   @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .bar { --cb: 48px; } }
   /* A phone's bar fits seven buttons on one row: mic, sound, camera, blur, options, music, Leave. */
   @media (max-width: 600px) { .bar { --cb: 44px; gap: 6px; } .bar > .leave { margin-inline-start: 8px; } }
-  .controls > button, .controls :global(summary) {
+  /* Only this row's own buttons and disclosures: the Music menu's popover has
+     summaries of its own that must keep their text layout. */
+  .controls > button, .controls > :global(details > summary) {
     display: grid; place-items: center; flex: none; width: var(--cb); height: var(--cb); border-radius: var(--r-pill);
     color: var(--ink); background: color-mix(in srgb, var(--ink) 11%, transparent); cursor: pointer;
     transition: background-color var(--t-fast), color var(--t-fast), filter var(--t-fast);
   }
-  @media (hover: hover) { .controls > button:hover:not(:disabled), .controls :global(summary:hover) { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
+  /* Plain buttons only: a solid state (off, on, held, Leave) keeps its fill under the pointer. */
+  @media (hover: hover) { .controls > button:not(.off, .on, .held, .leave):hover:not(:disabled), .controls > :global(details > summary:not(.live):hover) { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
   .controls > button:disabled { opacity: .5; cursor: default; }
   /* Off is a state you need to see at a glance: the button turns solid, like
      FaceTime's, rather than dimming. On (blur, a share) takes the accent. */
@@ -83,20 +86,23 @@
   @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
   .bar > .leave { margin-inline-start: 14px; }
   .pill > .leave { margin-inline-start: 0; }
+  /* The sidebar is narrow: with push to talk, camera and a share all on, the row
+     wraps rather than pushing Leave out of sight. */
+  .dock { flex-wrap: wrap; }
   .dock > .leave { margin-inline-start: auto; }
   .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
   .pill > .ptt { width: var(--cb); padding: 0; }
   .controls > .ptt.held { color: var(--on-lamp); background: var(--lamp); }
   /* A Jam is playing: the Music button lights like any other thing that is on. */
-  .controls :global(summary.live) { color: var(--on-lamp); background: var(--lamp); }
+  .controls > :global(details > summary.live) { color: var(--on-lamp); background: var(--lamp); }
   .overflow { position: relative; flex: none; }
-  .overflow :global(summary) { list-style: none; }
-  .overflow :global(summary)::-webkit-details-marker { display: none; }
+  .overflow > summary { list-style: none; }
+  .overflow > summary::-webkit-details-marker { display: none; }
   .options > div { position: absolute; bottom: calc(var(--cb) + 14px); right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
   .options > div button { width: max-content; padding: 8px 12px; border-radius: var(--r); font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .options > div button:hover { background: var(--hover); } }
   /* Your shares hide behind a smaller button beside Share. */
-  .shares :global(summary) { width: calc(var(--cb) * .6); }
+  .controls > .shares > summary { width: calc(var(--cb) * .6); }
   .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
   .shares > div button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
