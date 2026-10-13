@@ -50,7 +50,7 @@ struct CallError: LocalizedError {
     var errorDescription: String? { message }
     static let busy = CallError(message: "Leave the current call before joining another.")
     static let ended = CallError(message: "This call has ended.")
-    static let microphone = CallError(message: "Allow microphone access for Den Shell in Settings to speak in calls.")
+    static let microphone = CallError(message: "Allow microphone access for Den in Settings to speak in calls.")
 }
 
 /// LiveKit identities are `accountId:session`, so one account on two devices has two identities.
