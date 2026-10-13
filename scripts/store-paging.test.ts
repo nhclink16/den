@@ -322,3 +322,33 @@ test('a resync that started before a new message keeps that message as the previ
   assert.equal(lastIn(s), 'C', 'the resync snapshot overwrote a newer socket preview')
   assert.equal(s.channels.length, 2, 'the list itself still comes from the resync')
 })
+
+test('a reconnect that already brought the newest preview outranks a refetch still in flight', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })   // refetch 0 waits
+  const resync = s.resync()                                              // C arrived while offline
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await resync
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.notEqual(lastIn(s), 'A', 'the refetch from before the reconnect put an older message back')
+  lists[2]?.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'C')
+})
+
+test('replies in threads do not keep a deleted message on the list', async () => {
+  const fetches: ReturnType<typeof held>[] = []
+  api = { get: async () => { const h = held(); fetches.push(h); return h.promise } }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })
+  for (const id of ['R1', 'R2', 'R3']) await s.handle({ type: 'message_created', ...reply(id) })
+  fetches[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'A', 'thread replies made the refetch give up and left the deleted message showing')
+})
