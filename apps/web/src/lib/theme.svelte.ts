@@ -99,6 +99,8 @@ class Themes {
   }
   /** A preset id, a `#rrggbb`, or null for each theme's own accent. */
   accent(choice: string | null) { return this.save({ ...this.appearance, accent: choice }, true) }
+  /** What sits before a room's name in lists: its icon, a #, or nothing. */
+  roomIcons(mode: NonNullable<Appearance['room_icons']>) { return this.save({ ...this.appearance, room_icons: mode }, true) }
   contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
   background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
   /** The sidebar's own wallpaper. A main one limited to the sidebar would then show

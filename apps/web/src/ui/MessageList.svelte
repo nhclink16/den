@@ -37,6 +37,9 @@
   import { dayLabel, sameDay, within } from '../lib/time'
   import MessageItem from './MessageItem.svelte'
   import Icon from './Icon.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
+  import RoomIcon from './RoomIcon.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { atBottom, landing } from '../lib/landing'
 
@@ -229,8 +232,8 @@
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <div class="start">
-      <div class="start-mark" aria-hidden="true"><Icon name={channel.kind === 'dm' ? 'lock' : 'hash'} size={24} /></div>
-      <div class="display start-title">{channel.kind === 'dm' ? store.title(channel) : `#${channel.name}`}</div>
+      <div class="start-mark" aria-hidden="true">{#if channel.kind === 'dm'}<Icon name="lock" size={24} />{:else}<RoomIcon {channel} size={24} bare />{/if}</div>
+      <div class="display start-title">{channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}</div>
       <div class="muted">{list.length ? 'This is where it started.' : 'Nobody has said anything here yet. Say the first thing.'}</div>
     </div>
   {:else if source.loadingOlder}

@@ -21,6 +21,8 @@
   import type { PendingUpload } from '../lib/uploads.svelte'
   import { bytes } from '../lib/time'
   import Icon from './Icon.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
   import Avatar from './Avatar.svelte'
   import DictationButton from './DictationButton.svelte'
   import GifPicker from './GifPicker.svelte'
@@ -144,7 +146,7 @@
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
 
-  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message #${channel.name}`)
+  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message ${roomName(channel, themes.appearance.room_icons)}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
   const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
 

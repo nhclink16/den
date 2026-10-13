@@ -17,6 +17,7 @@ import { apiFor, setCsrf } from './api'
 import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
+import { lastOf } from './room-list'
 import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
 const PREFS_KEY = 'den.layout'
@@ -25,10 +26,11 @@ const PREFS_KEY = 'den.layout'
 export type AvatarShape = 'theme' | 'sharp' | 'soft' | 'round'
 /** How being online shows on an avatar. */
 export type PresenceStyle = 'dot' | 'ring' | 'off'
-export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle }
+/** `collapsed` holds the room list's folded groups: category ids, `servers`, `direct`. */
+export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle; collapsed: string[] }
 
 function loadLayout(): Layout {
-  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot' }
+  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot', collapsed: [] }
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
 }
 
@@ -1091,6 +1093,35 @@ export class Store {
     }
   }
 
+  /// Admin: a Lucide icon for a room, or null for the default.
+  async setChannelIcon(id: string, icon: string | null) {
+    const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
+    this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
+  }
+  /// Keep the room list's preview line current. Only the room's own messages
+  /// count; a reply stays in its thread.
+  private preview(ev: Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>) {
+    const c = this.channel(ev.channel_id)
+    if (!c) return
+    const last = c.last_message
+    let next = last
+    if (ev.type === 'message_deleted') {
+      if (last?.id !== ev.id) return
+      // The one before it is only known for sure by the server.
+      const generation = this.generation
+      void this.api.get<Channel[]>('/channels').then((list) => {
+        if (generation !== this.generation) return
+        const fresh = list.find((x) => x.id === c.id)
+        if (fresh) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: fresh.last_message } : x))
+      }).catch(() => { /* the next resync repairs it */ })
+      return
+    }
+    const { type: _t, ...m } = ev
+    if (m.thread_id) return
+    if (ev.type === 'message_created' ? !last || m.id > last.id : last?.id === m.id) next = lastOf(m as Message)
+    if (next !== last) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: next } : x))
+  }
+
   async openDm(userIds: string[]) {
     const c = await this.api.post<Channel>('/dms', { member_ids: [...new Set([...userIds, this.me!.id])] })
     if (!this.channels.some((x) => x.id === c.id)) this.channels = [...this.channels, c]
@@ -1241,7 +1272,7 @@ export class Store {
       case 'message_edited': {
         const { type: _t, ...m } = ev
         if (!this.channels.some((c) => c.id === m.channel_id)) await this.resync()
-        else this.upsert(m as Message, true)
+        else { this.upsert(m as Message, true); this.preview(ev) }
         if (ev.type === 'message_created') {
           // They stopped typing IN THAT CONVERSATION. Clearing the room key for a
           // thread reply would leave the thread indicator running forever and
@@ -1254,7 +1285,7 @@ export class Store {
       }
       case 'message_deleted':
         if (this.active && objects.active?.message_id === ev.id) { objects.active = null; objects.expanded = false }
-        this.drop(ev.id, ev.channel_id); break
+        this.drop(ev.id, ev.channel_id); this.preview(ev); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'thread_updated': {

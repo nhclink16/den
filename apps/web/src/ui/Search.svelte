@@ -1,5 +1,6 @@
 <script lang="ts">
   import SidebarToggle from './SidebarToggle.svelte'
+  import HomeButton from './HomeButton.svelte'
   import { instances, store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { goToMessage } from '../lib/notify.svelte'
@@ -8,9 +9,11 @@
   import { klipyGif } from '../lib/klipy'
   import { dayLabel, shortTime } from '../lib/time'
   import Icon from './Icon.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
   import Avatar from './Avatar.svelte'
 
-  let { q, channelId, onmenu, narrow }: { q: string; channelId?: string; onmenu: () => void; narrow: boolean } = $props()
+  let { q, channelId, narrow }: { q: string; channelId?: string; narrow: boolean } = $props()
   // svelte-ignore state_referenced_locally
   let text = $state(q)
   // svelte-ignore state_referenced_locally
@@ -42,7 +45,7 @@
 <section class="search-page">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<HomeButton />{/if}
     <span class="kind"><Icon name="search" size={18} /></span>
     <form class="find" onsubmit={submit}>
       <input class="q" bind:value={text} placeholder="Search messages" aria-label="Search messages" />
@@ -65,7 +68,7 @@
       {#each results as m (m.id)}
         {@const c = store.channel(m.channel_id)}
         <button class="hit" data-hover-animates onclick={() => open(m)}>
-          <div class="where faint">{c ? (c.kind === 'dm' ? store.title(c) : `#${c.name}`) : ''} · {dayLabel(m.created_at)} {shortTime(m.created_at)}</div>
+          <div class="where faint">{c ? (c.kind === 'dm' ? store.title(c) : roomName(c, themes.appearance.room_icons)) : ''} · {dayLabel(m.created_at)} {shortTime(m.created_at)}</div>
           <div class="line">
             <Avatar userId={m.author_id} size={24} />
             <span class="who">{store.name(m.author_id)}</span>

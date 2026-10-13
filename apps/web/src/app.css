@@ -29,7 +29,7 @@
   /* A chosen thing: a light wash of the accent. */
   --sel: color-mix(in srgb, var(--lamp) 14%, transparent);
   --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
-  --sidebar-w: 248px;
+  --sidebar-w: 288px;
   --members-w: 220px;
   /* Motion. Hover and reveal states ease instead of snapping. */
   --t-fast: 110ms;

@@ -7,6 +7,7 @@
   import { store, instances, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
+  import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
 
   let { onclose }: { onclose: () => void } = $props()
@@ -14,13 +15,13 @@
   let cursor = $state(0)
   let input: HTMLInputElement
 
-  type Item = { id: string; label: string; hint?: string; disabled?: boolean; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string; instance?: Store; server?: string }
+  type Item = { id: string; label: string; hint?: string; disabled?: boolean; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string; instance?: Store; server?: string; channel?: import('../lib/types').Channel }
 
   const items = $derived.by<Item[]>(() => {
     const out: Item[] = plugins.flatMap((p) => p.paletteActions.map((a) => ({ ...a, kind: 'action' as const })))
     if (call.channel) out.unshift({ id: 'a-call-reset', label: 'Reset layout', kind: 'action', run: () => callLayouts.reset(call.channel?.id) })
     for (const s of instances.all) {
-    for (const c of s.textChannels) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: c.name, hint: s.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', run: () => { instances.select(s); if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
+    for (const c of s.textChannels) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: c.name, hint: s.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', channel: c, run: () => { instances.select(s); if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
     for (const c of s.dms) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: s.title(c), hint: 'direct', kind: 'dm', run: () => { instances.select(s); router.go(`/c/${c.id}`) }, userId: (c.member_ids || []).find((id) => id !== s.me?.id) })
     for (const u of s.people) if (u.id !== s.me?.id) out.push({ id: `${s.origin}:u-${u.id}`, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await s.openDm([u.id]); instances.select(s); router.go(`/c/${c.id}`) } })
     }
@@ -66,7 +67,7 @@
     {#each results as it, i (it.id)}
       <li role="presentation">
         <button id={optionId(it.id)} role="option" aria-selected={i === cursor} tabindex="-1" disabled={it.disabled} class:active={i === cursor} onmousemove={() => (cursor = i)} onclick={() => pick(it)}>
-          {#if it.kind === 'channel'}<Icon name="hash" />{:else if it.userId}<Avatar instance={it.instance} userId={it.userId} size={18} />{:else}<Icon name="gear" />{/if}
+          {#if it.kind === 'channel' && it.channel}<RoomIcon channel={it.channel} size={16} bare />{:else if it.kind === 'channel'}<Icon name="hash" />{:else if it.userId}<Avatar instance={it.instance} userId={it.userId} size={18} />{:else}<Icon name="gear" />{/if}
           <span class="label">{it.label}</span>
           {#if it.server}<span class="hint">{it.server}</span>{/if}
           {#if it.hint}<span class="hint">{it.hint}</span>{/if}

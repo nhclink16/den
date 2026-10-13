@@ -362,6 +362,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/channels/{id}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["put__channels__id__icon"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/channels/{id}/messages": {
         parameters: {
             query?: never;
@@ -2039,6 +2055,11 @@ export interface components {
             dark_theme: string;
             light_theme: string;
             mode: components["schemas"]["AppearanceMode"];
+            /**
+             * @description What sits before a room's name in lists. Like `accent`, a client that
+             *     omits the field on save keeps the stored one.
+             */
+            room_icons?: components["schemas"]["RoomIcons"];
             sidebar_background?: {
                 /** Format: int32 */
                 blur: number;
@@ -2186,8 +2207,25 @@ export interface components {
         };
         Channel: {
             category_id?: string | null;
+            /**
+             * @description A Lucide icon name an admin picked, like `flame`. Null shows the client's
+             *     default. DMs never have one.
+             */
+            icon?: string | null;
             id: components["schemas"]["String"];
             kind: components["schemas"]["ChannelKind"];
+            /** @description Enough of a message for a room list's preview line. */
+            last_message?: {
+                /** @description Content types of its attachments, so a picture can read "Photo". */
+                attachment_types: string[];
+                author_id: components["schemas"]["String"];
+                /** @description The first 200 characters at most. */
+                content: string;
+                created_at: string;
+                id: components["schemas"]["String"];
+                /** @description Kinds of the cards it carries, like `canvas`. */
+                object_kinds: string[];
+            } | null;
             /** @description Explicit DM participants. Text and voice channels are visible to all users. */
             member_ids: components["schemas"]["String"][];
             name: string;
@@ -2753,6 +2791,18 @@ export interface components {
             /** Format: int32 */
             width: number;
         };
+        /** @description Enough of a message for a room list's preview line. */
+        LastMessage: {
+            /** @description Content types of its attachments, so a picture can read "Photo". */
+            attachment_types: string[];
+            author_id: components["schemas"]["String"];
+            /** @description The first 200 characters at most. */
+            content: string;
+            created_at: string;
+            id: components["schemas"]["String"];
+            /** @description Kinds of the cards it carries, like `canvas`. */
+            object_kinds: string[];
+        };
         Login: {
             password: string;
             username: string;
@@ -3038,6 +3088,8 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "member";
+        /** @enum {string} */
+        RoomIcons: "icons" | "hash" | "none";
         /**
          * @description A room's Jam, or none. Wrapped rather than returned as a bare nullable
          *     object, because Apple's Swift generator rejects a standalone null branch in
@@ -3209,6 +3261,10 @@ export interface components {
              * @description How long it lasts without a refresh. Defaults to 90 seconds, at most a day.
              */
             ttl_seconds?: number | null;
+        };
+        /** @description `icon` null clears it. */
+        SetChannelIcon: {
+            icon?: string | null;
         };
         SetController: {
             user_id?: string | null;
@@ -4482,6 +4538,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    put__channels__id__icon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetChannelIcon"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
             };
             /** @description API error; invalid input, authentication, permissions, conflict, throttling or storage failure */
             default: {

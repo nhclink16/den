@@ -1,5 +1,6 @@
 <script lang="ts">
   import SidebarToggle from './SidebarToggle.svelte'
+  import HomeButton from './HomeButton.svelte'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
@@ -9,7 +10,7 @@
   import type { ServerAction, ServerDetail, ServerActionResult } from '../lib/types'
   import { dotTone, formatStat, gameGlyph, gameLabel, lagging, playtime, stateLabel, usableActions } from '../lib/servers'
 
-  let { slug, onmenu, narrow }: { slug: string; onmenu: () => void; narrow: boolean } = $props()
+  let { slug, narrow }: { slug: string; narrow: boolean } = $props()
 
   const server = $derived(store.servers.find((s) => s.slug === slug))
   const admin = $derived(store.me?.role === 'admin')
@@ -65,7 +66,7 @@
 <section class="page">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<HomeButton />{/if}
     <span class="crumb eyebrow">Servers</span>
     <span class="faint" aria-hidden="true">›</span>
     <h1 class="display">{server ? gameLabel(server) : slug}</h1>

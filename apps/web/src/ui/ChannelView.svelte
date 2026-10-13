@@ -2,6 +2,10 @@
   import MusicComposer from './MusicComposer.svelte'
   import JamCard from './JamCard.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
+  import HomeButton from './HomeButton.svelte'
+  import RoomIcon from './RoomIcon.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
   import ObjectDock from './ObjectDock.svelte'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
@@ -21,7 +25,7 @@
   // Searches everywhere: a miss in this room reads as "the message is gone".
   function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}`) }
 
-  let { channel, onmenu, narrow }: { channel: Channel; onmenu: () => void; narrow: boolean } = $props()
+  let { channel, narrow }: { channel: Channel; narrow: boolean } = $props()
   let replyTo = $state<Message | null>(null)
   let dragging = $state(0)
   let dropped = $state<File[]>([])
@@ -254,8 +258,8 @@
 <section class="view" aria-label={store.title(channel)}>
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
-    <span class="kind">{#if callCovers}<Icon name="headset" size={18} />{:else if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
+    {#if narrow}<HomeButton />{/if}
+    <span class="kind">{#if callCovers}<Icon name="headset" size={18} />{:else if isDm}<Icon name="lock" />{:else}<RoomIcon {channel} size={18} bare />{/if}</span>
     <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
     <span class="spacer"></span>
     {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
@@ -330,7 +334,7 @@
         <div class="drop">
           <div class="drop-inner">
             <Icon name="clip" size={28} />
-            <span class="display big">Drop it in #{channel.name}</span>
+            <span class="display big">Drop it in {roomName(channel, themes.appearance.room_icons)}</span>
             <span class="muted">Anything up to 1 GB. Clips play right in the chat.</span>
           </div>
         </div>
@@ -381,6 +385,7 @@
     border-bottom: 1px solid var(--line);
   }
   .kind { color: var(--ink-3); display: grid; }
+  .kind:empty { display: none; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
   /* The same search field as Settings and the Search page; app.css draws its focus ring. */
