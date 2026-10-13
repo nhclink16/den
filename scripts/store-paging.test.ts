@@ -352,3 +352,23 @@ test('replies in threads do not keep a deleted message on the list', async () =>
   await new Promise((r) => setTimeout(r, 0))
   assert.equal(lastIn(s), 'A', 'thread replies made the refetch give up and left the deleted message showing')
 })
+
+test('an older resync landing after a newer one keeps the newer previews', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('A') }]
+  const first = s.resync(), second = s.resync()
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await first
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await second
+  assert.equal(lastIn(s), 'C', 'the newer resync was ignored')
+  const third = s.resync(), fourth = s.resync()
+  lists[3]!.release([{ id: 'c', kind: 'text', last_message: preview('E') }])
+  await fourth
+  lists[2]!.release([{ id: 'c', kind: 'text', last_message: preview('D') }])
+  await third
+  assert.equal(lastIn(s), 'E', 'an older resync put its preview back')
+})

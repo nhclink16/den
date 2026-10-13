@@ -687,7 +687,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
-    const previewsAt = new Map(this.previewRev)
+    const previewsAt = new Map(this.previewEvents), listSeq = ++this.listSeq
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
@@ -719,12 +719,12 @@ export class Store {
     this.users = new Map(users.map((u) => [u.id, u]))
     // The list decides which rooms exist; a preview the socket moved on since the
     // request went out is newer than the one it carries.
-    // A list taken now also outdates any older fetch still in flight, so it counts as a change too.
+    // Applying a list also outdates any preview refetch still in flight.
+    const older = listSeq < this.listApplied
+    this.listApplied = Math.max(this.listApplied, listSeq)
     this.channels = channels.map((c) => {
       const mine = this.channel(c.id)
-      if (mine && this.previewRev.get(c.id) !== previewsAt.get(c.id)) return { ...c, last_message: mine.last_message }
-      this.previewRev.set(c.id, (this.previewRev.get(c.id) ?? 0) + 1)
-      return c
+      return mine && (older || this.previewEvents.get(c.id) !== previewsAt.get(c.id)) ? { ...c, last_message: mine.last_message } : c
     })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
@@ -1107,16 +1107,20 @@ export class Store {
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
     this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
   }
-  /// Bumped on every message event in a room. A channel list fetched before a
-  /// bump is older than the preview the events built, so it must not replace it.
-  private previewRev = new Map<string, number>()
+  /// Bumped on every message event that can change a room's line. A channel list
+  /// fetched before a bump is older than the preview the events built.
+  private previewEvents = new Map<string, number>()
+  /// Resyncs in the order they started, and the newest one whose list is applied.
+  /// An older list landing after a newer one must not take the previews back.
+  private listSeq = 0
+  private listApplied = 0
   /// Keep the room list's preview line current. Only the room's own messages
   /// count; a reply stays in its thread.
   private preview(ev: Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>) {
     const c = this.channel(ev.channel_id)
     // A reply never changes the line. A deletion might (it carries no thread), so it counts.
     if (!c || (ev.type !== 'message_deleted' && ev.thread_id)) return
-    this.previewRev.set(c.id, (this.previewRev.get(c.id) ?? 0) + 1)
+    this.previewEvents.set(c.id, (this.previewEvents.get(c.id) ?? 0) + 1)
     const last = c.last_message
     let next = last
     if (ev.type === 'message_deleted') {
@@ -1132,12 +1136,12 @@ export class Store {
   /// Asks again until no room event lands while it waits; each retry needs one,
   /// so it settles as soon as the room goes quiet.
   private async refetchPreview(id: string): Promise<void> {
-    const generation = this.generation, rev = this.previewRev.get(id)
+    const generation = this.generation, rev = this.previewEvents.get(id), applied = this.listApplied
     let list: Channel[]
     try { list = await this.api.get<Channel[]>('/channels') } catch { return /* the next resync repairs it */ }
     if (generation !== this.generation) return
     // Another message event landed meanwhile; this answer may predate it.
-    if (this.previewRev.get(id) !== rev) return this.refetchPreview(id)
+    if (this.previewEvents.get(id) !== rev || this.listApplied !== applied) return this.refetchPreview(id)
     const fresh = list.find((x) => x.id === id)
     if (fresh) this.channels = this.channels.map((x) => (x.id === id ? { ...x, last_message: fresh.last_message } : x))
   }

@@ -14,8 +14,9 @@
   const mode = $derived(name ? 'icons' : themes.appearance.room_icons ?? 'icons')
   // A name this build of Lucide doesn't have (renamed upstream, or set through
   // the API) falls back to the room's default instead of an empty circle.
-  let missing = $state('')
-  const icon = $derived.by(() => { const n = name ?? (channel ? roomIcon(channel) : 'message-circle'); return n === missing && channel ? defaultIcon(channel) : n })
+  // Each name is tried once, so an offline list doesn't flip between the two.
+  let failed = $state<string[]>([])
+  const icon = $derived.by(() => { const n = name ?? (channel ? roomIcon(channel) : 'message-circle'); return failed.includes(n) && channel ? defaultIcon(channel) : n })
   const other = $derived(channel?.kind === 'dm' ? (channel.member_ids || []).find((id) => id !== store.me?.id) || store.me?.id || '' : '')
 </script>
 
@@ -24,7 +25,7 @@
 {:else if mode !== 'none' && (name || channel?.kind !== 'dm')}
   <span class="tile" class:bare style:--size="{size}px" aria-hidden="true">
     {#if mode === 'hash' && channel?.kind === 'text'}<Icon name="hash" size={Math.round(bare ? size : size * 0.5)} />
-    {:else}<span class="glyph" style:--icon="url({iconUrl(icon)})"></span><img src={iconUrl(icon)} alt="" hidden onerror={() => (missing = icon)} />{/if}
+    {:else}<span class="glyph" style:--icon="url({iconUrl(icon)})"></span><img src={iconUrl(icon)} alt="" hidden onerror={() => { if (!failed.includes(icon)) failed = [...failed, icon] }} />{/if}
   </span>
 {/if}
 
