@@ -279,7 +279,7 @@
   {#if channel.kind !== 'text'}<JamCard channelId={channel.id} />{/if}
   {#if call.channel && call.owner && call.channel.id !== channel.id && !objects.expanded}<JamCard channelId={call.channel.id} owner={call.owner} compact />{/if}
 
-  {#if call.channel && !objects.expanded}<CallView />{/if}
+  {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
   {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}

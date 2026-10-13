@@ -7,35 +7,42 @@
   import { disclosurePopover } from '../lib/disclosure-popover'
   import { shell } from '../lib/shell-call'
   import Icon from './Icon.svelte'
-  let { large = false }: { large?: boolean } = $props()
+  // `bar` floats under the open call with every button. `dock` is the same set,
+  // smaller, for the call bar above the sidebar. `pill` is what you need while you
+  // chat: your mic, your sound when it's off, and Leave.
+  let { variant = 'dock' }: { variant?: 'bar' | 'dock' | 'pill' } = $props()
+  const pill = $derived(variant === 'pill')
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
   // shows the disabled control and says why.
   const blurAvailable = blurSupported()
   // Phones have no screen to share: the button would only ever show an error.
   const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia && !shell
   const shares = $derived(call.participants.find(p => p.local)?.screens || [])
+  const icon = $derived(variant === 'bar' ? 22 : 18)
 </script>
 
-<div class="controls" class:large>
+<div class="controls {variant}">
+  {#if pill && call.outputMuted}<button class="off" aria-label="Play sound on this device" aria-pressed={false} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name="sound-off" size={icon} /></button>{/if}
   {#if call.prefs.mode === 'ptt'}
-    <button class="ptt" class:held={call.held} aria-label="Push to talk" aria-pressed={call.held}
+    <button class="ptt" class:held={call.held} aria-label="Push to talk" aria-pressed={call.held} title={`Hold ${call.prefs.pttLabel} to talk`}
       onpointerdown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); call.setHeld(true) }}
       onpointerup={() => call.setHeld(false)} onpointercancel={() => call.setHeld(false)} onlostpointercapture={() => call.setHeld(false)}
       onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); call.setHeld(true) } }}
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
-    >hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk</button>
+    >{#if pill}<Icon name="mic" size={icon} />{:else}hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk{/if}</button>
   {:else}
-    <button class:muted={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} /></button>
+    <button class:off={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} size={icon} /></button>
   {/if}
-  <button class:muted={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} /></button>
+  {#if !pill}
+  <button class:off={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} size={icon} /></button>
   <!-- Den Shell runs calls voice-only for now. -->
-  {#if !shell}<button class:muted={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} /></button>{/if}
-  {#if call.cameraOn && blurAvailable}<button class:blurred={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" /></button>{/if}
-  {#if shareAvailable}<button class:sharing={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" /></button>{/if}
+  {#if !shell}<button class:off={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
+  {#if call.cameraOn && blurAvailable}<button class:on={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
+  {#if shareAvailable}<button class:on={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
   {#if call.screenOn}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
     <details class="overflow shares" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
-      <summary aria-label="Your shares" title="Your shares"><Icon name="more" /></summary>
+      <summary aria-label="Your shares" title="Your shares"><Icon name="more" size={icon} /></summary>
       <div popover="auto" use:disclosurePopover>
         <!-- Lives in this menu rather than beside it, so a sidebar-wide dock keeps one row. -->
         <button disabled={call.screenAdding || shares.length === 3} aria-label="Share another" title={shares.length === 3 ? 'Up to 3 at once' : 'Share another'} onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); void call.addScreen() }}><Icon name="plus" size={14} /><span>{shares.length === 3 ? 'Up to 3 at once' : 'Share another'}</span></button>
@@ -45,48 +52,59 @@
       </div>
     </details>
   {/if}
-  {#if large}<details class="overflow"><summary aria-label="Call options" title="Call options"><Icon name="more" /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
+  {#if variant === 'bar'}<details class="overflow options"><summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
   <MusicQueueButton />
-  <button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" /></button>
+  {/if}
+  <button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={icon} /></button>
 </div>
 
 <style>
-  .overflow { position: relative; }
-  summary { width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; list-style: none; }
-  summary::-webkit-details-marker { display: none; }
-  .overflow > div { position: absolute; bottom: 46px; right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); }
-  .overflow > div button { width: max-content; padding: 0 12px; font: var(--fs-xs) var(--body); }
-  .shares { flex: none; }
-  .shares summary { width: 24px; height: 28px; }
-  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); }
-  .shares > div button { display: flex; gap: 8px; width: 100%; min-height: 40px; height: auto; text-align: left; }
+  /* Round buttons, like FaceTime. Each size is --cb so the Music button, which
+     lives in its own component, matches. Sharp corners square them off. */
+  .controls { --cb: 34px; display: flex; align-items: center; gap: 6px; flex: none; }
+  .bar { --cb: 48px; gap: 10px; }
+  .pill { --cb: 40px; gap: 8px; }
+  @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .bar { --cb: 48px; } }
+  /* A phone's bar fits seven buttons on one row: mic, sound, camera, blur, options, music, Leave. */
+  @media (max-width: 600px) { .bar { --cb: 44px; gap: 6px; } .bar > .leave { margin-inline-start: 8px; } }
+  .controls > button, .controls :global(summary) {
+    display: grid; place-items: center; flex: none; width: var(--cb); height: var(--cb); border-radius: var(--r-pill);
+    color: var(--ink); background: color-mix(in srgb, var(--ink) 11%, transparent); cursor: pointer;
+    transition: background-color var(--t-fast), color var(--t-fast), filter var(--t-fast);
+  }
+  @media (hover: hover) { .controls > button:hover:not(:disabled), .controls :global(summary:hover) { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
+  .controls > button:disabled { opacity: .5; cursor: default; }
+  /* Off is a state you need to see at a glance: the button turns solid, like
+     FaceTime's, rather than dimming. On (blur, a share) takes the accent. */
+  .controls > button.off, .controls > button.off:hover { background: var(--ink); color: var(--bg); }
+  .controls > button.on, .controls > button.on:hover { background: var(--lamp); color: var(--on-lamp); }
+  /* Leave is red and sits apart from the toggles, so it is never fumbled mid-call. */
+  .controls > .leave { margin-inline-start: 10px; background: var(--danger); color: var(--bg); }
+  @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
+  .bar > .leave { margin-inline-start: 14px; }
+  .pill > .leave { margin-inline-start: 0; }
+  .dock > .leave { margin-inline-start: auto; }
+  .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
+  .pill > .ptt { width: var(--cb); padding: 0; }
+  .controls > .ptt.held { color: var(--on-lamp); background: var(--lamp); }
+  /* A Jam is playing: the Music button lights like any other thing that is on. */
+  .controls :global(summary.live) { color: var(--on-lamp); background: var(--lamp); }
+  .overflow { position: relative; flex: none; }
+  .overflow :global(summary) { list-style: none; }
+  .overflow :global(summary)::-webkit-details-marker { display: none; }
+  .options > div { position: absolute; bottom: calc(var(--cb) + 14px); right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
+  .options > div button { width: max-content; padding: 8px 12px; border-radius: var(--r); font: var(--fs-sm) var(--body); }
+  @media (hover: hover) { .options > div button:hover { background: var(--hover); } }
+  /* Your shares hide behind a smaller button beside Share. */
+  .shares :global(summary) { width: calc(var(--cb) * .6); }
+  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
+  .shares > div button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
+  @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
-  .controls { display: flex; align-items: center; gap: 4px; flex: none; }
-  button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r); color: var(--ink); }
-  /* bg-3 is the dock's own background, so that hover was invisible. A surface-relative
-     tint reads on the dock and on the expanded toolbar alike. */
-  button:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
-  button:disabled { opacity: .5; cursor: default; }
-  /* Off is a state you need to see at a glance, so it is coloured, not dimmed. */
-  .muted { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
-  .muted:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
-  .sharing, .blurred { color: var(--bg); background: var(--lamp); box-shadow: var(--glow); }
-  .sharing:hover, .blurred:hover { background: var(--lamp); filter: brightness(1.08); }
-  button { transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t); }
-  .leave { color: var(--ink-2); }
-  /* Leave sits apart from the toggles so it is not fumbled mid-call. */
-  .leave { margin-inline-start: 6px; }
-  .leave:hover { color: var(--ember); background: color-mix(in srgb, var(--danger) 16%, transparent); }
-  .ptt { width: auto; padding: 0 6px; white-space: nowrap; font: var(--fs-xs) var(--body); color: var(--ink-2); background: var(--bg); touch-action: none; }
-  .ptt.held { color: var(--lamp); background: var(--lamp-glow); }
-  .large { gap: 4px; }
-  .large button { width: 40px; height: 40px; }
-  .large .ptt { width: auto; padding: 0 10px; }
-  /* A finger needs the 44px Apple asks for, and an invisible hit box around a
-     small square still reads as a target too small to aim at. */
-  @media (pointer: coarse) {
-    .controls { gap: 8px; }
-    button, .large button { width: 44px; height: 44px; }
+  /* The sidebar is narrow. With camera, blur and a share all on, the row would
+     wrap Leave onto a line of its own; shrink the buttons instead. */
+  @media (pointer: fine) {
+    @container dock (max-width: 270px) { .dock { --cb: 28px; gap: 3px; } }
   }
 </style>
