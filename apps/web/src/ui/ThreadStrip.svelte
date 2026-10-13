@@ -109,6 +109,9 @@
     if (m !== 'open') void load(m)
   }
   $effect(() => { if (mode === 'open' && !lists.open.attempted) void load('open') })
+  // The pill's unread count must see resolved conversations too, which the room
+  // itself never loads: fetch the unread list once with the pill.
+  $effect(() => { if (!lists.unread.attempted) void load('unread') })
   // A reconnect can change every one of these.
   let online = $state(store.connected)
   $effect(() => {
@@ -144,6 +147,8 @@
   const openCount = $derived(store.threadsIn(channel.id).length)
   // Unread anywhere in the room's conversations lights the pill, as the chips did.
   const unreadAll = $derived(store.threadsIn(channel.id, false).map((t) => store.threadUnread(t.id)).filter((u) => u.count))
+  const authorOf = (t: ThreadSummary) =>
+    (store.root(t.root_message_id) ?? store.messages.get(channel.id)?.find((m) => m.id === t.root_message_id))?.author_id ?? t.created_by
   function pick(t: ThreadSummary) {
     open = false
     onopen(t.id, t.root_message_id)
@@ -187,10 +192,11 @@
                 aria-current={selected === t.id ? 'true' : undefined}
                 onclick={() => pick(t)}
               >
-                <Avatar userId={t.created_by} size={32} presence={false} />
+                <!-- Whoever wrote the message it's about, when that message is loaded. -->
+                <Avatar userId={authorOf(t)} size={32} presence={false} />
                 <span class="text">
                   <span class="name">{plainMentions(t.title, store.users)}</span>
-                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last} · {store.name(last.author_id)}: {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'} · resolved{/if}</span>
+                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
                 </span>
                 {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
               </button>

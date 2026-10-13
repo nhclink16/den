@@ -45,21 +45,46 @@ export function personColor(userId: string, chosen?: string | null): string {
   return fromLab(.66, .12 * Math.cos(h), .12 * Math.sin(h))
 }
 
+/** The ink wash behind code and mentions inside a bubble (MessageItem uses 9%). */
+const WASH = .09
+/** `color-mix(in srgb, …)`, and what a translucent layer over a colour comes to. */
+function srgbMix(from: string, to: string, amount: number) {
+  const rgb = (hex: string) => hex.slice(1).match(/../g)!.map((v) => parseInt(v, 16))
+  const a = rgb(from), b = rgb(to)
+  return '#' + a.map((v, i) => Math.round(v + (b[i]! - v) * amount).toString(16).padStart(2, '0')).join('')
+}
 function mix(from: string, to: string, amount: number) {
   const a = lab(from), b = lab(to)
   return fromLab(...(a.map((v, i) => v + (b[i]! - v) * amount) as [number, number, number]))
 }
 
 /** The raised surface tinted with `color`, as strongly as the theme allows while
- *  text and secondary text on it keep 4.5:1. The plain surface when nothing does. */
+ *  text and secondary text on it keep 4.5:1, text also on the faint ink wash
+ *  behind code and mentions. A palette whose own raised surface reads below
+ *  that (or Contrast turned down) only promises no worse than its plain bubble.
+ *  The plain surface when nothing does. */
 export function tint(color: string, c: Pick<ThemeColors, 'bg' | 'bg3' | 'ink' | 'ink2'>): string {
   const pale = lab(c.bg)[0]! > .5
-  const reads = (fill: string) => contrast(c.ink, fill) >= 4.5 && contrast(c.ink2, fill) >= 4.5
+  // Text sits on the bubble and on the wash; secondary text ("edited") only on the bubble.
+  const surfaces = (fill: string) => ({ ink: [fill, srgbMix(fill, c.ink, WASH)], ink2: [fill] })
+  const plain = surfaces(c.bg3)
+  const floor = (role: 'ink' | 'ink2') => Math.min(4.5, ...plain[role].map((bg) => contrast(c[role], bg)))
+  const need = { ink: floor('ink'), ink2: floor('ink2') }
+  const reads = (fill: string) => (['ink', 'ink2'] as const).every((role) => surfaces(fill)[role].every((bg) => contrast(c[role], bg) >= need[role]))
   for (let amount = pale ? .3 : .4; amount > .01; amount -= .02) {
     const fill = mix(c.bg3, color, amount)
     if (reads(fill)) return fill
   }
   return c.bg3
+}
+
+/** Secondary text as Contrast leaves it: app.css mixes it toward the text (above
+ *  100) or the background (below), the same way theme-runtime does. */
+export function withContrast<C extends Pick<ThemeColors, 'bg' | 'ink' | 'ink2'>>(c: C, percent = 100): C {
+  const amount = Math.max(80, Math.min(120, percent))
+  if (amount === 100) return c
+  const d = Math.abs(amount - 100) * .55 / 100, toward = amount > 100 ? c.ink : c.bg
+  return { ...c, ink2: srgbMix(c.ink2, toward, d) }
 }
 
 const cache = new Map<string, string>()

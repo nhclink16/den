@@ -14,7 +14,7 @@
   import { klipyGif, snippet } from '../lib/klipy'
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
-  import { bubbleFill, nameInk, personColor } from '../lib/bubbles'
+  import { bubbleFill, nameInk, personColor, withContrast } from '../lib/bubbles'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
   // room does, so an unscoped id would exist twice and a deep link could reveal
@@ -66,7 +66,7 @@
   const fill = $derived.by(() => {
     const half = themes.half, c = themes.active[half], person = personColor(m.author_id, author?.accent)
     if (feed) return head ? { name: nameInk(themes.appearance.bubble_colors, mine, person, c) } : {}
-    return { bubble: bubbleFill(themes.appearance.bubble_colors, mine, mentionsMe, person, resolveAccent(c, themes.appearance.accent, half), c) }
+    return { bubble: bubbleFill(themes.appearance.bubble_colors, mine, mentionsMe, person, resolveAccent(c, themes.appearance.accent, half), withContrast(c, themes.appearance.contrast)) }
   })
   // Only messages that land while you watch animate in; history loads still.
   // Read once on purpose: an edit must not replay the arrival.
@@ -164,6 +164,8 @@
           {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />Agent</span>{/if}
         </div>
       {/if}
+      <!-- Your own messages show no name; a screen reader still hears who spoke. -->
+      {#if head && right}<span class="sr-only">{author?.display_name || author?.username || 'You'}</span>{/if}
       {#if parent && !feed}{@render replyRef(parent)}{/if}
       <div class="content">
         {#if tail && !right && !feed && pieces}<span class="tail-face">{@render face(28)}</span>{/if}
@@ -292,9 +294,9 @@
      bold: the accent can't be read on every person's colour. */
   .bubble :global(a) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   .bubble :global(.mention) { color: inherit; background: color-mix(in srgb, var(--ink) 9%, transparent); }
-  .bubble :global(code) { background: color-mix(in srgb, var(--ink) 8%, transparent); border-color: transparent; }
+  .bubble :global(code) { background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre code) { background: none; }
-  .bubble :global(pre) { max-width: 100%; margin: 6px 0; background: color-mix(in srgb, var(--ink) 7%, transparent); border-color: transparent; }
+  .bubble :global(pre) { max-width: 100%; margin: 6px 0; background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre:first-child) { margin-top: 2px; }
   .bubble :global(pre:last-child) { margin-bottom: 2px; }
   /* A message that names you is ringed in the accent as well as lit. */

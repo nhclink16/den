@@ -15,7 +15,7 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
-  import { bubbleFill, personColor } from '../lib/bubbles'
+  import { bubbleFill, personColor, withContrast } from '../lib/bubbles'
   import { themes } from '../lib/theme.svelte'
 
   const me = $derived(store.me!)
@@ -26,7 +26,7 @@
   let saving = $state(false), message = $state(''), error = $state('')
   let busyImage = $state<'avatar' | 'banner' | null>(null)
   // Your own bubble, as everyone sees it with colours on.
-  const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', themes.active[themes.half]))
+  const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', withContrast(themes.active[themes.half], themes.appearance.contrast)))
 
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null

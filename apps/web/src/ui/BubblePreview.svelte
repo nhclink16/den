@@ -4,11 +4,11 @@
   import { store } from '../lib/store.svelte'
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
-  import { bubbleFill, nameInk, personColor } from '../lib/bubbles'
+  import { bubbleFill, nameInk, personColor, withContrast } from '../lib/bubbles'
 
   const other = '#d17465'
   const look = $derived.by(() => {
-    const half = themes.half, c = themes.active[half], a = themes.appearance
+    const half = themes.half, a = themes.appearance, c = withContrast(themes.active[half], a.contrast)
     const accent = resolveAccent(c, a.accent, half)
     const me = personColor(store.me?.id ?? '', store.me?.accent)
     return {

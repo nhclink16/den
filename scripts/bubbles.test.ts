@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { bubbleFill, nameInk, personColor, places, tint, TIME_BREAK } from '../apps/web/src/lib/bubbles.ts'
+import { bubbleFill, nameInk, personColor, places, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
 import { accentPresets, contrast, deriveHalf, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
 
 const themes = JSON.parse(readFileSync(new URL('../crates/den-core/src/themes.json', import.meta.url), 'utf8'))
@@ -49,15 +49,33 @@ const palettes = [
   ...custom.map((c, i) => [`custom ${i}`, c]),
 ] as [string, Record<string, string>][]
 
-test('text on every bubble colour reads at 4.5:1 in every theme, both halves, and odd custom palettes', () => {
-  for (const [name, c] of palettes) {
-    // A palette whose own raised surface fails is the author's choice; the bubble must not make it worse.
-    const floor = (ink: string) => Math.min(4.5, contrast(ink, c.bg3!))
+// What a 9% ink wash (code, mentions) over a colour comes to, as the browser draws it.
+const wash = (bg: string, ink: string) => '#' + [1, 3, 5].map((i) => {
+  const a = parseInt(bg.slice(i, i + 2), 16), b = parseInt(ink.slice(i, i + 2), 16)
+  return Math.round(a + (b - a) * .09).toString(16).padStart(2, '0')
+}).join('')
+
+test('text on every bubble colour reads at 4.5:1 in every theme, both halves, odd custom palettes and any Contrast', () => {
+  for (const [name, raw] of palettes) for (const percent of [80, 100, 120]) {
+    const c = withContrast(raw as never, percent) as Record<string, string>
+    // A palette (or a Contrast setting) whose own raised surface reads below 4.5
+    // is the person's choice; a coloured bubble must not make it worse.
+    // Text sits on the bubble and on the ink wash behind code; secondary text only on the bubble.
+    const on = (fill: string) => [[c.ink!, fill], [c.ink!, wash(fill, c.ink!)], [c.ink2!, fill]] as const
+    const floor = on(c.bg3!).map(([ink, bg]) => Math.min(4.5, contrast(ink, bg)))
     for (const color of colors) {
       const fill = tint(color, c as never)
-      for (const ink of [c.ink!, c.ink2!]) assert.ok(contrast(ink, fill) >= floor(ink) - 1e-9, `${name} ${color} → ${fill}: ${contrast(ink, fill).toFixed(2)}`)
+      on(fill).forEach(([ink, bg], i) => assert.ok(contrast(ink, bg) >= floor[i]! - .02, `${name} @${percent} ${color} → ${bg}: ${contrast(ink, bg).toFixed(2)}`))
     }
   }
+})
+
+test('Contrast moves secondary text the way the page does', () => {
+  const c = { bg: '#ffffff', ink: '#000000', ink2: '#808080' }
+  assert.equal(withContrast(c, 100), c)
+  // 20 points below 100 mixes 11% of the way toward the background.
+  assert.equal(withContrast(c, 80).ink2, '#8e8e8e')
+  assert.equal(withContrast(c, 120).ink2, '#727272')
 })
 
 test('with no bubbles, coloured names read at 4.5:1 on the page and sidebar colours', () => {
