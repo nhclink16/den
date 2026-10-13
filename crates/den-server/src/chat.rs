@@ -7,6 +7,7 @@ struct DbChannel {
     category_id: Option<String>,
     kind: String,
     position: i64,
+    icon: Option<String>,
 }
 impl From<DbChannel> for Channel {
     fn from(v: DbChannel) -> Self {
@@ -23,11 +24,13 @@ impl From<DbChannel> for Channel {
             },
             position: v.position,
             member_ids: Vec::new(),
+            icon: v.icon,
+            last_message: None,
         }
     }
 }
 pub(crate) async fn visible(s: &AppState, user_id: &str, id: &str) -> Result<Channel> {
-    let channel = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE id=? AND (kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?))",id,user_id).fetch_optional(&s.db).await?.ok_or_else(Error::missing)?.into();
+    let channel = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position,icon FROM channels WHERE id=? AND (kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?))",id,user_id).fetch_optional(&s.db).await?.ok_or_else(Error::missing)?.into();
     members(s, channel).await
 }
 #[utoipa::path(get,path="/categories",responses((status=200,body=Vec<Category>)))]
@@ -106,12 +109,48 @@ pub(crate) async fn delete_category(
 }
 #[utoipa::path(get,path="/channels",responses((status=200,body=Vec<Channel>)))]
 pub(crate) async fn channels(State(s): State<AppState>, a: Auth) -> Result<Json<Vec<Channel>>> {
-    let rows = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position FROM channels WHERE kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?) ORDER BY position,id",a.user.id).fetch_all(&s.db).await?;
+    let rows = sqlx::query_as!(DbChannel,"SELECT id,name,category_id,kind,position,icon FROM channels WHERE kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?) ORDER BY position,id",a.user.id).fetch_all(&s.db).await?;
     let mut result = Vec::new();
     for row in rows {
-        result.push(members(&s, row.into()).await?);
+        let mut channel = members(&s, row.into()).await?;
+        channel.last_message = last_message(&s, &channel.id).await?;
+        result.push(channel);
     }
     Ok(Json(result))
+}
+/// The room's own newest message. Replies stay in their thread, as in the room.
+/// Callers have already checked the reader can see the channel.
+async fn last_message(s: &AppState, channel: &str) -> Result<Option<LastMessage>> {
+    let Some(m) = sqlx::query!(
+        r#"SELECT id as "id!",author_id,substr(content,1,200) as "content!: String",created_at FROM messages
+        WHERE channel_id=? AND thread_id IS NULL ORDER BY id DESC LIMIT 1"#,
+        channel
+    )
+    .fetch_optional(&s.db)
+    .await?
+    else {
+        return Ok(None);
+    };
+    let attachment_types = sqlx::query_scalar!(
+        "SELECT content_type FROM uploads WHERE message_id=? ORDER BY id",
+        m.id
+    )
+    .fetch_all(&s.db)
+    .await?;
+    let object_kinds = sqlx::query_scalar!(
+        "SELECT kind FROM objects WHERE message_id=? ORDER BY id",
+        m.id
+    )
+    .fetch_all(&s.db)
+    .await?;
+    Ok(Some(LastMessage {
+        id: m.id,
+        author_id: m.author_id,
+        created_at: m.created_at,
+        content: m.content,
+        attachment_types,
+        object_kinds,
+    }))
 }
 async fn members(s: &AppState, mut channel: Channel) -> Result<Channel> {
     if channel.kind == ChannelKind::Dm {
@@ -166,6 +205,40 @@ pub(crate) async fn update_channel(
         v.name,
         v.category_id,
         v.position,
+        id
+    )
+    .execute(&s.db)
+    .await?
+    .rows_affected()
+        == 0
+    {
+        return Err(Error::missing());
+    }
+    Ok(Json(visible(&s, &a.user.id, &id).await?))
+}
+#[utoipa::path(put,path="/channels/{id}/icon",params(("id"=String,Path)),request_body=SetChannelIcon,responses((status=200,body=Channel)))]
+pub(crate) async fn set_icon(
+    State(s): State<AppState>,
+    a: Auth,
+    Path(id): Path<String>,
+    ApiJson(v): ApiJson<SetChannelIcon>,
+) -> Result<Json<Channel>> {
+    a.admin()?;
+    // Lucide names: lowercase words joined by hyphens. Clients draw a name they
+    // don't know as the default, so the server checks only the shape.
+    if let Some(icon) = &v.icon {
+        let words = icon.split('-').all(|w| {
+            !w.is_empty()
+                && w.bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        });
+        if icon.len() > 64 || !words {
+            return Err(Error::bad("Icon must be a Lucide icon name, like flame"));
+        }
+    }
+    if sqlx::query!(
+        "UPDATE channels SET icon=? WHERE id=? AND kind IN ('text','voice')",
+        v.icon,
         id
     )
     .execute(&s.db)

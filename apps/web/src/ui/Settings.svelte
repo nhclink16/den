@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import SidebarToggle from './SidebarToggle.svelte'
+  import HomeButton from './HomeButton.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { api } from '../lib/api'
@@ -16,10 +17,13 @@
   import SpotifySettings from './SpotifySettings.svelte'
   import MemberSettings from './MemberSettings.svelte'
   import Icon from './Icon.svelte'
+  import IconPicker from './IconPicker.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
   import DesktopApp from './DesktopApp.svelte'
   import { isDesktop } from '../lib/desktop'
 
-  let { section = 'profile', onmenu, narrow }: { section?: string; onmenu: () => void; narrow: boolean } = $props()
+  let { section = 'profile', narrow }: { section?: string; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   // Everyday settings first. Machines, access and keys are for people running
   // agents and terminals, so they sit last under Advanced, still one click away.
@@ -139,7 +143,7 @@
 <section class="settings">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<HomeButton />{/if}
     <span class="kind"><Icon name="gear" size={18} /></span>
     <h1 class="display">Settings</h1>
   </header>
@@ -174,7 +178,7 @@
         <h3 class="eyebrow">Rooms you follow</h3>
         <p class="faint small">Every message in a followed room notifies you. Follow sparingly.</p>
         {#each store.textChannels as c (c.id)}
-          <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> #{c.name}</label>
+          <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> {roomName(c, themes.appearance.room_icons)}</label>
         {/each}
 
       {:else if section === 'sounds'}
@@ -284,6 +288,7 @@
           <button class="btn lit" type="submit"><Icon name="plus" /> Add room</button>
         </form>
         {#if roomErr}<p class="error">{roomErr}</p>{/if}
+        <p class="faint small">Choose a room's icon with the button beside its name. Everyone sees it, unless they picked # signs or nothing in Appearance.</p>
         {#each [null, ...store.categories] as cat (cat?.id ?? 'none')}
           {@const chans = store.textChannels.filter((c) => (c.category_id || null) === (cat?.id || null))}
           {#if cat || chans.length}
@@ -294,8 +299,8 @@
             {#if chans.length}
               <div class="group">
                 {#each chans as c (c.id)}
-                  <SettingRow label={`#${c.name}`}>
-                    {#snippet control()}<InlineConfirm action="Delete" sentence={`Delete #${c.name} and every message in it?`} confirm={() => delChannel(c)} />{/snippet}
+                  <SettingRow label={roomName(c, themes.appearance.room_icons)}>
+                    {#snippet control()}<IconPicker channel={c} /><InlineConfirm action="Delete" sentence={`Delete ${roomName(c, themes.appearance.room_icons)} and every message in it?`} confirm={() => delChannel(c)} />{/snippet}
                   </SettingRow>
                 {/each}
               </div>

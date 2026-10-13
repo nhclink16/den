@@ -165,6 +165,17 @@ enum ChannelCmd {
         #[arg(value_name = "CHANNEL")]
         id: String,
     },
+    /// Give a room a Lucide icon (lucide.dev/icons), or clear it with --clear.
+    Icon {
+        /// Channel ULID or text channel name.
+        #[arg(value_name = "CHANNEL")]
+        id: String,
+        /// An icon name such as flame or gamepad-2.
+        #[arg(required_unless_present = "clear", conflicts_with = "clear")]
+        icon: Option<String>,
+        #[arg(long)]
+        clear: bool,
+    },
 }
 #[derive(Subcommand)]
 enum CategoryCmd {
@@ -337,6 +348,11 @@ fn main() -> anyhow::Result<()> {
                 Method::DELETE,
                 &format!("/channels/{}", c.resolve_channel(&cid)?),
             )?,
+            ChannelCmd::Icon { id: cid, icon, .. } => print(&c.send::<Channel>(
+                Method::PUT,
+                &format!("/channels/{}/icon", c.resolve_channel(&cid)?),
+                &SetChannelIcon { icon },
+            )?)?,
         },
         Cmd::Category(v) => match v {
             CategoryCmd::List => print(&c.get::<Vec<Category>>("/categories")?)?,

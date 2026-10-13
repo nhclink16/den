@@ -17,7 +17,8 @@ import { apiFor, setCsrf } from './api'
 import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
-import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
+import { lastOf } from './room-list'
+import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, LastMessage, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
 const PREFS_KEY = 'den.layout'
 
@@ -25,14 +26,17 @@ const PREFS_KEY = 'den.layout'
 export type AvatarShape = 'theme' | 'sharp' | 'soft' | 'round'
 /** How being online shows on an avatar. */
 export type PresenceStyle = 'dot' | 'ring' | 'off'
-export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle }
+/** `collapsed` holds the room list's folded groups: category ids, `servers`, `direct`. */
+export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle; collapsed: string[] }
 
 function loadLayout(): Layout {
-  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot' }
+  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot', collapsed: [] }
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
 }
 
 const PAGE = 50
+type PreviewEvent = Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>
+type PreviewStep = { n: number; channel_id: string; created?: LastMessage; edited?: LastMessage; deleted?: string }
 const activeListeners = new Set<(event: Event) => void>()
 const noSpotify = (): SpotifyAccount => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null, share_listening: false })
 
@@ -652,6 +656,7 @@ export class Store {
     // history for the NEXT account. `exhausted` is left alone deliberately —
     // the next latest tail recomputes it, this flag has no such repair.
     this.loadingOlder = new Set()
+    this.previewLog = []
     this.jams = new Map()
     this.jamSeq.clear()
     this.jamLoadedAt.clear()
@@ -685,6 +690,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
+    const previewAsked = this.askPreviews()
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
@@ -702,10 +708,10 @@ export class Store {
       this.api.get<SpotifyAccount>('/users/me/spotify').catch(() => noSpotify()),
       // Same for servers: an older Den has none.
       this.api.get<import('./types').GameServer[]>('/servers').catch(() => []),
-    ])
+    ]).catch((err) => { this.listDone(); throw err })
     // Everything below mutates this Store. A resync that was in flight across a
     // logout belongs to the account that asked for it, not to this one.
-    if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) return
+    if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
     this.receiveAppearance(appearance)
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
@@ -714,7 +720,13 @@ export class Store {
     this.servers = servers
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
-    this.channels = channels
+    // The list decides which rooms exist; previewsFrom decides their lines.
+    const previews = this.previewsFrom(channels, previewAsked)
+    this.listDone()
+    this.channels = channels.map((c) => {
+      const mine = this.channel(c.id)
+      return { ...c, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
+    })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
     // version this snapshot was taken at, so it waits for an acknowledgement in
@@ -1091,6 +1103,73 @@ export class Store {
     }
   }
 
+  /// Admin: a Lucide icon for a room, or null for the default.
+  async setChannelIcon(id: string, icon: string | null) {
+    const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
+    this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
+  }
+  // Room previews: the newest channel list we asked for, with the message events
+  // since that request replayed on top. Every socket frame is numbered when it
+  // ARRIVES, and a list remembers the number it was asked at: anything that
+  // arrived before then is already in that list, however late it is handled.
+  // Two lists asked between the same frames are ordered by when they were asked.
+  // Events are kept for replay only while a list is in flight, and only as the
+  // small preview they would set.
+  private previewLog: PreviewStep[] = []
+  private previewN = 0
+  private listAsks = 0
+  private listsInFlight = 0
+  private applied = { n: -1, seq: 0 }
+  /// Keep the room list's preview line current. A reply never changes it; a
+  /// deletion might (it carries no thread), so every deletion counts.
+  private preview(ev: PreviewEvent, n: number) {
+    const c = this.channel(ev.channel_id)
+    if (!c || (ev.type !== 'message_deleted' && ev.thread_id) || n <= this.applied.n) return
+    const step: PreviewStep = ev.type === 'message_deleted'
+      ? { n, channel_id: c.id, deleted: ev.id }
+      : { n, channel_id: c.id, [ev.type === 'message_created' ? 'created' : 'edited']: lastOf(ev as Message) }
+    if (this.listsInFlight) this.previewLog.push(step)
+    const { last, gone } = this.stepPreview(c.last_message ?? null, step)
+    if (last !== c.last_message) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: last } : x))
+    if (gone) void this.refetchPreviews()
+  }
+  private askPreviews() { this.listsInFlight++; return { n: this.previewN, seq: ++this.listAsks } }
+  /// Call once per askPreviews, after previewsFrom or instead of it.
+  private listDone() { if (--this.listsInFlight === 0) this.previewLog = [] }
+  /// The lines for `list`, or null when a list asked for later is already applied.
+  private previewsFrom(list: Channel[], asked: { n: number; seq: number }): Map<string, LastMessage | null> | null {
+    if (asked.seq < this.applied.seq) return null
+    this.applied = asked
+    this.previewLog = this.previewLog.filter((e) => e.n > asked.n)
+    let again = false
+    const out = new Map(list.map((c) => {
+      let last = c.last_message ?? null
+      for (const step of this.previewLog) {
+        if (step.channel_id !== c.id) continue
+        const r = this.stepPreview(last, step); last = r.last; again ||= r.gone
+      }
+      return [c.id, last] as const
+    }))
+    // A deletion that took this list's newest message: only the server knows the one before.
+    if (again) void this.refetchPreviews()
+    return out
+  }
+  /// One event applied to a room's line. `gone` means it deleted the line itself.
+  private stepPreview(last: LastMessage | null, step: PreviewStep): { last: LastMessage | null; gone: boolean } {
+    if (step.deleted) return { last, gone: last?.id === step.deleted }
+    if (step.created) return { last: !last || step.created.id > last.id ? step.created : last, gone: false }
+    return { last: step.edited && last?.id === step.edited.id ? step.edited : last, gone: false }
+  }
+  private async refetchPreviews() {
+    const generation = this.generation, asked = this.askPreviews()
+    let list: Channel[]
+    try { list = await this.api.get<Channel[]>('/channels') } catch { this.listDone(); return /* the next resync repairs it */ }
+    if (generation !== this.generation) { this.listDone(); return }
+    const fresh = this.previewsFrom(list, asked)
+    this.listDone()
+    if (fresh) this.channels = this.channels.map((c) => (fresh.has(c.id) ? { ...c, last_message: fresh.get(c.id) } : c))
+  }
+
   async openDm(userIds: string[]) {
     const c = await this.api.post<Channel>('/dms', { member_ids: [...new Set([...userIds, this.me!.id])] })
     if (!this.channels.some((x) => x.id === c.id)) this.channels = [...this.channels, c]
@@ -1189,11 +1268,12 @@ export class Store {
     ws.binaryType = 'arraybuffer'
     let events = Promise.resolve()
     ws.onmessage = (e) => {
+      const n = ++this.previewN
       // Events already queued when the account changed are dropped rather than
       // repopulating state that a logout deliberately cleared. `generation` is
       // the connection/account epoch this socket was opened for.
       events = events.then(() => generation === this.generation
-        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event)
+        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, n)
         : undefined)
         .catch(() => { ws.close() })
     }
@@ -1219,7 +1299,8 @@ export class Store {
     this.ws.send(JSON.stringify({ type: 'typing', channel_id: channelId, thread_id: threadId ?? null }))
   }
 
-  private async handle(ev: Event) {
+  /// `n` is the frame's number on arrival (see previewLog).
+  private async handle(ev: Event, n = ++this.previewN) {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
@@ -1241,7 +1322,7 @@ export class Store {
       case 'message_edited': {
         const { type: _t, ...m } = ev
         if (!this.channels.some((c) => c.id === m.channel_id)) await this.resync()
-        else this.upsert(m as Message, true)
+        else { this.upsert(m as Message, true); this.preview(ev, n) }
         if (ev.type === 'message_created') {
           // They stopped typing IN THAT CONVERSATION. Clearing the room key for a
           // thread reply would leave the thread indicator running forever and
@@ -1254,7 +1335,7 @@ export class Store {
       }
       case 'message_deleted':
         if (this.active && objects.active?.message_id === ev.id) { objects.active = null; objects.expanded = false }
-        this.drop(ev.id, ev.channel_id); break
+        this.drop(ev.id, ev.channel_id); this.preview(ev, n); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'thread_updated': {

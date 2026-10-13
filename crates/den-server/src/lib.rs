@@ -449,6 +449,7 @@ pub fn router_with_web(state: AppState, web_dir: PathBuf) -> Router {
                 .put(chat::update_channel)
                 .delete(chat::delete_channel),
         )
+        .route("/channels/{id}/icon", axum::routing::put(chat::set_icon))
         .route("/dms", post(chat::dm))
         .route(
             "/channels/{id}/messages",

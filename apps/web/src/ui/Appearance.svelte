@@ -188,6 +188,16 @@
     </div>
   </section>
 
+  <section>
+    <h3>Room icons</h3>
+    <p class="muted small">What sits before a room's name. Direct messages always show the person.</p>
+    <div class="segments" role="group" aria-label="Room icons">
+      {#each [['icons', 'Icons'], ['hash', '# signs'], ['none', 'Nothing']] as const as [mode, label] (mode)}
+        <button aria-pressed={(appearance.room_icons ?? 'icons') === mode} onclick={() => themes.roomIcons(mode)}>{label}</button>
+      {/each}
+    </div>
+  </section>
+
   {#if editor}
     <section class="editor" aria-label="Theme editor">
       <div class="section-head">

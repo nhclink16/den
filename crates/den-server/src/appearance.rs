@@ -56,13 +56,20 @@ pub(crate) async fn put_appearance(
     // Absent means "leave it"; only an explicit null clears it.
     // The accent came later still, and the native iOS app drops fields it
     // does not know when it saves.
-    if raw.get("sidebar_background").is_none() || raw.get("accent").is_none() {
+    // Room icons came with the room list redesign, under the same rule.
+    if ["sidebar_background", "accent", "room_icons"]
+        .iter()
+        .any(|k| raw.get(k).is_none())
+    {
         let stored = load(&s, &a.user.id).await?;
         if raw.get("sidebar_background").is_none() {
             v.sidebar_background = stored.sidebar_background;
         }
         if raw.get("accent").is_none() {
             v.accent = stored.accent;
+        }
+        if raw.get("room_icons").is_none() {
+            v.room_icons = stored.room_icons;
         }
     }
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;

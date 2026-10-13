@@ -262,20 +262,30 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     let old = get(chose.token.clone()).await;
     assert_eq!(old["dark_theme"], "den");
     assert_eq!(old["accent"], Value::Null);
+    assert_eq!(old["room_icons"], "icons");
 
     let mut body = old.clone();
     body["accent"] = json!("green");
+    body["room_icons"] = json!("hash");
     assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 200);
     // An app that predates the accent saves without it: the choice stays.
     let mut older = body.clone();
     older.as_object_mut().unwrap().remove("accent");
+    older.as_object_mut().unwrap().remove("room_icons");
     older["mode"] = json!("light");
     assert_eq!(put(chose.token.clone(), older).await.status(), 200);
     let kept = get(chose.token.clone()).await;
     assert_eq!(
-        (kept["accent"].clone(), kept["mode"].clone()),
-        (json!("green"), json!("light"))
+        (
+            kept["accent"].clone(),
+            kept["mode"].clone(),
+            kept["room_icons"].clone()
+        ),
+        (json!("green"), json!("light"), json!("hash"))
     );
+    body["room_icons"] = json!("squares");
+    assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 422);
+    body["room_icons"] = json!("none");
     for (accent, status) in [
         (json!("#12ab34"), 200),
         (json!(null), 200),

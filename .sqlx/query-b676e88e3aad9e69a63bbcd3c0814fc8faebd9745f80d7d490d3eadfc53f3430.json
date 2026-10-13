@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id,name,category_id,kind,position FROM channels WHERE kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?) ORDER BY position,id",
+  "query": "SELECT id,name,category_id,kind,position,icon FROM channels WHERE id=? AND (kind IN ('text','voice') OR EXISTS(SELECT 1 FROM channel_members WHERE channel_id=channels.id AND user_id=?))",
   "describe": {
     "columns": [
       {
@@ -57,18 +57,30 @@
             "name": "position"
           }
         }
+      },
+      {
+        "name": "icon",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "channels",
+            "name": "icon"
+          }
+        }
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 2
     },
     "nullable": [
       false,
       false,
       true,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "c3894890d2bceaf1a89b8451364314a6ad8a714205842e7c585ddda606f328d3"
+  "hash": "b676e88e3aad9e69a63bbcd3c0814fc8faebd9745f80d7d490d3eadfc53f3430"
 }

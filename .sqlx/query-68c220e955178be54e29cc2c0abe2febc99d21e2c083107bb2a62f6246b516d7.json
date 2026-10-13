@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT content_type FROM uploads WHERE message_id=? ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "content_type",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "uploads",
+            "name": "content_type"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "68c220e955178be54e29cc2c0abe2febc99d21e2c083107bb2a62f6246b516d7"
+}

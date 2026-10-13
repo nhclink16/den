@@ -175,3 +175,221 @@ async fn channel_crud_dm_privacy_messages_and_cursor_pagination() {
         204
     );
 }
+
+#[tokio::test]
+async fn room_list_previews_the_newest_room_message_and_never_a_private_one() {
+    let t = Test::new().await;
+    let alice = t.member("preview_alice").await;
+    let bob = t.member("preview_bob").await;
+    let carol = t.member("preview_carol").await;
+    let general = t.general().await;
+    let list = |token: String| {
+        let t = &t;
+        async move {
+            t.req(Method::GET, "/channels", &token)
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap()
+        }
+    };
+    let last = |body: &str, id: &str| {
+        let channels: Vec<Channel> = serde_json::from_str(body).unwrap();
+        channels
+            .into_iter()
+            .find(|c| c.id == id)
+            .map(|c| c.last_message)
+    };
+    assert_eq!(last(&list(alice.token.clone()).await, &general), Some(None));
+
+    let path = format!("/channels/{general}/messages");
+    let root = t
+        .post(
+            &path,
+            &alice.token,
+            json!({"content":"who's driving saturday?"}),
+        )
+        .await;
+    // A reply lives in its thread, so the room's preview stays on the root.
+    t.post(
+        &path,
+        &bob.token,
+        json!({"content":"me","reply_to":root["id"]}),
+    )
+    .await;
+    let preview = last(&list(carol.token.clone()).await, &general)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (
+            preview.id.as_str(),
+            preview.author_id.as_str(),
+            preview.content.as_str()
+        ),
+        (
+            root["id"].as_str().unwrap(),
+            alice.user.id.as_str(),
+            "who's driving saturday?"
+        )
+    );
+    // Long text is cut by characters, not bytes.
+    let long = "é".repeat(300);
+    let newest = t.post(&path, &bob.token, json!({ "content": long })).await;
+    let preview = last(&list(carol.token.clone()).await, &general)
+        .unwrap()
+        .unwrap();
+    assert_eq!(preview.content, "é".repeat(200));
+    // Deleting the newest message brings the one before it back.
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/messages/{}", newest["id"].as_str().unwrap()),
+            &bob.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        204
+    );
+    let preview = last(&list(carol.token.clone()).await, &general)
+        .unwrap()
+        .unwrap();
+    assert_eq!(preview.id, root["id"].as_str().unwrap());
+
+    // A DM's newest message reaches its members and nobody else, admins included.
+    let dm = t
+        .post("/dms", &alice.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let dm = dm["id"].as_str().unwrap();
+    t.post(
+        &format!("/channels/{dm}/messages"),
+        &bob.token,
+        json!({"content":"the surprise is a puppy"}),
+    )
+    .await;
+    for member in [&alice, &bob] {
+        let preview = last(&list(member.token.clone()).await, dm)
+            .unwrap()
+            .unwrap();
+        assert_eq!(preview.content, "the surprise is a puppy");
+    }
+    for outsider in [carol.token.clone(), t.admin.token.clone()] {
+        let body = list(outsider).await;
+        assert_eq!(last(&body, dm), None);
+        assert!(!body.contains("puppy"), "{body}");
+    }
+}
+
+#[tokio::test]
+async fn only_admins_set_and_clear_a_room_icon() {
+    let t = Test::new().await;
+    let alice = t.member("icon_alice").await;
+    let general = t.general().await;
+    let icon = |token: String, id: String, body: Value| {
+        let t = &t;
+        async move {
+            t.req(Method::PUT, &format!("/channels/{id}/icon"), &token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+        }
+    };
+    let listed = |token: String| {
+        let t = &t;
+        let general = general.clone();
+        async move {
+            let channels: Vec<Value> = t
+                .req(Method::GET, "/channels", &token)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+            channels
+                .into_iter()
+                .find(|c| c["id"] == general.as_str())
+                .unwrap()["icon"]
+                .clone()
+        }
+    };
+    // Rooms from before icons existed read as no icon.
+    assert_eq!(listed(alice.token.clone()).await, Value::Null);
+
+    let a = t.admin.token.clone();
+    let r = icon(a.clone(), general.clone(), json!({"icon":"flame"})).await;
+    assert_eq!(r.status(), 200);
+    assert_eq!(
+        r.json::<Channel>().await.unwrap().icon.as_deref(),
+        Some("flame")
+    );
+    assert_eq!(listed(alice.token.clone()).await, "flame");
+
+    assert_eq!(
+        icon(
+            alice.token.clone(),
+            general.clone(),
+            json!({"icon":"skull"})
+        )
+        .await
+        .status(),
+        403
+    );
+    assert_eq!(
+        icon(alice.token.clone(), general.clone(), json!({"icon":null}))
+            .await
+            .status(),
+        403
+    );
+    for bad in ["Flame", "fire!", "", "gamepad--2", "-x", &"a".repeat(65)] {
+        assert_eq!(
+            icon(a.clone(), general.clone(), json!({ "icon": bad }))
+                .await
+                .status(),
+            400,
+            "{bad}"
+        );
+    }
+    let dm = t
+        .post("/dms", &a, json!({"member_ids":[alice.user.id]}))
+        .await;
+    assert_eq!(
+        icon(
+            a.clone(),
+            dm["id"].as_str().unwrap().into(),
+            json!({"icon":"flame"})
+        )
+        .await
+        .status(),
+        404
+    );
+    // Renaming keeps the icon; only an explicit null clears it.
+    assert_eq!(
+        t.req(Method::PUT, &format!("/channels/{general}"), &a)
+            .json(&json!({"name":"lobby","position":0}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+    assert_eq!(listed(alice.token.clone()).await, "flame");
+    assert_eq!(
+        icon(a.clone(), general.clone(), json!({"icon":"gamepad-2"}))
+            .await
+            .status(),
+        200
+    );
+    assert_eq!(listed(alice.token.clone()).await, "gamepad-2");
+    assert_eq!(
+        icon(a.clone(), general.clone(), json!({"icon":null}))
+            .await
+            .status(),
+        200
+    );
+    assert_eq!(listed(alice.token.clone()).await, Value::Null);
+}

@@ -40,6 +40,7 @@ const source = read('store.svelte.ts')
 const cell = (x: unknown) => x
 ;(cell as any).raw = cell
 let api: any
+const sockets: any[] = []
 const globals = {
   ...compile(read('read-state.ts')),
   ...compile(read('message-fetch.ts')),
@@ -51,6 +52,8 @@ const globals = {
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
   activeListeners: new Set(), setCsrf() {},
+  WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
+  lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
 }
 const classStart = source.indexOf('export class Store {')
 const classEnd = source.indexOf('\nclass Instances {')
@@ -284,4 +287,205 @@ test('a Jam completion stays with the concrete instance that sent it', async () 
 
   assert.equal(a.jams.has('same-room'), false)
   assert.equal(b.jams.get('same-room')?.id, 'jam-b')
+})
+
+// The room list's preview line: socket events build it, and a channel list
+// fetched before one of them must not put an older message back.
+const preview = (id: string) => ({ id, author_id: 'u', created_at: '', content: id, attachment_types: [], object_kinds: [] })
+const lastIn = (s: any) => s.channels.find((c: any) => c.id === 'c').last_message?.id
+
+test('a refetch after deleting the newest message cannot undo a message that arrived meanwhile', async () => {
+  const fetches: ReturnType<typeof held>[] = []
+  api = { get: async () => { const h = held(); fetches.push(h); return h.promise } }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })
+  await s.handle({ type: 'message_created', ...room('C') })
+  assert.equal(lastIn(s), 'C')
+  fetches[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])   // answered before C existed
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'C', 'the stale refetch put the deleted message\'s predecessor back')
+})
+
+test('a resync that started before a new message keeps that message as the preview', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const resync = s.resync()
+  await s.handle({ type: 'message_created', ...room('C') })
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }, { id: 'd', kind: 'text', last_message: null }])
+  await resync
+  assert.equal(lastIn(s), 'C', 'the resync snapshot overwrote a newer socket preview')
+  assert.equal(s.channels.length, 2, 'the list itself still comes from the resync')
+})
+
+test('a reconnect that already brought the newest preview outranks a refetch still in flight', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })   // refetch 0 waits
+  const resync = s.resync()                                              // C arrived while offline
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await resync
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.notEqual(lastIn(s), 'A', 'the refetch from before the reconnect put an older message back')
+  lists[2]?.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'C')
+})
+
+test('replies in threads do not keep a deleted message on the list', async () => {
+  const fetches: ReturnType<typeof held>[] = []
+  api = { get: async () => { const h = held(); fetches.push(h); return h.promise } }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })
+  for (const id of ['R1', 'R2', 'R3']) await s.handle({ type: 'message_created', ...reply(id) })
+  fetches[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'A', 'thread replies made the refetch give up and left the deleted message showing')
+})
+
+test('an older resync landing after a newer one keeps the newer previews', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('A') }]
+  const first = s.resync(), second = s.resync()
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await first
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await second
+  assert.equal(lastIn(s), 'C', 'the newer resync was ignored')
+  const third = s.resync(), fourth = s.resync()
+  lists[3]!.release([{ id: 'c', kind: 'text', last_message: preview('E') }])
+  await fourth
+  lists[2]!.release([{ id: 'c', kind: 'text', last_message: preview('D') }])
+  await third
+  assert.equal(lastIn(s), 'E', 'an older resync put its preview back')
+})
+
+test('a deletion that leaves the line alone cannot hold back a newer reconnect', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const old = s.resync()
+  await s.handle({ type: 'message_deleted', id: 'A', channel_id: 'c' })   // an older message goes
+  const reconnect = s.resync()                                            // C arrived while offline
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await old
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await reconnect
+  assert.equal(lastIn(s), 'C', 'the reconnect\'s newer line was thrown away')
+})
+
+test('an older resync landing after a newer one cannot bring back a cleared line', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const old = s.resync(), reconnect = s.resync()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: null }])   // B was deleted while offline
+  await reconnect
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await old
+  assert.equal(lastIn(s), undefined, 'the older list put the deleted message back')
+})
+
+test('events still queued on a replaced socket leave the new connection\'s previews alone', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  const old = sockets[0]
+  const send = (ws: any, ev: unknown) => ws.onmessage({ data: JSON.stringify(ev) })
+  send(old, { type: 'resync', reason: 'connect' })
+  send(old, { type: 'message_edited', ...room('B'), content: 'v1' })      // queued behind the slow resync
+  await tick()
+  old.onclose()                                                          // drops; the edit to v2 is missed
+  await s.connect()
+  send(sockets[1], { type: 'resync', reason: 'connect' })
+  await tick()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  await tick(); await tick()
+  sockets[1].onclose()                                                   // the newer socket drops too
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'an old socket\'s queued edit overwrote the newer connection\'s line')
+  s.ready = false   // stop the reconnect timer the closed socket scheduled
+})
+
+test('a socket frame that arrived before a newer list was asked for is already in that list', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  send({ type: 'resync', reason: 'connect' })
+  send({ type: 'message_edited', ...room('B'), content: 'v1' })     // waits behind the slow resync
+  await tick()
+  const manual = s.resync()                                        // e.g. adding a category; sees v2
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  await manual
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'a frame the newer list already covered was applied on top of it')
+  s.ready = false
+})
+
+test('with no list in flight, message events are not kept around', async () => {
+  api = { get: async () => [] }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  for (let i = 0; i < 50; i++) await s.handle({ type: 'message_edited', ...room('B'), content: 'x'.repeat(1000) })
+  assert.equal(s.previewLog.length, 0)
+})
+
+test('an edit that raced a list across a disconnect is put right by the reconnect', async () => {
+  // Known limit: a frame that arrives after a list was asked for can still be
+  // older than what that list read, if the socket then drops the newer frame.
+  // The drop always means a reconnect, and the reconnect's list wins.
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const line = (s: any) => s.channels.find((c: any) => c.id === 'c').last_message.content
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  sockets[0].onmessage({ data: JSON.stringify({ type: 'resync', reason: 'connect' }) })
+  await tick()
+  sockets[0].onmessage({ data: JSON.stringify({ type: 'message_edited', ...room('B'), content: 'v1' }) })
+  sockets[0].onclose()                                                   // v2's frame never comes
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(line(s), 'v1', 'the known transient state; if this changes, the limit is gone')
+  await s.connect()
+  sockets[1].onmessage({ data: JSON.stringify({ type: 'resync', reason: 'connect' }) })
+  await tick()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(line(s), 'v2')
+  s.ready = false
 })

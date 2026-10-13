@@ -1,15 +1,17 @@
 <script lang="ts">
   import SidebarToggle from './SidebarToggle.svelte'
+  import HomeButton from './HomeButton.svelte'
   import { instances, store, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { render } from '../lib/markdown'
   import { klipyGif } from '../lib/klipy'
   import { shortTime, dayLabel } from '../lib/time'
   import Icon from './Icon.svelte'
+  import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
   import Mark from './Mark.svelte'
 
-  let { onmenu, narrow }: { onmenu: () => void; narrow: boolean } = $props()
+  let { narrow }: { narrow: boolean } = $props()
 
   // Rooms with unread, newest first, mentions on top. Message previews come from whatever is loaded.
   const groups = $derived.by(() =>
@@ -92,7 +94,7 @@
 <section class="inbox">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<HomeButton />{/if}
     <span class="kind"><Icon name="inbox" size={18} /></span>
     <h1 class="display">Inbox</h1>
     <span class="spacer"></span>
@@ -111,7 +113,7 @@
       {#if instances.all.length > 1}<div class="eyebrow" style="margin:16px 0 6px">{g.s.settings.instance_name}</div>{/if}
       <div class="group" class:mention={g.mention}>
         <button class="title" onclick={() => open(g.s, g.c.id)}>
-          {#if g.c.kind === 'dm'}<Icon name="lock" size={14} />{:else}<Icon name="hash" size={14} />{/if}
+          {#if g.c.kind === 'dm'}<Icon name="lock" size={14} />{:else}<RoomIcon channel={g.c} size={14} bare />{/if}
           <span class="display name">{g.s.title(g.c)}</span>
           <span class="faint">{g.count} new</span>
           {#if g.mention}<span class="at">Mentions you</span>{/if}

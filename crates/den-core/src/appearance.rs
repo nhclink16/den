@@ -89,6 +89,21 @@ pub struct Appearance {
     /// the field on save keeps the stored one.
     #[serde(default)]
     pub accent: Option<String>,
+    /// What sits before a room's name in lists. Like `accent`, a client that
+    /// omits the field on save keeps the stored one.
+    #[serde(default)]
+    pub room_icons: RoomIcons,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoomIcons {
+    /// The room's own icon, or a default.
+    #[default]
+    Icons,
+    /// A `#`, like Discord and Slack.
+    Hash,
+    /// Just the name.
+    None,
 }
 impl Default for Appearance {
     fn default() -> Self {
@@ -101,6 +116,7 @@ impl Default for Appearance {
             contrast: 100,
             custom_themes: vec![],
             accent: None,
+            room_icons: RoomIcons::Icons,
         }
     }
 }

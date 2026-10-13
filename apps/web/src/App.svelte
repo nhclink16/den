@@ -14,13 +14,6 @@
     if (!ok && router.route.name !== 'login') router.go('/login', true)
     if (ok && router.route.name === 'login') router.go('/', true)
   })
-
-  $effect(() => {
-    if (store.ready && router.route.name === 'home') {
-      const first = store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
-      if (first) router.go(`/c/${first.id}`, true)
-    }
-  })
 </script>
 
 <Native />

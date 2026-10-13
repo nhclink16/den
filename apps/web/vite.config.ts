@@ -1,6 +1,7 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig, transformWithOxc } from 'vite'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 // The API lives at root paths on den-server. In dev, proxy those so the browser
 // origin is the Vite origin and cookies + CSRF just work. Run the server with
@@ -17,9 +18,26 @@ const api = ['rooms', 'instance', 'hosts', 'requests', 'grants', 'access', 'sess
 const apiTarget = process.env.DEN_API_TARGET || 'http://127.0.0.1:7000'
 const wsTarget = apiTarget.replace(/^http/, 'ws')
 
+// Room icons are Lucide's, one small SVG each at /lucide/<name>.svg. The page
+// fetches only the ones rooms use; the picker loads the list of names on open.
+const lucide = fileURLToPath(new URL('./node_modules/lucide-static/icons/', import.meta.url))
+const lucideIcons = {
+  name: 'den-lucide-icons',
+  configureServer(server: { middlewares: { use: (path: string, fn: (req: { url?: string }, res: { setHeader: (k: string, v: string) => void; end: (b: Buffer) => void }, next: () => void) => void) => void } }) {
+    server.middlewares.use('/lucide', (req, res, next) => {
+      const file = (req.url || '').slice(1).split('?')[0]!
+      if (!/^[a-z0-9-]+\.svg$/.test(file)) return next()
+      try { const svg = readFileSync(lucide + file); res.setHeader('content-type', 'image/svg+xml'); res.end(svg) } catch { next() }
+    })
+  },
+  generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: Buffer }) => void }) {
+    for (const file of readdirSync(lucide)) if (file.endsWith('.svg')) this.emitFile({ type: 'asset', fileName: `lucide/${file}`, source: readFileSync(lucide + file) })
+  },
+}
+
 export default defineConfig({
   worker: { format: 'es' },
-  plugins: [svelte(), {
+  plugins: [svelte(), lucideIcons, {
     name: 'den-first-paint',
     async transformIndexHtml(html) {
       const source = ['theme-color', 'theme-runtime'].map(f => readFileSync(new URL(`./src/lib/${f}.ts`, import.meta.url), 'utf8')).join('\n').replace(/^import .*$/gm, '').replace(/export /g, '')

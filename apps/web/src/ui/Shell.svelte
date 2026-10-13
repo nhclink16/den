@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { modal, outsideDialog } from '../lib/modal'
   import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
   import CallDock from './CallDock.svelte'
@@ -23,22 +22,25 @@
   import { notify } from '../lib/notify.svelte'
 
   let palette = $state(false)
+  // Narrow screens show one thing at a time: the room list is the home screen,
+  // and every other page has a back button to it.
   let narrow = $state(matchMedia('(max-width: 900px)').matches)
-  let drawer = $state(false) // sidebar as overlay on narrow screens
 
   $effect(() => {
     const mq = matchMedia('(max-width: 900px)')
-    const fn = () => { narrow = mq.matches; drawer = false }
+    const fn = () => { narrow = mq.matches }
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
+  })
+  // A wide window has the list beside the room, so home is the first room.
+  $effect(() => {
+    if (narrow || router.route.name !== 'home') return
+    const first = store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
+    if (first) untrack(() => router.go(`/c/${first.id}`, true))
   })
 
   // Remember the last place outside Settings, for the customizer to open over.
   $effect(() => { if (router.route.name !== 'settings') customizer.lastPlace = location.pathname + location.search })
-
-  // Close the drawer when a route changes on narrow screens, and on any link
-  // tapped inside it: the room you're already in changes no route.
-  $effect(() => { void router.route; drawer = false })
 
   function key(e: KeyboardEvent) {
     if ((e.target as HTMLElement).closest('[data-terminal-focus="true"]')) return
@@ -51,7 +53,7 @@
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
-  const showSidebar = $derived(narrow ? drawer : store.layout.sidebar)
+  const showSidebar = $derived(!narrow && store.layout.sidebar)
   // The expanded call brings its own toolbar, but only where a call view renders:
   // a room under an expanded canvas or terminal, or a room that isn't there, has
   // none, and the dock keeps Mute and Leave then.
@@ -88,13 +90,7 @@
 
 <div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
-    {#if narrow}
-      <dialog class="drawer" use:modal aria-label="Room list" aria-modal="true" oncancel={(e) => { e.preventDefault(); drawer = false }} onclick={(e) => { if (outsideDialog(e) || (e.target as HTMLElement).closest('a[href]')) drawer = false }}>
-        <aside class="sidebar bg-host scope-sidebar" tabindex="-1" data-initial-focus><Sidebar {narrow} /></aside>
-      </dialog>
-    {:else}
-      <aside class="sidebar bg-host scope-sidebar"><Sidebar {narrow} /></aside>
-    {/if}
+    <aside class="sidebar bg-host scope-sidebar"><Sidebar /></aside>
   {/if}
 
   <main class="main bg-host scope-chat">
@@ -107,19 +103,22 @@
     {#if router.route.name === 'channel'}
       {#if currentChannel}
         {#key store.origin + currentChannel.id}
-          <ChannelView channel={currentChannel} onmenu={() => (drawer = !drawer)} {narrow} />
+          <ChannelView channel={currentChannel} {narrow} />
         {/key}
       {:else}
         <div class="empty"><p class="muted">That room isn't here.</p><a href="/" onclick={(e) => { e.preventDefault(); router.go('/') }}>Back to the den</a></div>
       {/if}
     {:else if router.route.name === 'inbox'}
-      <Inbox onmenu={() => (drawer = !drawer)} {narrow} />
+      <Inbox {narrow} />
     {:else if router.route.name === 'search'}
-      <Search q={router.route.q} channelId={router.route.channel} onmenu={() => (drawer = !drawer)} {narrow} />
+      <Search q={router.route.q} channelId={router.route.channel} {narrow} />
     {:else if router.route.name === 'settings'}
-      <Settings section={router.route.section} onmenu={() => (drawer = !drawer)} {narrow} />
+      <Settings section={router.route.section} {narrow} />
     {:else if router.route.name === 'server'}
-      <ServerView slug={router.route.slug} onmenu={() => (drawer = !drawer)} {narrow} />
+      <ServerView slug={router.route.slug} {narrow} />
+    {:else if router.route.name === 'home' && narrow}
+      <!-- The phone home is the room list, so it takes the sidebar's wallpaper. -->
+      <div class="home bg-host scope-sidebar"><Sidebar phone /></div>
     {:else if router.route.name === 'spotify-callback'}
       <SpotifyCallback route={router.route} />
     {/if}
@@ -160,7 +159,5 @@
   .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
 
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
-  .drawer { position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0; border: 0; width: min(var(--sidebar-w), 85vw); max-width: none; height: 100%; max-height: none; color: var(--ink); background: var(--bg-2); box-shadow: 8px 0 30px var(--shadow); overscroll-behavior: contain; }
-  .drawer::backdrop { background: var(--scrim); }
-  .drawer .sidebar { height: 100%; }
+  .home { flex: 1; min-height: 0; }
 </style>
