@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import { objectKind } from '../plugins'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
@@ -13,6 +14,18 @@
   // `titled` gives it its own title where no room header names the call.
   let { narrow = false, back = '', titled = false }: { narrow?: boolean; back?: string; titled?: boolean } = $props()
   const strip = $derived(!call.expanded && !narrow)
+  // Opening or closing the call swaps the button you pressed for another view. When
+  // that drops keyboard focus, hand it to the matching control: Back once open,
+  // the opener once closed.
+  let wasExpanded = call.expanded
+  $effect(() => {
+    const now = call.expanded
+    if (now !== wasExpanded) void tick().then(() => {
+      if (document.activeElement && document.activeElement !== document.body) return
+      dock?.querySelector<HTMLElement>(now ? '.call-head .collapse' : '.expand, .call-pill .open')?.focus()
+    })
+    wasExpanded = now
+  })
   let dock: HTMLDivElement
   let height = $state(160)
   let maximum = $state(600)
