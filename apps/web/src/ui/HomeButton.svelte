@@ -17,7 +17,7 @@
 </script>
 
 <button class="back" onclick={home} aria-label={count ? `Rooms, ${count} unread` : 'Rooms'}>
-  <Icon name="back" size={22} />{#if count}<span class="count" aria-hidden="true">{count}</span>{/if}
+  <Icon name="back" size={22} />{#if count}<span class="count" aria-hidden="true">{count > 99 ? '99+' : count}</span>{/if}
 </button>
 
 <style>

@@ -26,7 +26,7 @@
   {/if}
 </div>
 <style>
-  .switcher { position: relative; min-width: 0; flex: 1; }
+  .switcher { position: relative; min-width: 0; flex: 0 1 auto; }
   .wordmark { display:flex; align-items:center; gap:8px; width:100%; font-size:22px; text-align:left; }
   .wordmark > span:first-of-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
   .chevron { position:relative; font-size:18px; }

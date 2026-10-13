@@ -29,6 +29,7 @@
   // `phone` is the home screen on phones: the same list, full width, larger.
   let { phone = false }: { phone?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
+  const inboxBadge = $derived(inboxCount > 99 ? '99+' : String(inboxCount))
   const iconMode = $derived(themes.appearance.room_icons ?? 'icons')
   const uncategorized = $derived(store.textChannels.filter((c) => c.kind === 'text' && !c.category_id))
   const voice = $derived(store.textChannels.filter((c) => c.kind === 'voice'))
@@ -139,7 +140,7 @@
       {#if native}<ServerSwitcher />{/if}
       <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
       <span class="spacer"></span>
-      <a href="/inbox" class="icon-btn inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" size={22} />{#if inboxCount}<span class="count">{inboxCount}</span>{/if}</a>
+      <a href="/inbox" class="icon-btn inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" size={22} />{#if inboxCount}<span class="count">{inboxBadge}</span>{/if}</a>
     </div>
     <h1 class="display large" title={store.settings.instance_name}>{store.settings.instance_name}</h1>
     <form class="find input-shell" role="search" onsubmit={search}><Icon name="search" size={18} /><input bind:value={q} placeholder="Search" aria-label="Search messages" enterkeyhint="search" /></form>
@@ -149,7 +150,7 @@
       <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
       <span class="spacer"></span>
       <a href="/find" class="icon-btn" class:on={router.route.name === 'search'} title="Search" aria-label="Search" onclick={go('/find')}><Icon name="search" /></a>
-      <a href="/inbox" class="icon-btn inbox" class:on={router.route.name === 'inbox'} aria-current={router.route.name === 'inbox' ? 'page' : undefined} title="Inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" />{#if inboxCount}<span class="count">{inboxCount}</span>{/if}</a>
+      <a href="/inbox" class="icon-btn inbox" class:on={router.route.name === 'inbox'} aria-current={router.route.name === 'inbox' ? 'page' : undefined} title="Inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" />{#if inboxCount}<span class="count">{inboxBadge}</span>{/if}</a>
       <SidebarToggle hide />
     </div>
   {/if}
