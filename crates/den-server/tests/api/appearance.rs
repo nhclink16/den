@@ -303,7 +303,10 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 200);
     let changed = get(chose.token.clone()).await;
     assert_eq!(
-        (changed["bubble_shape"].clone(), changed["bubble_colors"].clone()),
+        (
+            changed["bubble_shape"].clone(),
+            changed["bubble_colors"].clone()
+        ),
         (json!("sharp"), json!("mine"))
     );
     for (field, junk) in [

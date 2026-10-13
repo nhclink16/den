@@ -78,7 +78,9 @@ enum Cmd {
     Me,
     /// Your profile colour, a six-digit hex like '#3fcf7a', or `auto` to clear it.
     /// It tints your picture, your card and your message bubbles.
-    Color { color: String },
+    Color {
+        color: String,
+    },
     Users,
     Channels,
     #[command(subcommand)]
