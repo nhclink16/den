@@ -117,6 +117,35 @@ pub struct Channel {
     pub position: i64,
     /// Explicit DM participants. Text and voice channels are visible to all users.
     pub member_ids: Vec<Id>,
+    /// A Lucide icon name an admin picked, like `flame`. Null shows the client's
+    /// default. DMs never have one.
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// The newest message in the room itself, not in a thread. Only `GET /channels`
+    /// fills it; clients keep it current from message events.
+    #[serde(default)]
+    #[schema(schema_with = nullable_object_schema::<LastMessage>)]
+    pub last_message: Option<LastMessage>,
+}
+
+/// Enough of a message for a room list's preview line.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct LastMessage {
+    pub id: Id,
+    pub author_id: Id,
+    pub created_at: String,
+    /// The first 200 characters at most.
+    pub content: String,
+    /// Content types of its attachments, so a picture can read "Photo".
+    pub attachment_types: Vec<String>,
+    /// Kinds of the cards it carries, like `canvas`.
+    pub object_kinds: Vec<String>,
+}
+
+/// `icon` null clears it.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct SetChannelIcon {
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, ToSchema)]

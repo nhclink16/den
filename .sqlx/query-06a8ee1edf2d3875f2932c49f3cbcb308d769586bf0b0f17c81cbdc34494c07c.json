@@ -1,0 +1,57 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id as \"id!\",author_id,substr(content,1,200) as \"content!: String\",created_at FROM messages\n        WHERE channel_id=? AND thread_id IS NULL ORDER BY id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "author_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "name": "content!: String",
+        "ordinal": 2,
+        "type_info": "Null",
+        "origin": "Expression"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "06a8ee1edf2d3875f2932c49f3cbcb308d769586bf0b0f17c81cbdc34494c07c"
+}
