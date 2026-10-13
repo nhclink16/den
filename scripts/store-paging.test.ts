@@ -303,10 +303,6 @@ test('a refetch after deleting the newest message cannot undo a message that arr
   fetches[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])   // answered before C existed
   await new Promise((r) => setTimeout(r, 0))
   assert.equal(lastIn(s), 'C', 'the stale refetch put the deleted message\'s predecessor back')
-  assert.equal(fetches.length, 2, 'a stale answer should be asked again')
-  fetches[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
-  await new Promise((r) => setTimeout(r, 0))
-  assert.equal(lastIn(s), 'C')
 })
 
 test('a resync that started before a new message keeps that message as the preview', async () => {
@@ -371,4 +367,20 @@ test('an older resync landing after a newer one keeps the newer previews', async
   lists[2]!.release([{ id: 'c', kind: 'text', last_message: preview('D') }])
   await third
   assert.equal(lastIn(s), 'E', 'an older resync put its preview back')
+})
+
+test('a deletion that leaves the line alone cannot hold back a newer reconnect', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const old = s.resync()
+  await s.handle({ type: 'message_deleted', id: 'A', channel_id: 'c' })   // an older message goes
+  const reconnect = s.resync()                                            // C arrived while offline
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }])
+  await old
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await reconnect
+  assert.equal(lastIn(s), 'C', 'the reconnect\'s newer line was thrown away')
 })
