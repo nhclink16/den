@@ -2,12 +2,16 @@
   import { untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
   import { plainMentions } from '../lib/markdown'
+  import { snippet } from '../lib/klipy'
+  import { disclosurePopover } from '../lib/disclosure-popover'
   import type { Channel, ThreadSummary } from '../lib/types'
+  import Avatar from './Avatar.svelte'
+  import Icon from './Icon.svelte'
 
-  // The conversations in a room: the open ones, always visible rather than
-  // behind an icon; the unread ones, which include resolved conversations the
-  // open list can never show; and resolved history, which is browseable rather
-  // than archived away.
+  // The conversations in a room, behind one pill under its title that says how
+  // many are open: the open ones; the unread ones, which include resolved
+  // conversations the open list can never show; and resolved history, which is
+  // browseable rather than archived away.
   let { channel, selected, onopen }: {
     channel: Channel
     selected?: string
@@ -15,7 +19,7 @@
   } = $props()
 
   type Mode = 'open' | 'unread' | 'resolved'
-  const LABEL: Record<Mode, string> = { open: 'Open', unread: 'Unread threads', resolved: 'Resolved' }
+  const LABEL: Record<Mode, string> = { open: 'Open', unread: 'Unread', resolved: 'Resolved' }
   const PER = 20
   let mode = $state<Mode>('open')
 
@@ -105,6 +109,18 @@
     if (m !== 'open') void load(m)
   }
   $effect(() => { if (mode === 'open' && !lists.open.attempted) void load('open') })
+  // The pill's unread count must see resolved conversations too, which the room
+  // itself never loads: every unread one, in the Store, when the room opens and
+  // again after a reconnect. The lists keep their own paging.
+  async function loadUnread(room: string) {
+    let before: string | undefined
+    for (let page = 0; page < 10; page++) {
+      const views = await store.loadThreads(room, { unreadOnly: true, before, limit: 200 }).catch(() => [])
+      if (views.length < 200 || channel.id !== room) return
+      before = views.at(-1)!.thread.id
+    }
+  }
+  $effect(() => { const room = channel.id; void store.connected; untrack(() => void loadUnread(room)) })
   // A reconnect can change every one of these.
   let online = $state(store.connected)
   $effect(() => {
@@ -135,6 +151,17 @@
     }
     return rows
   })
+  let open = $state(false)
+  let details = $state<HTMLDetailsElement>()
+  const openCount = $derived(store.threadsIn(channel.id).length)
+  // Unread anywhere in the room's conversations lights the pill, as the chips did.
+  const unreadAll = $derived(store.threadsIn(channel.id, false).map((t) => store.threadUnread(t.id)).filter((u) => u.count))
+  const authorOf = (t: ThreadSummary) =>
+    (store.root(t.root_message_id) ?? store.messages.get(channel.id)?.find((m) => m.id === t.root_message_id))?.author_id ?? t.created_by
+  function pick(t: ThreadSummary) {
+    open = false
+    onopen(t.id, t.root_message_id)
+  }
   const empty = $derived({
     open: 'No open conversations yet. Reply to a message to start one.',
     unread: 'Nothing unread in a conversation here.',
@@ -142,66 +169,91 @@
   }[mode])
 </script>
 
-<div class="strip" data-thread-strip aria-label="Conversations in this room">
-  <div class="tabs segments small">
-    {#each ['open', 'unread', 'resolved'] as const as m (m)}
-      <button aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
-    {/each}
-  </div>
-
-  <div class="rail">
-    {#if here.loading && !summaries.length}
-      <span class="faint">Looking…</span>
-    {:else if here.error}
-      <span class="err" role="alert">{here.error}</span>
-      <button class="pill" onclick={() => retry(mode)}>Retry</button>
-    {:else if !summaries.length}
-      <span class="faint">{empty}</span>
-      <!-- Everything visible was filtered away, but the server has more pages;
-           an emptied view is not the end of the list. -->
-      {#if here.more}
-        <button class="pill" onclick={() => load(mode, true)} disabled={here.loading}>
-          {here.loading ? 'Loading…' : 'More'}
-        </button>
-      {/if}
-    {:else}
-      {#each summaries as t (t.id)}
-        {@const u = store.threadUnread(t.id)}
-        <button
-          class="pill chip" class:lit={!!u.count} class:on={selected === t.id} data-thread={t.id}
-          aria-current={selected === t.id ? 'true' : undefined}
-          onclick={() => onopen(t.id, t.root_message_id)}
-        >
-          <span class="name">{plainMentions(t.title, store.users)}</span>
-          <span class="faint">{t.reply_count}</span>
-          {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
-          {#if t.resolved_at && mode !== 'resolved'}<span class="faint">resolved</span>{/if}
-        </button>
-      {/each}
-      <!-- Still offered when the visible rows were filtered away but the server
-           has more pages: an emptied view is not the end of the list. -->
-      {#if here.more}
-        <button class="pill" onclick={() => load(mode, true)} disabled={here.loading}>
-          {here.loading ? 'Loading…' : 'More'}
-        </button>
-      {/if}
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
+<details class="threads" bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
+  <summary class="pill" class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
+    <Icon name="thread" size={14} />
+    <span class="label">{#if openCount}<b>{openCount}{lists.open.more ? '+' : ''}</b> open {openCount === 1 && !lists.open.more ? 'thread' : 'threads'}{:else}Threads{/if}</span>
+    {#if unreadAll.length}<span class="count" class:at={unreadAll.some((u) => u.mention)}>{unreadAll.some((u) => u.mention) ? '@' : unreadAll.reduce((n, u) => n + u.count, 0)}</span>{/if}
+    <Icon name="down" size={12} />
+  </summary>
+  <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
+    {#if open}
+      <div class="box" data-thread-strip aria-label="Conversations in this room">
+        <div class="tabs segments small">
+          {#each ['open', 'unread', 'resolved'] as const as m (m)}
+            <button aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
+          {/each}
+        </div>
+        <div class="list">
+          {#if here.loading && !summaries.length}
+            <p class="note faint">Looking…</p>
+          {:else if here.error}
+            <p class="note"><span class="err" role="alert">{here.error}</span> <button class="pill" onclick={() => retry(mode)}>Retry</button></p>
+          {:else if !summaries.length}
+            <p class="note faint">{empty}</p>
+          {:else}
+            {#each summaries as t (t.id)}
+              {@const u = store.threadUnread(t.id)}
+              {@const last = t.last_reply}
+              <button
+                class="row chip" class:lit={!!u.count} class:on={selected === t.id} data-thread={t.id}
+                aria-current={selected === t.id ? 'true' : undefined}
+                onclick={() => pick(t)}
+              >
+                <!-- Whoever wrote the message it's about, when that message is loaded. -->
+                <Avatar userId={authorOf(t)} size={32} presence={false} />
+                <span class="text">
+                  <span class="name">{plainMentions(t.title, store.users)}</span>
+                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
+                </span>
+                {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
+              </button>
+            {/each}
+          {/if}
+          <!-- Still offered when the visible rows were filtered away but the server
+               has more pages: an emptied view is not the end of the list. -->
+          {#if here.more && !here.error}
+            <button class="pill more" onclick={() => load(mode, true)} disabled={here.loading}>
+              {here.loading ? 'Loading…' : 'More'}
+            </button>
+          {/if}
+        </div>
+      </div>
     {/if}
   </div>
-</div>
+</details>
 
 <style>
-  .strip { border-bottom: 1px solid var(--line); padding: 6px var(--gutter) 8px; display: grid; gap: 6px; }
-  .tabs { justify-self: start; }
-  .rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; align-items: center; scrollbar-width: thin; }
-  .rail .faint, .rail .err { font-size: var(--fs-xs); white-space: nowrap; }
+  /* The popover places itself against this box, so it must have one. */
+  .threads { display: flex; min-width: 0; }
+  summary { list-style: none; cursor: pointer; }
+  summary::-webkit-details-marker { display: none; }
+  /* One pill under the room's title. Kept small: it is a way in, not a headline. */
+  summary.pill { min-height: 26px; padding: 2px 9px 2px 8px; gap: 5px; font-size: var(--fs-xs); color: var(--ink-2); max-width: 100%; }
+  summary.pill b { color: var(--lamp); font-weight: 700; }
+  summary.pill:hover, .threads[open] > summary { color: var(--ink); }
+  summary.pill.lit { border-color: color-mix(in srgb, var(--lamp) 45%, transparent); }
+  .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (pointer: coarse) { summary.pill { min-height: 30px; } }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  .box { width: min(400px, calc(100vw - 16px)); max-height: min(480px, calc(100vh - 120px)); display: flex; flex-direction: column; }
+  .tabs { margin: 10px 10px 6px; align-self: flex-start; }
+  .list { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 8px; display: grid; gap: 2px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r); text-align: left; color: var(--ink); min-width: 0; }
+  .row:hover { background: var(--hover); }
+  .row.on { background: var(--sel); }
+  .text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub b { color: var(--lamp); font-weight: 700; }
+  .row.lit .name { color: var(--ink); }
+  .note { margin: 14px 10px; font-size: var(--fs-sm); }
   .err { color: var(--danger, var(--lamp)); }
-  .rail .pill { flex: none; }
-  .chip { max-width: 260px; }
-  .chip.lit { border-color: var(--lamp); color: var(--ink); }
-  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip .faint { font-weight: 500; }
+  .more { justify-self: center; margin-top: 4px; }
   .count {
-    min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp);
-    color: var(--on-lamp, #000); font-size: var(--fs-xs); text-align: center;
+    flex: none; min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp);
+    color: var(--on-lamp, #000); font-size: var(--fs-xs); font-weight: 700; text-align: center;
   }
+  @media (max-width: 600px) { .box { width: 100%; max-height: 70vh; } .row { min-height: 56px; } }
 </style>

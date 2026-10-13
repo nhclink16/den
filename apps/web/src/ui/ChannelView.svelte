@@ -260,7 +260,14 @@
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<HomeButton />{/if}
     <span class="kind">{#if callCovers}<Icon name="headset" size={18} />{:else if isDm}<Icon name="lock" />{:else}<RoomIcon {channel} size={18} bare />{/if}</span>
-    <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
+    <div class="titles">
+      <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
+      <!-- Only where there is something to show, and DMs open their threads from
+           the line under each message. -->
+      {#if channel.kind === 'text' && !callCovers && (store.threadsIn(channel.id, false).length || threadsFailed)}
+        <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
+      {/if}
+    </div>
     <span class="spacer"></span>
     {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
     <form class="search input-shell" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
@@ -292,11 +299,6 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
       ondrop={onDrop}
     >
-      <!-- Only where there is something to show: an empty strip takes a phone's
-           worth of header for nothing, and DMs open their threads from the pills. -->
-      {#if !isDm && (store.threadsIn(channel.id, false).length || threadsFailed)}
-        <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
-      {/if}
       {#if roomError}
         <p class="windowed" role="alert">
           {roomError}
@@ -387,6 +389,8 @@
   .kind { color: var(--ink-3); display: grid; }
   .kind:empty { display: none; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The open-threads pill sits beside the title, and under it on a phone. */
+  .titles { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .spacer { flex: 1; }
   /* The same search field as Settings and the Search page; app.css draws its focus ring. */
   .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-3); }
@@ -401,7 +405,7 @@
   .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: var(--fs-sm); }
   .voice-music .jam-hint { margin: 14px 0 0; font-size: var(--fs-xs); }
   .voice-empty { flex: 1; display: grid; place-items: center; }
-  @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
+  @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .titles { flex-direction: column; align-items: flex-start; gap: 2px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
   .typing { height: 20px; padding: 0 var(--gutter); display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
   .typing b { font-weight: 700; color: var(--ink); }
   .dots { display: inline-flex; gap: 3px; margin-right: 4px; }

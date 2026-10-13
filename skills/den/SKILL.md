@@ -22,6 +22,7 @@ den send clips "watch this" --upload UPLOAD_ID
 den tail general                           # stream events as JSON lines until killed
 den tail                                   # every room at once
 den dm @bob                                # open a DM, then send to its id
+den color '#3fcf7a'                        # your bubbles' colour; `auto` clears it
 ```
 
 Messages are markdown: `**bold**`, `_italic_`, `` `code` ``, fenced code blocks, links. Mention someone with `@username`.

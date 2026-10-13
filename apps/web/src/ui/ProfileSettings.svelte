@@ -15,12 +15,18 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
+  import { bubbleFill, personColor, withContrast } from '../lib/bubbles'
+  import { themes } from '../lib/theme.svelte'
 
   const me = $derived(store.me!)
+  // A few colours that read well in every theme, and any other through the picker.
+  const SWATCHES = [['#e5484d', 'Red'], ['#f76b15', 'Orange'], ['#e2a336', 'Amber'], ['#30a46c', 'Green'], ['#12a594', 'Teal'], ['#0090ff', 'Blue'], ['#6e56cf', 'Violet'], ['#d6409f', 'Pink']] as const
   let displayName = $state(''), bio = $state(''), accent = $state<string | null>(null)
   let emoji = $state(''), statusText = $state(''), clearAfter = $state('never')
   let saving = $state(false), message = $state(''), error = $state('')
   let busyImage = $state<'avatar' | 'banner' | null>(null)
+  // Your own bubble, as everyone sees it with colours on.
+  const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', withContrast(themes.active[themes.half], themes.appearance.contrast)))
 
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
@@ -202,10 +208,20 @@
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow label="Profile colour" hint="Tints your picture and card when you have no banner.">
+        <SettingRow label="Profile colour" hint="Your message bubbles, your picture, and your card when it has no banner. Everyone sees it unless they turned colours off." wide>
           {#snippet control()}
-            <input class="swatch" type="color" value={accent ?? '#888888'} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Profile colour" />
-            {#if accent}<button type="button" class="btn quiet" onclick={() => (accent = null)}>Use automatic</button>{:else}<span class="faint small">Automatic</span>{/if}
+            <div class="colors">
+              <div class="swatches" role="group" aria-label="Profile colour">
+                <button type="button" class="pill" aria-pressed={!accent} onclick={() => (accent = null)}><span class="dot" style:background={personColor(me.id)}></span>Automatic</button>
+                {#each SWATCHES as [hex, name] (hex)}
+                  <button type="button" class="dot big" aria-pressed={accent === hex} aria-label={name} title={name} style:background={hex} onclick={() => (accent = hex)}></button>
+                {/each}
+                <label class="dot big custom" class:on={!!accent && !SWATCHES.some(([hex]) => hex === accent)} title="Any colour" style:background={accent && !SWATCHES.some(([hex]) => hex === accent) ? accent : undefined}>
+                  <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
+                </label>
+              </div>
+              <span class="sample" style:background={sample}>This is how your messages look.</span>
+            </div>
           {/snippet}
         </SettingRow>
       </div>
@@ -313,7 +329,15 @@
   .counted textarea { resize: vertical; min-height: 72px; padding-bottom: 22px; }
   .count { position: absolute; right: 10px; bottom: 8px; font-size: var(--fs-xs); color: var(--ink-3); }
   .count.over { color: var(--danger); }
-  .swatch { width: 44px; height: 36px; padding: 2px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); cursor: pointer; }
+  .colors { display: grid; gap: 10px; width: 100%; }
+  .swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
+  .dot.big { width: 28px; height: 28px; cursor: pointer; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent); }
+  .dot.big[aria-pressed=true], .dot.custom.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--lamp); }
+  .dot.custom:not(.on) { background: conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d); }
+  .dot.custom:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  @media (pointer: coarse) { .dot.big { width: 36px; height: 36px; } }
+  .sample { justify-self: start; max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-bottom-right-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
   .small { font-size: var(--fs-sm); }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
   .emoji-pick { position: relative; display: grid; }
