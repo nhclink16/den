@@ -179,6 +179,8 @@ export class Store {
   /** Live alerts from the server, consumed by notify. */
   alerts = $state<Extract<Event, { type: 'notification' }>[]>([])
   private ws: WebSocket | null = null
+  /// Sockets opened so far. Once a newer one opens, an older one's queue is superseded for good.
+  private sockets = 0
   private backoff = 800
   private lastTyping = new Map<string, number>()
 
@@ -1253,7 +1255,7 @@ export class Store {
       return
     } finally { this.connecting = false }
     url += `${url.includes('?') ? '&' : '?'}music=true&jam=true&servers=true`
-    const ws = new WebSocket(url)
+    const ws = new WebSocket(url), socket = ++this.sockets
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
     ws.binaryType = 'arraybuffer'
@@ -1263,7 +1265,7 @@ export class Store {
       // repopulating state that a logout deliberately cleared. `generation` is
       // the connection/account epoch this socket was opened for.
       events = events.then(() => generation === this.generation
-        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, !!this.ws && this.ws !== ws)
+        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, socket !== this.sockets)
         : undefined)
         .catch(() => { ws.close() })
     }

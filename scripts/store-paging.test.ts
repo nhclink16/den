@@ -422,6 +422,7 @@ test('events still queued on a replaced socket leave the new connection\'s previ
   await tick()
   lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
   await tick(); await tick()
+  sockets[1].onclose()                                                   // the newer socket drops too
   lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }])
   for (let i = 0; i < 5; i++) await tick()
   assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'an old socket\'s queued edit overwrote the newer connection\'s line')
