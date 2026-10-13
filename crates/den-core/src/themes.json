@@ -1,10 +1,45 @@
 [
   {
+    "id": "neutral",
+    "name": "Neutral",
+    "fonts": {
+      "display": "System",
+      "body": "System",
+      "mono": "IBM Plex Mono"
+    },
+    "radius": "round",
+    "density": "comfortable",
+    "dark": {
+      "bg": "#161618",
+      "bg2": "#1d1d20",
+      "bg3": "#28282c",
+      "line": "#38383d",
+      "ink": "#ededef",
+      "ink2": "#a8a8b0",
+      "ink3": "#909099",
+      "accent": "#5b9dff",
+      "success": "#45c46e",
+      "danger": "#f26b6b"
+    },
+    "light": {
+      "bg": "#ffffff",
+      "bg2": "#f4f4f5",
+      "bg3": "#e9e9ec",
+      "line": "#d9d9de",
+      "ink": "#18181b",
+      "ink2": "#52525b",
+      "ink3": "#686871",
+      "accent": "#1d63d8",
+      "success": "#137333",
+      "danger": "#c81e1e"
+    }
+  },
+  {
     "id": "den",
     "name": "Den",
     "fonts": {
       "display": "Zilla Slab",
-      "body": "Atkinson Hyperlegible",
+      "body": "Public Sans",
       "mono": "IBM Plex Mono"
     },
     "radius": "soft",
@@ -39,7 +74,7 @@
     "name": "Moss",
     "fonts": {
       "display": "Gabarito",
-      "body": "Atkinson Hyperlegible",
+      "body": "Public Sans",
       "mono": "JetBrains Mono"
     },
     "radius": "soft",
@@ -109,7 +144,7 @@
     "name": "Ember",
     "fonts": {
       "display": "Bricolage Grotesque",
-      "body": "Atkinson Hyperlegible",
+      "body": "Public Sans",
       "mono": "Fira Code"
     },
     "radius": "soft",

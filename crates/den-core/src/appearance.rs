@@ -83,19 +83,38 @@ pub struct Appearance {
     #[schema(minimum = 80, maximum = 120, default = 100)]
     pub contrast: u8,
     pub custom_themes: Vec<Theme>,
+    /// The accent colour across every theme: a preset id from `accents.json`
+    /// (`blue`, `indigo`, `green`, `graphite`) or a custom `#rrggbb`. Null uses
+    /// each theme's own accent. Like `sidebar_background`, a client that omits
+    /// the field on save keeps the stored one.
+    #[serde(default)]
+    pub accent: Option<String>,
 }
 impl Default for Appearance {
     fn default() -> Self {
         Self {
             mode: AppearanceMode::System,
-            light_theme: "den".into(),
-            dark_theme: "den".into(),
+            light_theme: DEFAULT_THEME.into(),
+            dark_theme: DEFAULT_THEME.into(),
             background: None,
             sidebar_background: None,
             contrast: 100,
             custom_themes: vec![],
+            accent: None,
         }
     }
+}
+/// The family for anyone who has never saved an appearance.
+pub const DEFAULT_THEME: &str = "neutral";
+#[derive(Debug, Clone, Deserialize)]
+pub struct AccentPreset {
+    pub id: String,
+    pub name: String,
+    pub light: String,
+    pub dark: String,
+}
+pub fn accent_presets() -> Vec<AccentPreset> {
+    serde_json::from_str(include_str!("accents.json")).expect("validated accent presets")
 }
 pub fn builtin_themes() -> Vec<Theme> {
     serde_json::from_str(include_str!("themes.json")).expect("validated built-in themes")
@@ -126,11 +145,8 @@ impl Theme {
                 &c.danger,
             ]
             .into_iter()
-            .any(|v| {
-                v.len() != 7
-                    || !v.starts_with('#')
-                    || !v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
-            }) {
+            .any(|v| !is_hex(v))
+            {
                 return Err("Colors must be six-digit hex values");
             }
         }
@@ -161,8 +177,17 @@ impl Appearance {
         {
             return Err("Select an existing theme family");
         }
+        if let Some(accent) = &self.accent {
+            if !is_hex(accent) && !accent_presets().iter().any(|p| &p.id == accent) {
+                return Err("Accent must be a preset or a six-digit hex color");
+            }
+        }
         Ok(())
     }
+}
+
+fn is_hex(v: &str) -> bool {
+    v.len() == 7 && v.starts_with('#') && v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
 }
 
 fn default_contrast() -> u8 {

@@ -139,7 +139,11 @@ async fn split_appearance_migrates_validates_persists_and_stays_private() {
         .json()
         .await
         .unwrap();
-    assert_eq!(other, initial);
+    // Bob saved something before Neutral existed, so he keeps Den.
+    let mut expected = initial.clone();
+    expected["light_theme"] = json!("den");
+    expected["dark_theme"] = json!("den");
+    assert_eq!(other, expected);
     let good = value.clone();
     for (field, bad) in [
         ("dark", json!({"accent":"red"})),
@@ -210,4 +214,81 @@ async fn split_appearance_migrates_validates_persists_and_stays_private() {
             .await
             .unwrap();
     assert_eq!(serde_json::from_str::<Value>(&persisted).unwrap(), good);
+}
+
+#[tokio::test]
+async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
+    let t = Test::new().await;
+    let fresh = t.member("appearance_fresh").await;
+    let chose = t.member("appearance_chose").await;
+    let path = "/users/me/appearance";
+    let get = |token: String| {
+        let t = &t;
+        async move {
+            t.req(Method::GET, path, &token)
+                .send()
+                .await
+                .unwrap()
+                .json::<Value>()
+                .await
+                .unwrap()
+        }
+    };
+    let put = |token: String, body: Value| {
+        let t = &t;
+        async move {
+            t.req(Method::PUT, path, &token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+        }
+    };
+    // Nothing saved: the new default. A row written before the accent existed
+    // still reads, and keeps the theme it names.
+    let fresh_value = get(fresh.token.clone()).await;
+    assert_eq!(fresh_value["light_theme"], "neutral");
+    assert_eq!(fresh_value["dark_theme"], "neutral");
+    assert_eq!(fresh_value["accent"], Value::Null);
+    sqlx::query("INSERT INTO user_appearance VALUES(?,?)")
+        .bind(&chose.user.id)
+        .bind(
+            json!({"mode":"dark","light_theme":"den","dark_theme":"den","custom_themes":[],"contrast":100,"background":null})
+                .to_string(),
+        )
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    let old = get(chose.token.clone()).await;
+    assert_eq!(old["dark_theme"], "den");
+    assert_eq!(old["accent"], Value::Null);
+
+    let mut body = old.clone();
+    body["accent"] = json!("green");
+    assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 200);
+    // An app that predates the accent saves without it: the choice stays.
+    let mut older = body.clone();
+    older.as_object_mut().unwrap().remove("accent");
+    older["mode"] = json!("light");
+    assert_eq!(put(chose.token.clone(), older).await.status(), 200);
+    let kept = get(chose.token.clone()).await;
+    assert_eq!(
+        (kept["accent"].clone(), kept["mode"].clone()),
+        (json!("green"), json!("light"))
+    );
+    for (accent, status) in [
+        (json!("#12ab34"), 200),
+        (json!(null), 200),
+        (json!("purple"), 400),
+        (json!("#12ab3"), 400),
+        (json!("12ab34f"), 400),
+    ] {
+        body["accent"] = accent.clone();
+        assert_eq!(
+            put(chose.token.clone(), body.clone()).await.status(),
+            status,
+            "{accent}"
+        );
+    }
+    assert_eq!(get(chose.token.clone()).await["accent"], Value::Null);
 }
