@@ -51,7 +51,7 @@
       <input class="q" bind:value={text} placeholder="Search messages" aria-label="Search messages" />
       <select class="scope" bind:value={scope} aria-label="Where">
         <option value="">Everywhere</option>
-        {#each store.channels as c (c.id)}<option value={c.id}>{c.kind === 'dm' ? store.title(c) : `#${c.name}`}</option>{/each}
+        {#each store.channels as c (c.id)}<option value={c.id}>{c.kind === 'dm' ? store.title(c) : roomName(c, themes.appearance.room_icons)}</option>{/each}
       </select>
       <button class="btn lit" type="submit">Search</button>
     </form>

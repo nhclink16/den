@@ -6,6 +6,7 @@ import type { DesktopEvent } from './desktop'
 import { router } from './router.svelte'
 import type { Event } from './types'
 import { snippet } from './klipy'
+import { roomName } from './room-list'
 
 class Desktop {
   platform = $state('')
@@ -36,7 +37,7 @@ class Desktop {
       const { origin, alert: a } = (e as CustomEvent<{ origin: string; alert: Extract<Event, { type: 'notification' }> }>).detail
       const s = instances.all.find(s => s.origin === origin), c = s?.channel(a.message.channel_id)
       if (!s || !c || lookingAt(s, c.id, a.message.thread_id)) return
-      const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in #${c.name}`}`
+      const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in ${roomName(c, s.appearance.room_icons)}`}`
       void invoke('notify', {
         title, body: snippet(a.message.content).slice(0, 140) || 'Sent a file',
         origin, channel: c.id, message: a.message.id,

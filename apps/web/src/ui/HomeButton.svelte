@@ -8,8 +8,11 @@
   import Icon from './Icon.svelte'
   const count = $derived(instances.totalUnread)
   function home() {
-    if (router.parent === '/') router.back()
-    else router.go('/', true)
+    if (router.parent !== '/') return router.go('/', true)
+    // The entry behind is usually the list, but a wide window swaps the list for
+    // its first room. If Back lands anywhere else, put the list there instead.
+    window.addEventListener('popstate', () => { if (router.route.name !== 'home') router.go('/', true) }, { once: true })
+    router.back()
   }
 </script>
 

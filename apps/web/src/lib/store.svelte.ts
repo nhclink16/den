@@ -687,6 +687,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
+    const previewsAt = new Map(this.previewRev)
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
       this.api.get<Channel[]>('/channels'),
@@ -716,7 +717,12 @@ export class Store {
     this.servers = servers
     if (this.active) objects.presence = Object.fromEntries(presence.objects.map((o) => [o.id, o.user_ids]))
     this.users = new Map(users.map((u) => [u.id, u]))
-    this.channels = channels
+    // The list decides which rooms exist; a preview the socket moved on since the
+    // request went out is newer than the one it carries.
+    this.channels = channels.map((c) => {
+      const mine = this.channel(c.id)
+      return mine && this.previewRev.get(c.id) !== previewsAt.get(c.id) ? { ...c, last_message: mine.last_message } : c
+    })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
     // version this snapshot was taken at, so it waits for an acknowledgement in
@@ -1098,28 +1104,37 @@ export class Store {
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
     this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
   }
+  /// Bumped on every message event in a room. A channel list fetched before a
+  /// bump is older than the preview the events built, so it must not replace it.
+  private previewRev = new Map<string, number>()
   /// Keep the room list's preview line current. Only the room's own messages
   /// count; a reply stays in its thread.
   private preview(ev: Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>) {
     const c = this.channel(ev.channel_id)
     if (!c) return
+    this.previewRev.set(c.id, (this.previewRev.get(c.id) ?? 0) + 1)
     const last = c.last_message
     let next = last
     if (ev.type === 'message_deleted') {
-      if (last?.id !== ev.id) return
       // The one before it is only known for sure by the server.
-      const generation = this.generation
-      void this.api.get<Channel[]>('/channels').then((list) => {
-        if (generation !== this.generation) return
-        const fresh = list.find((x) => x.id === c.id)
-        if (fresh) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: fresh.last_message } : x))
-      }).catch(() => { /* the next resync repairs it */ })
+      if (last?.id === ev.id) void this.refetchPreview(c.id)
       return
     }
     const { type: _t, ...m } = ev
     if (m.thread_id) return
     if (ev.type === 'message_created' ? !last || m.id > last.id : last?.id === m.id) next = lastOf(m as Message)
     if (next !== last) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: next } : x))
+  }
+
+  private async refetchPreview(id: string, tries = 3): Promise<void> {
+    const generation = this.generation, rev = this.previewRev.get(id)
+    let list: Channel[]
+    try { list = await this.api.get<Channel[]>('/channels') } catch { return /* the next resync repairs it */ }
+    if (generation !== this.generation) return
+    // Another message event landed meanwhile; this answer may predate it.
+    if (this.previewRev.get(id) !== rev) { if (tries > 1) await this.refetchPreview(id, tries - 1); return }
+    const fresh = list.find((x) => x.id === id)
+    if (fresh) this.channels = this.channels.map((x) => (x.id === id ? { ...x, last_message: fresh.last_message } : x))
   }
 
   async openDm(userIds: string[]) {

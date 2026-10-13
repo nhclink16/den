@@ -4,6 +4,8 @@
   import { onMount } from 'svelte'
   import { api } from '../../lib/api'
   import { store } from '../../lib/store.svelte'
+  import { roomName } from '../../lib/room-list'
+  import { themes } from '../../lib/theme.svelte'
   import { router } from '../../lib/router.svelte'
   import { terminals, load, catalog, capability } from './state.svelte'
   import { subscribe } from './stream'
@@ -202,7 +204,7 @@
   {#if hint && !t?.ended_at}<span class="hint">Esc Esc to leave</span>{/if}
   {#if t && !t.ended_at && canView}<div class="view-status">{#if direct}<span class="direct">direct</span>{/if}{#if !controller}<span>View only</span><button onclick={() => request(true)}>Request control</button>{/if}</div>{/if}
   {#if t?.ended_at}<div class="replay" data-testid="terminal-replay"><span>Session ended</span>{#if t.recording_upload_id}<button aria-label={playing ? 'Pause replay' : 'Play replay'} onclick={() => {if (time >= duration) seek(0); playing = !playing}}>{playing ? 'Pause' : 'Play'}</button><input aria-label="Replay position" type="range" min="0" max={duration || 1} value={time} oninput={e => seek(+e.currentTarget.value)} /><span>{Math.floor(time / 1000)}s</span>{#if t.recording_capped}<span>Recording stopped at 64 MiB</span>{/if}{:else}<span>No recording</span>{/if}</div>{/if}
-  {#if owner && t && !compact && !t.ended_at}<div class="actions"><label>Post card <select aria-label="Post terminal card to" bind:value={shareTo}><option value="">Choose a room</option>{#if current()?.rootId}<option value="here">This conversation</option>{/if}{#each store.textChannels.filter(c => c.kind === 'text') as c}<option value={c.id}>#{c.name}</option>{/each}</select></label><button class="btn quiet" disabled={!shareTo || busyShare} onclick={share}>Post</button><button class="btn quiet" onclick={end}>End session</button></div>{/if}
+  {#if owner && t && !compact && !t.ended_at}<div class="actions"><label>Post card <select aria-label="Post terminal card to" bind:value={shareTo}><option value="">Choose a room</option>{#if current()?.rootId}<option value="here">This conversation</option>{/if}{#each store.textChannels.filter(c => c.kind === 'text') as c}<option value={c.id}>{roomName(c, themes.appearance.room_icons)}</option>{/each}</select></label><button class="btn quiet" disabled={!shareTo || busyShare} onclick={share}>Post</button><button class="btn quiet" onclick={end}>End session</button></div>{/if}
   {#if error}<div class="status" role="status">{error}<button aria-label="Dismiss terminal message" onclick={() => error = ''}>×</button></div>{/if}
 </div>
 <style>

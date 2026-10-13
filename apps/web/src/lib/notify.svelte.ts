@@ -7,6 +7,7 @@ import type { Store } from './store.svelte'
 import { instances } from './store.svelte'
 import { router } from './router.svelte'
 import { snippet } from './klipy'
+import { roomName } from './room-list'
 
 /// What the chat view is actually showing, published by ChannelView because only
 /// it knows whether the room is beside the panel or behind it. A room with a
@@ -27,7 +28,7 @@ export function receiveAlert(source: Store, alert: Extract<Event, { type: 'notif
   if (!c || lookingAt(source, c.id, alert.message.thread_id)) return
   void sounds.play(alert.reason === 'subscribed_channel' ? 'message' : alert.reason, source)
   if (!native) {
-    fire(source, alert.message.author_id, c.kind === 'dm' ? '' : ` in #${c.name}`,
+    fire(source, alert.message.author_id, c.kind === 'dm' ? '' : ` in ${roomName(c, source.appearance.room_icons)}`,
       alert.message.content, c.id, alert.message.id)
   }
 }

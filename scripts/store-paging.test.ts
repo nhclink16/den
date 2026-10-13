@@ -51,6 +51,7 @@ const globals = {
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
   activeListeners: new Set(), setCsrf() {},
+  lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
 }
 const classStart = source.indexOf('export class Store {')
 const classEnd = source.indexOf('\nclass Instances {')
@@ -284,4 +285,40 @@ test('a Jam completion stays with the concrete instance that sent it', async () 
 
   assert.equal(a.jams.has('same-room'), false)
   assert.equal(b.jams.get('same-room')?.id, 'jam-b')
+})
+
+// The room list's preview line: socket events build it, and a channel list
+// fetched before one of them must not put an older message back.
+const preview = (id: string) => ({ id, author_id: 'u', created_at: '', content: id, attachment_types: [], object_kinds: [] })
+const lastIn = (s: any) => s.channels.find((c: any) => c.id === 'c').last_message?.id
+
+test('a refetch after deleting the newest message cannot undo a message that arrived meanwhile', async () => {
+  const fetches: ReturnType<typeof held>[] = []
+  api = { get: async () => { const h = held(); fetches.push(h); return h.promise } }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })
+  await s.handle({ type: 'message_created', ...room('C') })
+  assert.equal(lastIn(s), 'C')
+  fetches[0]!.release([{ id: 'c', kind: 'text', last_message: preview('A') }])   // answered before C existed
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'C', 'the stale refetch put the deleted message\'s predecessor back')
+  assert.equal(fetches.length, 2, 'a stale answer should be asked again')
+  fetches[1]!.release([{ id: 'c', kind: 'text', last_message: preview('C') }])
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(lastIn(s), 'C')
+})
+
+test('a resync that started before a new message keeps that message as the preview', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  const resync = s.resync()
+  await s.handle({ type: 'message_created', ...room('C') })
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: preview('B') }, { id: 'd', kind: 'text', last_message: null }])
+  await resync
+  assert.equal(lastIn(s), 'C', 'the resync snapshot overwrote a newer socket preview')
+  assert.equal(s.channels.length, 2, 'the list itself still comes from the resync')
 })

@@ -3,6 +3,8 @@ import { api } from '../../lib/api'
 import { store } from '../../lib/store.svelte'
 import { router } from '../../lib/router.svelte'
 import { openObject } from '../../lib/objects.svelte'
+import { roomName } from '../../lib/room-list'
+import { themes } from '../../lib/theme.svelte'
 import type { Conversation } from '../../lib/conversation'
 import type { LiveObject } from '../../lib/types'
 import Card from './Card.svelte'
@@ -36,7 +38,7 @@ async function create(channelId: string, name = '', into?: Conversation, quote?:
 registerPlugin({
   objectKinds: { canvas: { card: Card, view: View, tile: Tile } },
   get slashCommands() { return enabled() ? [{ name: 'canvas', hint: 'Start a shared drawing board', run: async (ctx: CommandContext) => { await create(ctx.channelId, ctx.args, ctx.conversation, ctx.replyToId) } }] : [] },
-  get paletteActions() { const c = channel(); return enabled() && c ? [{ id: 'canvas-new', label: `New canvas in #${store.title(c)}`, hint: 'canvas', run: async () => {
+  get paletteActions() { const c = channel(); return enabled() && c ? [{ id: 'canvas-new', label: `New canvas in ${c.kind === 'dm' ? store.title(c) : roomName(c, themes.appearance.room_icons)}`, hint: 'canvas', run: async () => {
         // create() returns the object even when it refused the follow-up because
         // the account turned over, so the dock is guarded here too: a completed
         // old-account canvas must not open in whoever is signed in now.
