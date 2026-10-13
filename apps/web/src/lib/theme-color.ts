@@ -19,7 +19,11 @@ export function lab(hex: string): number[] {
   return [.2104542553*l+.793617785*m-.0040720468*s,1.9779984951*l-2.428592205*m+.4505937099*s,.0259040371*l+.7827717662*m-.808675766*s]
 }
 export function withLightness(color: string, lightness: number) {
-  const [,a,b] = lab(color) as [number,number,number], L=Math.max(0,Math.min(1,lightness))
+  const [,a,b] = lab(color) as [number,number,number]
+  return fromLab(Math.max(0,Math.min(1,lightness)), a, b)
+}
+/** An OKLab colour as `#rrggbb`, clipped into sRGB. */
+export function fromLab(L: number, a: number, b: number) {
   const l=(L+.3963377774*a+.2158037573*b)**3, m=(L-.1055613458*a-.0638541728*b)**3, s=(L-.0894841775*a-1.291485548*b)**3
   return '#'+[4.0767416621*l-3.3077115913*m+.2309699292*s,-1.2684380046*l+2.6097574011*m-.3413193965*s,-.0041960863*l-.7034186147*m+1.707614701*s].map(v => {
     v=Math.max(0,Math.min(1,v)); return Math.round((v<=.0031308?12.92*v:1.055*v**(1/2.4)-.055)*255).toString(16).padStart(2,'0')

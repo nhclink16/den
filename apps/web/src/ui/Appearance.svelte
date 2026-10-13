@@ -8,6 +8,7 @@
   import ThemeCard from './ThemeCard.svelte'
   import BackgroundSettings from './BackgroundSettings.svelte'
   import SettingRow from './SettingRow.svelte'
+  import BubblePreview from './BubblePreview.svelte'
   import { store, type AvatarShape, type PresenceStyle } from '../lib/store.svelte'
 
   /** `panel`: shown in the live customizer rather than on the Settings page. */
@@ -43,6 +44,11 @@
     danger: ['Danger', 'Errors and destructive actions.'],
   } as const
   const fontRoles: (keyof ThemeFonts)[] = ['display', 'body', 'mono']
+  const bubbleHint = $derived({
+    everyone: 'Each person in their own colour. Everyone picks theirs in Profile.',
+    mine: 'Yours in your colour, everyone else grey.',
+    plain: 'Everyone else grey, yours in the accent.',
+  }[appearance.bubble_colors ?? 'everyone'] + (appearance.bubble_shape === 'none' ? ' With no bubbles, the colour goes on names.' : ''))
   const isCustom = (t: Theme) => appearance.custom_themes.some(c => c.id === t.id)
 
   const schemes = [
@@ -198,6 +204,27 @@
     </div>
   </section>
 
+  <section>
+    <h3>Messages</h3>
+    <p class="muted small">How messages look, on your screens only.</p>
+    <h4 class="sub">Bubble shape</h4>
+    <div class="accents" role="group" aria-label="Bubble shape">
+      {#each [['corners', 'Match corners'], ['round', 'Round'], ['soft', 'Soft'], ['sharp', 'Sharp'], ['none', 'No bubbles']] as const as [shape, label] (shape)}
+        <button class="pill" aria-pressed={(appearance.bubble_shape ?? 'corners') === shape} onclick={() => themes.bubbles({ bubble_shape: shape })}>
+          <span class="shape {shape === 'corners' ? active.radius : shape}" aria-hidden="true"></span>{label}
+        </button>
+      {/each}
+    </div>
+    <h4 class="sub">Colours</h4>
+    <div class="accents" role="group" aria-label="Bubble colours">
+      {#each [['everyone', "Everyone's colours"], ['mine', 'Only mine'], ['plain', 'Plain']] as const as [mode, label] (mode)}
+        <button class="pill" aria-pressed={(appearance.bubble_colors ?? 'everyone') === mode} onclick={() => themes.bubbles({ bubble_colors: mode })}>{label}</button>
+      {/each}
+    </div>
+    <p class="muted small hint-line">{bubbleHint}</p>
+    <BubblePreview />
+  </section>
+
   {#if editor}
     <section class="editor" aria-label="Theme editor">
       <div class="section-head">
@@ -280,7 +307,7 @@
   <section>
     <h3>Interface</h3>
     <div class="group">
-      <SettingRow label="Corners" hint="How rounded panels, cards and buttons are.">
+      <SettingRow label="Corners" hint="How rounded panels, cards and buttons are. Message bubbles follow it unless you pick a bubble shape above.">
         {#snippet control()}
           <div class="segments" role="group" aria-label="Corner radius">
             {#each ['sharp', 'soft', 'round'] as radius (radius)}
@@ -346,6 +373,13 @@
   .scheme-art > .check { display: none; position: absolute; inset: auto 4px 4px auto; z-index: 3; width: 17px; height: 17px; border-radius: 50%; place-items: center; background: var(--accent); color: var(--on-lamp); }
   .scheme.chosen .scheme-art > .check { display: grid; }
   .accents { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .sub { margin: 14px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+  .hint-line { margin: 10px 0 0; }
+  /* A tiny bubble in each shape. Match corners shows the shape it ends up as. */
+  .shape { width: 18px; height: 12px; border: 1.5px solid currentColor; border-radius: 6px 6px 6px 2px; opacity: .8; }
+  .shape.soft { border-radius: 4px 4px 4px 1px; }
+  .shape.sharp { border-radius: 1px; }
+  .shape.none { border: 0; border-radius: 0; height: 10px; background: linear-gradient(currentColor 0 0) 0 1px / 100% 1.5px no-repeat, linear-gradient(currentColor 0 0) 0 7px / 70% 1.5px no-repeat; }
   .accents .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent); }
 
   .scheme-art { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }

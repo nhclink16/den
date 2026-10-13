@@ -9,6 +9,8 @@
   import MessageItem from './MessageItem.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
   import Composer, { focusComposer } from './Composer.svelte'
+  import { roomName } from '../lib/room-list'
+  import { themes } from '../lib/theme.svelte'
 
   // One conversation. Its identity is channel plus ROOT message, which exists
   // before the server has a thread for it: replying opens this panel immediately
@@ -178,9 +180,7 @@
   }}
 >
   <header class="head" bind:this={head} tabindex="-1">
-    <button class={narrow ? 'btn quiet' : 'icon-btn'} onclick={onclose} aria-label={narrow ? 'Back to room' : 'Close conversation'}>
-      {#if narrow}Back to room{:else}<Icon name="x" size={16} />{/if}
-    </button>
+    {#if narrow}<button class="icon-btn" onclick={onclose} aria-label="Back to room"><Icon name="back" size={20} /></button>{/if}
     {#if renaming}
       <input
         class="field rename" bind:value={title} aria-label="Conversation title"
@@ -188,26 +188,30 @@
       />
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
-      <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
-      {#if resolved}<span class="tag">Resolved</span>{/if}
+      <div class="title">
+        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
+        <span class="sub">in {roomName(channel, themes.appearance.room_icons)}{#if summary?.reply_count} · {summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved} · <span class="tag">Resolved</span>{/if}</span>
+      </div>
     {/if}
-    <span class="spacer"></span>
-    {#if live && !renaming}
-      <button class="btn quiet" onclick={() => { title = summary?.title ?? ''; renaming = true }} disabled={busy}>Rename</button>
-      <button class="btn quiet" onclick={() => setFollowing(!position?.following)} disabled={busy}>
-        {position?.following ? 'Unfollow' : 'Follow'}
-      </button>
-      <button class="btn quiet" onclick={() => setResolved(!resolved)} disabled={busy}>
-        {resolved ? 'Reopen' : 'Resolve'}
-      </button>
-    {/if}
+    {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
   </header>
+  {#if live && !renaming}
+    <div class="acts">
+      <button class="pill" onclick={() => { title = summary?.title ?? ''; renaming = true }} disabled={busy}><Icon name="edit" size={14} />Rename</button>
+      <button class="pill" aria-pressed={!!position?.following} onclick={() => setFollowing(!position?.following)} disabled={busy}>
+        {#if position?.following}<Icon name="check" size={14} />Following{:else}Follow{/if}
+      </button>
+      <button class="pill" onclick={() => setResolved(!resolved)} disabled={busy}>
+        {#if resolved}Reopen{:else}<Icon name="check" size={14} />Resolve{/if}
+      </button>
+    </div>
+  {/if}
 
   {#if error}<p class="err" role="alert">{error}</p>{/if}
 
   <div class="root">
     {#if root}
-      <MessageItem m={root} compact={false} prefix="t" onreply={(m) => (replyTo = m)} />
+      <MessageItem m={root} prefix="t" onreply={(m) => (replyTo = m)} />
     {:else if rootError}
       <p class="err" role="alert">
         {rootError}
@@ -280,14 +284,19 @@
      past the right edge, unreachable, with the title already fully collapsed.
      Shrinking the title cannot fix that; only a second row can. At every width
      where they fit, this changes nothing. */
-  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
+  .head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px var(--gutter); min-height: 56px; }
   .head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  h2 { font-size: 16px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .spacer { flex: 1; }
-  .tag { font-size: var(--fs-xs); color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); padding: 1px 7px; }
+  .title { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+  h2 { font-size: var(--fs-body); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { font-size: var(--fs-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { color: var(--ink-2); font-weight: 600; }
+  /* Rename, Follow and Resolve: the shared pill, in one row that wraps when it must. */
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 var(--gutter) 10px; border-bottom: 1px solid var(--line); }
+  .acts .pill { font-size: var(--fs-xs); min-height: 28px; padding: 2px 10px; }
+  .head:not(:has(+ .acts)) { border-bottom: 1px solid var(--line); }
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
-  .root { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  .root { padding-bottom: 4px; }
   .empty { flex: 1; display: grid; place-items: center; padding: 24px; text-align: center; font-size: var(--fs-sm); }
   .typing { height: 18px; padding: 0 20px; font-size: var(--fs-xs); color: var(--ink-3); }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }

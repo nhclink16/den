@@ -34,7 +34,8 @@
   import { tick } from 'svelte'
   import { store, instances } from '../lib/store.svelte'
   import type { Channel, Message } from '../lib/types'
-  import { dayLabel, sameDay, within } from '../lib/time'
+  import { dayLabel, shortTime } from '../lib/time'
+  import { places } from '../lib/bubbles'
   import MessageItem from './MessageItem.svelte'
   import Icon from './Icon.svelte'
   import { roomName } from '../lib/room-list'
@@ -219,16 +220,14 @@
     }
   }
 
-  // A message continues the previous one when same author, same day, within 5 minutes, not a reply.
-  function continues(prev: Message | undefined, m: Message) {
-    return !!prev && prev.author_id === m.author_id && !m.reply_to && sameDay(prev.created_at, m.created_at) && within(prev.created_at, m.created_at, 5 * 60_000)
-  }
+  // Runs of one person's messages, and where the time shows between them.
+  const placed = $derived(places(list, firstUnread))
 </script>
 
 <div class="wrap">
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
-<div class="list" bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => (touched = true)} ontouchstart={() => (touched = true)} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
+<div class="list" class:thread={prefix === 't'} bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => (touched = true)} ontouchstart={() => (touched = true)} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <div class="start">
@@ -241,14 +240,14 @@
   {/if}
 
   {#each list as m, i (m.id)}
-    {@const prev = list[i - 1]}
-    {#if !prev || !sameDay(prev.created_at, m.created_at)}
-      <div class="day"><span>{dayLabel(m.created_at)}</span></div>
+    {@const at = placed[i]}
+    {#if at?.time}
+      <div class="time"><b>{dayLabel(m.created_at)}</b> {shortTime(m.created_at)}</div>
     {/if}
     {#if m.id === firstUnread}
       <div class="new"><span>New</span></div>
     {/if}
-    <MessageItem {m} {prefix} compact={m.id !== firstUnread && continues(prev, m)} {onreply} onmediaready={mediaReady} />
+    <MessageItem {m} {prefix} head={at?.head ?? true} tail={at?.tail ?? true} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
 {#if far}
@@ -276,23 +275,18 @@
   .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; display: flex; flex-direction: column; }
   .list > :global(*) { flex: none; }
   .list > :global(:first-child) { margin-top: auto; }
+  /* A thread reads on from its first message, pinned above, so its replies start
+     right under it rather than down by the reply box. */
+  .list.thread > :global(:first-child) { margin-top: 0; }
   .start { padding: 28px var(--gutter) 18px; }
   .start-title { font-size: 28px; }
   .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
-  /* The day sits in a chip on the rule. */
-  .day { display: flex; align-items: center; gap: 12px; margin: 18px var(--gutter) 6px; }
-  .day::before, .day::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-  .day span {
-    padding: 3px 10px; border-radius: var(--r-pill, 999px); border: 1px solid var(--line); background: var(--bg-2);
-    color: var(--ink-2); font: 600 var(--fs-xs)/1.45 var(--body);
-  }
-  /* Where unread starts is live, so it is lit. */
-  .new { display: flex; align-items: center; gap: 10px; margin: 10px var(--gutter) 4px; }
-  .new::before { content: ''; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--lamp)); box-shadow: var(--glow); }
-  .new span {
-    padding: 1px 8px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--bg);
-    font: 700 var(--fs-xs)/1.5 var(--body); box-shadow: var(--glow);
-  }
+  /* The time sits between bursts, not on every line. */
+  .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }
+  .time b { font-weight: 600; color: var(--ink-2); }
+  /* Where unread starts is live, so it is lit: a thin accent rule. */
+  .new { display: flex; align-items: center; gap: 10px; margin: 12px var(--gutter) 0; color: var(--lamp); font: 700 var(--fs-xs)/1.5 var(--body); }
+  .new::before, .new::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--lamp) 50%, transparent); }
   .start-title { color: var(--ink); }
   .start-mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: var(--r-avatar, 35%); color: var(--lamp); background: var(--lamp-glow); box-shadow: inset 0 0 0 1px var(--lamp-dim); }
 </style>

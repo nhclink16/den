@@ -1,15 +1,9 @@
-import { lab } from './theme-color'
+import { personHue as hue } from './bubbles'
 import type { User } from './types'
 import type { Store } from './store.svelte'
 
 /** A person's own hue: their chosen profile colour, else a stable hash of their id. */
-export function personHue(userId: string, user?: User): number {
-  if (user?.accent) {
-    const [, a, b] = lab(user.accent) as [number, number, number]
-    return Math.round((Math.atan2(b, a) * 180 / Math.PI + 360) % 360)
-  }
-  return ([...userId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0) % 360
-}
+export const personHue = (userId: string, user?: User) => hue(userId, user?.accent)
 
 /** The one profile card on screen, anchored to whatever opened it. */
 class ProfileCard {

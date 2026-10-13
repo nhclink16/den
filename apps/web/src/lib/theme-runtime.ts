@@ -44,6 +44,12 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   // Chips and avatars follow Corners too, or a Sharp theme ends up full of pills.
   s.setProperty('--r-pill', t.radius === 'sharp' ? `${radii[0]}px` : '999px')
   s.setProperty('--r-avatar', { sharp: '14%', soft: '35%', round: '50%' }[t.radius])
+  // Bubbles follow Corners unless the person picked a shape. The tight corner is
+  // the one that points at the speaker, and the joins inside one person's run.
+  const bubbles = !a?.bubble_shape || a.bubble_shape === 'corners' ? t.radius : a.bubble_shape
+  const bubble = { sharp: [4,2], soft: [10,4], round: [20,6], none: [0,0] }[bubbles] ?? [20,6]
+  s.setProperty('--r-bubble', `${bubble[0]}px`); s.setProperty('--r-tight', `${bubble[1]}px`)
+  root.dataset.bubbles = bubbles
   s.setProperty('--density', t.density === 'compact' ? '0.8' : '1')
   s.setProperty('--leading', t.density === 'compact' ? '1.35' : '1.45')
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id
