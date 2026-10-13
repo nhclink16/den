@@ -93,6 +93,37 @@ pub struct Appearance {
     /// omits the field on save keeps the stored one.
     #[serde(default)]
     pub room_icons: RoomIcons,
+    /// How messages are drawn. Like `accent`, a client that omits the field on
+    /// save keeps the stored one.
+    #[serde(default)]
+    pub bubble_shape: BubbleShape,
+    /// Whose bubbles carry a person's own colour, on this person's screens.
+    /// Same rule as `bubble_shape` when absent.
+    #[serde(default)]
+    pub bubble_colors: BubbleColors,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BubbleShape {
+    /// Follows the theme's Corners.
+    #[default]
+    Corners,
+    Round,
+    Soft,
+    Sharp,
+    /// A plain feed with names, no bubbles.
+    None,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BubbleColors {
+    /// Each person's bubbles in their profile colour.
+    #[default]
+    Everyone,
+    /// Your own in your colour, everyone else's grey.
+    Mine,
+    /// Everyone else's grey, yours in the accent.
+    Plain,
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -117,6 +148,8 @@ impl Default for Appearance {
             custom_themes: vec![],
             accent: None,
             room_icons: RoomIcons::Icons,
+            bubble_shape: BubbleShape::Corners,
+            bubble_colors: BubbleColors::Everyone,
         }
     }
 }

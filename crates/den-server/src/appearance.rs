@@ -56,10 +56,17 @@ pub(crate) async fn put_appearance(
     // Absent means "leave it"; only an explicit null clears it.
     // The accent came later still, and the native iOS app drops fields it
     // does not know when it saves.
-    // Room icons came with the room list redesign, under the same rule.
-    if ["sidebar_background", "accent", "room_icons"]
-        .iter()
-        .any(|k| raw.get(k).is_none())
+    // Room icons came with the room list redesign, under the same rule, and the
+    // bubble settings with the chat redesign.
+    if [
+        "sidebar_background",
+        "accent",
+        "room_icons",
+        "bubble_shape",
+        "bubble_colors",
+    ]
+    .iter()
+    .any(|k| raw.get(k).is_none())
     {
         let stored = load(&s, &a.user.id).await?;
         if raw.get("sidebar_background").is_none() {
@@ -70,6 +77,12 @@ pub(crate) async fn put_appearance(
         }
         if raw.get("room_icons").is_none() {
             v.room_icons = stored.room_icons;
+        }
+        if raw.get("bubble_shape").is_none() {
+            v.bubble_shape = stored.bubble_shape;
+        }
+        if raw.get("bubble_colors").is_none() {
+            v.bubble_colors = stored.bubble_colors;
         }
     }
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;

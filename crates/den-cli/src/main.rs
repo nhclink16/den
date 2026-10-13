@@ -76,6 +76,9 @@ enum Cmd {
     },
     Logout,
     Me,
+    /// Your profile colour, a six-digit hex like '#3fcf7a', or `auto` to clear it.
+    /// It tints your picture, your card and your message bubbles.
+    Color { color: String },
     Users,
     Channels,
     #[command(subcommand)]
@@ -314,6 +317,13 @@ fn main() -> anyhow::Result<()> {
             c.forget()?;
         }
         Cmd::Me => print(&c.get::<User>("/users/me")?)?,
+        Cmd::Color { color } => {
+            let patch = ProfilePatch {
+                accent: Some((color != "auto").then_some(color)),
+                ..Default::default()
+            };
+            print(&c.send::<User>(Method::PATCH, "/users/me/profile", &patch)?)?
+        }
         Cmd::Users => print(&c.get::<Vec<User>>("/users")?)?,
         Cmd::Channels => print(&c.get::<Vec<Channel>>("/channels")?)?,
         Cmd::Channel(v) => match v {

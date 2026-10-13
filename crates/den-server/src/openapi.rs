@@ -271,6 +271,8 @@ use utoipa::OpenApi;
         SetChannelIcon,
         LastMessage,
         RoomIcons,
+        BubbleShape,
+        BubbleColors,
         CreateDm,
         CreateMessage,
         EditMessage,

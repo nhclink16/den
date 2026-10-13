@@ -2047,6 +2047,16 @@ export interface components {
                 source: components["schemas"]["BackgroundSource"];
             } | null;
             /**
+             * @description Whose bubbles carry a person's own colour, on this person's screens.
+             *     Same rule as `bubble_shape` when absent.
+             */
+            bubble_colors?: components["schemas"]["BubbleColors"];
+            /**
+             * @description How messages are drawn. Like `accent`, a client that omits the field on
+             *     save keeps the stored one.
+             */
+            bubble_shape?: components["schemas"]["BubbleShape"];
+            /**
              * Format: int32
              * @default 100
              */
@@ -2133,6 +2143,10 @@ export interface components {
             credential: components["schemas"]["TokenSecret"];
             user: components["schemas"]["User"];
         };
+        /** @enum {string} */
+        BubbleColors: "everyone" | "mine" | "plain";
+        /** @enum {string} */
+        BubbleShape: "corners" | "round" | "soft" | "sharp" | "none";
         CallAcceptance: {
             answer_id: string;
             user_id: components["schemas"]["String"];
