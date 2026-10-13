@@ -110,8 +110,17 @@
   }
   $effect(() => { if (mode === 'open' && !lists.open.attempted) void load('open') })
   // The pill's unread count must see resolved conversations too, which the room
-  // itself never loads: fetch the unread list once with the pill.
-  $effect(() => { if (!lists.unread.attempted) void load('unread') })
+  // itself never loads: every unread one, in the Store, when the room opens and
+  // again after a reconnect. The lists keep their own paging.
+  async function loadUnread(room: string) {
+    let before: string | undefined
+    for (let page = 0; page < 10; page++) {
+      const views = await store.loadThreads(room, { unreadOnly: true, before, limit: 200 }).catch(() => [])
+      if (views.length < 200 || channel.id !== room) return
+      before = views.at(-1)!.thread.id
+    }
+  }
+  $effect(() => { const room = channel.id; if (store.connected) untrack(() => void loadUnread(room)) })
   // A reconnect can change every one of these.
   let online = $state(store.connected)
   $effect(() => {
