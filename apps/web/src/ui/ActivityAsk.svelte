@@ -21,7 +21,7 @@
     position: fixed; right: 16px; bottom: 16px; z-index: 50; width: min(320px, calc(100% - 32px));
     display: grid; gap: 10px; padding: 12px 14px;
     background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
-    box-shadow: 0 14px 40px -10px var(--shadow-lg); font-size: 14px;
+    box-shadow: 0 14px 40px -10px var(--shadow-lg);
   }
   @media (prefers-reduced-motion: no-preference) { .ask { animation: ask-in .24s var(--ease-out); } }
   @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } }

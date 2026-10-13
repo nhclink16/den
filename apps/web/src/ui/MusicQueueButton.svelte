@@ -14,8 +14,10 @@
   </details>
 {/if}
 <style>
-  summary { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; cursor: pointer; list-style: none; color: var(--ink); } summary::-webkit-details-marker { display: none; }
+  /* Sized like the call buttons beside it: 32px, and 44px under a finger. */
+  summary { width: 32px; height: 32px; border-radius: var(--r); display: grid; place-items: center; cursor: pointer; list-style: none; color: var(--ink); } summary::-webkit-details-marker { display: none; }
   summary.live { color: var(--lamp); }
   [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 10px 36px var(--shadow); }
+  @media (pointer: coarse) { summary { width: 44px; height: 44px; } }
   @media (hover: hover) { summary:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); } }
 </style>

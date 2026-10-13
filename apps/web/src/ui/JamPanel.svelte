@@ -42,16 +42,16 @@
 <style>
   .jam-panel { width: min(380px, calc(100vw - 24px)); max-height: min(720px, calc(100dvh - 32px)); overflow: auto; overscroll-behavior: contain; padding: 18px; color: var(--ink); display: grid; gap: 12px; }
   h2 { font-size: 18px; margin: 0; }
-  .lede, .note { margin: 0; font-size: 12px; color: var(--ink-2); }
+  .lede, .note { margin: 0; font-size: var(--fs-xs); color: var(--ink-2); }
   .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
-  .steps li { counter-increment: step; display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 13px; color: var(--ink-2); }
-  .steps li::before { content: counter(step); width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-3); color: var(--lamp); font: 11px var(--mono); }
+  .steps li { counter-increment: step; display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: var(--fs-sm); color: var(--ink-2); }
+  .steps li::before { content: counter(step); width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-3); color: var(--lamp); font: var(--fs-xs) var(--body); }
   .steps b { color: var(--ink); font-weight: 700; }
   .card { margin: -18px -18px 0; border-radius: var(--r-lg) var(--r-lg) 0 0; overflow: hidden; }
   .card { border-bottom: 1px solid var(--line); }
   .meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
-  .meta p { margin: 0; font-size: 12px; color: var(--ink-2); }
-  .error { margin: 0; font-size: 12px; color: var(--danger); }
-  .replace summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .meta p { margin: 0; font-size: var(--fs-xs); color: var(--ink-2); }
+  .error { margin: 0; font-size: var(--fs-xs); color: var(--danger); }
+  .replace summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: var(--fs-xs); color: var(--ink-2); }
   .replace[open] summary { margin-bottom: 8px; }
 </style>

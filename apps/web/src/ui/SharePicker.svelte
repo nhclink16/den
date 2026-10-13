@@ -147,7 +147,7 @@
   }
   .head .display { font-size: 16px; }
   .tabs { display: flex; gap: 2px; background: var(--bg-3); border-radius: var(--r); padding: 2px; }
-  .tabs button { padding: 4px 14px; border-radius: calc(var(--r) - 1px); font-size: 13px; color: var(--ink-2); }
+  .tabs button { padding: 4px 14px; border-radius: calc(var(--r) - 1px); font-size: var(--fs-sm); color: var(--ink-2); }
   .tabs button.active { background: var(--bg-2); color: var(--ink); box-shadow: 0 1px 3px var(--shadow); }
   .tabs button:not(.active):hover { color: var(--ink); }
   .grid {
@@ -195,7 +195,7 @@
   .label {
     display: block;
     padding: 6px 8px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -209,7 +209,7 @@
     gap: 12px;
     flex-shrink: 0;
   }
-  .audio-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .audio-toggle { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
   .audio-toggle input { accent-color: var(--lamp); }
   .actions { display: flex; gap: 8px; }
 </style>

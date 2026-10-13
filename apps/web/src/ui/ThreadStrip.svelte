@@ -143,9 +143,9 @@
 </script>
 
 <div class="strip" data-thread-strip aria-label="Conversations in this room">
-  <div class="tabs">
+  <div class="tabs segments small">
     {#each ['open', 'unread', 'resolved'] as const as m (m)}
-      <button class:on={mode === m} aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
+      <button aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
     {/each}
   </div>
 
@@ -154,13 +154,13 @@
       <span class="faint">Looking…</span>
     {:else if here.error}
       <span class="err" role="alert">{here.error}</span>
-      <button class="chip" onclick={() => retry(mode)}>Retry</button>
+      <button class="pill" onclick={() => retry(mode)}>Retry</button>
     {:else if !summaries.length}
       <span class="faint">{empty}</span>
       <!-- Everything visible was filtered away, but the server has more pages;
            an emptied view is not the end of the list. -->
       {#if here.more}
-        <button class="chip more" onclick={() => load(mode, true)} disabled={here.loading}>
+        <button class="pill" onclick={() => load(mode, true)} disabled={here.loading}>
           {here.loading ? 'Loading…' : 'More'}
         </button>
       {/if}
@@ -168,20 +168,20 @@
       {#each summaries as t (t.id)}
         {@const u = store.threadUnread(t.id)}
         <button
-          class="chip" class:lit={!!u.count} class:active={selected === t.id} data-thread={t.id}
+          class="pill chip" class:lit={!!u.count} class:on={selected === t.id} data-thread={t.id}
           aria-current={selected === t.id ? 'true' : undefined}
           onclick={() => onopen(t.id, t.root_message_id)}
         >
           <span class="name">{plainMentions(t.title, store.users)}</span>
-          <span class="faint mono">{t.reply_count}</span>
+          <span class="faint">{t.reply_count}</span>
           {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
-          {#if t.resolved_at && mode !== 'resolved'}<span class="faint mono">resolved</span>{/if}
+          {#if t.resolved_at && mode !== 'resolved'}<span class="faint">resolved</span>{/if}
         </button>
       {/each}
       <!-- Still offered when the visible rows were filtered away but the server
            has more pages: an emptied view is not the end of the list. -->
       {#if here.more}
-        <button class="chip more" onclick={() => load(mode, true)} disabled={here.loading}>
+        <button class="pill" onclick={() => load(mode, true)} disabled={here.loading}>
           {here.loading ? 'Loading…' : 'More'}
         </button>
       {/if}
@@ -191,26 +191,17 @@
 
 <style>
   .strip { border-bottom: 1px solid var(--line); padding: 6px var(--gutter) 8px; display: grid; gap: 6px; }
-  .tabs { display: flex; gap: 4px; }
-  .tabs button { padding: 3px 9px; border-radius: var(--r-pill, 999px); font-size: 12px; color: var(--ink-3); border: 1px solid transparent; }
-  .tabs button.on { color: var(--ink); border-color: var(--line); background: var(--bg-2); }
-  .tabs button:hover { color: var(--ink); }
+  .tabs { justify-self: start; }
   .rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; align-items: center; scrollbar-width: thin; }
-  .rail .faint, .rail .err { font-size: 12px; white-space: nowrap; }
+  .rail .faint, .rail .err { font-size: var(--fs-xs); white-space: nowrap; }
   .err { color: var(--danger, var(--lamp)); }
-  .chip {
-    display: inline-flex; align-items: center; gap: 7px; flex: none; max-width: 260px;
-    padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--r-pill, 999px);
-    font-size: 12px; color: var(--ink-2); background: var(--bg-2);
-  }
-  .chip:hover { color: var(--ink); background: var(--hover); }
+  .rail .pill { flex: none; }
+  .chip { max-width: 260px; }
   .chip.lit { border-color: var(--lamp); color: var(--ink); }
-  .chip.active { border-color: var(--accent); color: var(--ink); box-shadow: 0 0 0 2px var(--accent-glow); }
-  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .faint { font-weight: 500; }
   .count {
     min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp);
-    color: var(--on-lamp, #000); font-family: var(--mono); font-size: 11px; text-align: center;
+    color: var(--on-lamp, #000); font-size: var(--fs-xs); text-align: center;
   }
-  .more { font-family: var(--mono); }
-  @media (prefers-reduced-motion: no-preference) { .chip { transition: background 0.12s, border-color 0.12s; } }
 </style>

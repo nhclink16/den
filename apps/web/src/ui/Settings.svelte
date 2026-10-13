@@ -10,6 +10,7 @@
   import ProfileSettings from './ProfileSettings.svelte'
   import MachineSettings from './MachineSettings.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
+  import SettingRow from './SettingRow.svelte'
   import SoundSettings from './SoundSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import SpotifySettings from './SpotifySettings.svelte'
@@ -138,14 +139,14 @@
 <section class="settings">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="gear" size={18} /></span>
     <h1 class="display">Settings</h1>
   </header>
 
   <div class="body">
     <nav class="toc" bind:this={toc} aria-label="Settings sections">
-      <div class="search"><Icon name="search" size={14} /><input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" /></div>
+      <div class="search input-shell"><Icon name="search" size={14} /><input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" /></div>
       {#each visible as [id, label, advanced], i (id)}
         {#if advanced && !visible[i - 1]?.[2]}<span class="group-label eyebrow">Advanced</span>{/if}
         <a href="/settings/{id}" class:active={section === id} aria-current={section === id ? 'page' : undefined} onclick={go(id)}>{label}</a>
@@ -229,16 +230,16 @@
         {#if agentErr}<p class="error">{agentErr}</p>{/if}
         {@const shown = tokens.filter((t) => (section === 'keys') === (t.user_id === store.me?.id))}
         <h3 class="eyebrow">{section === 'keys' ? 'Your keys' : 'Agent keys'}</h3>
-        {#if !shown.length}<p class="faint">None yet.</p>{/if}
-        {#each shown as t (t.id)}
-          {@const owner = store.user(t.user_id)}
-          <div class="tok">
-            <span class="tname">{t.name}</span>
-            {#if section === 'agents'}<span class="muted">{owner ? owner.display_name || owner.username : 'agent'}</span>{/if}
-            <span class="spacer"></span>
-            <InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />
+        {#if !shown.length}<p class="faint">None yet.</p>{:else}
+          <div class="group">
+            {#each shown as t (t.id)}
+              {@const owner = store.user(t.user_id)}
+              <SettingRow label={t.name} hint={section === 'agents' ? (owner ? owner.display_name || owner.username : 'agent') : undefined}>
+                {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
+              </SettingRow>
+            {/each}
           </div>
-        {/each}
+        {/if}
 
       {:else if section === 'members' && admin}
         <MemberSettings />
@@ -253,11 +254,11 @@
         {#each invites as inv (inv.id)}
           <div class="tok">
             <code class="secret small">{inviteLink(inv.code)}</code>
-            <span class="faint mono">{inv.uses_left} left</span>
+            <span class="faint">{inv.uses_left} left</span>
             <button class="btn" onclick={() => copy(inviteLink(inv.code))}><Icon name={copied ? 'check' : 'copy'} /></button>
           </div>
         {/each}
-        {#if !invites.length}<p class="faint">Invites you create this session show up here.</p>{/if}
+        {#if invites.length}<p class="faint small">Copy these links now. They won't be shown again after you leave this page.</p>{:else}<p class="faint">No invites yet.</p>{/if}
 
       {:else if section === 'rooms' && admin}
         <h2 class="display">Rooms</h2>
@@ -290,9 +291,15 @@
               <span class="eyebrow">{cat ? cat.name : 'Uncategorized'}</span>
               {#if cat}<InlineConfirm action="Delete category" sentence={`Delete the "${cat.name}" category? Its rooms stay, uncategorised.`} confirm={() => delCategory(cat)} />{/if}
             </div>
-            {#each chans as c (c.id)}
-              <div class="tok"><Icon name="hash" /><span class="tname">{c.name}</span><span class="spacer"></span><InlineConfirm action="Delete" sentence={`Delete #${c.name} and every message in it?`} confirm={() => delChannel(c)} /></div>
-            {/each}
+            {#if chans.length}
+              <div class="group">
+                {#each chans as c (c.id)}
+                  <SettingRow label={`#${c.name}`}>
+                    {#snippet control()}<InlineConfirm action="Delete" sentence={`Delete #${c.name} and every message in it?`} confirm={() => delChannel(c)} />{/snippet}
+                  </SettingRow>
+                {/each}
+              </div>
+            {/if}
           {/if}
         {/each}
 
@@ -301,7 +308,7 @@
 
       {:else if section === 'account'}
         <h2 class="display">Account</h2>
-        <p>Signed in as <b>{store.me?.display_name || store.me?.username}</b> <span class="muted">@{store.me?.username}</span>{#if admin} <span class="faint mono">admin</span>{/if}</p>
+        <p>Signed in as <b>{store.me?.display_name || store.me?.username}</b> <span class="muted">@{store.me?.username}</span>{#if admin} <span class="faint">admin</span>{/if}</p>
         <button class="btn" onclick={logout}>Log out</button>
       {/if}
       </div>
@@ -315,8 +322,7 @@
   .settings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }
-  h1 { font-size: 19px; margin: 0; font-weight: 600; }
-  .iconbtn { padding: 6px; }
+  h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); }
   @media (max-width: 700px) { .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .toc { flex-direction: row; flex-wrap: wrap; border-right: 0 !important; border-bottom: 1px solid var(--line); } }
   .toc { display: flex; flex-direction: column; gap: 2px; padding: 16px 10px; border-right: 1px solid var(--line); }
@@ -324,15 +330,15 @@
   .toc a:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
   .toc a.active { background: var(--bg-3); color: var(--ink); font-weight: 700; }
   .group-label { margin: 14px 10px 4px; }
-  .search { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: var(--r); }
-  .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 13px; }
-  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  /* The same search field as the room header and the Search page; app.css draws its focus ring. */
+  .search { display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin-bottom: 8px; color: var(--ink-3); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
+  .search input { flex: 1; min-width: 0; background: none; border: 0; color: var(--ink); font-size: var(--fs-sm); }
   .pane { --pane-end: 40px; overflow-y: auto; padding: 20px 28px var(--pane-end); min-width: 0; }
   .pane-inner { width: 100%; max-width: 760px; margin-inline: auto; }
   .appearance-pane .pane-inner { max-width: 940px; }
   @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .group-label { margin: 0 0 0 8px; padding: 7px 4px 7px 12px; align-self: center; white-space: nowrap; border-left: 1px solid var(--line); } .pane { --pane-end: 20px; padding: 20px 16px; } }
   h3.eyebrow { margin: 22px 0 8px; }
-  .muted.small, .faint.small { font-size: 13px; }
+  .muted.small, .faint.small { font-size: var(--fs-sm); }
   .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
   .callout { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 12px 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); }
@@ -345,11 +351,10 @@
   .inline label .eyebrow { margin: 0 0 6px; }
   .reveal { display: grid; gap: 10px; padding: 14px; margin: 12px 0; background: var(--lamp-glow); border: 1px solid var(--lamp-dim); border-radius: var(--r-lg); }
   .secret { display: block; padding: 8px 10px; background: var(--bg); border-radius: var(--r); word-break: break-all; user-select: all; }
-  .secret.small { font-size: 12px; flex: 1; }
+  .secret.small { font-size: var(--fs-xs); flex: 1; }
   .row { display: flex; gap: 8px; }
   .tok { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 6px; }
-  .tname { font-weight: 700; }
-  .spacer { flex: 1; }
+  .group { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); }
   .cat-row { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 6px; }
   .error { color: var(--ember); }
   select.field { appearance: auto; }

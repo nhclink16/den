@@ -120,7 +120,7 @@
       <p class="line" class:has-track={!!playing}>
         {#if playing}<span class="artists">{playing.artists}</span><span class="dot" aria-hidden="true">·</span>{/if}
         <span class="starter">Started by {owner.name(jam.host_id)}</span>
-        {#if duration > 0}<span class="clock mono" aria-hidden="true">{time(elapsed)} / {time(duration)}</span>{/if}
+        {#if duration > 0}<span class="clock" aria-hidden="true">{time(elapsed)} / {time(duration)}</span>{/if}
         {#if hint}<a class="hint" href="/settings/spotify" title={hint.title} onclick={settings}>{hint.label}</a>{/if}
       </p>
     </div>
@@ -219,7 +219,7 @@
   .copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
   /* Grid items default to min-width:auto, which would stop the strip shrinking. */
   .copy > * { min-width: 0; }
-  .eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  .eyebrow { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--ink-2); white-space: nowrap; }
   .spotify { width: 13px; height: 13px; flex: none; color: var(--ink); }
   .sep { color: var(--ink-3); }
   .state { color: var(--lamp); }
@@ -227,13 +227,13 @@
 
   h2 { margin: 0; font-size: 17px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .line {
-    margin: 0; font-size: 13px; color: var(--ink-2);
+    margin: 0; font-size: var(--fs-sm); color: var(--ink-2);
     display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden;
   }
   .artists { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--ink); }
   .dot { color: var(--ink-3); }
   .starter { white-space: nowrap; color: var(--ink-2); }
-  .clock { margin-left: auto; padding-left: 10px; white-space: nowrap; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .clock { margin-left: auto; padding-left: 10px; white-space: nowrap; font-size: var(--fs-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .hint { white-space: nowrap; border-bottom: 1px dotted currentColor; }
   .hint:hover { text-decoration: none; }
 
@@ -243,9 +243,9 @@
   .faces > :global(*:first-child) { margin-left: 0; }
   .more {
     display: grid; place-items: center; width: 26px; height: 26px; margin-left: -7px; border-radius: var(--avatar-r, 35%);
-    background: var(--bg-3); color: var(--ink-2); font: 11px/1 var(--mono); box-shadow: 0 0 0 2px var(--jam-bg);
+    background: var(--bg-3); color: var(--ink-2); font: var(--fs-xs)/1 var(--body); box-shadow: 0 0 0 2px var(--jam-bg);
   }
-  .who-label { font: 11px var(--mono); letter-spacing: 0.04em; color: var(--ink-2); }
+  .who-label { font-size: var(--fs-xs); color: var(--ink-2); }
 
   .actions { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; }
   .open { text-decoration: none; }
@@ -259,18 +259,18 @@
     background: linear-gradient(90deg, var(--lamp-dim), var(--lamp)); box-shadow: var(--glow);
     transition: transform 0.5s linear;
   }
-  .jam-error { margin: 0; padding: 6px var(--gutter); font-size: 12px; color: var(--danger); background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .jam-error { margin: 0; padding: 6px var(--gutter); font-size: var(--fs-xs); color: var(--danger); background: var(--bg-2); border-bottom: 1px solid var(--line); }
 
   .jam.compact { container: jam-strip / inline-size; gap: 10px; padding: 8px 10px 10px; border-bottom: 0; }
   .compact .sleeve { width: 36px; height: 36px; }
   .compact .sleeve.out { margin-right: 10px; }
   .compact .sleeve.out .record { transform: translateX(10px); }
-  .compact .eyebrow { font-size: 10px; overflow: hidden; }
-  .compact h2 { font-size: 13px; }
-  .compact .line { font-size: 11.5px; }
+  .compact .eyebrow { overflow: hidden; }
+  .compact h2 { font-size: var(--fs-sm); }
+  .compact .line { font-size: var(--fs-xs); }
   .compact .line.has-track .starter, .compact .line.has-track .dot, .compact .hint { display: none; }
   .compact .actions { margin-left: 0; }
-  .compact .open { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+  .compact .open { min-height: 28px; padding: 3px 10px; font-size: var(--fs-xs); }
   /* The call bar is sidebar-wide: the icon still says Spotify, and the clock
      keeps the line, so the brand words and artists give way. */
   @container jam-strip (max-width: 360px) {

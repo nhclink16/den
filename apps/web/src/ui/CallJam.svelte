@@ -36,9 +36,9 @@
   .prompt, .strip { border-top: 1px solid color-mix(in srgb, var(--lamp) 30%, var(--line)); background: var(--bg-2); }
   .prompt { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 10px 10px 12px; background: color-mix(in srgb, var(--lamp) 10%, var(--bg-2)); }
   .copy { flex: 1; min-width: 12ch; display: grid; gap: 2px; }
-  b { font-size: 13px; overflow-wrap: anywhere; }
-  small { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-2); }
-  .btn { min-height: 32px; padding: 4px 12px; font-size: 12.5px; text-decoration: none; }
+  b { font-size: var(--fs-sm); overflow-wrap: anywhere; }
+  small { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
+  .btn { min-height: 32px; padding: 4px 12px; font-size: var(--fs-xs); text-decoration: none; }
   .x { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r); color: var(--ink-2); }
   @media (hover: hover) { .x:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); } }
 </style>

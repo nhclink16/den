@@ -5,6 +5,14 @@
   --bg-2: var(--bg2); --bg-3: var(--bg3); --ink-2: var(--ink2); --ink-3: var(--ink3);
   --gutter: 20px;
   --control-height: 42px;
+  /* Type scale. Body text, a step down for secondary text, small labels and times,
+     and two title sizes. Phones read one step larger, like iOS. */
+  --fs-xs: 12px; --fs-sm: 13px; --fs-body: 15px; --fs-title: 20px; --fs-large: 30px;
+  /* Spacing scale. Density tightens all of it at once. */
+  --s1: calc(4px * var(--density, 1)); --s2: calc(8px * var(--density, 1)); --s3: calc(12px * var(--density, 1));
+  --s4: calc(16px * var(--density, 1)); --s5: calc(24px * var(--density, 1)); --s6: calc(32px * var(--density, 1));
+  /* The size of a tappable icon. Touch screens get Apple's 44pt minimum. */
+  --hit: 36px;
   --lamp: var(--accent); --lamp-dim: var(--accent-dim); --lamp-glow: var(--accent-glow);
   /* Text on an accent fill. Accent is checked at 4.5:1 against bg, and contrast is
      symmetric, so bg is the readable ink; a fixed black failed every light theme. */
@@ -17,6 +25,9 @@
   --shadow: rgba(0, 0, 0, 0.34);
   --shadow-lg: rgba(0, 0, 0, 0.46);
   --hover: color-mix(in srgb, var(--ink) 3%, transparent);
+  --press: color-mix(in srgb, var(--ink) 10%, transparent);
+  /* A chosen thing: a light wash of the accent. */
+  --sel: color-mix(in srgb, var(--lamp) 14%, transparent);
   --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
   --sidebar-w: 248px;
   --members-w: 220px;
@@ -30,6 +41,8 @@
   /* Avatar shape: follows Corners unless this device picked one. */
   --avatar-r: var(--r-avatar, 35%);
 }
+@media (max-width: 600px) { :root { --fs-xs: 13px; --fs-sm: 14px; --fs-body: 16px; --fs-title: 17px; --fs-large: 34px; } }
+@media (pointer: coarse) { :root { --hit: 44px; } }
 :root[data-avatar-shape='sharp'] { --avatar-r: 14%; }
 :root[data-avatar-shape='soft'] { --avatar-r: 35%; }
 :root[data-avatar-shape='round'] { --avatar-r: 50%; }
@@ -103,7 +116,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--body);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
@@ -126,17 +139,16 @@ pre code { background: none; padding: 0; border: 0; }
 .mention { color: var(--lamp); background: var(--mention-bg); padding: 0 4px; border-radius: 4px; font-weight: 700; }
 
 .display { font-family: var(--display); font-weight: 600; letter-spacing: -0.01em; }
+/* A small heading over a group. Body font, so a time or a count never shows a code font's zero. */
 .eyebrow {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--fs-xs);
+  font-weight: 600;
   color: var(--ink-3);
 }
 .btn {
   min-height: var(--control-height);
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 12px; border-radius: var(--r);
+  padding: 9px 16px; border-radius: var(--r-pill); font-weight: 600;
   background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-strong);
   white-space: nowrap;
 }
@@ -144,12 +156,12 @@ pre code { background: none; padding: 0; border: 0; }
 .btn:hover { border-color: var(--ink-2); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn.lit { background: var(--lamp); color: var(--bg); border-color: var(--lamp); font-weight: 700; }
+.btn.lit { background: var(--lamp); color: var(--on-lamp); border-color: var(--lamp); }
 .btn.lit:hover { filter: brightness(1.06); box-shadow: 0 6px 22px -6px color-mix(in srgb, var(--lamp) 70%, transparent); }
 /* Declared after .btn.quiet so a quiet destructive button still reads as destructive. */
 .btn.danger, .btn.quiet.danger { color: var(--danger); }
 .btn.danger:hover, .btn.quiet.danger:hover { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
-.btn.quiet { background: none; border-color: transparent; color: var(--ink-2); }
+.btn.quiet { background: none; border-color: transparent; color: var(--ink-2); font-weight: 500; }
 .btn.quiet:hover { color: var(--ink); background: var(--bg-3); }
 .field {
   min-height: var(--control-height);
@@ -162,7 +174,7 @@ pre code { background: none; padding: 0; border: 0; }
 .faint { color: var(--ink-3); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 kbd {
-  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+  font-family: var(--mono); font-size: var(--fs-xs); color: var(--ink-2);
   border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px;
 }
 
@@ -247,11 +259,45 @@ kbd {
 :where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
 
 /* One heading treatment across sibling settings pages. */
-.settings h2 { font-family: var(--display); font-size: 26px; font-weight: 600; margin: 0 0 6px; }
-.settings h3, .settings legend.eyebrow { font: 600 11px/1.45 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.settings h2 { font-family: var(--display); font-size: var(--fs-large); font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+.settings h3, .settings legend.eyebrow { font: 600 var(--fs-sm)/1.45 var(--body); color: var(--ink-2); }
 
-/* A segmented control: one choice from a few, all visible. */
-.segments { display: inline-flex; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
-.segments button { min-height: 32px; padding: 5px 13px; border-radius: var(--r); color: var(--ink2); font-size: 13px; transition: background-color var(--t-fast), color var(--t-fast); }
+/* The shared controls. Use these before styling a button by hand. */
+/* One icon button: a round, quiet target for a single icon. */
+.icon-btn {
+  display: inline-grid; place-items: center; flex: none; width: var(--hit); height: var(--hit); padding: 0;
+  border-radius: var(--r-pill); color: var(--ink-2);
+  transition: color var(--t-fast), background-color var(--t-fast);
+}
+@media (hover: hover) { .icon-btn:hover:not(:disabled) { color: var(--ink); background: var(--bg-3); } }
+.icon-btn:active:not(:disabled) { background: var(--press); }
+.icon-btn[aria-pressed=true], .icon-btn.on { color: var(--lamp); background: var(--sel); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+/* One pill: a small rounded choice, filter or tag. Pressed or checked reads as chosen. */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 12px;
+  border: 1px solid transparent; border-radius: var(--r-pill); background: var(--bg-3); color: var(--ink-2);
+  font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; white-space: nowrap;
+  transition: color var(--t-fast), background-color var(--t-fast), border-color var(--t-fast);
+}
+button.pill:hover { color: var(--ink); }
+.pill:is([aria-pressed=true], [aria-checked=true], .on) { background: var(--sel); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); color: var(--ink); }
+/* A segmented control: one choice from a few, all visible. `.small` for tight spots. */
+.segments { display: inline-flex; padding: 2px; gap: 2px; background: var(--bg-3); border-radius: var(--r-pill); }
+.segments button { min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
 .segments button:hover { color: var(--ink); }
-.segments button[aria-pressed=true] { background: var(--bg3); color: var(--ink); font-weight: 600; }
+.segments button[aria-pressed=true] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
+.segments.small button { min-height: 26px; padding: 2px 10px; font-size: var(--fs-xs); }
+/* One bottom sheet. A disclosure popover (see disclosure-popover.ts) with this class
+   floats beside its button on a wide screen and rises from the bottom on a phone.
+   `:root` outranks the component's own [popover] rule, which loads later. */
+@media (max-width: 600px) {
+  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: var(--r-lg) var(--r-lg) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  :root .sheet[popover]::backdrop { background: rgb(0 0 0 / .35); }
+}
+@media (pointer: coarse) {
+  .segments button { min-height: 44px; }
+  /* Dense rows (the thread strip, the call's layout switch) trade the full 44pt for
+     not pushing the conversation down: 36pt, still a comfortable thumb. */
+  .segments.small button, .pill { min-height: 36px; }
+}

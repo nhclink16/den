@@ -15,11 +15,11 @@
 </div>
 {/if}
 <style>
-  .volume-control { width: 176px; padding: 8px; color: var(--ink); font-size: 12px; }
+  .volume-control { width: 176px; padding: 8px; color: var(--ink); font-size: var(--fs-xs); }
   .soon { margin: 0; }
   label, label > span { display: block; }
   label > span { display: flex; justify-content: space-between; }
-  output { font: 11px var(--mono); color: var(--ink-2); }
+  output { font: var(--fs-xs) var(--body); color: var(--ink-2); }
   input { width: 100%; height: 24px; margin: 4px 0; accent-color: var(--lamp); }
   button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 4px; border-radius: var(--r); text-align: left; }
   button:hover, button[aria-pressed='true'] { background: var(--bg-3); }

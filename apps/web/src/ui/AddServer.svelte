@@ -40,7 +40,7 @@
       <p class="muted">Enter a Den server URL or an invite link.</p>
       <label>Server URL<input class="field mono" bind:value={url} placeholder="https://denchat.app" required /></label>
     {:else}
-      <div class="identity">{#if preview.icon_url}<img src={new URL(preview.icon_url, origin).href} alt="" width="32" height="32" />{:else}<Mark size={32} />{/if}<span class="mono muted">{origin}</span><button type="button" class="btn quiet" onclick={() => preview = null}>Change</button></div>
+      <div class="identity">{#if preview.icon_url}<img src={new URL(preview.icon_url, origin).href} alt="" width="32" height="32" />{:else}<Mark size={32} />{/if}<span class="muted">{origin}</span><button type="button" class="btn quiet" onclick={() => preview = null}>Change</button></div>
       <label>Username<input class="field" bind:value={username} autocomplete="username" required pattern="[a-z0-9_]+" /></label>
       <label>Password<input class="field" bind:value={password} type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} /></label>
       {#if mode === 'register'}<label>Invite code<input class="field mono" bind:value={invite} required /></label>{/if}
@@ -56,7 +56,7 @@
   form, label { display:grid; gap:10px; } form { gap:16px; }
   h2, p { margin:0; } h2 { flex:1; }
   .heading, .identity { display:flex; align-items:center; gap:10px; }
-  .identity { font-size:12px; overflow-wrap:anywhere; }
+  .identity { font-size: var(--fs-xs); overflow-wrap:anywhere; }
   .identity span { flex:1; min-width:0; }
   .error { color:var(--danger); }
 </style>

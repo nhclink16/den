@@ -51,7 +51,7 @@
   <div class="light" aria-hidden="true"></div>
   <form class="card" onsubmit={submit}>
     <h1 class="display"><span class="mark"><Mark size={44} /></span><span>{store.settings.instance_name}</span></h1>
-    {#if native}<button type="button" class="btn quiet mono" onclick={() => instances.add()}>{store.origin} · Change server</button>{/if}
+    {#if native}<button type="button" class="btn quiet" onclick={() => instances.add()}>{store.origin} · Change server</button>{/if}
     <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
 
     {#if mode === 'register'}
@@ -130,7 +130,7 @@
   }
   @keyframes lamp-on { 0% { opacity: 0; } 35% { opacity: .45; } 45% { opacity: .2; } 100% { } }
   @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99); } }
-  .btn.lit { min-height: 44px; font-size: 15px; }
+  .btn.lit { min-height: 44px; }
   .btn:disabled { cursor: default; }
   h1 span { min-width: 0; overflow-wrap: anywhere; }
   h1 :global(svg) { flex-shrink: 0; }
@@ -139,13 +139,13 @@
   /* Stated before you type, not after a rejected submit. Satisfied rules recede
      rather than vanish, so the form does not reflow while you are filling it in. */
   .hint {
-    font-size: 13px; line-height: 1.4; margin: -8px 0 0;
+    font-size: var(--fs-sm); line-height: 1.4; margin: -8px 0 0;
     color: var(--ink-2); display: flex; gap: 6px; align-items: baseline;
     transition: color .12s;
   }
   .hint.done { color: var(--ink-3); }
   .tick { font-variant-numeric: tabular-nums; width: 1em; flex-shrink: 0; text-align: center; }
   .hint.done .tick { color: var(--accent); }
-  .error { color: var(--danger); margin: 0; font-size: 14px; min-height: 1.4em; line-height: 1.4; }
+  .error { color: var(--danger); margin: 0; font-size: var(--fs-sm); min-height: 1.4em; line-height: 1.4; }
   .btn { justify-content: center; }
 </style>

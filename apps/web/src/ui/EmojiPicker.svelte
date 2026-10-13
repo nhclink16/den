@@ -8,11 +8,10 @@
   // A button that opens a searchable emoji picker. `quick` is an optional first
   // row (a message's quick reactions). Picking calls `onpick` and closes. On a
   // phone it is a sheet along the bottom of the screen.
-  let { label, onpick, children, quick = [], align = 'start', disabled = false }: {
-    label: string; onpick: (emoji: string) => void; children: Snippet; quick?: string[]; align?: 'start' | 'end'; disabled?: boolean
+  let { label, onpick, children, quick = [], align = 'start', disabled = false, open = $bindable(false) }: {
+    label: string; onpick: (emoji: string) => void; children: Snippet; quick?: string[]; align?: 'start' | 'end'; disabled?: boolean; open?: boolean
   } = $props()
 
-  let open = $state(false)
   let details = $state<HTMLDetailsElement>()
   let scroller = $state<HTMLElement>()
   let entries = $state<EmojiEntry[]>([])
@@ -76,7 +75,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
   <summary class:disabled title={label} aria-label={label}>{@render children()}</summary>
-  <div popover="auto" use:disclosurePopover={align}>
+  <div class="sheet" popover="auto" use:disclosurePopover={align}>
     {#if open}
       <div class="picker">
         {#if quick.length}
@@ -140,15 +139,13 @@
   .tabs button { flex: 1 0 auto; min-width: 32px; height: 32px; font-size: 17px; border-radius: var(--r); filter: grayscale(.6); opacity: .8; transition: filter var(--t-fast), opacity var(--t-fast), background-color var(--t-fast); }
   .tabs button:hover { filter: none; opacity: 1; background: var(--bg-3); }
   .results { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; overscroll-behavior: contain; }
-  h4 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 4px 4px; background: var(--bg-2); color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  h4 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 4px 4px; background: var(--bg-2); color: var(--ink-3); font-size: var(--fs-xs); font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); padding-top: 4px; }
   .grid button { height: 38px; font-size: 24px; line-height: 1; border-radius: var(--r); transition: background-color var(--t-fast); }
   .grid button:hover, .grid button:focus-visible { background: var(--bg-3); }
   .note { margin: 24px 12px; text-align: center; color: var(--ink-2); }
   /* A phone gets a sheet the width of the screen, with thumb-sized targets. */
   @media (max-width: 600px) {
-    [popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: var(--r-lg) var(--r-lg) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
-    [popover]::backdrop { background: rgb(0 0 0 / .35); }
     .picker { width: 100%; height: min(440px, 62vh); }
     .grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
     .grid button { height: 44px; font-size: 28px; }

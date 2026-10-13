@@ -21,7 +21,7 @@
   <label class="switch"><input type="radio" name="voice-mode" checked={call.prefs.mode === 'ptt'} onchange={() => call.setMode('ptt')} /> Push to talk</label>
 </fieldset>
 {#if call.prefs.mode === 'ptt'}
-  <label class="device">Push-to-talk key<input class="field mono" readonly value={capturing ? 'Press a key' : call.prefs.pttLabel} onfocus={() => (capturing = true)} onblur={() => (capturing = false)} onkeydown={capture} /></label>
+  <label class="device">Push-to-talk key<input class="field" readonly value={capturing ? 'Press a key' : call.prefs.pttLabel} onfocus={() => (capturing = true)} onblur={() => (capturing = false)} onkeydown={capture} /></label>
   <p class="muted small">{native ? 'Hold the key in any app while in a call, or hold the talk button.' : `Hold the key while ${store.settings.instance_name} has focus, or hold the talk button.`}</p>
 {/if}
 <VoiceDevices />
@@ -36,5 +36,5 @@
   .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
   .device { display: grid; gap: 6px; margin: 18px 0 10px; }
-  .small { font-size: 13px; }
+  .small { font-size: var(--fs-sm); }
 </style>

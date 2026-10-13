@@ -14,7 +14,7 @@
   {#if controls}
   <div class="dock" class:ptt={call.prefs.mode === 'ptt'} data-testid="call-dock" aria-label="Current call">
     <span class="dot" aria-hidden="true"></span>
-    <button class="room" title={call.title} onclick={() => (call.expanded = !call.expanded)}>{call.title}{#if native}<small class="mono"> · {call.instanceName}</small>{/if}</button>
+    <button class="room" title={call.title} onclick={() => (call.expanded = !call.expanded)}>{call.title}{#if native}<small> · {call.instanceName}</small>{/if}</button>
     <span class="count" title={`${people} people on ${call.participants.filter(p => !p.music).length} devices`} aria-label={`${people} people on ${call.participants.filter(p => !p.music).length} devices`}>{people}</span>
     <CallControls />
   </div>
@@ -30,14 +30,14 @@
   @media (pointer: fine) {
     @container dock (max-width: 320px) {
       .dock :global(.controls) { gap: 2px; }
-      .dock :global(.controls > button:not(.ptt)), .dock :global(.controls > details:not(.shares) > summary) { width: 26px; }
+      .dock :global(.controls > button:not(.ptt)), .dock :global(.controls > details:not(.shares) > summary) { width: 26px; height: 28px; }
       .dock :global(.controls > .leave) { margin-inline-start: 4px; }
     }
   }
   .dot { width: 8px; height: 8px; margin-inline: 2px; flex: none; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
   @media (prefers-reduced-motion: no-preference) { .dot { animation: breathe 2.4s ease-in-out infinite; } }
   @keyframes breathe { 50% { box-shadow: 0 0 2px var(--lamp); } }
-  .room { min-width: 5ch; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
-  .count { font: 11px var(--mono); color: var(--ink-2); }
+  .room { min-width: 5ch; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 700; }
+  .count { font: var(--fs-xs) var(--body); color: var(--ink-2); }
   .ptt { gap: 3px; padding-inline: 5px; }
 </style>

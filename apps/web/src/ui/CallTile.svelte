@@ -62,13 +62,13 @@
   .screen video { object-fit: contain; }
   .mirror { transform: scaleX(-1); }
   /* Clear of the layout pin and the corner controls. A small tile says only what is on. */
-  .unseen { position: absolute; top: 8px; inset-inline: 40px; text-align: center; font-size: 11px; color: var(--ink-2); }
+  .unseen { position: absolute; top: 8px; inset-inline: 40px; text-align: center; font-size: var(--fs-xs); color: var(--ink-2); }
   @container (max-width: 300px) { .soon { display: none; } }
-  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; color: var(--ink); }
+  .label { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--r); background: var(--overlay); backdrop-filter: blur(6px); font-size: var(--fs-xs); font-weight: 600; color: var(--ink); }
   .label > span:first-of-type { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tile-controls { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: var(--r); background: var(--overlay); }
   .tile-controls:empty { display: none; }
-  .stop { padding: 0 6px; min-height: 24px; flex: none; font: 11px var(--mono); color: var(--ink-2); }
+  .stop { padding: 0 6px; min-height: 24px; flex: none; font: var(--fs-xs) var(--body); color: var(--ink-2); }
   .stop:hover { color: var(--ember); }
   .volume-menu { flex: none; }
   .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); box-shadow: 0 8px 24px var(--shadow); }
@@ -77,7 +77,7 @@
   summary::-webkit-details-marker { display: none; }
   .quality-panel { padding: 4px; }
   @container (max-width: 260px) { .label :global(.sent) { display: none; } }
-  .quality-menu button { display: block; padding: 6px 12px; font: 11px var(--mono); }
+  .quality-menu button { display: block; padding: 6px 12px; font: var(--fs-xs) var(--body); }
   .quality-menu button:hover { background: var(--bg-3); }
   /* Muted is the call state people most need to read at a glance. */
   .label .mute { display: grid; flex: none; color: var(--danger); }

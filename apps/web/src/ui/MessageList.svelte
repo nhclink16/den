@@ -243,7 +243,7 @@
       <div class="day"><span>{dayLabel(m.created_at)}</span></div>
     {/if}
     {#if m.id === firstUnread}
-      <div class="new"><span>new</span></div>
+      <div class="new"><span>New</span></div>
     {/if}
     <MessageItem {m} {prefix} compact={m.id !== firstUnread && continues(prev, m)} {onreply} onmediaready={mediaReady} />
   {/each}
@@ -261,7 +261,7 @@
     position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 3;
     display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 14px;
     border-radius: var(--r-pill, 999px); border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--ink);
-    font-size: 13px; font-weight: 600; box-shadow: var(--lift);
+    font-size: var(--fs-sm); font-weight: 600; box-shadow: var(--lift);
     transition: background-color var(--t-fast), transform var(--t) var(--ease-out);
   }
   .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); }
@@ -275,20 +275,20 @@
   .list > :global(:first-child) { margin-top: auto; }
   .start { padding: 28px var(--gutter) 18px; }
   .start-title { font-size: 28px; }
-  .center { text-align: center; padding: 8px; font-size: 13px; }
+  .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
   /* The day sits in a chip on the rule. */
   .day { display: flex; align-items: center; gap: 12px; margin: 18px var(--gutter) 6px; }
   .day::before, .day::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .day span {
     padding: 3px 10px; border-radius: var(--r-pill, 999px); border: 1px solid var(--line); background: var(--bg-2);
-    color: var(--ink-2); font: 600 11px/1.45 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-2); font: 600 var(--fs-xs)/1.45 var(--body);
   }
   /* Where unread starts is live, so it is lit. */
   .new { display: flex; align-items: center; gap: 10px; margin: 10px var(--gutter) 4px; }
   .new::before { content: ''; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--lamp)); box-shadow: var(--glow); }
   .new span {
     padding: 1px 8px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--bg);
-    font: 700 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .08em; box-shadow: var(--glow);
+    font: 700 var(--fs-xs)/1.5 var(--body); box-shadow: var(--glow);
   }
   .start-title { color: var(--ink); }
   .start-mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: var(--r-avatar, 35%); color: var(--lamp); background: var(--lamp-glow); box-shadow: inset 0 0 0 1px var(--lamp-dim); }

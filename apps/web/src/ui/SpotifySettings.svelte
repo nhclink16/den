@@ -115,15 +115,15 @@
   .share { display: flex; align-items: flex-start; gap: 10px; padding: 12px; margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; }
   .share input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--lamp); }
   .share > span { display: grid; gap: 2px; }
-  .callout { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 14px 0; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg-2); font-size: 13px; }
+  .callout { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 14px 0; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg-2); font-size: var(--fs-sm); }
   .status { display: flex; align-items: center; gap: 10px; padding: 12px; margin: 14px 0; border: 1px solid var(--line); border-radius: var(--r); }
   .status.on { border-color: var(--lamp-dim); }
   .status div { display: grid; gap: 2px; }
   .mark { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--bg-3); color: var(--ink-3); }
   .status.on .mark { color: var(--lamp); }
   .row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-  .small { font-size: 12px; }
+  .small { font-size: var(--fs-xs); }
   .warn { color: var(--lamp); }
-  .scope { margin: 6px 0 12px; padding-left: 18px; color: var(--ink-2); font-size: 13px; display: grid; gap: 3px; }
+  .scope { margin: 6px 0 12px; padding-left: 18px; color: var(--ink-2); font-size: var(--fs-sm); display: grid; gap: 3px; }
   .error { color: var(--danger); }
 </style>

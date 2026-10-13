@@ -15,8 +15,8 @@
       {#each instances.all as s (s.origin)}
         <div class="server" class:active={s === instances.active}>
           <button class="choose" onclick={() => { instances.select(s); close() }}>
-            <Mark size={22} /><span class="identity"><strong>{s.settings.instance_name}</strong>{#if instances.all.filter(x => x.settings.instance_name === s.settings.instance_name).length > 1}<small class="mono">{s.origin}</small>{/if}</span>
-            {#if s.attention}<span class="at mono">@</span>{/if}{#if s.totalUnread}<span class="mono">{s.totalUnread}</span>{/if}
+            <Mark size={22} /><span class="identity"><strong>{s.settings.instance_name}</strong>{#if instances.all.filter(x => x.settings.instance_name === s.settings.instance_name).length > 1}<small>{s.origin}</small>{/if}</span>
+            {#if s.attention}<span class="at">@</span>{/if}{#if s.totalUnread}<span>{s.totalUnread}</span>{/if}
           </button>
           <button class="remove" aria-label={`Remove ${s.settings.instance_name}`} onclick={() => { void instances.remove(s); close() }}>Remove</button>
         </div>
@@ -37,9 +37,9 @@
   .server:hover, .server.active { background:var(--bg3); }
   .choose { display:flex; flex:1; min-width:0; align-items:center; gap:10px; text-align:left; padding:12px 8px; }
   .identity { display:grid; min-width:0; flex:1; gap:3px; }
-  small { font-size:10px; overflow:hidden; text-overflow:ellipsis; color:var(--ink3); }
+  small { font-size: var(--fs-xs); overflow:hidden; text-overflow:ellipsis; color:var(--ink3); }
   .at { color:var(--lamp); }
-  .remove { opacity:0; font-size:11px; padding:10px 6px; color:var(--danger); }
+  .remove { opacity:0; font-size: var(--fs-xs); padding:10px 6px; color:var(--danger); }
   .server:hover .remove, .server:focus-within .remove { opacity:1; }
   .add { padding:12px; width:100%; text-align:left; border-top:1px solid var(--line); margin-top:6px; color:var(--accent); }
 </style>

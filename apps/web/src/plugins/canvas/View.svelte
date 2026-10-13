@@ -21,6 +21,6 @@
 {#if error}<span class="status error" role="alert">{error}</span>{/if}
 <style>
   .canvas-host { position: absolute; inset: 0; }
-  .status { position: absolute; left: 12px; top: 52px; max-width: calc(100% - 24px); padding: 6px 10px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); z-index: 5; font-size: 13px; }
+  .status { position: absolute; left: 12px; top: 52px; max-width: calc(100% - 24px); padding: 6px 10px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); z-index: 5; font-size: var(--fs-sm); }
   .error { color: var(--ember); }
 </style>

@@ -102,6 +102,6 @@
   li button :global(svg) { color: var(--ink-3); }
   li button.active :global(svg) { color: var(--lamp); }
   .label { flex: 1; }
-  .hint { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .hint { font-size: var(--fs-xs); color: var(--ink-3); }
   .none { padding: 12px; text-align: center; }
 </style>

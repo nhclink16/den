@@ -23,5 +23,5 @@
   .device { display: grid; gap: 6px; margin: 12px 0 10px; }
   .switch, .model { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .small { font-size: 13px; }
+  .small { font-size: var(--fs-sm); }
 </style>

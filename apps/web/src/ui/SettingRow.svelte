@@ -20,7 +20,7 @@
   .row:last-child { border-bottom: 0; }
   .text { min-width: 0; display: grid; gap: 3px; }
   .label { font-size: 14px; font-weight: 600; }
-  .hint { font-size: 12.5px; color: var(--ink2); }
+  .hint { font-size: var(--fs-xs); color: var(--ink2); }
   .control { flex: none; display: flex; align-items: center; gap: 8px; }
   .row.wide { flex-direction: column; align-items: stretch; gap: 12px; }
   .row.wide .control { flex: 1; }
