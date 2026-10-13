@@ -111,7 +111,7 @@
     {#each ['Auto', 'Even', 'Focus'] as p}<button aria-pressed={preset === p} onclick={() => choose(p as Preset)}>{p}</button>{/each}
     {#if preset === 'Custom'}<span>Custom</span>{/if}
   </div>
-  {#if !mobile}<button class="btn small collapse" title="Collapse call" onclick={() => (call.expanded = false)}><Icon name="collapse" />{back ? `Back to ${back}` : 'Back'}</button>{/if}
+  {#if !mobile}<button class="btn small collapse" title="Collapse call" onclick={() => (call.expanded = false)}><Icon name="collapse" /><span class="lbl">{back ? `Back to ${back}` : 'Back'}</span></button>{/if}
 </div>
 <div class="grid-scroll" bind:this={scroll} bind:clientHeight={height}>
   <div class="grid-canvas" class:dragging={!!dragging} bind:this={canvas} bind:clientWidth={width}
@@ -128,7 +128,7 @@
 </div>
 
 <style>
-  .call-head { flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 20px; }
+  .call-head { container-type: inline-size; flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 20px; }
   .what { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   h2 { margin: 0; font-family: var(--display); font-size: var(--fs-title); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .line { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); }
@@ -137,7 +137,11 @@
   .presets { flex: none; }
   /* Custom is not a choice to click: it names a layout you dragged into. */
   .presets span { align-self: center; padding: 0 10px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
-  .btn.small { flex: none; min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
+  /* A long room name gives way before the layout switch does. */
+  .btn.small { flex: 0 1 auto; min-width: 0; max-width: 40%; min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
+  .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* A narrow room (both side panels open): Back is just its icon, and still says where it goes to a screen reader. */
+  @container (max-width: 560px) { .btn.small { padding: 4px 9px; } .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
   /* Clear of the floating bar of buttons below. */
   .grid-scroll { flex: 1; min-height: 0; margin: 0 20px 96px; overflow: auto; scrollbar-width: thin; display: flex; }
   /* Auto margins centre the rows when they are shorter than the viewport and

@@ -21,7 +21,7 @@
   const icon = $derived(variant === 'bar' ? 22 : 18)
 </script>
 
-<div class="controls {variant}">
+<div class="controls v-{variant}">
   {#if pill && call.outputMuted}<button class="off" aria-label="Play sound on this device" aria-pressed={false} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name="sound-off" size={icon} /></button>{/if}
   {#if call.prefs.mode === 'ptt'}
     <button class="ptt" class:held={call.held} aria-label="Push to talk" aria-pressed={call.held} title={`Hold ${call.prefs.pttLabel} to talk`}
@@ -62,11 +62,11 @@
   /* Round buttons, like FaceTime. Each size is --cb so the Music button, which
      lives in its own component, matches. Sharp corners square them off. */
   .controls { --cb: 34px; display: flex; align-items: center; gap: 6px; flex: none; }
-  .bar { --cb: 48px; gap: 10px; }
-  .pill { --cb: 40px; gap: 8px; }
-  @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .bar { --cb: 48px; } }
+  .v-bar { --cb: 48px; gap: 10px; }
+  .v-pill { --cb: 40px; gap: 8px; }
+  @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .v-bar { --cb: 48px; } }
   /* A phone's bar fits seven buttons on one row: mic, sound, camera, blur, options, music, Leave. */
-  @media (max-width: 600px) { .bar { --cb: 44px; gap: 6px; } .bar > .leave { margin-inline-start: 8px; } }
+  @media (max-width: 600px) { .v-bar { --cb: 44px; gap: 6px; } .v-bar > .leave { margin-inline-start: 8px; } }
   /* Only this row's own buttons and disclosures: the Music menu's popover has
      summaries of its own that must keep their text layout. */
   .controls > button, .controls > :global(details > summary) {
@@ -84,14 +84,14 @@
   /* Leave is red and sits apart from the toggles, so it is never fumbled mid-call. */
   .controls > .leave { margin-inline-start: 10px; background: var(--danger); color: var(--bg); }
   @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
-  .bar > .leave { margin-inline-start: 14px; }
-  .pill > .leave { margin-inline-start: 0; }
+  .v-bar > .leave { margin-inline-start: 14px; }
+  .v-pill > .leave { margin-inline-start: 0; }
   /* The sidebar is narrow: with push to talk, camera and a share all on, the row
      wraps rather than pushing Leave out of sight. */
-  .dock { flex-wrap: wrap; }
-  .dock > .leave { margin-inline-start: auto; }
+  .v-dock { flex-wrap: wrap; }
+  .v-dock > .leave { margin-inline-start: auto; }
   .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
-  .pill > .ptt { width: var(--cb); padding: 0; }
+  .v-pill > .ptt { width: var(--cb); padding: 0; }
   .controls > .ptt.held { color: var(--on-lamp); background: var(--lamp); }
   /* A Jam is playing: the Music button lights like any other thing that is on. */
   .controls > :global(details > summary.live) { color: var(--on-lamp); background: var(--lamp); }
@@ -111,6 +111,6 @@
   /* The sidebar is narrow. With camera, blur and a share all on, the row would
      wrap Leave onto a line of its own; shrink the buttons instead. */
   @media (pointer: fine) {
-    @container dock (max-width: 270px) { .dock { --cb: 28px; gap: 3px; } }
+    @container dock (max-width: 270px) { .v-dock { --cb: 28px; gap: 3px; } }
   }
 </style>
