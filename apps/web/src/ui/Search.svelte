@@ -85,6 +85,7 @@
   /* The same search field as the room header and Settings; app.css draws its focus ring. */
   .q, .scope { min-height: var(--control-height); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
   .q { flex: 1; min-width: 0; padding: 6px 14px; }
+  .q:focus-visible, .scope:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .scope { padding: 6px 12px; color: var(--ink-2); max-width: 160px; }
   .scroll { flex: 1; overflow-y: auto; padding: 12px 16px 24px; }
   .empty { padding: 50px 20px; text-align: center; display: grid; gap: 6px; }

@@ -332,6 +332,7 @@
   .group-label { margin: 14px 10px 4px; }
   /* The same search field as the room header and the Search page; app.css draws its focus ring. */
   .search { display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin-bottom: 8px; color: var(--ink-3); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; color: var(--ink); font-size: var(--fs-sm); }
   .pane { --pane-end: 40px; overflow-y: auto; padding: 20px 28px var(--pane-end); min-width: 0; }
   .pane-inner { width: 100%; max-width: 760px; margin-inline: auto; }

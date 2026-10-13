@@ -81,6 +81,20 @@ export function applyFavicon(c: ThemeColors) {
   }
   link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
+/** Same as den-core's rename_clashing_themes: a custom theme whose ID a newer
+ *  built-in took keeps its look under `<id> <n>`, and the choices follow it. */
+export function renameClashingThemes(a: Appearance) {
+  const builtin = (id: string) => builtinThemes.some(t => t.id === id)
+  for (const t of a.custom_themes) {
+    if (!builtin(t.id)) continue
+    const old = t.id
+    let n = 1
+    while (builtin(`${old} ${n}`) || a.custom_themes.some(c => c.id === `${old} ${n}`)) n++
+    t.id = `${old} ${n}`
+    if (a.light_theme === old) a.light_theme = t.id
+    if (a.dark_theme === old) a.dark_theme = t.id
+  }
+}
 export function cachedAppearance(origin?: string): Appearance {
   try {
     const a = JSON.parse(localStorage.getItem(appearanceCacheKey(origin)) || 'null')
@@ -89,6 +103,7 @@ export function cachedAppearance(origin?: string): Appearance {
       a.light_theme = a.light_theme === 'den-light' ? 'den' : (a.light_theme || defaultAppearance.light_theme)
       a.dark_theme = a.dark_theme === 'den-light' ? 'den' : (a.dark_theme || defaultAppearance.dark_theme)
       a.contrast = typeof a.contrast === 'number' ? a.contrast : 100
+      renameClashingThemes(a)
       if (false) {
         a.custom_themes=a.custom_themes.map((t: Theme & { appearance?: 'light'|'dark'; colors?: ThemeColors }) => {
           if(!t.colors || !t.appearance) return t

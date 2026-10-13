@@ -385,6 +385,8 @@
   .spacer { flex: 1; }
   /* The same search field as Settings and the Search page; app.css draws its focus ring. */
   .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-3); }
+  /* The transparent border above outranks app.css's shared ring, so restate it. */
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .search input { background: none; border: 0; width: 120px; font-size: var(--fs-sm); color: var(--ink); transition: width 0.15s; }
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
