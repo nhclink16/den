@@ -428,3 +428,34 @@ test('events still queued on a replaced socket leave the new connection\'s previ
   assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'an old socket\'s queued edit overwrote the newer connection\'s line')
   s.ready = false   // stop the reconnect timer the closed socket scheduled
 })
+
+test('a socket frame that arrived before a newer list was asked for is already in that list', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  send({ type: 'resync', reason: 'connect' })
+  send({ type: 'message_edited', ...room('B'), content: 'v1' })     // waits behind the slow resync
+  await tick()
+  const manual = s.resync()                                        // e.g. adding a category; sees v2
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  await manual
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels.find((c: any) => c.id === 'c').last_message.content, 'v2', 'a frame the newer list already covered was applied on top of it')
+  s.ready = false
+})
+
+test('with no list in flight, message events are not kept around', async () => {
+  api = { get: async () => [] }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', last_message: preview('B') }]
+  for (let i = 0; i < 50; i++) await s.handle({ type: 'message_edited', ...room('B'), content: 'x'.repeat(1000) })
+  assert.equal(s.previewLog.length, 0)
+})

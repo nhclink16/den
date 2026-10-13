@@ -36,6 +36,7 @@ function loadLayout(): Layout {
 
 const PAGE = 50
 type PreviewEvent = Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>
+type PreviewStep = { n: number; channel_id: string; created?: LastMessage; edited?: LastMessage; deleted?: string }
 const activeListeners = new Set<(event: Event) => void>()
 const noSpotify = (): SpotifyAccount => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null, share_listening: false })
 
@@ -179,8 +180,6 @@ export class Store {
   /** Live alerts from the server, consumed by notify. */
   alerts = $state<Extract<Event, { type: 'notification' }>[]>([])
   private ws: WebSocket | null = null
-  /// Sockets opened so far. Once a newer one opens, an older one's queue is superseded for good.
-  private sockets = 0
   private backoff = 800
   private lastTyping = new Map<string, number>()
 
@@ -709,10 +708,10 @@ export class Store {
       this.api.get<SpotifyAccount>('/users/me/spotify').catch(() => noSpotify()),
       // Same for servers: an older Den has none.
       this.api.get<import('./types').GameServer[]>('/servers').catch(() => []),
-    ])
+    ]).catch((err) => { this.listDone(); throw err })
     // Everything below mutates this Store. A resync that was in flight across a
     // logout belongs to the account that asked for it, not to this one.
-    if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) return
+    if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
     this.receiveAppearance(appearance)
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
@@ -723,6 +722,7 @@ export class Store {
     this.users = new Map(users.map((u) => [u.id, u]))
     // The list decides which rooms exist; previewsFrom decides their lines.
     const previews = this.previewsFrom(channels, previewAsked)
+    this.listDone()
     this.channels = channels.map((c) => {
       const mine = this.channel(c.id)
       return { ...c, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
@@ -1108,38 +1108,45 @@ export class Store {
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
     this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
   }
-  // Room previews: the newest channel list we asked for, with every message event
-  // since that request replayed on top. A list asked for earlier than the one
-  // applied carries nothing newer, so it never touches the previews. Each event
-  // gets a number; a list remembers the number it was asked at, and its place
-  // among list requests, which orders two lists asked between the same events.
-  private previewLog: { n: number; ev: PreviewEvent }[] = []
+  // Room previews: the newest channel list we asked for, with the message events
+  // since that request replayed on top. Every socket frame is numbered when it
+  // ARRIVES, and a list remembers the number it was asked at: anything that
+  // arrived before then is already in that list, however late it is handled.
+  // Two lists asked between the same frames are ordered by when they were asked.
+  // Events are kept for replay only while a list is in flight, and only as the
+  // small preview they would set.
+  private previewLog: PreviewStep[] = []
   private previewN = 0
   private listAsks = 0
-  private listApplied = 0
+  private listsInFlight = 0
+  private applied = { n: -1, seq: 0 }
   /// Keep the room list's preview line current. A reply never changes it; a
   /// deletion might (it carries no thread), so every deletion counts.
-  private preview(ev: PreviewEvent) {
+  private preview(ev: PreviewEvent, n: number) {
     const c = this.channel(ev.channel_id)
-    if (!c || (ev.type !== 'message_deleted' && ev.thread_id)) return
-    this.previewLog.push({ n: ++this.previewN, ev })
-    const { last, gone } = this.stepPreview(c.last_message ?? null, ev)
+    if (!c || (ev.type !== 'message_deleted' && ev.thread_id) || n <= this.applied.n) return
+    const step: PreviewStep = ev.type === 'message_deleted'
+      ? { n, channel_id: c.id, deleted: ev.id }
+      : { n, channel_id: c.id, [ev.type === 'message_created' ? 'created' : 'edited']: lastOf(ev as Message) }
+    if (this.listsInFlight) this.previewLog.push(step)
+    const { last, gone } = this.stepPreview(c.last_message ?? null, step)
     if (last !== c.last_message) this.channels = this.channels.map((x) => (x.id === c.id ? { ...x, last_message: last } : x))
     if (gone) void this.refetchPreviews()
   }
-  /// From `askPreviews()` taken when the list was requested. Null when a list
-  /// requested later is already applied.
-  private askPreviews() { return { n: this.previewN, seq: ++this.listAsks } }
+  private askPreviews() { this.listsInFlight++; return { n: this.previewN, seq: ++this.listAsks } }
+  /// Call once per askPreviews, after previewsFrom or instead of it.
+  private listDone() { if (--this.listsInFlight === 0) this.previewLog = [] }
+  /// The lines for `list`, or null when a list asked for later is already applied.
   private previewsFrom(list: Channel[], asked: { n: number; seq: number }): Map<string, LastMessage | null> | null {
-    if (asked.seq < this.listApplied) return null
-    this.listApplied = asked.seq
+    if (asked.seq < this.applied.seq) return null
+    this.applied = asked
     this.previewLog = this.previewLog.filter((e) => e.n > asked.n)
     let again = false
     const out = new Map(list.map((c) => {
       let last = c.last_message ?? null
-      for (const { ev } of this.previewLog) {
-        if (ev.channel_id !== c.id) continue
-        const r = this.stepPreview(last, ev); last = r.last; again ||= r.gone
+      for (const step of this.previewLog) {
+        if (step.channel_id !== c.id) continue
+        const r = this.stepPreview(last, step); last = r.last; again ||= r.gone
       }
       return [c.id, last] as const
     }))
@@ -1148,18 +1155,18 @@ export class Store {
     return out
   }
   /// One event applied to a room's line. `gone` means it deleted the line itself.
-  private stepPreview(last: LastMessage | null, ev: PreviewEvent): { last: LastMessage | null; gone: boolean } {
-    if (ev.type === 'message_deleted') return { last, gone: last?.id === ev.id }
-    const { type: _t, ...m } = ev
-    const take = ev.type === 'message_created' ? !last || m.id > last.id : last?.id === m.id
-    return { last: take ? lastOf(m as Message) : last, gone: false }
+  private stepPreview(last: LastMessage | null, step: PreviewStep): { last: LastMessage | null; gone: boolean } {
+    if (step.deleted) return { last, gone: last?.id === step.deleted }
+    if (step.created) return { last: !last || step.created.id > last.id ? step.created : last, gone: false }
+    return { last: step.edited && last?.id === step.edited.id ? step.edited : last, gone: false }
   }
   private async refetchPreviews() {
     const generation = this.generation, asked = this.askPreviews()
     let list: Channel[]
-    try { list = await this.api.get<Channel[]>('/channels') } catch { return /* the next resync repairs it */ }
-    if (generation !== this.generation) return
+    try { list = await this.api.get<Channel[]>('/channels') } catch { this.listDone(); return /* the next resync repairs it */ }
+    if (generation !== this.generation) { this.listDone(); return }
     const fresh = this.previewsFrom(list, asked)
+    this.listDone()
     if (fresh) this.channels = this.channels.map((c) => (fresh.has(c.id) ? { ...c, last_message: fresh.get(c.id) } : c))
   }
 
@@ -1255,17 +1262,18 @@ export class Store {
       return
     } finally { this.connecting = false }
     url += `${url.includes('?') ? '&' : '?'}music=true&jam=true&servers=true`
-    const ws = new WebSocket(url), socket = ++this.sockets
+    const ws = new WebSocket(url)
     this.ws = ws
     ws.onopen = () => { this.connected = true; this.backoff = 800 }
     ws.binaryType = 'arraybuffer'
     let events = Promise.resolve()
     ws.onmessage = (e) => {
+      const n = ++this.previewN
       // Events already queued when the account changed are dropped rather than
       // repopulating state that a logout deliberately cleared. `generation` is
       // the connection/account epoch this socket was opened for.
       events = events.then(() => generation === this.generation
-        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, socket !== this.sockets)
+        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, n)
         : undefined)
         .catch(() => { ws.close() })
     }
@@ -1291,9 +1299,8 @@ export class Store {
     this.ws.send(JSON.stringify({ type: 'typing', channel_id: channelId, thread_id: threadId ?? null }))
   }
 
-  /// `superseded`: the event was still queued on a socket a newer one replaced,
-  /// whose resync already covers it.
-  private async handle(ev: Event, superseded = false) {
+  /// `n` is the frame's number on arrival (see previewLog).
+  private async handle(ev: Event, n = ++this.previewN) {
     for (const fn of this.listeners) fn(ev)
     if (this.active) for (const fn of activeListeners) fn(ev)
     switch (ev.type) {
@@ -1315,7 +1322,7 @@ export class Store {
       case 'message_edited': {
         const { type: _t, ...m } = ev
         if (!this.channels.some((c) => c.id === m.channel_id)) await this.resync()
-        else { this.upsert(m as Message, true); if (!superseded) this.preview(ev) }
+        else { this.upsert(m as Message, true); this.preview(ev, n) }
         if (ev.type === 'message_created') {
           // They stopped typing IN THAT CONVERSATION. Clearing the room key for a
           // thread reply would leave the thread indicator running forever and
@@ -1328,7 +1335,7 @@ export class Store {
       }
       case 'message_deleted':
         if (this.active && objects.active?.message_id === ev.id) { objects.active = null; objects.expanded = false }
-        this.drop(ev.id, ev.channel_id); if (!superseded) this.preview(ev); break
+        this.drop(ev.id, ev.channel_id); this.preview(ev, n); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
       case 'thread_updated': {
