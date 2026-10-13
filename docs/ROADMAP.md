@@ -98,6 +98,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - 0.3.7: the small usability fixes. On phones, long messages get the box's full width, the expanded call shows one row of buttons, and Appearance opens full screen. Settings groups Machines, Access, API keys and Agents under Advanced. Thread titles show names, the Resolved list keeps up, the sidebar call bar fits on one row while sharing, and Servers Playtime shows Den names for players online.
 - 0.3.8: a searchable emoji picker for reactions, the message box and the status emoji, with recent emoji first and a bottom sheet on phones. The emoji list loads only when a picker first opens.
 - 0.3.9: the web half of native calls in Den Shell (#84). No change outside Den Shell.
+- 0.4.0: revamp slice 1 (Quiet direction, D16/D17, #86). A plain grey "Neutral" theme with a blue accent is the default for anyone who never changed Appearance; amber Den stays as a theme. The accent is its own setting, normal text drops the code font and the slashed zero, buttons, pills and switches share one style, and the phone message box gets a round + menu.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
