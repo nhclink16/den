@@ -165,6 +165,15 @@
   const showMic = $derived(canDictate && (!phone || !sendable || listening))
   const showSend = $derived(!phone || !showMic)
   function fromMenu(run: () => void) { menu = false; run() }
+  // A picker opened from the menu hands focus back to its own button when it
+  // closes, and that button is hidden here: give it to the + instead.
+  let plus = $state<HTMLElement>(), pickerWasOpen = false
+  $effect(() => {
+    const open = gifOpen || emojiOpen
+    if (open || !pickerWasOpen) { pickerWasOpen = open; return }
+    pickerWasOpen = false
+    requestAnimationFrame(() => { const at = document.activeElement as HTMLElement | null; if (phone && (!at || at === document.body || !at.checkVisibility())) plus?.focus() })
+  })
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
   $effect(() => { if (replyTo) ta?.focus() })
@@ -373,7 +382,7 @@
   <div class="row">
     {#if phone}
       <details class="more" bind:open={menu}>
-        <summary class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
+        <summary bind:this={plus} class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
         <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
           {#if menu}
             <div class="menu" role="menu" aria-label="Add to your message">

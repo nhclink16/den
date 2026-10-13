@@ -15,9 +15,9 @@ try {
  await page.evaluate(async()=>{const {themes}=await import('/src/lib/theme.svelte.ts');await themes.select(themes.all.find(t=>t.id==='den'),'light');await themes.select(themes.all.find(t=>t.id==='terminal'),'dark');await themes.mode('light')})
  await page.waitForTimeout(1000);await shot('appearance-desktop')
  metrics.appearanceHeading=await page.locator('.intro h2').evaluate(el=>getComputedStyle(el).fontSize)
- metrics.badge=await page.getByRole('button',{name:'Use Terminal for dark appearance',exact:true}).locator('.badge').evaluate(el=>({ink:getComputedStyle(el).color,background:getComputedStyle(el).backgroundColor}))
+ metrics.badge=await page.getByRole('button',{name:'Use Terminal for dark appearance',exact:true}).locator('.badge').evaluate(el=>({ink:getComputedStyle(el).color,background:getComputedStyle(el).backgroundColor,page:getComputedStyle(document.body).backgroundColor}))
  metrics.previewFonts=await page.getByRole('button',{name:'Use Terminal for dark appearance',exact:true}).locator('.preview').evaluate(el=>({body:getComputedStyle(el).fontFamily,mono:getComputedStyle(el.querySelector('.composer')).fontFamily}))
- if(!before){assert(metrics.previewFonts.body.includes('JetBrains Mono'));assert(metrics.previewFonts.mono.includes('JetBrains Mono'));assert.equal(metrics.badge.ink,'rgb(0, 0, 0)')}
+ if(!before){assert(metrics.previewFonts.body.includes('JetBrains Mono'));assert(metrics.previewFonts.mono.includes('JetBrains Mono'));assert.equal(metrics.badge.ink,metrics.badge.page)}
  await page.setViewportSize({width:390,height:844});await page.locator('.pane').evaluate(el=>el.scrollTop=0);await shot('appearance-mobile')
  metrics.themesTop=(await page.getByRole('heading',{name:'Themes',exact:true}).boundingBox()).y
  if(!before)assert(metrics.themesTop<550)
@@ -26,8 +26,8 @@ try {
  await page.setViewportSize({width:1440,height:1000});await page.getByRole('region',{name:'Theme editor'}).scrollIntoViewIfNeeded();await shot('editor-desktop')
  await go('/settings/machines');metrics.machineHeading=await page.locator('.pane h2').evaluate(el=>getComputedStyle(el).fontSize);await shot('machines')
  await go('/settings/rooms');await shot('rooms');metrics.formHeights=await page.locator('.server-name .inline').evaluate(el=>Array.from(el.children).map(c=>c.getBoundingClientRect().height))
- if(!before){assert.equal(metrics.appearanceHeading,'26px');assert.equal(metrics.machineHeading,'26px');assert(Math.abs(metrics.formHeights[0]-metrics.formHeights[1])<1)}
- metrics.contrast=await page.evaluate(async()=>{const r=await import('/src/lib/theme-runtime.ts');return r.builtinThemes.flatMap(t=>['light','dark'].map(half=>{r.applyTheme(t,half);const line=document.documentElement.style.getPropertyValue('--line-strong')||t[half].line;return {theme:t.id,half,minimum:Math.min(...['bg','bg2','bg3'].map(k=>r.contrast(line,t[half][k])))}}))})
+ if(!before){assert.equal(metrics.appearanceHeading,'30px');assert.equal(metrics.machineHeading,'30px');assert(Math.abs(metrics.formHeights[0]-metrics.formHeights[1])<1)}
+ metrics.contrast=await page.evaluate(async()=>{const r=await import('/src/lib/theme-runtime.ts'),{contrast}=await import('/src/lib/theme-color.ts');return r.builtinThemes.flatMap(t=>['light','dark'].map(half=>{r.applyTheme(t,half);const line=document.documentElement.style.getPropertyValue('--line-strong')||t[half].line;return {theme:t.id,half,minimum:Math.min(...['bg','bg2','bg3'].map(k=>contrast(line,t[half][k])))}}))})
  if(!before)assert(metrics.contrast.every(c=>c.minimum>=3))
  assert.deepEqual(errors,[]);console.log(JSON.stringify(metrics,null,2));await writeFile(`${shots}verification-${phase}.json`,JSON.stringify(metrics,null,2)+'\n')
 }finally{await browser.close()}

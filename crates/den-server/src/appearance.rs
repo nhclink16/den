@@ -7,7 +7,12 @@ pub(crate) async fn load(s: &AppState, user: &str) -> Result<Appearance> {
             .fetch_optional(&s.db)
             .await?;
     match value {
-        Some(v) => serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance")),
+        Some(v) => {
+            let mut value: Appearance =
+                serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance"))?;
+            value.rename_clashing_themes();
+            Ok(value)
+        }
         None => Ok(Appearance::default()),
     }
 }

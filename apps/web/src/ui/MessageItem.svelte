@@ -104,6 +104,13 @@
   }
   // Delete asks first, in the message itself, like every other delete in Den.
   let deleting = $state(false)
+  let deletingBox = $state<HTMLElement>(), deleteButton = $state<HTMLButtonElement>()
+  // A keyboard user who says Keep goes back to the Delete button they came from.
+  function keep() {
+    const keyboard = !!deletingBox?.querySelector(':focus-visible')
+    deleting = false
+    if (keyboard) requestAnimationFrame(() => deleteButton?.focus())
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (touch only; keyboards reach the actions by focus) -->
@@ -173,7 +180,7 @@
         </a>
       {/if}
       {#if deleting}
-        <div class="deleting"><InlineConfirm open action="Delete" sentence="Delete this message? This can't be undone." confirm={() => store.remove(m.id, m.channel_id)} oncancel={() => (deleting = false)} /></div>
+        <div class="deleting" bind:this={deletingBox}><InlineConfirm open action="Delete" sentence="Delete this message? This can't be undone." confirm={() => store.remove(m.id, m.channel_id)} oncancel={keep} /></div>
       {/if}
       {#if m.reactions?.length}
         <div class="reactions">
@@ -190,7 +197,7 @@
       <button title="Reply" aria-label="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
       {#if held && m.content}<button title="Copy text" aria-label="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
       {#if mine}<button title="Edit" aria-label="Edit message" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
-      {#if canDelete}<button title="Delete" aria-label="Delete message" class="danger" onclick={() => { done(); deleting = true }}><Icon name="trash" /></button>{/if}
+      {#if canDelete}<button bind:this={deleteButton} title="Delete" aria-label="Delete message" class="danger" onclick={() => { done(); deleting = true }}><Icon name="trash" /></button>{/if}
     </div>
   </div>
 </article>

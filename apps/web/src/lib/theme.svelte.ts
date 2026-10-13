@@ -35,7 +35,8 @@ class Themes {
   private fontRun = 0
   private queue: Promise<unknown> = Promise.resolve()
   private pending = 0
-  get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
+  // A cached custom theme may still use an ID a newer built-in took; the server renames it.
+  get all() { return [...builtinThemes, ...this.appearance.custom_themes.filter(t => !builtinThemes.some(b => b.id === t.id))] }
   get active() { return this.draft || themeFor(this.appearance, this.half) }
   /** The theme currently assigned to one appearance, ignoring any live draft. */
   chosen(half: 'light'|'dark') { return themeFor(this.appearance, half) }

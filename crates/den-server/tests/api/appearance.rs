@@ -291,4 +291,24 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
         );
     }
     assert_eq!(get(chose.token.clone()).await["accent"], Value::Null);
+
+    // A custom theme someone had already called "neutral" keeps its colours and
+    // stays chosen, under an ID that no longer clashes, and saves again.
+    let mut mine = builtin_themes()[1].clone();
+    mine.id = "neutral".into();
+    mine.name = "My neutral".into();
+    sqlx::query("UPDATE user_appearance SET appearance=? WHERE user_id=?")
+        .bind(
+            json!({"mode":"dark","light_theme":"den","dark_theme":"neutral","custom_themes":[mine],"contrast":100,"background":null})
+                .to_string(),
+        )
+        .bind(&chose.user.id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    let renamed = get(chose.token.clone()).await;
+    assert_eq!(renamed["dark_theme"], "neutral 1");
+    assert_eq!(renamed["custom_themes"][0]["id"], "neutral 1");
+    assert_eq!(renamed["custom_themes"][0]["name"], "My neutral");
+    assert_eq!(put(chose.token.clone(), renamed).await.status(), 200);
 }

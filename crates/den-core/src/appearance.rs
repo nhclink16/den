@@ -154,6 +154,33 @@ impl Theme {
     }
 }
 impl Appearance {
+    /// A built-in added later can take an ID a custom theme already had. The
+    /// custom theme keeps its look under a new ID, and a choice that named it
+    /// follows it: before the built-in existed, the ID could only mean that one.
+    pub fn rename_clashing_themes(&mut self) {
+        let builtins = builtin_themes();
+        for i in 0..self.custom_themes.len() {
+            let old = self.custom_themes[i].id.clone();
+            if !builtins.iter().any(|b| b.id == old) {
+                continue;
+            }
+            let free = |id: &str| {
+                !builtins.iter().any(|b| b.id == id)
+                    && !self.custom_themes.iter().any(|c| c.id == id)
+            };
+            let new = (1..)
+                .map(|n| format!("{old} {n}"))
+                .find(|id| free(id))
+                .expect("some ID is free");
+            if self.light_theme == old {
+                self.light_theme = new.clone();
+            }
+            if self.dark_theme == old {
+                self.dark_theme = new.clone();
+            }
+            self.custom_themes[i].id = new;
+        }
+    }
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.custom_themes.len() > 12
             || serde_json::to_vec(&self.custom_themes)
