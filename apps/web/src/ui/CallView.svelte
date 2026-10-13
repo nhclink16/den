@@ -61,7 +61,7 @@
   .resize::after { content: ''; display: block; width: 36px; height: 2px; margin: 3px auto; border-radius: 2px; background: var(--ink-3); }
   .resize:hover, .resize:focus-visible { background: var(--bg-3); }
   .expanded .device-note { top: 40px; }
-  .device-note { position: absolute; left: 12px; top: 4px; z-index: 1; margin: 0; padding: 4px 8px; max-width: calc(100% - 56px); border-radius: var(--r); background: var(--bg); font-size: 12px; color: var(--ink-2); }
+  .device-note { position: absolute; left: 12px; top: 4px; z-index: 1; margin: 0; padding: 4px 8px; max-width: calc(100% - 56px); border-radius: var(--r); background: var(--bg); font-size: var(--fs-xs); color: var(--ink-2); }
   .call-view { height: 160px; flex: none; position: relative; min-height: 0; background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; overflow-x: auto; scrollbar-width: none; }
   .call-view:not(.expanded) .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }

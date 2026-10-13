@@ -36,5 +36,5 @@
 </article>
 <style>
   .sound-card { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; background: var(--bg-2); max-width: 480px; }
-  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: 12px; margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .error { color: var(--danger); } audio { max-width: 100%; }
+  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: var(--fs-xs); margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .error { color: var(--danger); } audio { max-width: 100%; }
 </style>

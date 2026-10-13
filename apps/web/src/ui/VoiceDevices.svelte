@@ -280,33 +280,33 @@
 {#if speakerSupported}<label class="device">Speaker<select class="field" value={call.prefs.speaker} onchange={e => call.device('audiooutput', e.currentTarget.value)}><option value="">Default speaker</option>{#each devices.filter(d => d.kind === 'audiooutput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Speaker'}</option>{/each}</select></label>{/if}
 
 <style>
-  .intro { font-size: 13px; line-height: 1.5; margin: 0 0 20px; }
+  .intro { font-size: var(--fs-sm); line-height: 1.5; margin: 0 0 20px; }
   .devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
   section { min-width: 0; }
   h3 { margin: 0 0 12px; }
-  .device { display: grid; gap: 6px; margin: 0 0 14px; font-size: 13px; }
+  .device { display: grid; gap: 6px; margin: 0 0 14px; font-size: var(--fs-sm); }
   select { width: 100%; min-width: 0; font: inherit; }
-  .slider { display: grid; gap: 6px; font-size: 13px; margin: 16px 0 6px; }
+  .slider { display: grid; gap: 6px; font-size: var(--fs-sm); margin: 16px 0 6px; }
   .slider span { display: flex; justify-content: space-between; }
   output { font-variant-numeric: tabular-nums; }
   input[type=range] { width: 100%; min-height: 28px; accent-color: var(--lamp); }
   .meter { height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); }
   .meter span { display: block; height: 100%; background: var(--lamp); }
-  .hint { font-size: 11px; line-height: 1.5; margin: 6px 0 12px; }
-  .switch { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; }
+  .hint { font-size: var(--fs-xs); line-height: 1.5; margin: 6px 0 12px; }
+  .switch { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: var(--fs-sm); }
   .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .background { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; border: 0; font-size: 13px; }
+  .background { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; border: 0; font-size: var(--fs-sm); }
   .background legend { margin: 0 0 8px; padding: 0; font: inherit; }
   .background label { display: flex; align-items: center; gap: 6px; min-height: 32px; }
   .background input { accent-color: var(--lamp); width: 16px; height: 16px; }
   .preview { aspect-ratio: 16/9; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r-lg); overflow: hidden; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .mirror { transform: scaleX(-1); }
-  .preview-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; margin: 4px 0 10px; }
+  .preview-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; font-size: var(--fs-xs); margin: 4px 0 10px; }
   .text-link { color: var(--ink-2); text-decoration: underline; min-height: 28px; font: inherit; }
   .quality { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .capitalize { text-transform: capitalize; }
-  .error { font-size: 13px; color: var(--ember); }
+  .error { font-size: var(--fs-sm); color: var(--ember); }
   .status { min-height: 16px; }
   @media (max-width: 760px) { .devices { grid-template-columns: 1fr; gap: 24px; } }
 </style>

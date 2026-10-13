@@ -44,9 +44,9 @@
     <div class="body">
       <h2 class="display">{name}</h2>
       <p class="handle">
-        <span class="mono">@{user.username}</span>
-        {#if user.bot}<span class="tag lit"><Icon name="bot" size={11} />agent</span>{/if}
-        {#if user.role === 'admin'}<span class="tag">admin</span>{/if}
+        <span>@{user.username}</span>
+        {#if user.bot}<span class="tag lit"><Icon name="bot" size={11} />Agent</span>{/if}
+        {#if user.role === 'admin'}<span class="tag">Admin</span>{/if}
       </p>
       <p class="presence" class:here={online}><span class="pip" aria-hidden="true"></span>{online ? 'Here now' : 'Away'}</p>
 
@@ -103,13 +103,13 @@
   .body { padding: 8px 16px 16px; display: grid; gap: 8px; }
   h2 { margin: 0; font-size: 21px; line-height: 1.15; overflow-wrap: anywhere; }
   p { margin: 0; }
-  .handle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; font-size: 13px; color: var(--ink-2); }
+  .handle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; font-size: var(--fs-sm); color: var(--ink-2); }
   .tag {
     display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: var(--r-pill, 999px);
-    font: 600 11px/1.45 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); background: var(--bg-3);
+    font: 600 var(--fs-xs)/1.45 var(--body); color: var(--ink-2); background: var(--bg-3);
   }
   .tag.lit { color: var(--lamp); background: var(--lamp-glow); }
-  .presence { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .presence { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--ink-2); }
   .pip { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
   .presence.here .pip { background: var(--success); box-shadow: none; }
   .doing { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -123,15 +123,15 @@
   .live .art { color: var(--lamp); }
   .art img { width: 100%; height: 100%; object-fit: cover; }
   .what { min-width: 0; display: grid; }
-  .verb { font: 600 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+  .verb { font: 600 var(--fs-xs)/1.4 var(--body); color: var(--ink-2); }
   .live .verb { color: var(--lamp); }
   .thing { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .more { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r);
-    background: var(--bg-3); font-size: 14px; overflow-wrap: anywhere;
+    background: var(--bg-3); overflow-wrap: anywhere;
   }
   .emoji { font-size: 18px; line-height: 1; }
-  .bio { font-size: 14px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; color: var(--ink); }
+  .bio { line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; color: var(--ink); }
   .btn { justify-content: center; margin-top: 4px; }
 </style>

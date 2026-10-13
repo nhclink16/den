@@ -94,7 +94,7 @@
   }
 </script>
 
-<div class="presets" role="group" aria-label="Call layout">
+<div class="presets segments small" role="group" aria-label="Call layout">
   {#each ['Auto', 'Even', 'Focus'] as p}<button aria-pressed={preset === p} onclick={() => choose(p as Preset)}>{p}</button>{/each}
   {#if preset === 'Custom'}<span>Custom</span>{/if}
 </div>
@@ -113,10 +113,9 @@
 </div>
 
 <style>
-  .presets { position: absolute; top: 10px; left: 16px; display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r); z-index: 2; overflow: hidden; background: var(--bg-2); }
-  .presets button, .presets span { padding: 5px 10px; font: 11px var(--mono); color: var(--ink-3); }
-  .presets button[aria-pressed="true"] { color: var(--ink); background: var(--bg-3); }
-  .presets button:hover { color: var(--ink); }
+  .presets { position: absolute; top: 10px; left: 16px; z-index: 2; }
+  /* Custom is not a choice to click: it names a layout you dragged into. */
+  .presets span { align-self: center; padding: 0 10px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
   .grid-scroll { position: absolute; inset: 48px 16px 82px; overflow: auto; scrollbar-width: thin; display: flex; }
   /* Auto margins centre the rows when they are shorter than the viewport and
      collapse to nothing when they overflow, which keeps the top row reachable. */
@@ -125,4 +124,6 @@
   .dragging :global(.layout-tile) { opacity: .8; }
   .drop-target { position: absolute; pointer-events: none; border: 2px solid var(--lamp); border-radius: var(--r-lg); background: var(--grid-guide); }
   @media (max-width: 899px) { .grid-scroll { left: 10px; right: 10px; } .presets { left: 10px; } }
+  /* The switch grows to a 36px touch target; keep the tiles clear of it. */
+  @media (pointer: coarse) { .grid-scroll { top: 56px; } }
 </style>

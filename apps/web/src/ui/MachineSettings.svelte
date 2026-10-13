@@ -1,5 +1,6 @@
 <script lang="ts">
   import InlineConfirm from './InlineConfirm.svelte'
+  import SettingRow from './SettingRow.svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
@@ -56,10 +57,18 @@
   {/if}
 {:else}
   <h2 class="display">Access</h2>
+  <p class="muted">Who can see and use terminals on your machines. Access is asked for and granted per machine.</p>
   <h3>Standing grants</h3>
-  {#each grants.filter(g => g.expires_at == null) as g (g.id)}
-    <div class="row"><span>{user(g.grantee_id)} · {machine(g.host_id)}<small>{g.capability === 'terminal_control' ? 'Terminal control' : 'Terminal view'}</small></span><InlineConfirm action="Revoke" sentence={`Revoke ${user(g.grantee_id)}’s access to ${machine(g.host_id)}? They must request access again.`} confirm={() => revoke(g)} /></div>
-  {:else}<p class="muted">No standing grants.</p>{/each}
+  {@const standing = grants.filter(g => g.expires_at == null)}
+  {#if standing.length}
+    <div class="group">
+      {#each standing as g (g.id)}
+        <SettingRow label={`${user(g.grantee_id)} · ${machine(g.host_id)}`} hint={g.capability === 'terminal_control' ? 'Terminal control' : 'Terminal view'}>
+          {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke ${user(g.grantee_id)}’s access to ${machine(g.host_id)}? They must request access again.`} confirm={() => revoke(g)} />{/snippet}
+        </SettingRow>
+      {/each}
+    </div>
+  {:else}<p class="muted">Nobody has standing access. People ask each time, and you approve it here.</p>{/if}
   <h3>Recent access</h3>
   {#each log as entry}<div class="audit"><span>{user(entry.actor_id)} · {entry.action.replaceAll('_', ' ')} · {machine(entry.host_id)}</span><time>{new Date(entry.created_at * 1000).toLocaleString()}</time></div>{:else}<p class="muted">Requests, decisions, and terminal activity appear here.</p>{/each}
 {/if}
@@ -67,12 +76,13 @@
 <style>
  h3 { margin: 24px 0 12px; }
   .muted, small, time { color: var(--ink-3); } .muted { margin-bottom: 16px; }
-  .record { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; font-size: 13px; }
+  .record { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; font-size: var(--fs-sm); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
   @media (max-width: 600px) { .row { flex-wrap: wrap; gap: 8px; } }
-  .row:last-of-type { margin-bottom: 16px; } small { font: 11px var(--mono); margin-left: 8px; }
+  .row:last-of-type { margin-bottom: 16px; } small { font: var(--fs-xs) var(--body); margin-left: 8px; }
   .dot { display: inline-block; width: 7px; height: 7px; background: var(--ink-3); border-radius: 50%; margin-right: 8px; } .online { background: var(--lamp); }
+  .group { margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); }
   .enrollment { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); }
-  pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.7 var(--mono); margin: 12px 0; user-select: all; }
-  .audit { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; } time { font: 10px var(--mono); }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--fs-xs)/1.7 var(--mono); margin: 12px 0; user-select: all; }
+  .audit { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); } time { font: var(--fs-xs) var(--body); }
 </style>

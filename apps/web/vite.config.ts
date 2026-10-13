@@ -22,9 +22,13 @@ export default defineConfig({
   plugins: [svelte(), {
     name: 'den-first-paint',
     async transformIndexHtml(html) {
-      const source = readFileSync(new URL('./src/lib/theme-runtime.ts', import.meta.url), 'utf8').replace(/^import .*$/gm, '').replace(/export /g, '')
+      const source = ['theme-color', 'theme-runtime'].map(f => readFileSync(new URL(`./src/lib/${f}.ts`, import.meta.url), 'utf8')).join('\n').replace(/^import .*$/gm, '').replace(/export /g, '')
       const builtins = readFileSync(new URL('../../crates/den-core/src/themes.json', import.meta.url), 'utf8')
-      const { code } = await transformWithOxc(`const builtins = ${builtins};\n${source}\nfirstPaint()`, 'theme.ts', { lang: 'ts' })
+      const accents = readFileSync(new URL('../../crates/den-core/src/accents.json', import.meta.url), 'utf8')
+      // The imports are stripped, so supply the one the cache key needs. Without it the
+      // cache read threw and every load painted the default theme first.
+      const isDesktop = 'const isDesktop = () => !!(window.denDesktop || window.__TAURI__);'
+      const { code } = await transformWithOxc(`const builtins = ${builtins};\nconst accents = ${accents};\n${isDesktop}\n${source}\nfirstPaint()`, 'theme.ts', { lang: 'ts' })
       return html.replace('<!-- appearance-first-paint -->', `<script>${code}</script>`)
     },
   }],

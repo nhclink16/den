@@ -61,7 +61,7 @@
 </script>
 
 <figure class="chart">
-  <figcaption><span class="eyebrow">{series.label}</span><span class="faint mono">24h</span></figcaption>
+  <figcaption><span class="eyebrow">{series.label}</span><span class="faint span">24h</span></figcaption>
   <div class="plot">
     <svg viewBox="0 0 {W} {H}" role="img" aria-label={summary} onpointermove={move} onpointerleave={() => (hover = null)}>
       {#each ticks as t (t)}
@@ -80,7 +80,7 @@
     </svg>
     {#if hover}
       <div class="tip" style:left="{Math.min(88, Math.max(12, (x(hover.at) / W) * 100))}%" role="presentation">
-        <b class="mono">{formatValue(hover.value, series.unit)}</b> <span class="faint">{time(hover.at)}</span>
+        <b>{formatValue(hover.value, series.unit)}</b> <span class="faint">{time(hover.at)}</span>
       </div>
     {/if}
     {#if !points.length}<p class="none faint">Nothing recorded yet</p>{/if}
@@ -90,19 +90,19 @@
 <style>
   .chart { margin: 0; padding: 12px 14px 8px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); min-width: 0; }
   figcaption { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-  figcaption .mono { font-size: 11px; }
+  figcaption .span { font-size: var(--fs-xs); }
   .plot { position: relative; }
   svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
   .grid { stroke: var(--line); stroke-width: 1; }
-  .axis { fill: var(--ink-3); font: 10px var(--mono); }
+  .axis { fill: var(--ink-3); font: var(--fs-xs) var(--body); }
   .line { fill: none; stroke: var(--lamp); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .area { fill: color-mix(in srgb, var(--lamp) 14%, transparent); stroke: none; }
   .cross { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; }
   .dot { fill: var(--lamp); stroke: var(--bg-2); stroke-width: 2; }
   .tip {
     position: absolute; top: -6px; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
-    padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); font-size: 12px;
+    padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); font-size: var(--fs-xs);
     box-shadow: 0 6px 18px -8px var(--shadow-lg);
   }
-  .none { position: absolute; inset: 0 0 20px 30px; display: grid; place-items: center; margin: 0; font-size: 13px; }
+  .none { position: absolute; inset: 0 0 20px 30px; display: grid; place-items: center; margin: 0; font-size: var(--fs-sm); }
 </style>

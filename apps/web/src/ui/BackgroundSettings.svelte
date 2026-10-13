@@ -168,19 +168,19 @@
       <SettingRow label="Blur" hint="Softens the image so text stays legible.">
         {#snippet control()}
           <input type="range" min="0" max="40" value={bg.blur} oninput={e => set({ blur: +e.currentTarget.value })} aria-label="Background blur" />
-          <output class="mono">{bg.blur}px</output>
+          <output>{bg.blur}px</output>
         {/snippet}
       </SettingRow>
       <SettingRow label="Dim" hint="Darkens or lightens the image behind your text.">
         {#snippet control()}
           <input type="range" min="0" max="80" value={bg.dim} oninput={e => set({ dim: +e.currentTarget.value })} aria-label="Background dim" />
-          <output class="mono">{bg.dim}%</output>
+          <output>{bg.dim}%</output>
         {/snippet}
       </SettingRow>
       <SettingRow label="Saturation">
         {#snippet control()}
           <input type="range" min="50" max="150" value={bg.saturate} oninput={e => set({ saturate: +e.currentTarget.value })} aria-label="Background saturation" />
-          <output class="mono">{bg.saturate}%</output>
+          <output>{bg.saturate}%</output>
         {/snippet}
       </SettingRow>
       {#if target === 'main'}
@@ -252,9 +252,6 @@
   .group { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg2); }
   input[type=range] { width: 170px; accent-color: var(--accent); }
   output { font-size: 12px; color: var(--ink2); min-width: 44px; text-align: end; }
-  .segments { display: inline-flex; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
-  .segments button { min-height: 32px; padding: 5px 12px; border-radius: var(--r); color: var(--ink2); font-size: 13px; }
-  .segments button[aria-pressed=true] { background: var(--bg3); color: var(--ink); font-weight: 600; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   @media (max-width: 720px) { input[type=range] { width: 100%; } }
   @container panel (max-width: 460px) {

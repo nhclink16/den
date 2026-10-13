@@ -61,18 +61,18 @@
 <style>
   .music-panel { width: min(380px, calc(100vw - 24px)); max-height: min(720px, calc(100dvh - 32px)); overflow: auto; overscroll-behavior: contain; padding: 18px; color: var(--ink); }
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-  h2 { font-size: 18px; margin: 0; } h3 { font-size: 14px; margin: 0; } p { margin: 4px 0 0; font-size: 12px; color: var(--ink-2); }
-  .for-jam { margin: -4px 0 14px; padding: 8px 10px; border-radius: var(--r); background: color-mix(in srgb, var(--lamp) 12%, var(--bg-3)); color: var(--ink); font-size: 12px; }
+  h2 { font-size: 18px; margin: 0; } h3 { font-size: 14px; margin: 0; } p { margin: 4px 0 0; font-size: var(--fs-xs); color: var(--ink-2); }
+  .for-jam { margin: -4px 0 14px; padding: 8px 10px; border-radius: var(--r); background: color-mix(in srgb, var(--lamp) 12%, var(--bg-3)); color: var(--ink); font-size: var(--fs-xs); }
   .now { display: flex; align-items: center; gap: 12px; } .art { width: 68px; height: 68px; flex: none; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r); overflow: hidden; color: var(--lamp); }
-  img { width: 100%; height: 100%; object-fit: cover; } .now-copy { min-width: 0; } .now-copy h3 { margin-top: 4px; overflow-wrap: anywhere; } .eyebrow { font-size: 10px; }
+  img { width: 100%; height: 100%; object-fit: cover; } .now-copy { min-width: 0; } .now-copy h3 { margin-top: 4px; overflow-wrap: anywhere; } .eyebrow { font-size: var(--fs-xs); }
   .seek { display: block; margin-top: 14px; font-size: 0; } .seek input { width: 100%; min-height: 24px; accent-color: var(--lamp); }
-  .times { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .times { display: flex; justify-content: space-between; font: var(--fs-xs) var(--body); color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .playback { display: flex; gap: 8px; margin: 12px 0 20px; } .playback button { min-height: 40px; flex: 1; justify-content: center; }
-  .queue-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-2); font-size: 12px; }
+  .queue-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-2); font-size: var(--fs-xs); }
   ol { padding: 0; margin: 8px 0 16px; list-style: none; } li { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
-  .position { width: 14px; flex: none; font: 11px var(--mono); color: var(--ink-3); } .track { min-width: 0; flex: 1; display: grid; gap: 3px; } .track > span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 11px; color: var(--ink-2); }
+  .position { width: 14px; flex: none; font: var(--fs-xs) var(--body); color: var(--ink-3); } .track { min-width: 0; flex: 1; display: grid; gap: 3px; } .track > span { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: var(--fs-xs); color: var(--ink-2); }
   .row-actions { display: flex; gap: 2px; } .row-actions button { display: grid; place-items: center; width: 26px; height: 32px; border-radius: var(--r); color: var(--ink-2); } button:disabled { opacity: .4; } .failed, .error { color: var(--danger); }
-  .empty { margin-bottom: 16px; } .listener { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; } summary { cursor: pointer; min-height: 28px; font-size: 12px; } .listener :global(.volume-control) { width: 100%; }
-  .duck { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 12px; color: var(--ink-2); } .duck input { accent-color: var(--lamp); } .error:empty { display: none; }
+  .empty { margin-bottom: 16px; } .listener { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; } summary { cursor: pointer; min-height: 28px; font-size: var(--fs-xs); } .listener :global(.volume-control) { width: 100%; }
+  .duck { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: var(--fs-xs); color: var(--ink-2); } .duck input { accent-color: var(--lamp); } .error:empty { display: none; }
   @media (hover: hover) { .row-actions button:hover { background: var(--bg-3); color: var(--ink); } }
 </style>

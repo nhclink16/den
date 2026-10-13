@@ -254,14 +254,14 @@
 <section class="view" aria-label={store.title(channel)}>
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind">{#if callCovers}<Icon name="headset" size={18} />{:else if isDm}<Icon name="lock" />{:else}<Icon name={channel.kind === 'voice' ? 'headset' : 'hash'} size={18} />{/if}</span>
     <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
     <span class="spacer"></span>
     {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
-    <form class="search" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
+    <form class="search input-shell" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
     {#if !narrow}
-      <button class="btn quiet iconbtn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
+      <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
   </header>
 
@@ -322,7 +322,7 @@
       <MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} />
 
       <div class="typing" aria-live="polite">
-        {#if listening}<span class="mono">listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
+        {#if listening}<span>listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
       </div>
 
       <Composer {channel} bind:replyTo bind:dropped bind:listening />
@@ -370,7 +370,7 @@
   /* Kept in the layout so its scroll, draft and uploads survive, but out of
      sight, out of the tab order and no longer being read. */
   .room.stowed { visibility: hidden; position: absolute; inset: 0; }
-  .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: 12px; }
+  .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
   .panel-missing { flex: 1; display: grid; place-content: center; gap: 10px; justify-items: center; padding: 24px; text-align: center; }
   .panel-missing .row { display: flex; gap: 8px; }
   .object-slot { display: contents; }
@@ -381,22 +381,23 @@
     border-bottom: 1px solid var(--line);
   }
   .kind { color: var(--ink-3); display: grid; }
-  h1 { font-size: 19px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
-  .iconbtn { padding: 6px; }
-  .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); color: var(--ink-3); background: var(--bg-2); }
-  .search:focus-within { border-color: var(--accent); color: var(--ink-2); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .search input { background: none; border: 0; outline: 0; width: 120px; font-size: 13px; color: var(--ink); transition: width 0.15s; }
+  /* The same search field as Settings and the Search page; app.css draws its focus ring. */
+  .search { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-3); }
+  /* The transparent border above outranks app.css's shared ring, so restate it. */
+  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .search input { background: none; border: 0; width: 120px; font-size: var(--fs-sm); color: var(--ink); transition: width 0.15s; }
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
   .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
   .voice-music { width: min(360px, calc(100% - 32px)); }
   .voice-music h2 { font-size: 22px; margin: 20px 0 4px; }
-  .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: 13px; }
-  .voice-music .jam-hint { margin: 14px 0 0; font-size: 12px; }
+  .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: var(--fs-sm); }
+  .voice-music .jam-hint { margin: 14px 0 0; font-size: var(--fs-xs); }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
-  .typing { height: 20px; padding: 0 var(--gutter); display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); }
+  .typing { height: 20px; padding: 0 var(--gutter); display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
   .typing b { font-weight: 700; color: var(--ink); }
   .dots { display: inline-flex; gap: 3px; margin-right: 4px; }
   .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--lamp); }

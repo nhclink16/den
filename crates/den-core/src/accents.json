@@ -1,0 +1,26 @@
+[
+  {
+    "id": "blue",
+    "name": "Blue",
+    "light": "#1d63d8",
+    "dark": "#5b9dff"
+  },
+  {
+    "id": "indigo",
+    "name": "Indigo",
+    "light": "#4f46e5",
+    "dark": "#8f8cf9"
+  },
+  {
+    "id": "green",
+    "name": "Green",
+    "light": "#137333",
+    "dark": "#3fcf7a"
+  },
+  {
+    "id": "graphite",
+    "name": "Graphite",
+    "light": "#3f3f46",
+    "dark": "#d4d4d8"
+  }
+]

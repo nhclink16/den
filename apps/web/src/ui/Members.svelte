@@ -20,7 +20,7 @@
 </script>
 
 <div class="roster">
-  <div class="head"><span class="eyebrow">People</span><span class="total mono">{members.length}</span></div>
+  <div class="head"><span class="eyebrow">People</span><span class="total">{members.length}</span></div>
   {#each call.origin === store.origin ? call.participants.filter(p => p.music) : [] as dj (dj.id)}
     <div class="member"><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div><details class="member-audio"><summary aria-label={`${dj.name} audio options`}><Icon name="sound" size={14} /><span>In call</span></summary><ParticipantVolume userId={dj.userId} name={dj.name} /></details></div>
   {/each}
@@ -32,8 +32,8 @@
       <span class="who">
         <span class="top">
           <span class="name">{u.display_name || u.username}</span>
-          {#if u.bot}<span class="tag lit"><Icon name="bot" size={11} />agent</span>{/if}
-          {#if u.role === 'admin'}<span class="tag">admin</span>{/if}
+          {#if u.bot}<span class="tag lit"><Icon name="bot" size={11} />Agent</span>{/if}
+          {#if u.role === 'admin'}<span class="tag">Admin</span>{/if}
         </span>
         {#if doing}<span class="doing" class:live={doing.kind === 'playing'}><Icon name={activityIcon[doing.kind]} size={11} /><span>{activityVerb(doing.kind)} <b>{doing.name}</b></span></span>{/if}
       </span>
@@ -59,7 +59,7 @@
 
 <style>
   .member-audio { margin: 0 10px 8px 48px; }
-  summary { display: flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; color: var(--ink-2); font-size: 11px; list-style: none; }
+  summary { display: flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; color: var(--ink-2); font-size: var(--fs-xs); list-style: none; }
   summary::-webkit-details-marker { display: none; }
   .member-audio :global(.volume-control) { width: 100%; padding-inline: 0; }
   .roster { padding: 0 8px 12px; }
@@ -68,7 +68,7 @@
     display: flex; align-items: center; justify-content: space-between; min-height: 52px;
     margin: 0 -8px 4px; padding: 0 18px; border-bottom: 1px solid var(--line);
   }
-  .total { font-size: 11px; color: var(--ink-2); padding: 1px 7px; border-radius: var(--r-pill, 999px); background: var(--bg-3); }
+  .total { font-size: var(--fs-xs); color: var(--ink-2); padding: 1px 7px; border-radius: var(--r-pill, 999px); background: var(--bg-3); }
   .group { display: flex; gap: 6px; margin: 14px 10px 6px; font-weight: 600; color: var(--ink-2); }
   .group span { color: var(--ink-3); }
   .person {
@@ -82,9 +82,9 @@
   .person.off:hover :global(.avatar) { opacity: 1; filter: none; }
   .who { flex: 1; min-width: 0; display: grid; }
   .top { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); }
   /* What they are up to, under the name. A game is live, so it is lit. */
-  .doing { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: var(--ink-2); }
+  .doing { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--fs-xs); color: var(--ink-2); }
   .doing > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .doing b { font-weight: 600; color: var(--ink); }
   .doing :global(svg) { flex: none; }
@@ -92,7 +92,7 @@
   .badge { color: var(--lamp); display: grid; }
   .tag {
     display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 1px 6px; border-radius: var(--r-pill, 999px);
-    font: 600 11px/1.45 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+    font: 600 var(--fs-xs)/1.45 var(--body);
     color: var(--ink-2); background: var(--bg-3);
   }
   .tag.lit { color: var(--lamp); background: var(--lamp-glow); }

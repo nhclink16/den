@@ -4,7 +4,9 @@
   import Icon from './Icon.svelte'
   import type { Dictation, DictationEvent } from '../lib/dictation'
   import type { DictationDraft } from '../lib/dictation-draft'
-  let { textarea, text, update, listening = $bindable(false), channelId }: { textarea: () => HTMLTextAreaElement; text: () => string; update: (value: string, caret: number) => void; listening?: boolean; channelId: string } = $props()
+  // `hidden` hides only the button: the dictation it started keeps running and
+  // its notices still show. `available` tells the composer whether to offer it.
+  let { textarea, text, update, listening = $bindable(false), available = $bindable(false), hidden = false, channelId }: { textarea: () => HTMLTextAreaElement; text: () => string; update: (value: string, caret: number) => void; listening?: boolean; available?: boolean; hidden?: boolean; channelId: string } = $props()
   let supported = $state(false), phase = $state('idle'), error = $state(''), progress = $state(0)
   let button = $state<HTMLButtonElement>(), dialog: HTMLDialogElement
   let engine: Dictation | undefined, draft: DictationDraft | undefined, lastApplied = ''
@@ -12,7 +14,8 @@
   let generation = 0, caret = 0
   const denied = 'Den needs the microphone for dictation. Allow it in Settings.'
   // A second capture could change a live call's input route. Hide during calls.
-  const available = $derived(supported && !call.channel && !call.joining)
+  const usable = $derived(supported && !call.channel && !call.joining)
+  $effect(() => { available = usable })
   function reset() { ++generation; engine?.dispose(); engine = undefined; phase = 'idle'; listening = false }
   function stop() {
     listening = false
@@ -20,7 +23,7 @@
     else { reset(); dialog?.close() }
   }
   $effect(() => { void channelId; return reset })
-  $effect(() => { if (!available && phase !== 'idle') reset() })
+  $effect(() => { if (!usable && phase !== 'idle') reset() })
   function receive(event: DictationEvent) {
     if (event.type === 'loading') { phase = 'loading'; progress = Math.round(event.progress || 0) }
     if (event.type === 'listening') {
@@ -41,7 +44,7 @@
     engine = new modules![0].Dictation(event => { if (generation === current) receive(event) })
     await engine.start(call.prefs.microphone)
   }
-  async function toggle() {
+  export async function toggle() {
     if (phase !== 'idle') { stop(); return }
     if (error === denied) {
       const permission = await navigator.permissions?.query({ name: 'microphone' as PermissionName }).catch(() => null)
@@ -63,16 +66,16 @@
     const key = (event: KeyboardEvent) => {
       if (phase !== 'idle' && phase !== 'prompt' && ['Escape', 'Enter'].includes(event.key)) { event.preventDefault(); event.stopImmediatePropagation(); stop() }
     }
-    const hidden = () => { if (document.hidden && phase !== 'idle') stop() }
-    document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', key, true); document.addEventListener('visibilitychange', hidden)
-    return () => { reset(); document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', key, true); document.removeEventListener('visibilitychange', hidden) }
+    const backgrounded = () => { if (document.hidden && phase !== 'idle') stop() }
+    document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', key, true); document.addEventListener('visibilitychange', backgrounded)
+    return () => { reset(); document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', key, true); document.removeEventListener('visibilitychange', backgrounded) }
   })
 </script>
 
-{#if available}
-  <button bind:this={button} class="dictate" class:listening class:working={phase !== 'idle'} title={error === denied ? denied : phase === 'idle' ? 'Dictate' : 'Stop dictating'} aria-label={phase === 'idle' ? 'Dictate' : 'Stop dictating'} aria-pressed={listening} onclick={toggle}><Icon name="mic" size={18} /></button>
+{#if usable}
+  <button bind:this={button} class="dictate icon-btn" class:hidden class:listening class:working={phase !== 'idle'} title={error === denied ? denied : phase === 'idle' ? 'Dictate' : 'Stop dictating'} aria-label={phase === 'idle' ? 'Dictate' : 'Stop dictating'} aria-pressed={listening} onclick={toggle}><Icon name="mic" size={18} /></button>
 {/if}
-{#if phase === 'loading'}<span class="notice mono" role="status">Preparing dictation{progress ? ` · ${progress}%` : ''}</span>{/if}
+{#if phase === 'loading'}<span class="notice" role="status">Preparing dictation{progress ? ` · ${progress}%` : ''}</span>{/if}
 {#if error}<span class="notice error" role="alert">{error}</span>{/if}
 <dialog aria-label="Download voice model" bind:this={dialog} oncancel={() => reset()} onclose={() => { if (phase === 'prompt') reset() }}>
   <p>Dictation runs on this device. Download the voice model (40 MB) once?</p>
@@ -80,8 +83,8 @@
 </dialog>
 
 <style>
-  .dictate { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-3); flex: none; position: relative; }
-  @media (hover: hover) { .dictate:hover { color: var(--ink); background: var(--bg-2); } }
+  .dictate { position: relative; color: var(--ink-3); }
+  .dictate.hidden { display: none; }
   .dictate.listening { color: var(--lamp); background: var(--lamp-glow); }
   .dictate.listening::after { content: ''; position: absolute; inset: 0; border: 1px solid var(--lamp); border-radius: inherit; pointer-events: none; }
   @media (prefers-reduced-motion: no-preference) {

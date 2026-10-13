@@ -62,5 +62,5 @@
 
 <style>
   .files { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
-  .small { font-size: 13px; }
+  .small { font-size: var(--fs-sm); }
 </style>

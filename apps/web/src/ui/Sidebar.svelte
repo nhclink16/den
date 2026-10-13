@@ -64,7 +64,7 @@
             {/if}
             {#if jam}<span class="jam-line" data-testid="sidebar-jam" title={jam}><span aria-hidden="true">🎧</span> {jam}</span>{/if}
           </span>
-          {#if call.joining === c.id}<span class="faint mono">…</span>{/if}
+          {#if call.joining === c.id}<span class="faint">…</span>{/if}
         </button>
       {:else}
       <a href="/c/{c.id}" class="row" data-hover-animates class:active={active(c.id)} aria-current={active(c.id) ? 'page' : undefined} class:lit={u.count > 0} onclick={go(`/c/${c.id}`)}>
@@ -100,7 +100,7 @@
         <a href="/server/{sv.slug}" class="row server" class:active={serverActive(sv.slug)} aria-current={serverActive(sv.slug) ? 'page' : undefined} aria-label={label} title={label} onclick={go(`/server/${sv.slug}`)} data-testid="sidebar-server">
           <span class="glyph" aria-hidden="true">{gameGlyph(sv.game)}</span>
           <span class="name">{gameLabel(sv)}</span>
-          {#if sv.connected && sv.state === 'up' && sv.players.length}<span class="players mono" aria-hidden="true">{sv.players.length}</span>{/if}
+          {#if sv.connected && sv.state === 'up' && sv.players.length}<span class="players" aria-hidden="true">{sv.players.length}</span>{/if}
           <span class="sdot {dotTone(sv)}" aria-hidden="true"></span>
         </a>
       {/each}
@@ -112,7 +112,7 @@
     {/if}
   </div>
 
-  {#if desktop.updateReady}<button class="btn quiet mono" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
+  {#if desktop.updateReady}<button class="btn quiet" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
   <CallDock />
   <div class="me">
     {#if store.me}
@@ -144,13 +144,13 @@
   .offline {
     margin: 0 10px 6px; padding: 7px 10px; border-radius: var(--r);
     background: color-mix(in srgb, var(--danger) 16%, transparent);
-    color: var(--ink); font-size: 12.5px; line-height: 1.35;
+    color: var(--ink); font-size: var(--fs-xs); line-height: 1.35;
   }
   .scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
   .cat { padding: 16px 10px 5px; user-select: none; }
   .row {
     position: relative; display: flex; align-items: center; gap: 8px; padding: calc(6px * var(--density)) 10px; margin: 1px 0;
-    border-radius: var(--r); color: var(--ink-2); font-size: 14.5px;
+    border-radius: var(--r); color: var(--ink-2); font-size: var(--fs-body);
     transition: background-color var(--t-fast), color var(--t-fast);
   }
   .row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); text-decoration: none; }
@@ -175,10 +175,10 @@
   .avatars { display: flex; padding-left: 6px; padding-bottom: 2px; align-items: center; }
   .avatars > span { margin-left: -6px; display: flex; border-radius: var(--avatar-r, 35%); box-shadow: 0 0 0 2px var(--bg-2); }
   .voice:has(.avatars) > :global(svg) { color: var(--lamp); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lamp) 60%, transparent)); }
-  .jam-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--lamp); }
-  .avatars small { margin-left: 6px; font: 11px var(--mono); color: var(--ink-2); }
-  .glyph { width: 16px; text-align: center; font-size: 13px; line-height: 1; flex: none; }
-  .players { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .jam-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); color: var(--lamp); }
+  .avatars small { margin-left: 6px; font: var(--fs-xs) var(--body); color: var(--ink-2); }
+  .glyph { width: 16px; text-align: center; font-size: var(--fs-sm); line-height: 1; flex: none; }
+  .players { font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
   /* Up glows, asleep dims to a ring, down is red; starting and stopping sit between. */
   .sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-right: 2px; }
   .sdot.up { background: var(--moss); box-shadow: 0 0 7px color-mix(in srgb, var(--moss) 75%, transparent); }
@@ -186,9 +186,8 @@
   .sdot.asleep { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
   .sdot.down { background: var(--danger); }
   .inbox { margin: 4px 8px 0; }
-  .uploading { font: 16px var(--mono); color: var(--lamp); }
-  .count {
-    font-family: var(--mono); font-size: 11px; font-weight: 500; line-height: 1;
+  .uploading { font: 16px var(--body); color: var(--lamp); }
+  .count { font-size: var(--fs-xs); font-weight: 500; line-height: 1;
     min-width: 20px; text-align: center; font-variant-numeric: tabular-nums;
     padding: 3px 6px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--bg);
     box-shadow: 0 0 10px color-mix(in srgb, var(--lamp) 40%, transparent);

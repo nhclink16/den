@@ -178,8 +178,8 @@
   }}
 >
   <header class="head" bind:this={head} tabindex="-1">
-    <button class="btn quiet iconbtn" onclick={onclose} aria-label={narrow ? 'Back to room' : 'Close conversation'}>
-      {#if narrow}<span>Back to room</span>{:else}<Icon name="x" size={16} />{/if}
+    <button class={narrow ? 'btn quiet' : 'icon-btn'} onclick={onclose} aria-label={narrow ? 'Back to room' : 'Close conversation'}>
+      {#if narrow}Back to room{:else}<Icon name="x" size={16} />{/if}
     </button>
     {#if renaming}
       <input
@@ -189,7 +189,7 @@
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
       <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
-      {#if resolved}<span class="tag mono">Resolved</span>{/if}
+      {#if resolved}<span class="tag">Resolved</span>{/if}
     {/if}
     <span class="spacer"></span>
     {#if live && !renaming}
@@ -284,12 +284,11 @@
   .head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   h2 { font-size: 16px; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
-  .iconbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px; }
-  .tag { font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); padding: 1px 7px; }
+  .tag { font-size: var(--fs-xs); color: var(--ink-3); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); padding: 1px 7px; }
   .rename { flex: 1; min-width: 0; }
-  .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: 13px; }
+  .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
   .root { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-  .empty { flex: 1; display: grid; place-items: center; padding: 24px; text-align: center; font-size: 13px; }
-  .typing { height: 18px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
-  .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: 12px; }
+  .empty { flex: 1; display: grid; place-items: center; padding: 24px; text-align: center; font-size: var(--fs-sm); }
+  .typing { height: 18px; padding: 0 20px; font-size: var(--fs-xs); color: var(--ink-3); }
+  .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
 </style>

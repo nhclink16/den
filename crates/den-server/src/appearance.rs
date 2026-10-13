@@ -7,7 +7,12 @@ pub(crate) async fn load(s: &AppState, user: &str) -> Result<Appearance> {
             .fetch_optional(&s.db)
             .await?;
     match value {
-        Some(v) => serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance")),
+        Some(v) => {
+            let mut value: Appearance =
+                serde_json::from_str(&v).map_err(|_| Error::bad("Invalid stored appearance"))?;
+            value.rename_clashing_themes();
+            Ok(value)
+        }
         None => Ok(Appearance::default()),
     }
 }
@@ -49,8 +54,16 @@ pub(crate) async fn put_appearance(
     let _guard = s.writes.lock().await;
     // Clients that predate the sidebar wallpaper send the whole object without it.
     // Absent means "leave it"; only an explicit null clears it.
-    if raw.get("sidebar_background").is_none() {
-        v.sidebar_background = load(&s, &a.user.id).await?.sidebar_background;
+    // The accent came later still, and the native iOS app drops fields it
+    // does not know when it saves.
+    if raw.get("sidebar_background").is_none() || raw.get("accent").is_none() {
+        let stored = load(&s, &a.user.id).await?;
+        if raw.get("sidebar_background").is_none() {
+            v.sidebar_background = stored.sidebar_background;
+        }
+        if raw.get("accent").is_none() {
+            v.accent = stored.accent;
+        }
     }
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;
     save(&s, &a.user.id, &v).await?;

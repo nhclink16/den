@@ -198,7 +198,7 @@
           {#snippet control()}
             <div class="counted">
               <textarea class="field" rows="3" bind:value={bio} placeholder="Builds redstone that mostly works."></textarea>
-              <span class="count mono" class:over={[...bio].length > BIO_MAX}>{[...bio].length}/{BIO_MAX}</span>
+              <span class="count" class:over={[...bio].length > BIO_MAX}>{[...bio].length}/{BIO_MAX}</span>
             </div>
           {/snippet}
         </SettingRow>
@@ -311,10 +311,10 @@
   .counted { position: relative; width: 100%; }
   .counted textarea { width: 100%; }
   .counted textarea { resize: vertical; min-height: 72px; padding-bottom: 22px; }
-  .count { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: var(--ink-3); }
+  .count { position: absolute; right: 10px; bottom: 8px; font-size: var(--fs-xs); color: var(--ink-3); }
   .count.over { color: var(--danger); }
   .swatch { width: 44px; height: 36px; padding: 2px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); cursor: pointer; }
-  .small { font-size: 13px; }
+  .small { font-size: var(--fs-sm); }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
   .emoji-pick { position: relative; display: grid; }
   .emoji { display: grid; place-items: center; width: 64px; height: 100%; font-size: 24px; line-height: 1; }
@@ -333,7 +333,7 @@
     /* Covers the pane's bottom padding too, or text scrolls by underneath it. */
     bottom: calc(-1 * var(--pane-end, 0px)); padding-bottom: calc(4px + var(--pane-end, 0px)); margin-bottom: calc(-1 * var(--pane-end, 0px));
   }
-  .note { margin: 0; font-size: 13px; color: var(--ink-2); flex-basis: 100%; min-height: 1.4em; }
+  .note { margin: 0; font-size: var(--fs-sm); color: var(--ink-2); flex-basis: 100%; min-height: 1.4em; }
   .note.error { color: var(--danger); }
 
   /* Framing a picture: a square frame with a round guide, since most avatars are cut round-ish. */
@@ -343,12 +343,12 @@
   .frame img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
   .mask { position: absolute; inset: 0; border-radius: var(--avatar-r, 35%); box-shadow: 0 0 0 999px color-mix(in srgb, #000 62%, transparent); outline: 2px solid color-mix(in srgb, #fff 70%, transparent); pointer-events: none; }
   .crop-controls { flex: 1; min-width: 200px; display: grid; gap: 12px; }
-  .crop-controls p { margin: 0; font-size: 13px; }
-  .zoom { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+  .crop-controls p { margin: 0; font-size: var(--fs-sm); }
+  .zoom { display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--ink-2); }
   .zoom input { accent-color: var(--lamp); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
   .switch input { width: 18px; height: 18px; accent-color: var(--lamp); }
-  .now { font-size: 14px; } .now b { font-weight: 700; } .now.off { color: var(--ink-3); text-decoration: line-through; }
+  .now { font-size: var(--fs-sm); } .now b { font-weight: 700; } .now.off { color: var(--ink-3); text-decoration: line-through; }
   .apps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; width: 100%; }
   .apps li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
   .apps .off { color: var(--ink-3); text-decoration: line-through; }

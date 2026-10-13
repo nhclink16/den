@@ -76,7 +76,7 @@
   <a class="file" href={url} download={upload.filename}>
     <Icon name="file" size={20} />
     <span class="fname">{upload.filename}</span>
-    <span class="faint mono">{bytes(upload.size)}</span>
+    <span class="faint">{bytes(upload.size)}</span>
   </a>
 {/if}
 
@@ -108,10 +108,10 @@
     /* Clear the notch, and the desktop app's native window controls (--wco-*). */
     padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right), var(--wco-right, 0px)) 8px max(16px, env(safe-area-inset-left), calc(var(--wco-left, 0px) + 16px));
   }
-  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: rgb(255 255 255 / .75); }
+  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); color: rgb(255 255 255 / .75); }
   .act {
     display: inline-flex; align-items: center; gap: 6px; min-block-size: 44px; min-inline-size: 44px; justify-content: center; padding: 0 12px;
-    border-radius: var(--r); color: #fff; font-size: 14px; white-space: nowrap;
+    border-radius: var(--r); color: #fff; font-size: var(--fs-sm); white-space: nowrap;
   }
   .act:hover { text-decoration: none; }
   @media (hover: hover) { .act:hover { background: rgb(255 255 255 / .12); } }

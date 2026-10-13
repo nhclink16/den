@@ -30,5 +30,5 @@
 </div>
 <style>
   .request-card { width: 320px; max-width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); margin: 6px 0; }
-  p { font-size: 14px; margin: 0 0 8px; } .detail { color: var(--ink-2); font-size: 12px; } .buttons { display: flex; gap: 8px; margin-top: 14px; } .decision { font: 11px var(--mono); margin-top: 12px; color: var(--ink-2); } .badge { font: 9px var(--mono); border: 1px solid var(--line); border-radius: 3px; padding: 1px 3px; }
+  p { margin: 0 0 8px; } .detail { color: var(--ink-2); font-size: var(--fs-xs); } .buttons { display: flex; gap: 8px; margin-top: 14px; } .decision { font: var(--fs-xs) var(--body); margin-top: 12px; color: var(--ink-2); } .badge { font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 3px; padding: 1px 3px; }
 </style>

@@ -14,8 +14,8 @@ try{
  for(const radius of ['sharp','round']){
   await page.evaluate(async radius=>{const {themes}=await import('/src/lib/theme.svelte.ts');themes.preview({...JSON.parse(JSON.stringify(themes.active)),radius});(await import('/src/lib/call.svelte.ts')).call.expanded=false},radius)
   await page.locator('.composer textarea').fill('/');await page.waitForTimeout(200)
-  metrics[radius]=await page.locator('.controls button,.attach,.sendbtn,.dictate').evaluateAll(es=>es.map(e=>({label:e.getAttribute('aria-label'),radius:getComputedStyle(e).borderRadius})))
-  if(!before)assert(metrics[radius].every(v=>v.radius===(radius==='sharp'?'2px':'10px')))
+  metrics[radius]=await page.locator('.controls button,.attach,.sendbtn,.dictate').evaluateAll(es=>es.map(e=>({label:e.getAttribute('aria-label'),cls:e.className,radius:getComputedStyle(e).borderRadius})))
+  if(!before)assert(metrics[radius].every(v=>v.radius===(radius==='sharp'?'2px':/attach|sendbtn|dictate/.test(v.cls)?'999px':'10px')))
   await page.screenshot({path:`${shots}corners-${radius}-${phase}.png`})
   await page.evaluate(async()=>(await import('/src/lib/call.svelte.ts')).call.expanded=true);await page.waitForTimeout(200)
   await page.screenshot({path:`${shots}corners-${radius}-expanded-${phase}.png`})

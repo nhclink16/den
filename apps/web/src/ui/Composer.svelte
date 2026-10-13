@@ -26,6 +26,7 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
+  import { disclosurePopover } from '../lib/disclosure-popover'
 
   // `conversation` defaults to the room, so every existing caller keeps its
   // current behaviour untouched while a thread composer can pass its own root.
@@ -143,8 +144,36 @@
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
 
-  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Say something in #${channel.name}`)
+  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message #${channel.name}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
+  const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
+
+  // A phone gets the Quiet box: a round + holds files, GIFs, emoji and dictation,
+  // so the text gets the width, and the mic turns into Send once there is something
+  // to send. Wider screens keep every button in the box.
+  const narrow = matchMedia('(max-width: 600px)')
+  let phone = $state(narrow.matches)
+  $effect(() => {
+    const change = () => (phone = narrow.matches)
+    narrow.addEventListener('change', change)
+    return () => narrow.removeEventListener('change', change)
+  })
+  let menu = $state(false), gifOpen = $state(false), emojiOpen = $state(false)
+  let canDictate = $state(false)
+  let dictation = $state<ReturnType<typeof DictationButton>>()
+  // The mic stays while it is listening, so it can always be stopped.
+  const showMic = $derived(canDictate && (!phone || !sendable || listening))
+  const showSend = $derived(!phone || !showMic)
+  function fromMenu(run: () => void) { menu = false; run() }
+  // A picker opened from the menu hands focus back to its own button when it
+  // closes, and that button is hidden here: give it to the + instead.
+  let plus = $state<HTMLElement>(), pickerWasOpen = false
+  $effect(() => {
+    const open = gifOpen || emojiOpen
+    if (open || !pickerWasOpen) { pickerWasOpen = open; return }
+    pickerWasOpen = false
+    requestAnimationFrame(() => { const at = document.activeElement as HTMLElement | null; if (phone && (!at || at === document.body || !at.checkVisibility())) plus?.focus() })
+  })
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
   $effect(() => { if (replyTo) ta?.focus() })
@@ -195,18 +224,7 @@
   // A send can finish after navigation or call expansion removes this composer.
   // A destroyed one must not measure a detached box or announce typing to
   // whichever instance is active by then.
-  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; restack(); if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
-
-  // On a phone the buttons beside a long message left it half the width. Once the
-  // text wraps they move to a row underneath, and stay there until the box is
-  // empty: moving back as soon as it fits again would make the layout flicker.
-  let stacked = $state(false)
-  function restack() {
-    if (!text || !matchMedia('(max-width: 600px)').matches) { stacked = false; return }
-    const cs = getComputedStyle(ta)
-    const oneLine = parseFloat(cs.lineHeight) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
-    if (ta.scrollHeight > oneLine * 1.5) stacked = true
-  }
+  function grow() { if (!alive || !ta) return; dismissed = false; selected = 0; track(); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; if (text.trim()) store.sendTyping(channel.id, threadId, unsaved) }
 
   // An emoji goes where the cursor was (the box keeps its selection while the
   // picker has focus). A phone gets the keyboard back only when it taps the box.
@@ -354,21 +372,40 @@
         <div class="chip" class:err={!!p.error} class:done={!!p.done}>
           {#if p.file.type.startsWith('image/')}<img class="thumb" alt="" use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
           <span class="fname">{p.file.name}</span>
-          <span class="faint mono">{p.error || (p.done ? bytes(p.file.size) : `${pct}%`)}</span>
+          <span class="faint">{p.error || (p.done ? bytes(p.file.size) : `${pct}%`)}</span>
           <button class="x" onclick={() => removePending(p)} aria-label="Remove"><Icon name="x" size={13} /></button>
         </div>
       {/each}
     </div>
   {/if}
 
-  <div class="box" class:uploading class:stacked>
-    <button class="attach" title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
-    <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
-    <GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked}><span class="gifbtn"><span class="badge">GIF</span></span></GifPicker>
-    <EmojiPicker label="Add an emoji" onpick={insertEmoji}><span class="gifbtn"><Icon name="smile" size={18} /></span></EmojiPicker>
-    <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
-    <DictationButton channelId={channel.id} textarea={() => ta} text={() => text} bind:listening update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
-    <button class="sendbtn" class:ready={!locked && (text.trim() || pending.some((p) => p.done))} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="send" size={16} /></button>
+  <div class="row">
+    {#if phone}
+      <details class="more" bind:open={menu}>
+        <summary bind:this={plus} class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
+        <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
+          {#if menu}
+            <div class="menu" role="menu" aria-label="Add to your message">
+              <button role="menuitem" onclick={() => fromMenu(() => fileInput.click())}><Icon name="image" size={20} />Photo or file</button>
+              <button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => (gifOpen = true))}><span class="badge">GIF</span>GIF</button>
+              <button role="menuitem" onclick={() => fromMenu(() => (emojiOpen = true))}><Icon name="smile" size={20} />Emoji</button>
+              {#if canDictate}<button role="menuitem" onclick={() => fromMenu(() => void dictation?.toggle())}><Icon name="mic" size={20} />Dictate</button>{/if}
+            </div>
+          {/if}
+        </div>
+      </details>
+    {/if}
+    <div class="box" class:uploading>
+      <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
+      <!-- On a phone these three live in the + menu. The pickers stay mounted, with
+           their own buttons hidden, so the menu can open them. -->
+      <button class="attach icon-btn" class:hidden={phone} title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
+      <span class="picker" class:tucked={phone}><GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked} bind:open={gifOpen}><span class="icon-btn"><span class="badge">GIF</span></span></GifPicker></span>
+      <span class="picker" class:tucked={phone}><EmojiPicker label="Add an emoji" onpick={insertEmoji} bind:open={emojiOpen}><span class="icon-btn"><Icon name="smile" size={18} /></span></EmojiPicker></span>
+      <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
+      <DictationButton bind:this={dictation} channelId={channel.id} textarea={() => ta} text={() => text} bind:listening bind:available={canDictate} hidden={!showMic} update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
+      {#if showSend}<button class="sendbtn icon-btn" class:ready={sendable} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="up" size={18} /></button>{/if}
+    </div>
   </div>
 </div>
 
@@ -384,31 +421,46 @@
   .people b { font-weight: 600; }
   .handle { color: var(--ink-3); font-size: 13px; }
   .composer { position: relative; padding: 0 var(--gutter) 14px; }
+  .row { display: flex; align-items: flex-end; gap: var(--s2); }
+  /* A pill while it is one line, a rounded card once it grows. Sharp corners stay sharp. */
   .box {
-    display: flex; align-items: flex-end; gap: 6px; padding: calc(6px * var(--density)) calc(6px * var(--density)) calc(6px * var(--density)) calc(8px * var(--density));
-    background: var(--bg-3); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
-    box-shadow: var(--lift);
+    flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; padding: 3px;
+    background: var(--bg); border: 1px solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + 4px));
     transition: border-color var(--t), box-shadow var(--t);
   }
-  .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow), var(--lift); }
-  .box.stacked { flex-wrap: wrap; row-gap: 0; }
-  .box.stacked textarea { order: -1; flex-basis: 100%; }
-  .box.stacked .sendbtn { margin-inline-start: auto; }
+  .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   textarea {
-    flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0; padding: calc(8px * var(--density)) 4px;
+    flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0;
+    padding: calc((var(--hit) - 1.4em) / 2) var(--s2) calc((var(--hit) - 1.4em) / 2) var(--s3);
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
   /* A long room name must not wrap the placeholder onto a hidden second line. */
   textarea::placeholder { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .attach, .sendbtn { display: grid; padding: 9px; border-radius: var(--r); color: var(--ink-2); flex: none; transition: color var(--t-fast), background-color var(--t-fast), box-shadow var(--t), transform var(--t) var(--ease-out); }
-  .attach:hover, .gifbtn:hover { color: var(--ink); background: var(--bg-2); }
-  .gifbtn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r); color: inherit; transition: color var(--t-fast), background-color var(--t-fast); }
+  .picker { display: contents; }
+  .hidden { display: none; }
+  /* Only the picker's own button goes: a popover inside a hidden box can't show. */
+  .tucked :global(summary) { display: none; }
   .badge { font: 800 9.5px/1 var(--body); letter-spacing: .04em; padding: 3px 3.5px 2.5px; border: 1.5px solid currentColor; border-radius: 4px; }
-  /* The send button lights once there is something to send. */
-  .sendbtn.ready { color: var(--bg); background: var(--lamp); box-shadow: var(--glow); }
-  .sendbtn.ready:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  /* Send: quiet until there is something to send, then a lit circle. */
+  .sendbtn { color: var(--ink-3); transition: color var(--t-fast), background-color var(--t-fast), transform var(--t) var(--ease-out); }
+  .sendbtn.ready { color: var(--on-lamp); background: var(--lamp); }
+  @media (hover: hover) { .sendbtn.ready:hover { color: var(--on-lamp); background: var(--lamp); filter: brightness(1.06); } }
   .sendbtn.ready:active { transform: scale(.94); }
-  .sendbtn:disabled { opacity: 0.4; }
+  .sendbtn:disabled { opacity: .4; }
+  .plus { background: var(--bg-3); color: var(--ink-2); list-style: none; cursor: pointer; }
+  .plus::-webkit-details-marker { display: none; }
+  .more[open] > .plus { color: var(--lamp); }
+  .more { display: flex; }
+  .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  .menu { display: grid; padding: var(--s3) var(--s3) var(--s4); gap: 0; }
+  .menu button { display: flex; align-items: center; gap: var(--s3); min-height: 52px; padding: 0 var(--s4); background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }
+  .menu button:first-child { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .menu button:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); border-bottom: 0; }
+  .menu button:only-child { border-radius: var(--r-lg); }
+  .menu button:active { background: var(--press); }
+  .menu button:disabled { opacity: .5; }
+  .menu :global(svg), .menu .badge { color: var(--lamp); flex: none; }
+  .menu .badge { width: 20px; text-align: center; padding: 3px 0 2.5px; }
   .reply-bar, .pending {
     display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0 8px;
     background: var(--bg-2); border: 1px solid var(--line); border-bottom: 0;
@@ -416,7 +468,8 @@
   }
   .pending { flex-wrap: wrap; gap: 6px; }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .x { display: grid; padding: 3px; border-radius: var(--r); color: var(--ink-3); }
+  .x { display: grid; place-items: center; min-width: 24px; min-height: 24px; border-radius: var(--r-pill); color: var(--ink-3); }
+  @media (pointer: coarse) { .x { min-width: 36px; min-height: 36px; margin: -6px; } }
   .x:hover { color: var(--ink); background: var(--bg-3); }
   .chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px 5px 6px;

@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  let { action, sentence, confirm, disabled = false }: { action: string; sentence: string; confirm: () => Promise<void>; disabled?: boolean } = $props()
+  // `open` starts armed, for a confirmation another control has already asked for;
+  // `oncancel` lets that control take it away again.
+  let { action, sentence, confirm, disabled = false, open = false, oncancel }: { action: string; sentence: string; confirm: () => Promise<void>; disabled?: boolean; open?: boolean; oncancel?: () => void } = $props()
   let armed = $state(false), pending = $state(false)
   let group: HTMLDivElement, trigger: HTMLButtonElement
   let keep = $state<HTMLButtonElement>()
   let timer: ReturnType<typeof setTimeout> | undefined
-  function cancel() { clearTimeout(timer); armed = false }
+  function cancel() { clearTimeout(timer); armed = false; oncancel?.() }
   async function arm() {
     armed = true; clearTimeout(timer); timer = setTimeout(cancel, 8000)
     await tick(); keep?.focus({ preventScroll: true })
@@ -18,6 +20,8 @@
   }
   function blur(event: FocusEvent) { if (!group.contains(event.relatedTarget as Node | null)) cancel() }
   onMount(() => {
+    // Opened by another control, it may land below the fold: bring it into view.
+    if (open) void arm().then(() => group.scrollIntoView({ block: 'nearest' }))
     const outside = (event: PointerEvent) => { if (armed && !group.contains(event.target as Node)) cancel() }
     document.addEventListener('pointerdown', outside, true)
     return () => { clearTimeout(timer); document.removeEventListener('pointerdown', outside, true) }
@@ -33,6 +37,6 @@
 <style>
   .confirmation { flex: none; }
   .confirmation.armed { flex: 0 1 360px; display: grid; gap: 6px; }
-  .sentence { font-size: 13px; line-height: 1.4; }
+  .sentence { font-size: var(--fs-sm); line-height: 1.4; }
   .actions { display: flex; gap: 6px; justify-content: flex-end; }
 </style>

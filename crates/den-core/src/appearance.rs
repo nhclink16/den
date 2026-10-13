@@ -83,19 +83,38 @@ pub struct Appearance {
     #[schema(minimum = 80, maximum = 120, default = 100)]
     pub contrast: u8,
     pub custom_themes: Vec<Theme>,
+    /// The accent colour across every theme: a preset id from `accents.json`
+    /// (`blue`, `indigo`, `green`, `graphite`) or a custom `#rrggbb`. Null uses
+    /// each theme's own accent. Like `sidebar_background`, a client that omits
+    /// the field on save keeps the stored one.
+    #[serde(default)]
+    pub accent: Option<String>,
 }
 impl Default for Appearance {
     fn default() -> Self {
         Self {
             mode: AppearanceMode::System,
-            light_theme: "den".into(),
-            dark_theme: "den".into(),
+            light_theme: DEFAULT_THEME.into(),
+            dark_theme: DEFAULT_THEME.into(),
             background: None,
             sidebar_background: None,
             contrast: 100,
             custom_themes: vec![],
+            accent: None,
         }
     }
+}
+/// The family for anyone who has never saved an appearance.
+pub const DEFAULT_THEME: &str = "neutral";
+#[derive(Debug, Clone, Deserialize)]
+pub struct AccentPreset {
+    pub id: String,
+    pub name: String,
+    pub light: String,
+    pub dark: String,
+}
+pub fn accent_presets() -> Vec<AccentPreset> {
+    serde_json::from_str(include_str!("accents.json")).expect("validated accent presets")
 }
 pub fn builtin_themes() -> Vec<Theme> {
     serde_json::from_str(include_str!("themes.json")).expect("validated built-in themes")
@@ -126,11 +145,8 @@ impl Theme {
                 &c.danger,
             ]
             .into_iter()
-            .any(|v| {
-                v.len() != 7
-                    || !v.starts_with('#')
-                    || !v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
-            }) {
+            .any(|v| !is_hex(v))
+            {
                 return Err("Colors must be six-digit hex values");
             }
         }
@@ -138,6 +154,33 @@ impl Theme {
     }
 }
 impl Appearance {
+    /// A built-in added later can take an ID a custom theme already had. The
+    /// custom theme keeps its look under a new ID, and a choice that named it
+    /// follows it: before the built-in existed, the ID could only mean that one.
+    pub fn rename_clashing_themes(&mut self) {
+        let builtins = builtin_themes();
+        for i in 0..self.custom_themes.len() {
+            let old = self.custom_themes[i].id.clone();
+            if !builtins.iter().any(|b| b.id == old) {
+                continue;
+            }
+            let free = |id: &str| {
+                !builtins.iter().any(|b| b.id == id)
+                    && !self.custom_themes.iter().any(|c| c.id == id)
+            };
+            let new = (1..)
+                .map(|n| format!("{old} {n}"))
+                .find(|id| free(id))
+                .expect("some ID is free");
+            if self.light_theme == old {
+                self.light_theme = new.clone();
+            }
+            if self.dark_theme == old {
+                self.dark_theme = new.clone();
+            }
+            self.custom_themes[i].id = new;
+        }
+    }
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.custom_themes.len() > 12
             || serde_json::to_vec(&self.custom_themes)
@@ -161,8 +204,17 @@ impl Appearance {
         {
             return Err("Select an existing theme family");
         }
+        if let Some(accent) = &self.accent {
+            if !is_hex(accent) && !accent_presets().iter().any(|p| &p.id == accent) {
+                return Err("Accent must be a preset or a six-digit hex color");
+            }
+        }
         Ok(())
     }
+}
+
+fn is_hex(v: &str) -> bool {
+    v.len() == 7 && v.starts_with('#') && v.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
 }
 
 fn default_contrast() -> u8 {

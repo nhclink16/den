@@ -65,7 +65,7 @@
 <section class="page">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="crumb eyebrow">Servers</span>
     <span class="faint" aria-hidden="true">›</span>
     <h1 class="display">{server ? gameLabel(server) : slug}</h1>
@@ -98,7 +98,7 @@
             {#if server.details.length}<p class="facts muted">{server.details.join(' · ')}</p>{/if}
             {#if server.address}
               <p class="address">
-                <code class="mono">{server.address}</code>
+                <code>{server.address}</code>
                 <button class="btn quiet small" onclick={copy} aria-live="polite"><Icon name={copied ? 'check' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}</button>
               </p>
             {/if}
@@ -124,7 +124,7 @@
         {#if server.stats.length}
           <dl class="stats">
             {#each server.stats as s (s.key)}
-              <div class="stat" class:warn={lagging(s)}><dt class="eyebrow">{s.label}</dt><dd class="mono">{formatStat(s)}</dd></div>
+              <div class="stat" class:warn={lagging(s)}><dt class="eyebrow">{s.label}</dt><dd>{formatStat(s)}</dd></div>
             {/each}
           </dl>
         {/if}
@@ -138,7 +138,7 @@
                   <li>
                     {#if p.user_id}<Avatar userId={p.user_id} size={28} presence={false} />{:else}<span class="initial" aria-hidden="true">{p.name[0]?.toUpperCase()}</span>{/if}
                     <span class="pname">{who(p) ?? p.name}</span>
-                    {#if who(p)}<span class="faint mono">{p.name}</span>{/if}
+                    {#if who(p)}<span class="faint handle">{p.name}</span>{/if}
                   </li>
                 {/each}
               </ul>
@@ -167,8 +167,8 @@
                         {who(p) ?? p.name}
                       </span>
                     </th>
-                    <td class="num mono">{playtime(p.week_seconds ?? 0)}</td>
-                    <td class="num mono">{p.total_seconds != null ? playtime(p.total_seconds) : '—'}</td>
+                    <td class="num">{playtime(p.week_seconds ?? 0)}</td>
+                    <td class="num">{p.total_seconds != null ? playtime(p.total_seconds) : '—'}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -184,9 +184,8 @@
 <style>
   .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
-  h1 { font-size: 19px; margin: 0; font-weight: 600; }
+  h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .crumb { margin-top: 2px; }
-  .iconbtn { padding: 6px; }
   .scroll { flex: 1; overflow-y: auto; padding: 20px var(--gutter) 32px; }
   .body { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
@@ -202,10 +201,10 @@
   .who { min-width: 0; display: grid; gap: 4px; }
   .name { margin: 0; font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
   .state, .facts, .address { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .facts { font-size: 13.5px; }
+  .facts { font-size: var(--fs-sm); }
   .lag { color: var(--lamp); font-weight: 700; }
-  .address code { padding: 3px 8px; border-radius: var(--r); background: var(--bg-3); font-size: 13px; overflow-wrap: anywhere; }
-  .small { padding: 3px 8px; font-size: 13px; }
+  .address code { padding: 3px 8px; border-radius: var(--r); background: var(--bg-3); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+  .small { padding: 3px 8px; font-size: var(--fs-sm); }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: flex-start; max-width: 380px; }
 
   .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
@@ -216,9 +215,9 @@
   @media (prefers-reduced-motion: no-preference) { .dot.busy { animation: pulse 1.2s infinite alternate; } }
   @keyframes pulse { to { opacity: .45; } }
 
-  .result { margin: 0; padding: 8px 12px; border-radius: var(--r); background: color-mix(in srgb, var(--moss) 14%, transparent); font-size: 14px; }
+  .result { margin: 0; padding: 8px 12px; border-radius: var(--r); background: color-mix(in srgb, var(--moss) 14%, transparent); }
   .result.bad { background: color-mix(in srgb, var(--danger) 16%, transparent); }
-  .notice { margin: 0; padding: 10px 14px; border-radius: var(--r); background: color-mix(in srgb, var(--danger) 12%, var(--bg-2)); font-size: 14px; line-height: 1.45; }
+  .notice { margin: 0; padding: 10px 14px; border-radius: var(--r); background: color-mix(in srgb, var(--danger) 12%, var(--bg-2)); line-height: 1.45; }
 
   .stats { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
   .stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); }
@@ -233,14 +232,14 @@
   .online ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .online li { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .pname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .online li .mono { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .none { margin: 0; font-size: 14px; }
-  .initial { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: var(--avatar-r, 35%); background: var(--bg-3); color: var(--ink-2); font-weight: 700; font-size: 13px; }
-  .initial.small { width: 22px; height: 22px; font-size: 11px; }
+  .online li .handle { font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .none { margin: 0; font-size: var(--fs-sm); }
+  .initial { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: var(--avatar-r, 35%); background: var(--bg-3); color: var(--ink-2); font-weight: 700; font-size: var(--fs-sm); }
+  .initial.small { width: 22px; height: 22px; font-size: var(--fs-xs); }
 
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
   th, td { padding: 7px 4px; text-align: left; border-top: 1px solid var(--line); }
-  thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+  thead th { border-top: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
   tbody th { font-weight: 600; }
   .prow { display: inline-flex; align-items: center; gap: 8px; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

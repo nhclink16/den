@@ -14,9 +14,8 @@
 
   // A button that opens GIF search. `onpick` does the work (send, save as a
   // picture); the picker closes once it succeeds and shows its error if not.
-  let { label, onpick, children, disabled = false }: { label: string; onpick: (g: Gif) => Promise<void>; children: Snippet; disabled?: boolean } = $props()
+  let { label, onpick, children, disabled = false, open = $bindable(false) }: { label: string; onpick: (g: Gif) => Promise<void>; children: Snippet; disabled?: boolean; open?: boolean } = $props()
 
-  let open = $state(false)
   let details = $state<HTMLDetailsElement>()
   let q = $state('')
   let gifs = $state<Gif[]>([])
@@ -111,7 +110,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
   <summary class:disabled title={label} aria-label={label}>{@render children()}</summary>
-  <div popover="auto" use:disclosurePopover={'start'}>
+  <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
     {#if open}
       <div class="picker">
         <label class="search">
@@ -196,5 +195,6 @@
   .foot { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-top: 1px solid var(--line); font-size: 11px; }
   .powered { color: var(--ink-3); letter-spacing: .02em; }
   .powered b { color: var(--ink-2); font-weight: 700; letter-spacing: .06em; }
+  @media (max-width: 600px) { .picker { width: 100%; height: min(520px, 70vh); } }
   @media (prefers-reduced-motion: reduce) { .tile, .tile:hover:not(:disabled) { transform: none; } }
 </style>

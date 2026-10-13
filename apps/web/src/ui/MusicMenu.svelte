@@ -24,8 +24,8 @@
 <style>
   .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px 12px 0; }
   .choices button { display: grid; gap: 2px; padding: 8px 10px; text-align: left; border-radius: var(--r); border: 1px solid var(--line); color: var(--ink-2); transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
-  .choices b { font-size: 13px; color: var(--ink); }
-  .choices small { font-size: 11px; }
+  .choices b { font-size: var(--fs-sm); color: var(--ink); }
+  .choices small { font-size: var(--fs-xs); }
   .choices small.live { color: var(--lamp); }
   .choices [aria-pressed='true'] { border-color: color-mix(in srgb, var(--lamp) 55%, var(--line)); background: color-mix(in srgb, var(--lamp) 12%, var(--bg-2)); color: var(--ink); }
   @media (hover: hover) { .choices button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); } }

@@ -2012,6 +2012,13 @@ export interface components {
             message: string;
         };
         Appearance: {
+            /**
+             * @description The accent colour across every theme: a preset id from `accents.json`
+             *     (`blue`, `indigo`, `green`, `graphite`) or a custom `#rrggbb`. Null uses
+             *     each theme's own accent. Like `sidebar_background`, a client that omits
+             *     the field on save keeps the stored one.
+             */
+            accent?: string | null;
             background?: {
                 /** Format: int32 */
                 blur: number;

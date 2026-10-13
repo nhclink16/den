@@ -68,7 +68,7 @@
       {:else}
         <div class="who">
           <b>{u.display_name || u.username}</b>
-          <span class="faint mono">@{u.username}{#if u.role === 'admin'}{' · admin'}{/if}{#if me}{' · you'}{/if}</span>
+          <span class="faint">@{u.username}{#if u.role === 'admin'}{' · admin'}{/if}{#if me}{' · you'}{/if}</span>
         </div>
         <div class="actions">
           <button class="btn quiet" onclick={() => edit(u)}><Icon name="edit" size={14} /> Rename</button>
@@ -101,6 +101,6 @@
   .rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; flex: 1; }
   .rename label { display: grid; gap: 4px; flex: 1 1 160px; }
   .row { display: flex; gap: 6px; }
-  .status { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
+  .status { min-height: 1.4em; margin: 8px 0 0; font-size: var(--fs-sm); color: var(--ink-2); }
   .status.error { color: var(--danger); }
 </style>

@@ -92,7 +92,7 @@
 <section class="inbox">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="inbox" size={18} /></span>
     <h1 class="display">Inbox</h1>
     <span class="spacer"></span>
@@ -113,15 +113,15 @@
         <button class="title" onclick={() => open(g.s, g.c.id)}>
           {#if g.c.kind === 'dm'}<Icon name="lock" size={14} />{:else}<Icon name="hash" size={14} />{/if}
           <span class="display name">{g.s.title(g.c)}</span>
-          <span class="faint mono">{g.count} new</span>
-          {#if g.mention}<span class="at">mentions you</span>{/if}
+          <span class="faint">{g.count} new</span>
+          {#if g.mention}<span class="at">Mentions you</span>{/if}
         </button>
         {#each g.msgs.slice(-4) as m (m.id)}
           <button class="line" data-hover-animates onclick={() => open(g.s, g.c.id)}>
             <Avatar instance={g.s} userId={m.author_id} size={22} />
             <span class="who">{g.s.name(m.author_id)}</span>
             <span class="text">{@html klipyGif(m.content) ? '<i>sent a GIF</i>' : render(m.content, g.s.users) || '<i>sent a file</i>'}</span>
-            <span class="when faint mono">{dayLabel(m.created_at) === 'Today' ? shortTime(m.created_at) : dayLabel(m.created_at)}</span>
+            <span class="when faint">{dayLabel(m.created_at) === 'Today' ? shortTime(m.created_at) : dayLabel(m.created_at)}</span>
           </button>
         {/each}
         {#if g.msgs.length > 4}<button class="more faint" onclick={() => open(g.s, g.c.id)}>and {g.msgs.length - 4} earlier</button>{/if}
@@ -131,8 +131,8 @@
             <Icon name="reply" size={13} />
             <span class="who">{t.title}</span>
             <span class="text faint">{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
-            {#if u.mention}<span class="at">mentions you</span>{/if}
-            {#if t.resolved_at}<span class="when faint mono">resolved</span>{/if}
+            {#if u.mention}<span class="at">Mentions you</span>{/if}
+            {#if t.resolved_at}<span class="when faint">resolved</span>{/if}
           </button>
         {/each}
         {#if rows[key(g.s, g.c.id)]?.error}
@@ -152,9 +152,8 @@
   .inbox { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }
-  h1 { font-size: 19px; margin: 0; font-weight: 600; }
+  h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .spacer { flex: 1; }
-  .iconbtn { padding: 6px; }
   .scroll { flex: 1; overflow-y: auto; padding: 16px var(--gutter); }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
   .empty-mark { color: var(--ink-3); margin-bottom: 10px; opacity: .8; }
@@ -165,14 +164,14 @@
   .title:hover { background: var(--bg-3); }
   .title, .line { transition: background-color var(--t-fast); }
   .name { font-size: 17px; color: var(--ink); flex: 1; }
-  .at { font: 700 11px/1.5 var(--mono); color: var(--bg); background: var(--lamp); padding: 0 7px; border-radius: var(--r-pill, 999px); text-transform: uppercase; letter-spacing: .05em; }
+  .at { font: 700 var(--fs-xs)/1.5 var(--body); color: var(--bg); background: var(--lamp); padding: 0 7px; border-radius: var(--r-pill, 999px); }
   .line { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 14px; text-align: left; color: var(--ink-2); }
   .line:hover { background: var(--bg-3); }
   .who { font-weight: 700; color: var(--ink); flex: none; }
   .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text :global(br) { display: none; }
-  .when { flex: none; font-size: 11px; }
-  .more { width: 100%; padding: 6px 14px 10px; text-align: left; font-size: 13px; }
+  .when { flex: none; font-size: var(--fs-xs); }
+  .more { width: 100%; padding: 6px 14px 10px; text-align: left; font-size: var(--fs-sm); }
   .line.thread { border-top: 1px solid var(--line); }
   .err { color: var(--danger, var(--lamp)); }
   .line.thread .who { font-weight: 600; }

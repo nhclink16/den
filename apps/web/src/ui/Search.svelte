@@ -37,12 +37,14 @@
   function open(m: Message) { void goToMessage(instances.active, m.channel_id, m.id) }
 </script>
 
-<section class="search">
+<!-- Not `.search` or `.bar`: app.css quiets the ring of an input inside those shells,
+     and the query box here is the field itself. -->
+<section class="search-page">
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<button class="btn quiet iconbtn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
+    {#if narrow}<button class="icon-btn" onclick={onmenu} aria-label="Menu"><Icon name="menu" /></button>{/if}
     <span class="kind"><Icon name="search" size={18} /></span>
-    <form class="bar" onsubmit={submit}>
+    <form class="find" onsubmit={submit}>
       <input class="q" bind:value={text} placeholder="Search messages" aria-label="Search messages" />
       <select class="scope" bind:value={scope} aria-label="Where">
         <option value="">Everywhere</option>
@@ -63,7 +65,7 @@
       {#each results as m (m.id)}
         {@const c = store.channel(m.channel_id)}
         <button class="hit" data-hover-animates onclick={() => open(m)}>
-          <div class="where faint mono">{c ? (c.kind === 'dm' ? store.title(c) : `#${c.name}`) : ''} · {dayLabel(m.created_at)} {shortTime(m.created_at)}</div>
+          <div class="where faint">{c ? (c.kind === 'dm' ? store.title(c) : `#${c.name}`) : ''} · {dayLabel(m.created_at)} {shortTime(m.created_at)}</div>
           <div class="line">
             <Avatar userId={m.author_id} size={24} />
             <span class="who">{store.name(m.author_id)}</span>
@@ -76,24 +78,25 @@
 </section>
 
 <style>
-  .search { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .search-page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }
-  .iconbtn { padding: 6px; }
-  .bar { flex: 1; display: flex; gap: 8px; min-width: 0; }
-  .q { flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; outline: 0; }
-  .q:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .scope { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; color: var(--ink-2); max-width: 160px; }
+  .find { flex: 1; display: flex; gap: 8px; min-width: 0; }
+  /* The same search field as the room header and Settings; app.css draws its focus ring. */
+  .q, .scope { min-height: var(--control-height); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
+  .q { flex: 1; min-width: 0; padding: 6px 14px; }
+  .q:focus-visible, .scope:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .scope { padding: 6px 12px; color: var(--ink-2); max-width: 160px; }
   .scroll { flex: 1; overflow-y: auto; padding: 12px 16px 24px; }
   .empty { padding: 50px 20px; text-align: center; display: grid; gap: 6px; }
   .big { font-size: 24px; }
   .count { padding: 4px 4px 10px; }
   .hit { width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--r); color: var(--ink); border: 1px solid transparent; }
   .hit:hover { background: var(--bg-2); border-color: var(--line); }
-  .where { font-size: 11px; margin-bottom: 4px; }
+  .where { font-size: var(--fs-xs); margin-bottom: 4px; }
   .line { display: flex; align-items: flex-start; gap: 8px; }
   .who { font-weight: 700; flex: none; }
-  .text { min-width: 0; overflow-wrap: anywhere; }
-  @media (max-width: 600px) { .head { align-items: flex-start; } .bar { flex-wrap: wrap; } .q { flex: 1 0 100%; width: 100%; } .scope { flex: 1; max-width: none; } }
+  .text { min-width: 0; max-width: 68ch; overflow-wrap: anywhere; }
+  @media (max-width: 600px) { .head { align-items: flex-start; } .find { flex-wrap: wrap; } .q { flex: 1 0 100%; width: 100%; } .scope { flex: 1; max-width: none; } }
   .error { color: var(--ember); }
 </style>

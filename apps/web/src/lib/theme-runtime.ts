@@ -2,45 +2,19 @@ import { isDesktop } from './desktop'
 import { mediaUrl } from './native'
 import { wallpaperImage } from './wallpapers'
 import type { Appearance, AppearanceBackground, Theme, ThemeColors } from './types'
+import { colorRoles, controlBorder, deriveHalf, lab, resolveAccent } from './theme-color'
 import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
-export const defaultAppearance: Appearance = { mode: 'system', light_theme: 'den', dark_theme: 'den', custom_themes: [], contrast: 100 }
+export const defaultAppearance: Appearance = { mode: 'system', light_theme: 'neutral', dark_theme: 'neutral', custom_themes: [], contrast: 100, accent: null }
+/** "System" is the device's own UI font: SF on Apple devices, Segoe UI on Windows. */
+export const systemFont = 'System'
+export function fontStack(family: string, role: 'display' | 'body' | 'mono') {
+  // Named, not `system-ui`: on Linux that is often DejaVu Sans, far wider than the rest.
+  if (family === systemFont) return role === 'mono' ? 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace' : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif'
+  return `"${family}", ${role === 'mono' ? '"Den Terminal Mono", monospace' : 'system-ui, sans-serif'}`
+}
 export function appearanceCacheKey(origin?: string) { return (isDesktop() ? `den.appearance:${origin || localStorage.getItem('den.native.origin') || 'https://denchat.app'}` : 'den.appearance') }
-export const colorRoles = ['bg','bg2','bg3','line','ink','ink2','ink3','accent','success','danger'] as const
-// Same OKLab matrices and quantization as den-core/theme_color.rs. Keeping a/b
-// fixed while replacing L preserves OKLCH hue/chroma before sRGB gamut clipping.
-export function linear(hex: string): number[] { return hex.slice(1).match(/../g)!.map(v => parseInt(v,16)/255).map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4) }
-export function contrast(a: string,b: string) {
-  const lum = (v: string) => linear(v).reduce((s,c,i) => s+c*[.2126,.7152,.0722][i]!,0)
-  const x=lum(a),y=lum(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)
-}
-export function lab(hex: string): number[] {
-  const [r,g,b] = linear(hex) as [number,number,number]
-  const l=Math.cbrt(.4122214708*r+.5363325363*g+.0514459929*b), m=Math.cbrt(.2119034982*r+.6806995451*g+.1073969566*b), s=Math.cbrt(.0883024619*r+.2817188376*g+.6299787005*b)
-  return [.2104542553*l+.793617785*m-.0040720468*s,1.9779984951*l-2.428592205*m+.4505937099*s,.0259040371*l+.7827717662*m-.808675766*s]
-}
-export function withLightness(color: string, lightness: number) {
-  const [,a,b] = lab(color) as [number,number,number], L=Math.max(0,Math.min(1,lightness))
-  const l=(L+.3963377774*a+.2158037573*b)**3, m=(L-.1055613458*a-.0638541728*b)**3, s=(L-.0894841775*a-1.291485548*b)**3
-  return '#'+[4.0767416621*l-3.3077115913*m+.2309699292*s,-1.2684380046*l+2.6097574011*m-.3413193965*s,-.0041960863*l-.7034186147*m+1.707614701*s].map(v => {
-    v=Math.max(0,Math.min(1,v)); return Math.round((v<=.0031308?12.92*v:1.055*v**(1/2.4)-.055)*255).toString(16).padStart(2,'0')
-  }).join('')
-}
-export function deriveHalf(source: ThemeColors): ThemeColors {
-  const out={...source,generated:true}
-  for (const [bg,ink] of [['bg','ink'],['bg2','ink2'],['bg3','ink3']] as const) {
-    out[bg]=withLightness(source[bg],lab(source[ink])[0]!); out[ink]=withLightness(source[ink],lab(source[bg])[0]!)
-  }
-  const direction=lab(out.bg)[0]!>.5?-1:1
-  out.line=withLightness(source.line,lab(out.bg)[0]!+direction*.12)
-  for (const role of ['accent','success','danger'] as const) {
-    const start=lab(source[role])[0]!
-    for (let step=0;step<=1000;step++) { out[role]=withLightness(source[role],start+direction*step/1000); if(contrast(out[role],out.bg)>=4.5) break }
-    if(contrast(out[role],out.bg)<4.5) out[role]=contrast('#000000',out.bg)>=4.5?'#000000':'#ffffff'
-  }
-  return out
-}
 /** The theme chosen for one appearance. Light and dark are picked independently. */
 export function themeFor(a: Appearance, half: 'light'|'dark'): Theme {
   const id = half === 'light' ? a.light_theme : a.dark_theme
@@ -48,21 +22,8 @@ export function themeFor(a: Appearance, half: 'light'|'dark'): Theme {
 }
 export function activeTheme(a: Appearance, systemLight?: boolean): Theme { return themeFor(a, appearanceHalf(a, systemLight)) }
 export function appearanceHalf(a: Appearance, systemLight = matchMedia('(prefers-color-scheme: light)').matches): 'light'|'dark' { return a.mode === 'light' || (a.mode === 'system' && systemLight) ? 'light' : 'dark' }
-/** Controls need a stronger edge than the hairline used between panels. */
-export function controlBorder(colors: ThemeColors): string {
-  const surfaces = [colors.bg, colors.bg2, colors.bg3]
-  const start = lab(colors.line)[0]!
-  const direction = lab(colors.ink)[0]! > start ? 1 : -1
-  for (let step = 0; step <= 100; step++) {
-    const color = withLightness(colors.line, start + direction * step / 100)
-    if (surfaces.every(bg => contrast(color, bg) >= 3)) return color
-  }
-  // Unusual custom palettes may span both extremes; use the more visible edge.
-  const minimum = (color: string) => Math.min(...surfaces.map(bg => contrast(color, bg)))
-  return minimum('#000000') > minimum('#ffffff') ? '#000000' : '#ffffff'
-}
 export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearance) {
-  const root = document.documentElement, s = root.style, colors=t[half]
+  const root = document.documentElement, s = root.style, colors={...t[half],accent:resolveAccent(t[half],a?.accent,half)}
   for (const key of colorRoles) s.setProperty(`--${key}`, colors[key])
   s.setProperty('--line-strong', controlBorder(colors))
   s.setProperty('--accent-dim', `color-mix(in srgb, ${colors.accent} 55%, ${colors.bg})`)
@@ -77,7 +38,7 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   s.setProperty('--shadow-lg', pale ? 'rgba(40, 30, 10, .2)' : 'rgba(0, 0, 0, .46)')
   s.setProperty('--pool', pale ? `color-mix(in srgb, ${colors.accent} 14%, #fff)` : `color-mix(in srgb, ${colors.accent} 22%, transparent)`)
   s.setProperty('--selection', 'var(--accent-dim)'); s.setProperty('--mention-bg', 'var(--accent-glow)')
-  for (const [key,value] of Object.entries(t.fonts)) s.setProperty(`--${key}`, `"${value}", ${key === 'mono' ? '"Den Terminal Mono", monospace' : 'system-ui, sans-serif'}`)
+  for (const [key,value] of Object.entries(t.fonts)) s.setProperty(`--${key}`, fontStack(value, key as keyof Theme['fonts']))
   const radii = { sharp: [2,6], soft: [6,12], round: [10,18] }[t.radius]
   s.setProperty('--r', `${radii[0]}px`); s.setProperty('--r-lg', `${radii[1]}px`)
   // Chips and avatars follow Corners too, or a Sharp theme ends up full of pills.
@@ -120,14 +81,29 @@ export function applyFavicon(c: ThemeColors) {
   }
   link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
+/** Same as den-core's rename_clashing_themes: a custom theme whose ID a newer
+ *  built-in took keeps its look under `<id> <n>`, and the choices follow it. */
+export function renameClashingThemes(a: Appearance) {
+  const builtin = (id: string) => builtinThemes.some(t => t.id === id)
+  for (const t of a.custom_themes) {
+    if (!builtin(t.id)) continue
+    const old = t.id
+    let n = 1
+    while (builtin(`${old} ${n}`) || a.custom_themes.some(c => c.id === `${old} ${n}`)) n++
+    t.id = `${old} ${n}`
+    if (a.light_theme === old) a.light_theme = t.id
+    if (a.dark_theme === old) a.dark_theme = t.id
+  }
+}
 export function cachedAppearance(origin?: string): Appearance {
   try {
     const a = JSON.parse(localStorage.getItem(appearanceCacheKey(origin)) || 'null')
     if (a && ['light','dark','system'].includes(a.mode) && Array.isArray(a.custom_themes)) {
       if (a.theme && !a.dark_theme) { a.dark_theme = a.theme; a.light_theme = a.theme }
-      a.light_theme = a.light_theme === 'den-light' ? 'den' : (a.light_theme || 'den')
-      a.dark_theme = a.dark_theme === 'den-light' ? 'den' : (a.dark_theme || 'den')
+      a.light_theme = a.light_theme === 'den-light' ? 'den' : (a.light_theme || defaultAppearance.light_theme)
+      a.dark_theme = a.dark_theme === 'den-light' ? 'den' : (a.dark_theme || defaultAppearance.dark_theme)
       a.contrast = typeof a.contrast === 'number' ? a.contrast : 100
+      renameClashingThemes(a)
       if (false) {
         a.custom_themes=a.custom_themes.map((t: Theme & { appearance?: 'light'|'dark'; colors?: ThemeColors }) => {
           if(!t.colors || !t.appearance) return t
@@ -142,7 +118,8 @@ export function cachedAppearance(origin?: string): Appearance {
   return structuredClone(defaultAppearance)
 }
 export function firstPaint() {
-  try { const a=cachedAppearance(); applyTheme(activeTheme(a),appearanceHalf(a)) } catch { applyTheme(builtinThemes[0]!) }
+  // Wallpapers wait for the app: painting one needs modules this inline copy lacks.
+  try { const a=cachedAppearance(); applyTheme(activeTheme(a),appearanceHalf(a),{...a,background:null,sidebar_background:null}) } catch { applyTheme(builtinThemes[0]!) }
 }
 
 /** Paints the wallpaper layer. Scope decides which region shows it; app.css does the rest. */

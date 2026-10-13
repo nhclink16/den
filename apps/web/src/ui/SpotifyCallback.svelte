@@ -41,5 +41,5 @@
 <style>
   .callback { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; padding: 24px; }
   h1 { margin: 0; font-size: 22px; }
-  p { margin: 0; max-width: 42ch; font-size: 13px; }
+  p { margin: 0; max-width: 42ch; font-size: var(--fs-sm); }
 </style>

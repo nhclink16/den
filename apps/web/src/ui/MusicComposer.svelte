@@ -20,9 +20,9 @@
 </form>
 <style>
   .music-composer { display: grid; gap: 8px; }
-  label { display: grid; gap: 6px; color: var(--ink-2); font-size: 12px; }
+  label { display: grid; gap: 6px; color: var(--ink-2); font-size: var(--fs-xs); }
   input { min-width: 0; width: 100%; min-height: 40px; padding: 8px 10px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r); font: inherit; font-size: 16px; }
-  .offer, .status { font-size: 12px; color: var(--ink-2); }
+  .offer, .status { font-size: var(--fs-xs); color: var(--ink-2); }
   .status:empty { display: none; }
   button { min-height: 40px; justify-content: center; }
 </style>

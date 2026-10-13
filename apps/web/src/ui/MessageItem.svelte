@@ -8,6 +8,7 @@
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
+  import InlineConfirm from './InlineConfirm.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { klipyGif, snippet } from '../lib/klipy'
@@ -101,8 +102,14 @@
     if (text && text !== m.content) await store.edit(m.id, text)
     editing = false
   }
-  async function del() {
-    if (confirm('Delete this message?')) await store.remove(m.id, m.channel_id)
+  // Delete asks first, in the message itself, like every other delete in Den.
+  let deleting = $state(false)
+  let deletingBox = $state<HTMLElement>(), deleteButton = $state<HTMLButtonElement>()
+  // A keyboard user who says Keep goes back to the Delete button they came from.
+  function keep() {
+    const keyboard = !!deletingBox?.querySelector(':focus-visible')
+    deleting = false
+    if (keyboard) requestAnimationFrame(() => deleteButton?.focus())
   }
 </script>
 
@@ -129,7 +136,7 @@
       {#if !compact}
         <div class="meta">
           <button class="author" onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}>{author?.display_name || author?.username || 'someone'}</button>
-          {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />agent</span>{/if}
+          {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />Agent</span>{/if}
           <span class="time">{shortTime(m.created_at)}</span>
         </div>
       {/if}
@@ -169,13 +176,16 @@
           {/if}
           <span class="replies faint">{last ? '· ' : ''}{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
           {#if unread?.count}<span class="count" class:at={unread.mention}>{unread.mention ? '@' : unread.count}</span>{/if}
-          {#if conversation.resolved_at}<span class="faint mono">resolved</span>{/if}
+          {#if conversation.resolved_at}<span class="faint state">resolved</span>{/if}
         </a>
+      {/if}
+      {#if deleting}
+        <div class="deleting" bind:this={deletingBox}><InlineConfirm open action="Delete" sentence="Delete this message? This can't be undone." confirm={() => store.remove(m.id, m.channel_id)} oncancel={keep} /></div>
       {/if}
       {#if m.reactions?.length}
         <div class="reactions">
           {#each m.reactions as r (r.emoji)}
-            <button class="rx" class:mine={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
+            <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
               <span>{r.emoji}</span><span class="n">{r.user_ids.length}</span>
             </button>
           {/each}
@@ -187,7 +197,7 @@
       <button title="Reply" aria-label="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
       {#if held && m.content}<button title="Copy text" aria-label="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
       {#if mine}<button title="Edit" aria-label="Edit message" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
-      {#if canDelete}<button title="Delete" aria-label="Delete message" class="danger" onclick={del}><Icon name="trash" /></button>{/if}
+      {#if canDelete}<button bind:this={deleteButton} title="Delete" aria-label="Delete message" class="danger" onclick={() => { done(); deleting = true }}><Icon name="trash" /></button>{/if}
     </div>
   </div>
 </article>
@@ -197,7 +207,7 @@
      The reply text is what gives way when the line runs out of room. */
   .thread-link {
     display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px 10px 4px 6px;
-    border: 1px solid var(--line); border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: 13px; max-width: 100%;
+    border: 1px solid var(--line); border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: var(--fs-sm); max-width: 100%;
     white-space: nowrap;
   }
   .thread-link:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
@@ -209,10 +219,9 @@
   .thread-link .who { font-weight: 700; color: var(--ink); max-width: 8em; }
   .thread-link .said { flex: 1 1 0; }
   .thread-link .who, .thread-link .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .thread-link .replies, .thread-link .mono, .thread-link .count { flex: none; }
+  .thread-link .replies, .thread-link .state, .thread-link .count { flex: none; }
   .thread-link .count {
-    min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000);
-    font-family: var(--mono); font-size: 11px; text-align: center;
+    min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000); font-size: var(--fs-xs); text-align: center;
   }
   .msg { position: relative; padding: calc(2px * var(--density)) var(--gutter); margin-top: calc(14px * var(--density)); transition: background-color var(--t-fast); }
   .msg.compact { margin-top: 0; }
@@ -242,7 +251,7 @@
   .row { display: flex; gap: 12px; }
   .gutter { width: 36px; flex: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; }
   .msg.compact .gutter { height: 22px; }
-  .stamp { font-family: var(--mono); font-size: 11px; line-height: 22px; white-space: nowrap; color: var(--ink-2); opacity: 0; transition: opacity var(--t-fast); }
+  .stamp { font-size: var(--fs-xs); line-height: 22px; white-space: nowrap; color: var(--ink-2); opacity: 0; transition: opacity var(--t-fast); }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
   /* A very long name stops at one line; the time and agent badge stay whole. */
@@ -253,24 +262,24 @@
   .face:active { transform: scale(.96); }
   .bot {
     display: inline-flex; align-items: center; gap: 3px; align-self: center; padding: 1px 6px 1px 5px;
-    border-radius: var(--r-pill, 999px); font: 600 11px/1.45 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+    border-radius: var(--r-pill, 999px); font: 600 var(--fs-xs)/1.45 var(--body);
     color: var(--lamp); background: var(--lamp-glow);
   }
-  .time { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .time { font-size: var(--fs-xs); color: var(--ink-3); }
   /* Prose ran 120-260 characters per line on a wide window. Attachments,
      code blocks and embeds stay full width. */
   .text { line-height: var(--leading); overflow-wrap: anywhere; max-width: 68ch; }
   .text :global(pre) { max-width: none; }
   .text.jumbo { font-size: 2.4em; line-height: 1.2; letter-spacing: .04em; }
-  .edited { color: var(--ink-3); font-size: 12px; }
+  .edited { color: var(--ink-3); font-size: var(--fs-xs); }
   .edit { resize: vertical; margin-top: 2px; }
-  .hint { font-size: 12px; margin-top: 2px; }
+  .hint { font-size: var(--fs-xs); margin-top: 2px; }
   .gif { display: inline-block; margin-top: 4px; border-radius: var(--r); overflow: hidden; line-height: 0; background: var(--bg-3); }
   .gif img { display: block; max-width: min(320px, 100%); max-height: 260px; min-width: 80px; min-height: 60px; object-fit: contain; }
   .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .reply-ref {
     position: relative; display: flex; text-align: left; max-width: calc(100% - 48px); align-items: center; gap: 6px; margin: 0 0 2px 48px;
-    font-size: 13px; color: var(--ink-3); white-space: nowrap; min-width: 0;
+    font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; min-width: 0;
   }
   /* A spine from the avatar up to the quoted line ties the reply to its parent. */
   .reply-ref::before {
@@ -293,14 +302,13 @@
   .tool { line-height: 20px; }
   .tools button.danger:hover { color: var(--ember); }
   .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .rx {
-    display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: var(--r-pill, 999px);
-    border: 1px solid var(--line); background: var(--bg-2); font-size: 14px;
-    transition: border-color var(--t-fast), background-color var(--t-fast), transform var(--t) var(--ease-out);
-  }
-  .rx:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  /* A pill, kept as short as the old chip so a row of reactions stays compact. */
+  .rx { min-height: 26px; gap: 5px; padding: 2px 9px 2px 7px; font-size: var(--fs-body); transition: background-color var(--t-fast), border-color var(--t-fast), transform var(--t) var(--ease-out); }
+  .rx:hover { transform: translateY(-1px); }
   .rx:active { transform: scale(.94); }
-  .rx.mine { border-color: var(--lamp-dim); background: var(--lamp-glow); }
-  .rx .n { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .rx.mine .n { color: var(--lamp); }
+  .rx .n { font-size: var(--fs-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .rx[aria-pressed=true] .n { color: var(--lamp); }
+  /* The question and its two answers on one line, under the text they are about. */
+  .deleting { margin-top: 6px; }
+  .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 </style>

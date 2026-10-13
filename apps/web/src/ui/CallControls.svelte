@@ -23,7 +23,7 @@
       onpointerup={() => call.setHeld(false)} onpointercancel={() => call.setHeld(false)} onlostpointercapture={() => call.setHeld(false)}
       onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); call.setHeld(true) } }}
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
-    >hold {call.prefs.pttLabel}{#if desktop.global}<small class="mono"> global</small>{/if} to talk</button>
+    >hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk</button>
   {:else}
     <button class:muted={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} /></button>
   {/if}
@@ -55,7 +55,7 @@
   summary { width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; list-style: none; }
   summary::-webkit-details-marker { display: none; }
   .overflow > div { position: absolute; bottom: 46px; right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); }
-  .overflow > div button { width: max-content; padding: 0 12px; font: 11px var(--mono); }
+  .overflow > div button { width: max-content; padding: 0 12px; font: var(--fs-xs) var(--body); }
   .shares { flex: none; }
   .shares summary { width: 24px; height: 28px; }
   .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); }
@@ -63,18 +63,11 @@
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
   .controls { display: flex; align-items: center; gap: 4px; flex: none; }
-  button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r); color: var(--ink); }
+  button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r); color: var(--ink); }
   /* bg-3 is the dock's own background, so that hover was invisible. A surface-relative
      tint reads on the dock and on the expanded toolbar alike. */
   button:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
   button:disabled { opacity: .5; cursor: default; }
-  /* A 28px square is below every touch-target guideline. Grow the hit box on touch
-     without growing the visual, so the dock keeps its proportions. */
-  @media (pointer: coarse) {
-    .controls { gap: 8px; }
-    button { position: relative; }
-    button::after { content: ''; position: absolute; inset: -8px; }
-  }
   /* Off is a state you need to see at a glance, so it is coloured, not dimmed. */
   .muted { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
   .muted:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
@@ -85,9 +78,15 @@
   /* Leave sits apart from the toggles so it is not fumbled mid-call. */
   .leave { margin-inline-start: 6px; }
   .leave:hover { color: var(--ember); background: color-mix(in srgb, var(--danger) 16%, transparent); }
-  .ptt { width: auto; padding: 0 6px; white-space: nowrap; font: 11px var(--mono); color: var(--ink-2); background: var(--bg); touch-action: none; }
+  .ptt { width: auto; padding: 0 6px; white-space: nowrap; font: var(--fs-xs) var(--body); color: var(--ink-2); background: var(--bg); touch-action: none; }
   .ptt.held { color: var(--lamp); background: var(--lamp-glow); }
   .large { gap: 4px; }
   .large button { width: 40px; height: 40px; }
   .large .ptt { width: auto; padding: 0 10px; }
+  /* A finger needs the 44px Apple asks for, and an invisible hit box around a
+     small square still reads as a target too small to aim at. */
+  @media (pointer: coarse) {
+    .controls { gap: 8px; }
+    button, .large button { width: 44px; height: 44px; }
+  }
 </style>
