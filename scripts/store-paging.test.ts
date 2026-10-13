@@ -459,3 +459,33 @@ test('with no list in flight, message events are not kept around', async () => {
   for (let i = 0; i < 50; i++) await s.handle({ type: 'message_edited', ...room('B'), content: 'x'.repeat(1000) })
   assert.equal(s.previewLog.length, 0)
 })
+
+test('an edit that raced a list across a disconnect is put right by the reconnect', async () => {
+  // Known limit: a frame that arrives after a list was asked for can still be
+  // older than what that list read, if the socket then drops the newer frame.
+  // The drop always means a reconnect, and the reconnect's list wins.
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const line = (s: any) => s.channels.find((c: any) => c.id === 'c').last_message.content
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  s.channels = [{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v0' } }]
+  sockets.length = 0
+  await s.connect()
+  sockets[0].onmessage({ data: JSON.stringify({ type: 'resync', reason: 'connect' }) })
+  await tick()
+  sockets[0].onmessage({ data: JSON.stringify({ type: 'message_edited', ...room('B'), content: 'v1' }) })
+  sockets[0].onclose()                                                   // v2's frame never comes
+  lists[0]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(line(s), 'v1', 'the known transient state; if this changes, the limit is gone')
+  await s.connect()
+  sockets[1].onmessage({ data: JSON.stringify({ type: 'resync', reason: 'connect' }) })
+  await tick()
+  lists[1]!.release([{ id: 'c', kind: 'text', last_message: { ...preview('B'), content: 'v2' } }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(line(s), 'v2')
+  s.ready = false
+})
