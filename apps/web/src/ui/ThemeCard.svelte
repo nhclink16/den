@@ -1,11 +1,15 @@
 <script lang="ts">
   import type { Theme } from '../lib/types'
   import { themes } from '../lib/theme.svelte'
+  import { fontStack } from '../lib/theme-runtime'
+  import { resolveAccent } from '../lib/theme-color'
   import ThemePreview from './ThemePreview.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
 
-  let { theme, lightChosen, darkChosen, dimmed, onpick, oncustomise, onremove }: {
+  let { theme, lightChosen, darkChosen, dimmed, accent, onpick, oncustomise, onremove }: {
     theme: Theme
+    /** The chosen accent, so the card shows the theme as it would look. */
+    accent?: string | null
     lightChosen: boolean
     darkChosen: boolean
     /** 'light' or 'dark' when the mode is fixed, so the other half reads as inactive. */
@@ -33,13 +37,12 @@
         class="half"
         class:chosen={chosen(half)}
         class:dim={dimmed === (half === 'light' ? 'dark' : 'light')}
-        style={`--ring:${theme[half].accent};--ring-ink:${theme[half].bg}`}
         aria-pressed={chosen(half)}
         title={`Use ${theme.name} for ${half}`}
         aria-label={`Use ${theme.name} for ${half} appearance`}
         onclick={() => onpick(half)}
       >
-        <ThemePreview colors={theme[half]} fonts={theme.fonts} />
+        <ThemePreview colors={{ ...theme[half], accent: resolveAccent(theme[half], accent, half) }} fonts={theme.fonts} />
         <span class="badge" aria-hidden="true">
           {#if half === 'light'}
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
@@ -55,7 +58,7 @@
     {/each}
   </div>
   <div class="caption">
-    <span class="name" style={`font-family:"${theme.fonts.display}", serif`}>{theme.name}</span>
+    <span class="name" style={`font-family:${fontStack(theme.fonts.display, 'display')}`}>{theme.name}</span>
     <span class="tools">
       {#if oncustomise}
         <button class="tool" title={`Edit ${theme.name}`} aria-label={`Edit ${theme.name}`} onclick={oncustomise}>
@@ -84,11 +87,11 @@
   }
   .half:hover { transform: translateY(-1px); }
   .half.dim { opacity: .5; }
-  .half.chosen { box-shadow: 0 0 0 2px var(--ring); border-color: transparent; opacity: 1; }
+  .half.chosen { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; opacity: 1; }
   .badge {
     position: absolute; right: 4px; bottom: 4px; display: none;
     width: 17px; height: 17px; border-radius: 50%; place-items: center;
-    background: var(--ring); color: var(--ring-ink);
+    background: var(--accent); color: var(--on-lamp);
   }
   .half.chosen .badge { display: grid; }
   .caption { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 2px 6px; min-height: 34px; }

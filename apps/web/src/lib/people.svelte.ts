@@ -1,4 +1,4 @@
-import { lab } from './theme-runtime'
+import { lab } from './theme-color'
 import type { User } from './types'
 import type { Store } from './store.svelte'
 

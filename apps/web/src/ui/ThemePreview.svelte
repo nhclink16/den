@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ThemeColors, ThemeFonts } from '../lib/types'
+  import { fontStack } from '../lib/theme-runtime'
   import Mark from './Mark.svelte'
 
   /** A miniature of the Den interface painted in one palette. Fills its container. */
@@ -12,9 +13,9 @@
 </script>
 
 <div class="miniature" style={vars} aria-hidden="true">
-<div class="preview" style={`font-family:"${fonts.body}",sans-serif`}>
+<div class="preview" style={`font-family:${fontStack(fonts.body, 'body')}`}>
   <div class="side">
-    <div class="brand" style={`font-family:"${fonts.display}",serif`}><Mark size={9} accent={colors.accent} /><span>den</span></div>
+    <div class="brand" style={`font-family:${fontStack(fonts.display, 'display')}`}><Mark size={9} accent={colors.accent} /><span>den</span></div>
     <i class="row"></i>
     <i class="row lit"></i>
     <i class="row"></i>
@@ -28,7 +29,7 @@
         <span class="body">The room is ready. <em>@you</em></span>
       </div>
     </div>
-    <div class="composer" style={`font-family:"${fonts.mono}",monospace`}><span>Message…</span><span class="send"></span></div>
+    <div class="composer"><span>Message…</span><span class="send"></span></div>
   </div>
 </div>
 </div>

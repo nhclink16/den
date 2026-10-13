@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
-  import { colorRoles, deriveHalf, themeFor } from '../lib/theme-runtime'
-  import { themes, fontFamilies, validateTheme, validName } from '../lib/theme.svelte'
+  import { fontStack, themeFor } from '../lib/theme-runtime'
+  import { accentPresets, colorRoles, deriveHalf, resolveAccent } from '../lib/theme-color'
+  import { themes, fontFamilies, validateTheme, validName, webFonts } from '../lib/theme.svelte'
   import type { Theme, ThemeFonts } from '../lib/types'
   import ThemePreview from './ThemePreview.svelte'
   import ThemeCard from './ThemeCard.svelte'
@@ -19,11 +20,16 @@
   let name = $state('')
   let message = $state('')
   let fileInput: HTMLInputElement
+  let picker: HTMLInputElement
 
   const active = $derived(themes.active)
   const appearance = $derived(themes.appearance)
   const lightTheme = $derived(themeFor(appearance, 'light'))
   const darkTheme = $derived(themeFor(appearance, 'dark'))
+  /** A theme's half as it shows with the chosen accent. */
+  const shown = (t: Theme, half: Half) => ({ ...t[half], accent: resolveAccent(t[half], appearance.accent, half) })
+  const custom = $derived(appearance.accent?.startsWith('#') ? appearance.accent : null)
+  const swatch = (choice: string | null) => resolveAccent(themeFor(appearance, themes.half)[themes.half], choice, themes.half)
   const roleLabels = {
     bg: ['Page background', 'The main conversation surface.'],
     bg2: ['Panel background', 'Sidebar and settings panels.'],
@@ -96,7 +102,8 @@
 
   // Preview the actual heading, body, and monospace faces for every theme.
   $effect(() => {
-    const families = [...new Set(themes.all.flatMap(t => Object.values(t.fonts)))]
+    const families = webFonts(themes.all.flatMap(t => Object.values(t.fonts)))
+    if (!families.length) return
     const link = document.createElement('link')
     link.rel = 'stylesheet'
     link.href = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;600`).join('&')}&display=swap`
@@ -122,13 +129,14 @@
         <button class="scheme" class:chosen={appearance.mode === s.id} aria-pressed={appearance.mode === s.id} onclick={() => themes.mode(s.id)}>
           <span class="scheme-art">
             {#if s.id === 'system'}
-              <span class="split-light"><ThemePreview colors={lightTheme.light} fonts={lightTheme.fonts} /></span>
-              <span class="split-dark"><ThemePreview colors={darkTheme.dark} fonts={darkTheme.fonts} /></span>
+              <span class="split-light"><ThemePreview colors={shown(lightTheme, 'light')} fonts={lightTheme.fonts} /></span>
+              <span class="split-dark"><ThemePreview colors={shown(darkTheme, 'dark')} fonts={darkTheme.fonts} /></span>
             {:else if s.id === 'light'}
-              <ThemePreview colors={lightTheme.light} fonts={lightTheme.fonts} />
+              <ThemePreview colors={shown(lightTheme, 'light')} fonts={lightTheme.fonts} />
             {:else}
-              <ThemePreview colors={darkTheme.dark} fonts={darkTheme.fonts} />
+              <ThemePreview colors={shown(darkTheme, 'dark')} fonts={darkTheme.fonts} />
             {/if}
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg></span>
           </span>
           <span class="scheme-text"><b>{s.label}</b><small>{s.hint}</small></span>
         </button>
@@ -156,11 +164,27 @@
           lightChosen={appearance.light_theme === t.id}
           darkChosen={appearance.dark_theme === t.id}
           dimmed={appearance.mode === 'system' ? undefined : appearance.mode}
+          accent={appearance.accent}
           onpick={half => { themes.select(t, half); message = '' }}
           oncustomise={() => openEditor(t)}
           onremove={isCustom(t) ? () => themes.remove(t.id) : undefined}
         />
       {/each}
+    </div>
+  </section>
+
+  <section>
+    <h3>Accent</h3>
+    <p class="muted small">Buttons, links, unread counts and mentions, in every theme. Den keeps it readable in light and dark.</p>
+    <div class="accents" role="group" aria-label="Accent">
+      <button class="pill" aria-pressed={!appearance.accent} onclick={() => themes.accent(null)}><span class="dot" style:background={swatch(null)}></span>Theme's own</button>
+      {#each accentPresets as p (p.id)}
+        <button class="pill" aria-pressed={appearance.accent === p.id} onclick={() => themes.accent(p.id)}><span class="dot" style:background={swatch(p.id)}></span>{p.name}</button>
+      {/each}
+      <button class="pill" aria-pressed={!!custom} onclick={() => picker.click()}>
+        <span class="dot" style:background={custom ? swatch(custom) : 'conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d)'}></span>Custom
+      </button>
+      <input type="color" class="sr-only" tabindex="-1" aria-label="Custom accent colour" bind:this={picker} value={custom ?? swatch(null)} onchange={e => themes.accent(e.currentTarget.value)} />
     </div>
   </section>
 
@@ -181,7 +205,7 @@
               <button aria-pressed={editingHalf === half} onclick={() => (editingHalf = half as Half)}>{half === 'light' ? 'Light' : 'Dark'}</button>
             {/each}
           </div>
-          <div class="editor-preview"><ThemePreview colors={active[editingHalf]} fonts={active.fonts} /></div>
+          <div class="editor-preview"><ThemePreview colors={shown(active, editingHalf)} fonts={active.fonts} /></div>
           {#if active[editingHalf].generated}
             <p class="hint muted">Generated from the {editingHalf === 'light' ? 'dark' : 'light'} half. Adjust to taste.</p>
           {/if}
@@ -224,11 +248,11 @@
     <h3>Typography</h3>
     <div class="group">
       {#each fontRoles as role (role)}
-        <SettingRow label={role === 'display' ? 'Display' : role === 'body' ? 'Body' : 'Monospace'} hint={role === 'display' ? 'Room titles and headings.' : role === 'body' ? 'Messages and everything else.' : 'Code, timestamps, terminals.'}>
+        <SettingRow label={role === 'display' ? 'Display' : role === 'body' ? 'Body' : 'Monospace'} hint={role === 'display' ? 'Big titles.' : role === 'body' ? 'Messages, times, labels and everything else.' : 'Code and terminals.'}>
           {#snippet control()}
             <select class="field" aria-label={`${role} font`} value={active.fonts[role]} onchange={e => font(role, e.currentTarget.value)}>
               {#each [...new Set([...fontFamilies, active.fonts[role]])] as family (family)}
-                <option style={`font-family:"${family}"`} value={family}>{family}</option>
+                <option style={`font-family:${fontStack(family, role)}`} value={family}>{family === 'System' ? 'System (this device’s own)' : family}</option>
               {/each}
             </select>
             <input class="field custom-font" aria-label={`Use any Google Font for ${role}`} placeholder="Or any Google Font" maxlength="40" onchange={e => font(role, e.currentTarget.value)} />
@@ -236,9 +260,9 @@
         </SettingRow>
       {/each}
       <div class="specimen">
-        <b style={`font-family:"${active.fonts.display}", serif`}>The den is open</b>
-        <span style={`font-family:"${active.fonts.body}", sans-serif`}>Evening, everyone. Drop a clip in #clips and pull up a chair.</span>
-        <code style={`font-family:"${active.fonts.mono}", monospace`}>den send general "on my way"</code>
+        <b style={`font-family:${fontStack(active.fonts.display, 'display')}`}>The den is open</b>
+        <span style={`font-family:${fontStack(active.fonts.body, 'body')}`}>Evening, everyone. On in 20, back by 10. Pull up a chair.</span>
+        <code style={`font-family:${fontStack(active.fonts.mono, 'mono')}`}>den send general "on my way"</code>
       </div>
     </div>
   </section>
@@ -285,7 +309,7 @@
       <SettingRow label="Contrast" hint="Raises or softens secondary text and borders.">
         {#snippet control()}
           <input type="range" min="80" max="120" step="5" value={appearance.contrast ?? 100} oninput={e => themes.contrast(+e.currentTarget.value)} aria-label="Contrast" />
-          <output class="mono">{appearance.contrast ?? 100}%</output>
+          <output>{appearance.contrast ?? 100}%</output>
         {/snippet}
       </SettingRow>
     </div>
@@ -308,6 +332,12 @@
   .scheme { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg2); text-align: start; }
   .scheme:hover { border-color: var(--ink3); }
   .scheme.chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  /* The same chosen marker the theme cards use. */
+  .scheme-art > .check { display: none; position: absolute; inset: auto 4px 4px auto; z-index: 3; width: 17px; height: 17px; border-radius: 50%; place-items: center; background: var(--accent); color: var(--on-lamp); }
+  .scheme.chosen .scheme-art > .check { display: grid; }
+  .accents { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .accents .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent); }
+
   .scheme-art { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
   .scheme-art > :global(*) { position: absolute; inset: 0; }
   /* A vertical seam reads better than a diagonal one: each half still shows a

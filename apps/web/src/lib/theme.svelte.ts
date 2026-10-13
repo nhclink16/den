@@ -1,9 +1,12 @@
 import { apiFor } from './api'
 import { activeOrigin } from './native'
 import type { Appearance, Theme, ThemeFonts } from './types'
-import { themeFor, appearanceHalf, deriveHalf, colorRoles, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance } from './theme-runtime'
+import { themeFor, appearanceHalf, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance, fontStack, systemFont } from './theme-runtime'
+import { deriveHalf, colorRoles } from './theme-color'
 export { builtinThemes }
 export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces', 'Commit Mono'])].sort()
+/** The families that come from Google Fonts: not the device's own, not the bundled mono. */
+export const webFonts = (families: string[]) => [...new Set(families)].filter(f => f !== systemFont && f !== 'IBM Plex Mono')
 export const validName = (v: string) => [...v].length >= 1 && [...v].length <= 40 && !!v.trim() && /^[\p{L}\p{N} _-]+$/u.test(v)
 export function validateTheme(value: unknown): Theme {
   if (!value || typeof value !== 'object') throw Error('Invalid theme.')
@@ -51,7 +54,7 @@ class Themes {
   }
   apply() { applyTheme(this.active, this.half, this.appearance); void this.loadFonts(this.active.fonts) }
   async loadFonts(fonts: ThemeFonts) {
-    const families = [...new Set(Object.values(fonts))].filter(f => f !== 'IBM Plex Mono')
+    const families = webFonts(Object.values(fonts))
     const url = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;500;600;700`).join('&')}&display=swap`
     let link = document.querySelector<HTMLLinkElement>('#den-fonts')
     if (link?.href === url) return
@@ -67,7 +70,7 @@ class Themes {
     if (run !== this.fontRun) return
     if (!ok) {
       link.remove(); this.error = "Couldn't load that font"
-      for (const [role, family] of Object.entries(fonts)) if (family !== 'IBM Plex Mono') document.documentElement.style.setProperty(`--${role}`, role === 'mono' ? '"Den Terminal Mono", monospace' : 'system-ui, sans-serif')
+      for (const [role, family] of Object.entries(fonts)) if (webFonts([family]).length) document.documentElement.style.setProperty(`--${role}`, role === 'mono' ? '"Den Terminal Mono", monospace' : fontStack(systemFont, 'body'))
     } else if (this.error === "Couldn't load that font") this.error = ''
   }
   save(a: Appearance, keepDraft = false) {
@@ -94,6 +97,8 @@ class Themes {
   select(t: Theme, half: 'light'|'dark' = this.half) {
     return this.save({ ...this.appearance, [half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
   }
+  /** A preset id, a `#rrggbb`, or null for each theme's own accent. */
+  accent(choice: string | null) { return this.save({ ...this.appearance, accent: choice }, true) }
   contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
   background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
   /** The sidebar's own wallpaper. A main one limited to the sidebar would then show
