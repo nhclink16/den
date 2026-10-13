@@ -12,7 +12,7 @@ product=7d8a3fb2-c2d5-4b41-95c1-63408aa227bf  # Xcode Cloud product "DenShell"
 asc() {
     local q=""
     for a in "$@"; do q="$q $(printf '%q' "$a")"; done
-    ssh imac "export PATH=\$HOME/.bun/bin:\$PATH; cd ~/.config/h3/asc/bin && bun asc.ts $q"
+    ssh -n imac "export PATH=\$HOME/.bun/bin:\$PATH; cd ~/.config/h3/asc/bin && bun asc.ts $q"
 }
 
 workflow_id() {
@@ -44,17 +44,16 @@ wait_run() {
     [ "${state#* }" = SUCCEEDED ]
 }
 
+# Logs and .xcresult bundles only (test screenshots are inside the .xcresult); skips test products and archives.
 fetch() {
-    local run=$1 out=${2:-xcloud-$1} action
+    local run=$1 out=${2:-xcloud-$1} action name url
     mkdir -p "$out"
     for action in $(asc "/v1/ciBuildRuns/$run/actions" | jq -r '.data[].id'); do
-        asc "/v1/ciBuildActions/$action/artifacts" | jq -r '.data[].id' | while read -r artifact; do
-            asc "/v1/ciArtifacts/$artifact" | jq -r '.data.attributes | "\(.fileName)\t\(.downloadUrl)"' |
-                while IFS=$'\t' read -r name url; do
-                    echo "$out/$name" >&2
-                    curl -fsSL --retry 2 -o "$out/$name" "$url"
-                done
-        done
+        while IFS=$'\t' read -r name url; do
+            echo "$out/$name" >&2
+            curl -fsSL --retry 2 -o "$out/$name" "$url"
+        done < <(asc "/v1/ciBuildActions/$action/artifacts?limit=200" | jq -r '.data[].attributes |
+            select(.fileType == "LOG_BUNDLE" or .fileType == "RESULT_BUNDLE") | "\(.fileName)\t\(.downloadUrl)"')
     done
 }
 
