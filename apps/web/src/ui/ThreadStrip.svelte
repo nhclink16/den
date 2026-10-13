@@ -120,7 +120,7 @@
       before = views.at(-1)!.thread.id
     }
   }
-  $effect(() => { const room = channel.id; if (store.connected) untrack(() => void loadUnread(room)) })
+  $effect(() => { const room = channel.id; void store.connected; untrack(() => void loadUnread(room)) })
   // A reconnect can change every one of these.
   let online = $state(store.connected)
   $effect(() => {
@@ -171,9 +171,9 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details class="threads" bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
-  <summary class="pill" class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount} open${unreadAll.length ? ', some unread' : ''}`}>
+  <summary class="pill" class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
     <Icon name="thread" size={14} />
-    <span class="label">{#if openCount}<b>{openCount}</b> open {openCount === 1 ? 'thread' : 'threads'}{:else}Threads{/if}</span>
+    <span class="label">{#if openCount}<b>{openCount}{lists.open.more ? '+' : ''}</b> open {openCount === 1 && !lists.open.more ? 'thread' : 'threads'}{:else}Threads{/if}</span>
     {#if unreadAll.length}<span class="count" class:at={unreadAll.some((u) => u.mention)}>{unreadAll.some((u) => u.mention) ? '@' : unreadAll.reduce((n, u) => n + u.count, 0)}</span>{/if}
     <Icon name="down" size={12} />
   </summary>
