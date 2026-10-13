@@ -11,6 +11,7 @@
 		11C736E722051529A584F628 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A1C415263ABD0C2ACD64B27 /* LiveKit */; };
 		8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */; };
 		904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AFE942C4056FB331CD898A /* CallTestTone.swift */; };
+		D3F65720805BEF40328F712E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05DD3ADC085C441B6F6F23CE /* Assets.xcassets */; };
 		E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */; };
 		EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B48E12D014890145BF8A95 /* DenShellApp.swift */; };
 		FC6CAFAAF9863C649E9FC449 /* CallBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B68CD8935418E42801B3969 /* CallBridge.swift */; };
@@ -27,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		05DD3ADC085C441B6F6F23CE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallEngine.swift; sourceTree = "<group>"; };
 		640BB40042AD461BB7D3EAA8 /* OriginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginTests.swift; sourceTree = "<group>"; };
 		66B48E12D014890145BF8A95 /* DenShellApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenShellApp.swift; sourceTree = "<group>"; };
@@ -53,6 +55,7 @@
 		130A932740CA705D9D504318 /* DenShell */ = {
 			isa = PBXGroup;
 			children = (
+				05DD3ADC085C441B6F6F23CE /* Assets.xcassets */,
 				9B68CD8935418E42801B3969 /* CallBridge.swift */,
 				5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */,
 				75AFE942C4056FB331CD898A /* CallTestTone.swift */,
@@ -97,6 +100,7 @@
 			buildConfigurationList = 6B721E8179982029456B8CA3 /* Build configuration list for PBXNativeTarget "DenShell" */;
 			buildPhases = (
 				B8F7073ECA211F9599DD0E2F /* Sources */,
+				40B17B3953086EDA42F51F19 /* Resources */,
 				7AA696A72B1876851346EA0B /* Frameworks */,
 			);
 			buildRules = (
@@ -171,6 +175,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		40B17B3953086EDA42F51F19 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D3F65720805BEF40328F712E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		B8F7073ECA211F9599DD0E2F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -238,7 +253,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = UH434K44A3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -258,7 +273,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.4.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -282,7 +297,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.shell;
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -298,7 +313,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.shell.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DenShell.app/DenShell";
@@ -315,7 +330,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.shell.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DenShell.app/DenShell";
@@ -357,7 +372,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = UH434K44A3;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -371,7 +386,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.4.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -394,7 +409,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.shell;
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
