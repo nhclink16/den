@@ -113,7 +113,6 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
   - Spark mod for TPS and CPU (needs a Minecraft restart)
   - the playit join address on the page
 - **MW2 1v1s:** a private IW4x server (`sv_lanonly 1` plus a password), a Start 1v1 button on the Servers page, and a hangout card with an `iw4x://` Join link. Waiting on Nicholas owning MW2.
-- **Den Shell on older iPhones:** it requires iOS 26 today, so a friend on an older iOS can't install it from TestFlight. Make it as compatible as possible: lower the minimum as far as the web page and LiveKit allow (asked 2026-10-13, after the redesign).
 - **Landing page at `/`, app at `/app`** (deferred 2026-09-16).
 - **Mac code signing:** needs an Apple Developer ID. Until then Mac builds are unsigned and Mac auto-update does not work.
 - **RCON hardening:** Minecraft RCON listens on all interfaces with its password in the system unit. Bind it to localhost (needs approval: system unit change).

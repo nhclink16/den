@@ -1,8 +1,9 @@
 name: DenShell
 options:
   bundleIdPrefix: app.denchat
+  # iOS 17.0 is the floor: the web app's popovers and AVAudioApplication both need it.
   deploymentTarget:
-    iOS: '26.0'
+    iOS: '17.0'
   xcodeVersion: '27.0'
 settings:
   base:

@@ -169,12 +169,13 @@
   function fromMenu(run: () => void) { menu = false; run() }
   // A picker opened from the menu hands focus back to its own button when it
   // closes, and that button is hidden here: give it to the + instead.
+  // iOS before 17.4 has no checkVisibility; a hidden button has no boxes there.
   let plus = $state<HTMLElement>(), pickerWasOpen = false
   $effect(() => {
     const open = gifOpen || emojiOpen
     if (open || !pickerWasOpen) { pickerWasOpen = open; return }
     pickerWasOpen = false
-    requestAnimationFrame(() => { const at = document.activeElement as HTMLElement | null; if (phone && (!at || at === document.body || !at.checkVisibility())) plus?.focus() })
+    requestAnimationFrame(() => { const at = document.activeElement as HTMLElement | null; if (phone && (!at || at === document.body || !(at.checkVisibility?.() ?? at.getClientRects().length > 0))) plus?.focus() })
   })
 
   $effect(() => { if (dropped.length) { add(dropped); dropped = [] } })
