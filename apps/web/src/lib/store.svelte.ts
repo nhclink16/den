@@ -1117,10 +1117,11 @@ export class Store {
     // Anything the socket brought for this room since is as new or newer: keep it.
     if ((this.roomSeen.get(id) ?? -1) > asked) return
     // Otherwise the icon counts as a room change arriving now, so a list asked for
-    // before it (perhaps read before the save) can't put the old one back. Known
-    // limit: a reply held up past a reconnect whose list already shows a later
-    // icon (its event lost in the drop) wins until the next refresh. Closing that
-    // needs revisions from the server.
+    // before it (perhaps read before the save) can't put the old one back.
+    // Known limit: without revisions from the server, a reply can't be ordered
+    // against frames and lists across a dropped connection (a later icon whose
+    // event was lost, replies out of order, a rename racing the save). The
+    // screen can then show a stale icon until the next resync or reload.
     this.receiveRoom(id, { icon: c.icon ?? null }, ++this.previewN)
   }
   // Room previews: the newest channel list we asked for, with the message events
