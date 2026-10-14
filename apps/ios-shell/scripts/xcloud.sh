@@ -77,18 +77,25 @@ shots() {
 # "UI check" needs the branch's test server build from GitHub Actions (.github/workflows/ui-check.yml), which a
 # push starts. Wait for it (or start it), then run the workflow and bring the screenshots back.
 ui() {
-    local branch=${1:-$(git branch --show-current)} out=${2:-} sha runs ghrun run status=0
+    local branch=${1:-$(git branch --show-current)} out=${2:-} sha runs ghrun run tested status=0
     sha=$(gh api "repos/nhclink16/den/commits/$branch" -q .sha) || { echo "GitHub has no branch $branch. Push it first." >&2; exit 1; }
-    if ! gh api repos/nhclink16/den/releases/tags/ui-check -q '.assets[].name' 2>/dev/null | grep -qx "den-ui-check-$sha.tar.gz"; then
+    built() { gh api repos/nhclink16/den/releases/tags/ui-check -q '.assets[].name' 2>/dev/null | grep -qx "den-ui-check-$sha.tar.gz"; }
+    if ! built; then
+        # A build still running is waited for. A finished one whose file is gone (only the newest 20 are kept)
+        # or failed is built again.
         runs="repos/nhclink16/den/actions/workflows/ui-check.yml/runs?head_sha=$sha"
-        ghrun=$(gh api "$runs" -q '.workflow_runs[0].id // empty')
+        ghrun=$(gh api "$runs" -q '.workflow_runs[] | select(.status != "completed") | .id' | head -n 1)
         if [ -z "$ghrun" ]; then
             gh workflow run ui-check.yml -R nhclink16/den --ref "$branch"
-            for _ in 1 2 3 4 5 6; do sleep 10; ghrun=$(gh api "$runs" -q '.workflow_runs[0].id // empty'); [ -z "$ghrun" ] || break; done
+            for _ in 1 2 3 4 5 6; do
+                sleep 10
+                ghrun=$(gh api "$runs" -q '.workflow_runs[] | select(.status != "completed") | .id' | head -n 1)
+                [ -z "$ghrun" ] || break
+            done
         fi
         [ -n "$ghrun" ] || { echo "No UI check server build for $sha on GitHub." >&2; exit 1; }
         echo "waiting for the test server build: https://github.com/nhclink16/den/actions/runs/$ghrun" >&2
-        gh run watch "$ghrun" -R nhclink16/den --exit-status --interval 30 >/dev/null ||
+        gh run watch "$ghrun" -R nhclink16/den --exit-status --interval 30 >/dev/null && built ||
             { echo "The test server build failed: https://github.com/nhclink16/den/actions/runs/$ghrun" >&2; exit 1; }
     fi
     run=$(start "UI check" "$branch")
@@ -98,6 +105,9 @@ ui() {
     fetch "$run" "$out" || status=1
     shots "$out" || status=1
     ls "$out/shots" >&2 2>/dev/null || true
+    # Xcode Cloud builds the branch as it is when the run starts; a push meanwhile changes what was tested.
+    tested=$(asc "/v1/ciBuildRuns/$run" | jq -r '.data.attributes.sourceCommit.commitSha // empty')
+    [ "$tested" = "$sha" ] || { echo "This run tested ${tested:-an unknown commit}, not $sha." >&2; status=1; }
     exit $status
 }
 

@@ -46,7 +46,9 @@ jobs:
         run: |
           gh release view ui-check >/dev/null 2>&1 ||
             gh release create ui-check --prerelease --target main --title 'UI check builds' \
-              --notes 'Test servers with made-up data for Den Shell UI checks in Xcode Cloud. Not a release.'
+              --notes 'Test servers with made-up data for Den Shell UI checks in Xcode Cloud. Not a release.' ||
+            gh release view ui-check >/dev/null
           gh release upload ui-check "den-ui-check-$GITHUB_SHA.tar.gz" --clobber
+          # Another commit's build may be pruning at the same time; a file it already deleted is fine.
           gh release view ui-check --json assets -q '.assets | sort_by(.createdAt) | reverse | .[20:] | .[].name' |
-            while read -r name; do gh release delete-asset ui-check "$name" --yes; done
+            while read -r name; do gh release delete-asset ui-check "$name" --yes || true; done
