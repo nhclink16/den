@@ -7,6 +7,7 @@
   import { router } from '../lib/router.svelte'
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
+  import { push, pushSettings, pushStart } from '../lib/shell-push.svelte'
   import { customizer } from '../lib/customizer.svelte'
   import { visibleSections, findSettings, reveal, type Hit, type Section } from '../lib/settings-search'
   import ProfileSettings from './ProfileSettings.svelte'
@@ -128,6 +129,12 @@
   // The iPhone app's page has no Notification at all: nothing to unblock there.
   let perm = $state<NotificationPermission | 'unsupported'>(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
   async function enable() { await notify.ask(); perm = Notification.permission }
+  // Den Shell asks iOS instead. Coming back from iOS Settings re-checks (Shell.svelte).
+  const phoneHint = $derived(!push.status ? ''
+    : push.status.permission === 'undecided' ? 'Off. Turn them on to hear about mentions and DMs when Den is closed.'
+    : push.status.permission === 'denied' ? 'Off in iOS Settings. Tap Open Settings, then turn on Allow Notifications.'
+    : push.connected ? 'On. Mentions and DMs reach this iPhone when Den is closed.'
+    : 'Allowed, but not connected to Den yet. Den tries again each time you open it.')
   function toggleSub(id: string) {
     const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
     store.saveNotif({ subscribed_channel_ids: [...s] })
@@ -232,7 +239,16 @@
         {:else if current === 'notifications'}
           <h2 class="display">Notifications</h2>
           <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
-          {#if perm !== 'granted'}
+          {#if push.available}
+            <div class="slist callout">
+              <SettingRow find="permission" label="Notifications on this iPhone" hint={phoneHint}>
+                {#snippet control()}
+                  {#if push.status?.permission === 'undecided'}<button class="btn lit" onclick={() => pushStart()}>Turn on</button>
+                  {:else if push.status?.permission === 'denied'}<button class="btn" onclick={pushSettings}>Open Settings</button>{/if}
+                {/snippet}
+              </SettingRow>
+            </div>
+          {:else if perm !== 'granted'}
             <div class="slist callout">
               <SettingRow find="permission" label={perm === 'unsupported' ? 'Notifications on this device' : 'Desktop notifications'} hint={perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Blocked in your browser settings. Allow them there for this site.' : 'Off. Turn them on to hear about mentions and DMs while Den is in the background.'}>
                 {#snippet control()}{#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}{/snippet}
@@ -241,7 +257,7 @@
           {/if}
           <h3 class="list-head">Always</h3>
           <!-- Notifications already on: a search for them lands here. -->
-          <div class="slist" data-find={perm === 'granted' ? 'permission' : undefined}>
+          <div class="slist" data-find={perm === 'granted' && !push.available ? 'permission' : undefined}>
             <SettingRow find="mentions" label="When someone mentions me">
               {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="When someone mentions me" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} />{/snippet}
             </SettingRow>

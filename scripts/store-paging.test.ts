@@ -51,7 +51,7 @@ const globals = {
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
-  activeListeners: new Set(), setCsrf() {},
+  activeListeners: new Set(), setCsrf() {}, pushSignedOut() {},
   WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
   lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
 }

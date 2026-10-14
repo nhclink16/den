@@ -11,6 +11,10 @@ private let log = Logger(subsystem: "app.denchat.shell", category: "shell")
 /// The page the shell opens. Launch with `-DenStartURL https://host:port` to point it at a test server.
 let startURL: URL = {
     if let value = UserDefaults.standard.string(forKey: "DenStartURL"), let url = URL(string: value), Origin(url) != nil {
+        #if DEBUG && targetEnvironment(simulator)
+        // Kept for launches iOS starts itself, such as a notification tap, which carry no launch arguments.
+        UserDefaults.standard.set(value, forKey: "DenStartURL")
+        #endif
         return url
     }
     return URL(string: "https://denchat.app")!
@@ -52,6 +56,8 @@ struct Origin: Equatable {
 }
 
 @main struct DenShellApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     init() {
         #if DEBUG && targetEnvironment(simulator)
         CallTestHooks.install()
@@ -76,8 +82,10 @@ struct DenWebView: UIViewRepresentable {
         // that has nothing to do with web calls themselves.
         config.preferences.inactiveSchedulingPolicy = .none
         context.coordinator.calls.install(in: config.userContentController)
+        PushBridge.shared.install(in: config.userContentController, den: context.coordinator.den)
         let webView = WKWebView(frame: .zero, configuration: config)
         context.coordinator.calls.webView = webView
+        PushBridge.shared.webView = webView
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true

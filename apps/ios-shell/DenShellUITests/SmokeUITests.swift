@@ -10,6 +10,33 @@ final class SmokeUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// Runs first, so it sees iOS's one-time prompt. The page registers this iPhone with the made-up Den after sign-in;
+    /// Settings only says "On" once Den took the token. Then Maya mentions Ellis over the API, a stand-in for Apple's
+    /// push service on the runner (ci_scripts/ci_pre_xcodebuild.sh) delivers Den's alert for it, and tapping the
+    /// banner must open that room: once with Den in the background, once with Den closed.
+    @MainActor func test0Notifications() async throws {
+        let app = try launchSignedIn(notificationPrompt: true)
+        try find(app, label: "Your profile and settings").tap()
+        try find(app, label: "Notifications").tap()
+        try find(app, label: "On. ", .prefix, timeout: 15)
+        shot("0-notifications-on")
+
+        XCUIDevice.shared.press(.home)
+        try await mention("@ellis push check: can you grab ice on the way?", in: "plans")
+        try tapBanner(containing: "grab ice", shot: "0-banner-background")
+        try find(app, label: "Message plans", timeout: 15)
+        try find(app, label: "grab ice", .contains)
+        shot("0-opened-from-background")
+
+        app.terminate()
+        try await mention("@ellis push check: the speaker is in my car", in: "music")
+        try tapBanner(containing: "speaker is in my car", shot: "0-banner-closed")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), "The tap didn't open Den.")
+        try find(app, label: "Message music", timeout: 30)
+        try find(app, label: "speaker is in my car", .contains)
+        shot("0-opened-from-closed")
+    }
+
     @MainActor func test1RoomList() throws {
         let app = try launchSignedIn()
         try find(app, label: "general", .prefix)
@@ -83,9 +110,11 @@ final class SmokeUITests: XCTestCase {
     // MARK: Helpers
 
     /// Opens Den Shell on the runner's Den, signing in as Ellis unless the web view still has the session.
-    @MainActor private func launchSignedIn() throws -> XCUIApplication {
+    /// `-DenTestPushToken`: the simulator may get no token from Apple here, so it registers a made-up one.
+    @MainActor private func launchSignedIn(notificationPrompt: Bool = false) throws -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-DenStartURL", "http://localhost:7000", "-DenCallTestTone", "YES"]
+        app.launchArguments = ["-DenStartURL", "http://localhost:7000", "-DenCallTestTone", "YES",
+                               "-DenTestPushToken", String(repeating: "0d", count: 32)]
         app.launch()
         let rooms = element(app, label: "Your profile and settings")
         let comeIn = element(app, label: "Come in")
@@ -101,7 +130,56 @@ final class SmokeUITests: XCTestCase {
             comeIn.tap()
         }
         try find(app, label: "Your profile and settings", timeout: 20)
+        // iOS asks about notifications once, after the first sign-in.
+        let allow = springboard.alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: notificationPrompt ? 10 : 2) {
+            if notificationPrompt { shot("0-notification-prompt") }
+            allow.tap()
+        } else if notificationPrompt {
+            XCTFail("iOS didn't ask about notifications after sign-in.")
+        }
         return app
+    }
+
+    @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }
+
+    /// Waits for Den's notification on the Home Screen and taps it.
+    @MainActor private func tapBanner(containing text: String, shot name: String) throws {
+        let banner = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        if !banner.waitForExistence(timeout: 30) {
+            shot("missing-banner-\(text)")
+            let tree = XCTAttachment(string: springboard.debugDescription)
+            tree.name = "tree-missing-banner"
+            tree.lifetime = .keepAlways
+            add(tree)
+            throw Missing(description: "No notification containing \"\(text)\" after 30 s.")
+        }
+        shot(name)
+        banner.tap()
+    }
+
+    /// Maya posts in a room over the API, the way her own phone would.
+    @MainActor private func mention(_ text: String, in room: String) async throws {
+        func call(_ method: String, _ path: String, _ body: [String: Any]?, token: String?) async throws -> Any {
+            var request = URLRequest(url: URL(string: "http://localhost:7000\(path)")!)
+            request.httpMethod = method
+            request.setValue("application/json", forHTTPHeaderField: "content-type")
+            request.setValue("http://localhost:7000", forHTTPHeaderField: "origin")
+            if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "authorization") }
+            if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                throw Missing(description: "\(method) \(path) answered \(String(data: data, encoding: .utf8) ?? "")")
+            }
+            return try JSONSerialization.jsonObject(with: data)
+        }
+        let session = try await call("POST", "/auth/login", ["username": "maya", "password": "correct horse battery"], token: nil)
+        guard let token = (session as? [String: Any])?["token"] as? String else { throw Missing(description: "No token for Maya.") }
+        let channels = try await call("GET", "/channels", nil, token: token) as? [[String: Any]] ?? []
+        guard let id = channels.first(where: { $0["name"] as? String == room })?["id"] as? String else {
+            throw Missing(description: "No room called \(room).")
+        }
+        _ = try await call("POST", "/channels/\(id)/messages", ["content": text], token: token)
     }
 
     enum Match: String { case exact = "==", prefix = "BEGINSWITH", contains = "CONTAINS" }

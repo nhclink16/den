@@ -20,6 +20,7 @@
   import Search from './Search.svelte'
   import ServerView from './ServerView.svelte'
   import { notify } from '../lib/notify.svelte'
+  import { listenForPush, pushBadge, pushStart } from '../lib/shell-push.svelte'
 
   let palette = $state(false)
   // Narrow screens show one thing at a time: the room list is the home screen,
@@ -78,6 +79,15 @@
     window.addEventListener('blur', release); document.addEventListener('visibilitychange', release)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', release); void call.leave() }
   })
+  // Den Shell's notifications: registered for whoever just signed in, and again each time Den comes back.
+  $effect(() => untrack(() => {
+    const stop = listenForPush()
+    void pushStart()
+    const back = () => { if (document.visibilityState === 'visible') void pushStart() }
+    document.addEventListener('visibilitychange', back)
+    return () => { stop(); document.removeEventListener('visibilitychange', back) }
+  }))
+  $effect(() => pushBadge(store.readState.values()))
   // Den Shell keeps a call running through a page reload; show it again once the rooms have loaded.
   $effect(() => { if (store.channels.length) untrack(() => void call.resumeShell()) })
   // Per-device avatar preferences, read by Avatar through root attributes.

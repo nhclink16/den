@@ -30,6 +30,7 @@ export type ThreadSummary = S['ThreadSummary']
 export type ThreadReadState = S['ThreadReadState']
 export type ThreadView = S['ThreadView']
 export type NotificationPreferences = S['NotificationPreferences']
+export type RegisterDevice = S['RegisterDevice']
 export type PresenceState = S['PresenceState']
 
 export type CallState = S['CallState']
