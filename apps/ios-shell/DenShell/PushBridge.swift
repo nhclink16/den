@@ -78,7 +78,9 @@ struct PushStatus: Encodable {
     }
 }
 
-@MainActor final class PushBridge: NSObject, WKScriptMessageHandlerWithReply, UNUserNotificationCenterDelegate {
+// iOS calls the notification delegate on the main thread; `@preconcurrency` lets the main-actor methods below stand in
+// for its plain requirements, and checks that thread when they run.
+@MainActor final class PushBridge: NSObject, WKScriptMessageHandlerWithReply, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = PushBridge()
 
     private var den: Origin?
@@ -189,20 +191,25 @@ struct PushStatus: Encodable {
         }
     }
 
-    // Both on the main actor: iOS finishes these on the thread they return on, and UIKit aborts the app when a tap's
-    // answer comes back off the main thread (seen in Xcode Cloud).
+    // Completion handlers, called on the main thread: UIKit aborts the app when a tap's answer comes back from
+    // another thread, which the `async` forms of these did (seen in Xcode Cloud).
 
     /// Kept until the page takes it: after a cold launch the page may still be loading or signing in.
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
         let tap = PushTap(response.notification.request.content.userInfo)
         log.info("notification tapped, \(tap == nil ? "not Den's" : "for a Den room", privacy: .public)")
-        guard let tap else { return }
-        tapped = tap
-        send(#"{"type":"tap"}"#)
+        if let tap {
+            tapped = tap
+            send(#"{"type":"tap"}"#)
+        }
+        completionHandler()
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        await presentation(PushTap(notification.request.content.userInfo))
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let tap = PushTap(notification.request.content.userInfo)
+        Task { completionHandler(await presentation(tap)) }
     }
 
     /// With Den open, the page already plays its own alert sound and keeps the badge, so iOS only shows the banner,
