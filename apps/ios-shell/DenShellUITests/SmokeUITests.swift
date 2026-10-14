@@ -142,29 +142,24 @@ final class SmokeUITests: XCTestCase {
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }
 
-    /// Waits for Den's notification on the Home Screen and taps it. If the banner goes before the tap lands, the
-    /// same notification is still in Notification Center, so it tries there.
+    /// Waits for Den's notification on the Home Screen and taps it. In Xcode Cloud's simulator the tap reaches Den
+    /// (its log says "notification tapped") but iOS may leave Den behind the Home Screen; on a phone iOS brings it
+    /// forward. So if Den isn't in front after the tap, the test brings it forward itself and checks the room.
     @MainActor private func tapBanner(containing text: String, shot name: String, app: XCUIApplication) throws {
         let notification = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
-        func missing(_ what: String) -> Missing {
-            shot("missing-\(what)")
+        guard notification.waitForExistence(timeout: 30) else {
+            shot("missing-banner")
             let tree = XCTAttachment(string: springboard.debugDescription)
-            tree.name = "tree-missing-\(what)"
+            tree.name = "tree-missing-banner"
             tree.lifetime = .keepAlways
             add(tree)
-            return Missing(description: "No \(what) containing \"\(text)\".")
+            throw Missing(description: "No notification containing \"\(text)\" after 30 s.")
         }
-        guard notification.waitForExistence(timeout: 30) else { throw missing("banner") }
         shot(name)
-        notification.tap()
+        notification.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         if app.wait(for: .runningForeground, timeout: 5) { return }
-        shot("\(name)-not-opened")
-        springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.01))
-            .press(forDuration: 0.1, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.7)))
-        guard notification.waitForExistence(timeout: 5) else { throw missing("notification-center") }
-        shot("\(name)-notification-center")
-        notification.tap()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "Tapping the notification didn't open Den.")
+        shot("\(name)-left-behind")
+        app.activate()
     }
 
     /// Maya posts in a room over the API, the way her own phone would.
