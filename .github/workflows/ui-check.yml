@@ -1,0 +1,55 @@
+name: UI check server
+# Builds the made-up Den that Den Shell's Xcode Cloud "UI check" runs against, from this commit:
+# den-server for macOS arm64, the web app, LiveKit and a database seeded with made-up people.
+# It is published as den-ui-check-<commit>.tar.gz on the "ui-check" prerelease, where the test
+# machine downloads it (apps/ios-shell/ci_scripts/ci_pre_xcodebuild.sh). Xcode Cloud has no
+# GitHub token, and release assets are the only build output it can fetch without one.
+on:
+  push:
+    paths: ['apps/web/**', 'apps/ios-shell/**', 'crates/**', 'Cargo.*', '.sqlx/**', '.github/workflows/ui-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: ui-check-${{ github.sha }}
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ui-check-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ui-check-
+      - name: Build den-server and the web app
+        env:
+          CARGO_PROFILE_DEV_DEBUG: '0'
+        run: |
+          cargo build --locked -p den-server
+          bash scripts/npm-ci.sh --prefix apps/web
+          npm --prefix apps/web run build
+      - run: bash apps/ios-shell/ui-check/package.sh "den-ui-check-$GITHUB_SHA.tar.gz"
+      - name: Publish on the ui-check prerelease, keeping the newest 20
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ui-check >/dev/null 2>&1 ||
+            gh release create ui-check --prerelease --target main --title 'UI check builds' \
+              --notes 'Test servers with made-up data for Den Shell UI checks in Xcode Cloud. Not a release.' ||
+            gh release view ui-check >/dev/null
+          gh release upload ui-check "den-ui-check-$GITHUB_SHA.tar.gz" --clobber
+          # Another commit's build may be pruning at the same time; a file it already deleted is fine. By id, so
+          # a file replaced meanwhile (same name, new id) stays.
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/ui-check" -q '.assets | sort_by(.created_at) | reverse | .[20:] | .[].id' |
+            while read -r id; do gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id" || true; done

@@ -16,9 +16,17 @@
 		E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */; };
 		EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B48E12D014890145BF8A95 /* DenShellApp.swift */; };
 		FC6CAFAAF9863C649E9FC449 /* CallBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B68CD8935418E42801B3969 /* CallBridge.swift */; };
+		FEC8858D285EAE78CCD9F2AC /* SmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8985E1E2084B9D5B52A41C5E /* SmokeUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		61A8C9254E2B5D9163551AE5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9DA4593047DC4CC8F79551E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2AADCADEF7084FB0FEAFDCDB;
+			remoteInfo = DenShell;
+		};
 		9C49A095DA28BBF723D523DD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9DA4593047DC4CC8F79551E8 /* Project object */;
@@ -34,6 +42,8 @@
 		640BB40042AD461BB7D3EAA8 /* OriginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginTests.swift; sourceTree = "<group>"; };
 		66B48E12D014890145BF8A95 /* DenShellApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenShellApp.swift; sourceTree = "<group>"; };
 		75AFE942C4056FB331CD898A /* CallTestTone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallTestTone.swift; sourceTree = "<group>"; };
+		8985E1E2084B9D5B52A41C5E /* SmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeUITests.swift; sourceTree = "<group>"; };
+		8F6A08C30258BF9F3C45A2FD /* DenShellUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DenShellUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		944E927586E73EED81BAAB65 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallBridgeTests.swift; sourceTree = "<group>"; };
 		9A315DC6859FDC5356E4EFBC /* DenShellTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DenShellTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -82,6 +92,7 @@
 			children = (
 				130A932740CA705D9D504318 /* DenShell */,
 				48E3A9DA52DE35F809078D29 /* DenShellTests */,
+				CBEC816B5F27CE27F855F277 /* DenShellUITests */,
 				BFE46C4B13F1AA634A03B4EE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -91,8 +102,17 @@
 			children = (
 				D31F7408E33D1B344EB0D9BA /* DenShell.app */,
 				9A315DC6859FDC5356E4EFBC /* DenShellTests.xctest */,
+				8F6A08C30258BF9F3C45A2FD /* DenShellUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CBEC816B5F27CE27F855F277 /* DenShellUITests */ = {
+			isa = PBXGroup;
+			children = (
+				8985E1E2084B9D5B52A41C5E /* SmokeUITests.swift */,
+			);
+			path = DenShellUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -117,6 +137,24 @@
 			productName = DenShell;
 			productReference = D31F7408E33D1B344EB0D9BA /* DenShell.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B6267FF7D146310BE81E01EC /* DenShellUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 52C525FF5F32A570CC638944 /* Build configuration list for PBXNativeTarget "DenShellUITests" */;
+			buildPhases = (
+				40CAE7B52D8D3D40EAEC320F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				40FC08864132CF1D8330B555 /* PBXTargetDependency */,
+			);
+			name = DenShellUITests;
+			packageProductDependencies = (
+			);
+			productName = DenShellUITests;
+			productReference = 8F6A08C30258BF9F3C45A2FD /* DenShellUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		C12E16F1175B3685CEB405C0 /* DenShellTests */ = {
 			isa = PBXNativeTarget;
@@ -149,6 +187,11 @@
 						DevelopmentTeam = UH434K44A3;
 						ProvisioningStyle = Automatic;
 					};
+					B6267FF7D146310BE81E01EC = {
+						DevelopmentTeam = UH434K44A3;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 2AADCADEF7084FB0FEAFDCDB;
+					};
 					C12E16F1175B3685CEB405C0 = {
 						DevelopmentTeam = UH434K44A3;
 						ProvisioningStyle = Automatic;
@@ -174,6 +217,7 @@
 			targets = (
 				2AADCADEF7084FB0FEAFDCDB /* DenShell */,
 				C12E16F1175B3685CEB405C0 /* DenShellTests */,
+				B6267FF7D146310BE81E01EC /* DenShellUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -191,6 +235,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		40CAE7B52D8D3D40EAEC320F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEC8858D285EAE78CCD9F2AC /* SmokeUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B8F7073ECA211F9599DD0E2F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -214,6 +266,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		40FC08864132CF1D8330B555 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2AADCADEF7084FB0FEAFDCDB /* DenShell */;
+			targetProxy = 61A8C9254E2B5D9163551AE5 /* PBXContainerItemProxy */;
+		};
 		C1D7B611AED0FC3D0757BF1B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2AADCADEF7084FB0FEAFDCDB /* DenShell */;
@@ -306,6 +363,23 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
+		};
+		5EA4463B4AFB915961DD632C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DenShell;
+			};
+			name = Release;
 		};
 		6C0DD266D5384DEE57A4045B /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -419,6 +493,23 @@
 			};
 			name = Release;
 		};
+		E4BBF20447E7224CF100E4D6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.denchat.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DenShell;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -427,6 +518,15 @@
 			buildConfigurations = (
 				089864642FCB3176AD5F1ADB /* Debug */,
 				C02F8F2B467F42DA507E2424 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		52C525FF5F32A570CC638944 /* Build configuration list for PBXNativeTarget "DenShellUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4BBF20447E7224CF100E4D6 /* Debug */,
+				5EA4463B4AFB915961DD632C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
