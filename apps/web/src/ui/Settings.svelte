@@ -77,8 +77,8 @@
     const look = () => {
       if (pending !== find) return
       if (pane && reveal(pane, find)) { pending = null; return }
-      // Nothing to land on (it isn't shown right now): a phone still moves focus to the page.
-      if (++tries > 12) { pending = null; if (narrow) heading?.focus({ preventScroll: true }); return }
+      // Nothing to land on (it isn't shown right now): focus the page instead.
+      if (++tries > 12) { pending = null; focusPage(); return }
       setTimeout(look, 120)
     }
     void tick().then(look)
@@ -105,9 +105,15 @@
   const hits = $derived(findSettings(q, sections, admin))
   function pick(h: Hit) {
     q = ''; open(h.section.id, h.entry?.find)
-    // A whole section has no row to land on, and the result just went away: on a computer, focus the page's title.
-    // (A phone's drill-in focuses its own title.)
-    if (!h.entry && !narrow) void tick().then(() => { const t = pane?.querySelector<HTMLElement>('h2'); if (t) { t.tabIndex = -1; t.focus({ preventScroll: true }) } })
+    // A whole section has no row to land on, and the result just went away: focus the page.
+    if (!h.entry) void tick().then(focusPage)
+  }
+  /** Keyboard focus to the top of the page: the header title on a phone, the page's own title on a computer. */
+  function focusPage() {
+    pane?.scrollTo({ top: 0 })
+    const title = narrow ? heading : pane?.querySelector<HTMLElement>('h2')
+    if (!title) return
+    title.tabIndex = -1; title.focus({ preventScroll: true })
   }
   function searchKey(e: KeyboardEvent) {
     if (e.key === 'Enter' && hits[0]) { e.preventDefault(); pick(hits[0]) }
