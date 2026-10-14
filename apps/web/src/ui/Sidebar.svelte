@@ -167,6 +167,9 @@
       {@const jam = jamLine(c.id)}
       <!-- In the call, the card says what the call pill says: who's talking. -->
       {@const talking = here && !call.reconnecting ? callLine(call.participants).talking : ''}
+      <!-- On a phone, the call pill above the list is this card while you're in the
+           call, with your mic and Leave besides, so the list doesn't repeat it. -->
+      {#if !(phone && here)}
       <div class="hang" class:live={ids.length > 0}>
         {#if ids.length}
           <CallFaces faces={here && call.participants.length ? callFaces(call.participants) : ids.map((userId) => ({ userId }))} size={phone ? 32 : 28} max={phone ? 3 : 2} />
@@ -184,6 +187,7 @@
           <button class="btn lit small" disabled={call.joining === c.id} onclick={() => call.join(c)} aria-label={jam ? `Join ${c.name}. ${jam}` : `Join ${c.name}`}>{call.joining === c.id ? 'Joining…' : 'Join'}</button>
         {/if}
       </div>
+      {/if}
     {/each}
 
     {#each uncategorized as c, i (c.id)}{@render room(c, i === uncategorized.length - 1)}{/each}
