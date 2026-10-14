@@ -336,7 +336,7 @@
   }
 </script>
 
-<div class="composer">
+<div class="composer" class:phone>
   {#if error}<p role="alert" class="error">{error}</p>{/if}
   <!-- A resolved conversation takes nothing new, but what you already typed is
        still yours: the draft and its files stay exactly where they are. -->
@@ -424,11 +424,11 @@
   .people b { font-weight: 600; }
   .handle { color: var(--ink-3); font-size: 13px; }
   .composer { position: relative; padding: 0 var(--gutter) 14px; }
-  .row { display: flex; align-items: flex-end; gap: var(--s2); }
+  .row { --box-pad: 3px; --box-edge: 1px; display: flex; align-items: flex-end; gap: var(--s2); }
   /* A pill while it is one line, a rounded card once it grows. Sharp corners stay sharp. */
   .box {
-    flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; padding: 3px;
-    background: var(--bg); border: 1px solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + 4px));
+    flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 2px; padding: var(--box-pad);
+    background: var(--bg); border: var(--box-edge) solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + var(--box-pad) + var(--box-edge)));
     transition: border-color var(--t), box-shadow var(--t);
   }
   .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
@@ -453,7 +453,10 @@
   .plus { background: var(--bg-3); color: var(--ink-2); list-style: none; cursor: pointer; }
   .plus::-webkit-details-marker { display: none; }
   .more[open] > .plus { color: var(--lamp); }
-  .more { display: flex; }
+  /* The box is the + plus its padding and border, and both sit on the bottom so the box
+     can grow upward. Lift the + by that much: it shares the box's centre line, and once
+     the box grows, its last line's. */
+  .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
   .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   .menu { display: grid; padding: var(--s3) var(--s3) var(--s4); gap: 0; }
   .menu button { display: flex; align-items: center; gap: var(--s3); min-height: 52px; padding: 0 var(--s4); background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }
@@ -465,11 +468,13 @@
   .menu :global(svg), .menu .badge { color: var(--lamp); flex: none; }
   .menu .badge { width: 20px; text-align: center; padding: 3px 0 2.5px; }
   .reply-bar, .pending {
-    display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0 8px;
+    --tab-inset: 8px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0 var(--tab-inset);
     background: var(--bg-2); border: 1px solid var(--line); border-bottom: 0;
     border-radius: var(--r-lg) var(--r-lg) 0 0; font-size: 13px;
   }
   .pending { flex-wrap: wrap; gap: 6px; }
+  /* On a phone the + comes first: the tab sits on the box, not over the +. */
+  .phone > :is(.reply-bar, .pending) { margin-inline-start: calc(var(--hit) + var(--s2) + var(--tab-inset)); }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { display: grid; place-items: center; min-width: 24px; min-height: 24px; border-radius: var(--r-pill); color: var(--ink-3); }
   @media (pointer: coarse) { .x { min-width: 36px; min-height: 36px; margin: -6px; } }
