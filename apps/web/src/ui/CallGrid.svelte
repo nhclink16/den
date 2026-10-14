@@ -52,7 +52,10 @@
   // gets a taller ceiling: bounding rows by width alone left most of a tall screen
   // empty, which is what a vertical monitor looked like before. Anything still left
   // over is split above and below by the canvas margins rather than all falling below.
-  const stepY = $derived(mobile ? Math.max(24, stepX) : Math.max(24, Math.min(stepX * (portrait ? 1.3 : .8), (height - 8) / rows)))
+  // A phone starts from square cells and stretches the rows to fill the screen, like
+  // FaceTime, up to twice as tall as wide so one or two people don't become towers.
+  // More rows than fit keep square cells and scroll.
+  const stepY = $derived(mobile ? Math.max(24, stepX, Math.min(stepX * 2, (height - 8) / rows)) : Math.max(24, Math.min(stepX * (portrait ? 1.3 : .8), (height - 8) / rows)))
   function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(tiles, value, callLayouts.value.tiles, mobile)) }
   function reset() { cancelDrag?.(); callLayouts.reset() }
   function pin(key: string) {

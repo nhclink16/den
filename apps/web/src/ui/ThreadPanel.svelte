@@ -180,7 +180,7 @@
   }}
 >
   <header class="head" bind:this={head} tabindex="-1">
-    {#if narrow}<button class="icon-btn" onclick={onclose} aria-label="Back to room"><Icon name="back" size={20} /></button>{/if}
+    {#if narrow}<button class="icon-btn back" onclick={onclose} aria-label="Back to room"><Icon name="back" size={22} /></button>{/if}
     {#if renaming}
       <input
         class="field rename" bind:value={title} aria-label="Conversation title"
@@ -190,7 +190,7 @@
     {:else}
       <div class="title">
         <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
-        <span class="sub">in {roomName(channel, themes.appearance.room_icons)}{#if summary?.reply_count} · {summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved} · <span class="tag">Resolved</span>{/if}</span>
+        <span class="sub">in {roomName(channel, themes.appearance.room_icons)}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
       </div>
     {/if}
     {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
@@ -286,6 +286,8 @@
      where they fit, this changes nothing. */
   .head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px var(--gutter); min-height: 56px; }
   .head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  /* The same chevron a room has back to the list. */
+  .back { flex: none; margin-inline-start: -6px; color: var(--lamp); }
   .title { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
   h2 { font-size: var(--fs-body); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sub { font-size: var(--fs-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -109,6 +109,14 @@ html.desktop .shell.no-members .main > .call-status { padding-right: max(12px, v
 html.desktop .shell.no-members .main > .call-view .expand { right: calc(var(--wco-right) + 6px); }
 html.desktop .shell.no-members .main > .call-view > .call-head { padding-right: max(20px, var(--wco-right)); }
 html.desktop .shell.no-members .main > .call-view > .call-pill { margin-right: max(12px, var(--wco-right)); }
+/* A phone-sized window covers the room's header with the open call or a thread
+   (ChannelView's .pushed). Their own top rows drag the window instead and keep
+   clear of the controls, and so does the call pill above a thread. */
+html.desktop .view.pushed > .call-view > .call-head,
+html.desktop .view.pushed .panel > header.head { -webkit-app-region: drag; padding-right: max(12px, var(--wco-right)); }
+html.desktop .view.pushed > .call-view > .call-head :is(a, button, input, select, summary),
+html.desktop .view.pushed .panel > header.head :is(a, button, input, select, summary) { -webkit-app-region: no-drag; }
+html.desktop .view.pushed > .call-view > .call-pill { margin-right: max(12px, var(--wco-right)); }
 /* The Appearance drawer is pinned to the right edge over everything. It lies over
    the room header, a drag region, and Electron drags through anything on top that
    doesn't opt out, so its close button would move the window instead of closing. */

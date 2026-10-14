@@ -246,6 +246,10 @@
   const isDm = $derived(channel.kind === 'dm')
   // An expanded call hides this room completely, so the header names the call.
   const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
+  // On a phone the open call and a thread each take the whole screen, the way a
+  // room covers the list: their own header row, with its own way back, replaces
+  // the room's.
+  const pushed = $derived(narrow && (callCovers || stowed))
 
   function onDrop(e: DragEvent) {
     e.preventDefault(); e.stopPropagation(); dragging = 0
@@ -255,7 +259,8 @@
   }
 </script>
 
-<section class="view" aria-label={store.title(channel)}>
+<section class="view" class:pushed aria-label={store.title(channel)}>
+  {#if !pushed}
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<HomeButton />{/if}
@@ -271,15 +276,18 @@
     <span class="spacer"></span>
     {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
     <form class="search input-shell" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
+    <!-- A phone has no room for a field beside the title: one tap opens Search. -->
+    <a href="/find" class="icon-btn find" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find') }}><Icon name="search" size={20} /></a>
     {#if !narrow}
       <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
     {/if}
   </header>
+  {/if}
 
   {#if channel.kind !== 'text'}<JamCard channelId={channel.id} />{/if}
   {#if call.channel && call.owner && call.channel.id !== channel.id && !objects.expanded}<JamCard channelId={call.channel.id} owner={call.owner} compact />{/if}
 
-  {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} />{/if}
+  {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} titled={pushed && callCovers} />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
   {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}
@@ -405,7 +413,8 @@
   .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: var(--fs-sm); }
   .voice-music .jam-hint { margin: 14px 0 0; font-size: var(--fs-xs); }
   .voice-empty { flex: 1; display: grid; place-items: center; }
-  @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .titles { flex-direction: column; align-items: flex-start; gap: 2px; } .search input { width: 64px; } .search input:focus { width: 90px; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
+  .find { display: none; }
+  @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .titles { flex-direction: column; align-items: flex-start; gap: 2px; } .search { display: none; } .find { display: grid; } .dm-call { padding: 6px; } .dm-call span { display: none; } }
   .typing { height: 20px; padding: 0 var(--gutter); display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
   .typing b { font-weight: 700; color: var(--ink); }
   .dots { display: inline-flex; gap: 3px; margin-right: 4px; }
