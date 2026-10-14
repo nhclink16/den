@@ -67,7 +67,7 @@ hyphens or underscores, with at least one nonspace character. Colors require
 and missing selected families are rejected. The custom-theme array is limited
 to 12 families and 16 KiB of compact UTF-8 JSON. Import files also have a 16 KiB
 limit. An imported ID collision receives a new UUID. Deleting the selected custom
-family selects Den for each choice that referenced it.
+family selects Neutral, the default, for each choice that referenced it.
 
 ## Migration and generated halves
 
@@ -112,7 +112,7 @@ function, also embedded synchronously before application modules. Browser cache
 uses `den.appearance`; native cache uses `den.appearance:<origin>`. The server is
 authoritative after login. Native pending saves retain their original server.
 
-The grid has eight split previews. Light occupies the top-left and Dark the
+The grid has nine split previews. Light occupies the top-left and Dark the
 bottom-right, separated by a thin line. Explicit Light or Dark mode dims the other
 half to 70%; System leaves both undimmed. Light and Dark choices are selected independently.
 Names use each family's display font. Custom cards keep their custom label
@@ -147,41 +147,68 @@ Font loading has a three-second fallback and the existing failure message.
 
 ## Authored families
 
-Nicholas confirmed eight families and sixteen palettes for M9b. Fonts, radius
-and density are unchanged from M9.
+Nine built-in families, eighteen palettes, read from `themes.json` (this table is
+a copy; the JSON wins if they ever disagree). Neutral is the default for anyone
+who has never saved an appearance. Den, Moss and Ember use Public Sans for body
+text: Atkinson Hyperlegible's zero is always slashed. "System" names the device's
+own font (SF on Apple devices, Segoe UI on Windows; `fontStack` in
+`apps/web/src/lib/theme-runtime.ts`).
 
 | Family | Half | bg | bg2 | bg3 | line | ink | ink2 | ink3 | accent | success | danger |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| den | light | #f4efe6 | #ebe5da | #e2dbcd | #d3cabb | #26221c | #5e564a | #8a8173 | #c77d1f | #5f7f4a | #b8462a |
-| den | dark | #1b1916 | #232019 | #2c2821 | #3a3429 | #ece5d8 | #a89f8f | #6f6759 | #e8a44a | #8da874 | #d2623e |
-| moss | light | #f3f6ef | #e9eee3 | #dfe6d6 | #cdd6c3 | #1f261d | #55604f | #7f8a78 | #4f8a2a | #3f8a4a | #c2552f |
-| moss | dark | #151a15 | #1b221b | #232c23 | #2f3a2f | #e4ead9 | #a3ad98 | #6c7566 | #9ccf6f | #7fbf8a | #d9694f |
-| tide | light | #f1f6f7 | #e6eef0 | #dae5e8 | #c6d4d8 | #15252b | #4d6068 | #7a8b92 | #1e8f85 | #2f8f5b | #d0533f |
-| tide | dark | #0f1518 | #151d21 | #1c272c | #27353c | #dfe8ec | #98a9b1 | #63737b | #5fd3c6 | #7fd39a | #e26d5c |
-| ember | light | #faf3f1 | #f3e9e6 | #ebdedb | #dcc9c4 | #2a1c19 | #6a544f | #957f79 | #d9552c | #4f8f4a | #c8284a |
-| ember | dark | #191313 | #211919 | #2b2020 | #3a2b2b | #f0e4e0 | #b09c97 | #7a6864 | #f4845f | #8fc48a | #ff4d6d |
-| iris | light | #f6f4fb | #eeeaf7 | #e4dff1 | #d2cbe4 | #1f1a2e | #5b5470 | #857d9a | #6d4de0 | #3f8f5a | #d0405f |
-| iris | dark | #14121b | #1a1724 | #231f2f | #302a40 | #ebe6f5 | #a89fbd | #726985 | #b48cff | #8fd39a | #ff6b8a |
-| paper | light | #fafaf7 | #f2f1ec | #e9e8e1 | #dad9d1 | #1f1f1d | #5c5c57 | #8b8b84 | #2f6fed | #2f8f5b | #d6453d |
-| paper | dark | #1a1a19 | #222221 | #2b2b29 | #393937 | #eeeeea | #a6a6a0 | #6f6f69 | #6f95ff | #5fbf85 | #f0655c |
-| slate | light | #f6f7f9 | #eef0f3 | #e4e7ec | #d3d7de | #16171b | #565a63 | #868a93 | #4f57e6 | #2e9a62 | #d84545 |
-| slate | dark | #111214 | #17181b | #1f2024 | #2a2c31 | #e6e7ea | #9a9ca3 | #64666d | #8b93ff | #6fcf97 | #f26b6b |
-| terminal | light | #ffffff | #f4f4f4 | #e8e8e8 | #cfcfcf | #111111 | #555555 | #8a8a8a | #0a8f2f | #1f8a4c | #d11a1a |
-| terminal | dark | #000000 | #0a0a0a | #141414 | #262626 | #d0d0d0 | #8a8a8a | #555555 | #33ff66 | #5fd38d | #ff5555 |
+| neutral | light | #ffffff | #f4f4f5 | #e9e9ec | #d9d9de | #18181b | #52525b | #686871 | #1d63d8 | #137333 | #c81e1e |
+| neutral | dark | #161618 | #1d1d20 | #28282c | #38383d | #ededef | #a8a8b0 | #909099 | #5b9dff | #45c46e | #f26b6b |
+| den | light | #f4efe6 | #ebe5da | #e2dbcd | #d3cabb | #26221c | #5e564a | #6b645a | #965f17 | #5f7f4a | #b8462a |
+| den | dark | #1b1916 | #232019 | #2c2821 | #3a3429 | #ece5d8 | #a89f8f | #908675 | #e8a44a | #8da874 | #d2623e |
+| moss | light | #f3f6ef | #e9eee3 | #dfe6d6 | #cdd6c3 | #1f261d | #55604f | #636c5e | #467a25 | #3f8a4a | #c2552f |
+| moss | dark | #151a15 | #1b221b | #232c23 | #2f3a2f | #e4ead9 | #a3ad98 | #808a79 | #9ccf6f | #7fbf8a | #d9694f |
+| tide | light | #f1f6f7 | #e6eef0 | #dae5e8 | #c6d4d8 | #15252b | #4d6068 | #5d6c72 | #1a7a71 | #2f8f5b | #d0533f |
+| tide | dark | #0f1518 | #151d21 | #1c272c | #27353c | #dfe8ec | #98a9b1 | #768891 | #5fd3c6 | #7fd39a | #e26d5c |
+| ember | light | #faf3f1 | #f3e9e6 | #ebdedb | #dcc9c4 | #2a1c19 | #6a544f | #7a6661 | #bf4722 | #4f8f4a | #c8284a |
+| ember | dark | #191313 | #211919 | #2b2020 | #3a2b2b | #f0e4e0 | #b09c97 | #927e7a | #f4845f | #8fc48a | #ff4d6d |
+| iris | light | #f6f4fb | #eeeaf7 | #e4dff1 | #d2cbe4 | #1f1a2e | #5b5470 | #6e6683 | #6d4de0 | #3f8f5a | #d0405f |
+| iris | dark | #14121b | #1a1724 | #231f2f | #302a40 | #ebe6f5 | #a89fbd | #877e99 | #b48cff | #8fd39a | #ff6b8a |
+| paper | light | #fafaf7 | #f2f1ec | #e9e8e1 | #dad9d1 | #1f1f1d | #5c5c57 | #6c6c66 | #2669ec | #2f8f5b | #d6453d |
+| paper | dark | #1a1a19 | #222221 | #2b2b29 | #393937 | #eeeeea | #a6a6a0 | #898982 | #6f95ff | #5fbf85 | #f0655c |
+| slate | light | #f6f7f9 | #eef0f3 | #e4e7ec | #d3d7de | #16171b | #565a63 | #686c74 | #4f57e6 | #2e9a62 | #d84545 |
+| slate | dark | #111214 | #17181b | #1f2024 | #2a2c31 | #e6e7ea | #9a9ca3 | #7f828a | #8b93ff | #6fcf97 | #f26b6b |
+| terminal | light | #ffffff | #f4f4f4 | #e8e8e8 | #cfcfcf | #111111 | #555555 | #707070 | #09852c | #1f8a4c | #d11a1a |
+| terminal | dark | #000000 | #0a0a0a | #141414 | #262626 | #d0d0d0 | #8a8a8a | #797979 | #33ff66 | #5fd38d | #ff5555 |
 
 | Family | Display / body / mono | Radius | Density |
 |---|---|---|---|
-| Den | Zilla Slab / Atkinson Hyperlegible / IBM Plex Mono | soft | comfortable |
-| Moss | Gabarito / Atkinson Hyperlegible / JetBrains Mono | soft | comfortable |
+| Neutral | System / System / IBM Plex Mono | round | comfortable |
+| Den | Zilla Slab / Public Sans / IBM Plex Mono | soft | comfortable |
+| Moss | Gabarito / Public Sans / JetBrains Mono | soft | comfortable |
 | Tide | Sora / Inter / IBM Plex Mono | soft | comfortable |
-| Ember | Bricolage Grotesque / Atkinson Hyperlegible / Fira Code | soft | comfortable |
+| Ember | Bricolage Grotesque / Public Sans / Fira Code | soft | comfortable |
 | Iris | Manrope / Manrope / Fira Code | soft | comfortable |
 | Paper | Source Serif 4 / Source Sans 3 / Source Code Pro | soft | comfortable |
 | Slate | Geist / Geist / Geist Mono | soft | compact |
 | Terminal | JetBrains Mono / JetBrains Mono / JetBrains Mono | sharp | comfortable |
 
-`scripts/m9-contrast.mjs` runs before web builds and checks ink/bg and ink2/bg2
-at 4.5:1 for both halves of every built-in family. User-authored colors retain
+## Accent
+
+`accent` on the appearance recolours the accent role in every theme, both halves.
+Null keeps each theme's own. Otherwise it names a preset from
+`crates/den-core/src/accents.json` or holds a custom `#rrggbb`; anything else is
+refused. A client that saves without the field keeps the stored one.
+
+| Accent | id | Light | Dark |
+|---|---|---|---|
+| Blue | `blue` | #1d63d8 | #5b9dff |
+| Indigo | `indigo` | #4f46e5 | #8f8cf9 |
+| Green | `green` | #137333 | #3fcf7a |
+| Graphite | `graphite` | #3f3f46 | #d4d4d8 |
+
+Clients use the preset's colour for the half being shown, or the custom colour for
+both, then move its OKLab lightness away from the background until it reads at
+4.5:1 on bg, bg2 and bg3 (`resolveAccent` in `apps/web/src/lib/theme-color.ts`).
+A colour that already passes is used as is; if none passes, black or white. The
+theme's own accent is never adjusted: its author checked it.
+
+`scripts/m9-contrast.mjs` runs before web builds and checks ink/bg, ink2/bg2,
+ink3/bg2 and accent/bg at 4.5:1 for both halves of every built-in family. User-authored colors retain
 M9's validation policy and are not silently modified to meet a contrast target.
 
 ## Backgrounds and contrast
