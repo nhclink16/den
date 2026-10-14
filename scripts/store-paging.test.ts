@@ -629,17 +629,3 @@ test('an icon save reply cannot undo a newer list that covered frames still queu
   assert.equal(s.channels[0].icon, 'skull')
   s.ready = false
 })
-
-test('a room moved into a category this list does not know fetches the categories', async () => {
-  const asked: string[] = []
-  api = { get: async (p: string) => { asked.push(p); return p === '/categories' ? [{ id: 'new', name: 'New', position: 1 }, { id: 'k', name: 'K', position: 0 }] : [] } }
-  const s = new Store('fixture')
-  s.categories = [{ id: 'k', name: 'K', position: 0 }]
-  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: 'k', position: 0, member_ids: [], last_message: null }
-  s.channels = [room]
-  await s.handle({ type: 'channel_updated', channel: { ...room, category_id: 'k', position: 2 } })
-  assert.equal(asked.length, 0, 'a known category needs no fetch')
-  await s.handle({ type: 'channel_updated', channel: { ...room, category_id: 'new' } })
-  await new Promise((r) => setTimeout(r, 0))
-  assert.deepEqual(s.categories.map((k: any) => k.id), ['k', 'new'])
-})

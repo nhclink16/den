@@ -3,7 +3,7 @@
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
   import { themes } from '../lib/theme.svelte'
-  import { roomName } from '../lib/room-list'
+  import { placedIn, roomName } from '../lib/room-list'
   import type { Category, Channel } from '../lib/types'
   import IconPicker from './IconPicker.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
@@ -80,7 +80,7 @@
 
 <div data-find="rooms">
   {#each [null, ...store.categories] as cat (cat?.id ?? 'none')}
-    {@const chans = store.textChannels.filter((c) => (c.category_id || null) === (cat?.id || null))}
+    {@const chans = store.textChannels.filter((c) => placedIn(c, store.categories) === (cat?.id || null))}
     {#if cat || chans.length}
       <h3 class="list-head">
         <span>{cat ? cat.name : 'No category'}</span>

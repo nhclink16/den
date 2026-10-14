@@ -1179,17 +1179,8 @@ export class Store {
     this.roomSeen.set(c.id, Math.max(n, this.roomSeen.get(c.id) ?? -1))
     // Already in a list asked for after this frame arrived.
     if (n <= this.applied.n) return
-    // Categories have no event of their own: a room moved into a new one would vanish.
-    if (c.category_id && !this.categories.some((k) => k.id === c.category_id)) void this.refreshCategories()
     if (this.listsInFlight) this.roomLog.push({ n, channel: c })
     this.channels = this.channels.map((x) => (x.id === c.id ? this.withRoom(x, c) : x))
-  }
-  private async refreshCategories() {
-    const generation = this.generation
-    try {
-      const list = await this.api.get<Category[]>('/categories')
-      if (generation === this.generation) this.categories = list.sort((a, b) => a.position - b.position)
-    } catch { /* the next resync repairs it */ }
   }
   private roomChangesAfter(n: number) { return new Map(this.roomLog.filter((e) => e.n > n).map((e) => [e.channel.id, e.channel])) }
   /// Only what an admin can change: the event carries no preview, and DMs never change.

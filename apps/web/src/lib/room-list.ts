@@ -1,7 +1,13 @@
 // What the room list shows for each room: its icon and a one-line preview.
 // Kept free of the store so the rules can be pinned by tests.
-import type { Channel, LastMessage, Message, RoomIcons } from './types'
+import type { Category, Channel, LastMessage, Message, RoomIcons } from './types'
 import { snippet } from './klipy.ts'
+
+/// The category a room shows under. Categories have no live event, so a room can
+/// name one this list doesn't have yet (just made) or any more (just deleted):
+/// it shows with the rooms that have none rather than vanishing.
+export const placedIn = (c: Channel, categories: Category[]) =>
+  c.category_id && categories.some((k) => k.id === c.category_id) ? c.category_id : null
 
 /// Where a Lucide icon's file is served (see vite.config.ts).
 export const iconUrl = (name: string) => `/lucide/${name}.svg`
