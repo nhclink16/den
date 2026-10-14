@@ -79,7 +79,11 @@ shots() {
 ui() {
     local branch=${1:-$(git branch --show-current)} out=${2:-} sha runs ghrun run tested status=0
     sha=$(gh api "repos/nhclink16/den/commits/$branch" -q .sha) || { echo "GitHub has no branch $branch. Push it first." >&2; exit 1; }
-    built() { gh api repos/nhclink16/den/releases/tags/ui-check -q '.assets[].name' 2>/dev/null | grep -qx "den-ui-check-$sha.tar.gz"; }
+    # Only a finished upload counts: a failed one can leave an empty file behind.
+    built() {
+        gh api repos/nhclink16/den/releases/tags/ui-check -q '.assets[] | select(.state == "uploaded" and .size > 0) | .name' \
+            2>/dev/null | grep -qx "den-ui-check-$sha.tar.gz"
+    }
     if ! built; then
         # A build still running is waited for. A finished one whose file is gone (only the newest 20 are kept)
         # or failed is built again.
