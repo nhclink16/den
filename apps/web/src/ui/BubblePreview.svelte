@@ -6,6 +6,9 @@
   import { resolveAccent } from '../lib/theme-color'
   import { bubbleFill, nameInk, personColor, withContrast } from '../lib/bubbles'
 
+  /** `bare`: no frame of its own, for a preview that draws one. */
+  let { bare = false }: { bare?: boolean } = $props()
+
   const other = '#d17465'
   const look = $derived.by(() => {
     const half = themes.half, a = themes.appearance, c = withContrast(themes.active[half], a.contrast)
@@ -21,7 +24,7 @@
   })
 </script>
 
-<div class="preview" class:feed={look.feed} aria-hidden="true">
+<div class="preview" class:bare class:feed={look.feed} aria-hidden="true">
   <div class="line them">
     <span class="who" style:color={look.feed ? look.themName : undefined}>Maya</span>
     <span class="b first" style:--fill={look.them}>are we still on for 9?</span>
@@ -35,6 +38,7 @@
 
 <style>
   .preview { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); font-size: var(--fs-sm); }
+  .preview.bare { margin: 0; padding: 0; border: 0; background: none; }
   .line { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
   .line.mine { align-items: flex-end; }
   .who { margin: 0 0 1px 10px; font-size: var(--fs-xs); color: var(--ink-2); font-weight: 600; }

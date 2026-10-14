@@ -5,9 +5,16 @@
   import { themes } from '../lib/theme.svelte'
   import Appearance from './Appearance.svelte'
   import Icon from './Icon.svelte'
+  import { reveal } from '../lib/settings-search'
 
   let panel = $state<HTMLElement>()
-  $effect(() => { if (customizer.open) panel?.focus() })
+  $effect(() => {
+    if (!customizer.open) return
+    panel?.focus()
+    // Settings search opened it to show one row.
+    const find = customizer.find
+    if (find && panel) { customizer.find = null; const root = panel; setTimeout(() => reveal(root, find), 60) }
+  })
   // Escape closes it from anywhere, unless a dialog or popover above it takes the key.
   function key(e: KeyboardEvent) {
     if (!customizer.open || e.key !== 'Escape' || e.defaultPrevented) return
@@ -39,7 +46,7 @@
   .customizer {
     position: fixed; inset: 0 0 0 auto; z-index: 40; width: min(400px, 100vw);
     display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
-    background: var(--bg-2); border-left: 1px solid var(--line-strong);
+    background: var(--bg); border-left: 1px solid var(--line-strong);
     box-shadow: -18px 0 50px -20px var(--shadow-lg); outline: none;
     container: panel / inline-size;
   }

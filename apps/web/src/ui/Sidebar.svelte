@@ -137,7 +137,7 @@
 <nav class="side" class:phone class:mac={desktop.platform === 'macos' && !phone} aria-label="Rooms">
   {#if phone}
     <div class="topbar">
-      {#if store.me}<a href="/settings/profile" class="me-btn" aria-label="Your profile and settings" onclick={go('/settings/profile')}><Avatar userId={store.me.id} size={34} presence={false} /></a>{/if}
+      {#if store.me}<a href="/settings" class="me-btn" aria-label="Your profile and settings" onclick={go('/settings')}><Avatar userId={store.me.id} size={34} presence={false} /></a>{/if}
       {#if native}<ServerSwitcher />{/if}
       <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
       <span class="spacer"></span>

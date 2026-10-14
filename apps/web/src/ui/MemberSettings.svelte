@@ -10,6 +10,8 @@
   const people = $derived(store.people.filter((u) => !u.bot).sort((a, b) => a.username.localeCompare(b.username)))
   const removed = $derived([...store.users.values()].filter((u) => u.removed))
   let editing = $state<string | null>(null)
+  // One person's actions show at a time, under their row, so a phone never stacks six buttons per person.
+  let shown = $state<string | null>(null)
   let username = $state(''), display = $state('')
   let busy = $state<string | null>(null)
   let error = $state(''), note = $state('')
@@ -51,11 +53,16 @@
 <p class="muted">Fix a name, set someone's picture, or remove someone. Removing signs them out everywhere and stops them logging in; their messages stay.</p>
 <p class="status" class:error={!!error} role="status">{error || note}</p>
 
-<ul class="people">
+<div class="slist" data-find="people">
   {#each people as u (u.id)}
     {@const me = u.id === store.me?.id}
-    <li data-hover-animates class:busy={busy === u.id}>
-      <Avatar userId={u.id} size={40} presence={false} />
+    {@const open = shown === u.id || editing === u.id}
+    <div class="person" data-hover-animates class:busy={busy === u.id}>
+      <button class="who-row" aria-expanded={open} onclick={() => { shown = open ? null : u.id; editing = null }}>
+        <Avatar userId={u.id} size={40} presence={false} />
+        <span class="who"><b>{u.display_name || u.username}</b><span class="faint">@{u.username}{#if u.role === 'admin'}{' · admin'}{/if}{#if me}{' · you'}{/if}</span></span>
+        <span class="chev" class:up={open}><Icon name="chevron" size={14} /></span>
+      </button>
       {#if editing === u.id}
         <form class="rename" onsubmit={(e) => rename(u, e)}>
           <label><span class="eyebrow">Username</span><input class="field" bind:value={username} required minlength="3" maxlength="32" autocomplete="off" /></label>
@@ -65,15 +72,11 @@
             <button class="btn quiet" type="button" onclick={() => (editing = null)}>Cancel</button>
           </div>
         </form>
-      {:else}
-        <div class="who">
-          <b>{u.display_name || u.username}</b>
-          <span class="faint">@{u.username}{#if u.role === 'admin'}{' · admin'}{/if}{#if me}{' · you'}{/if}</span>
-        </div>
+      {:else if open}
         <div class="actions">
-          <button class="btn quiet" onclick={() => edit(u)}><Icon name="edit" size={14} /> Rename</button>
-          <label class="btn quiet"><Icon name="plus" size={14} /> Picture<input class="sr-only" type="file" {accept} onchange={(e) => picture(u, 'avatar', e.currentTarget)} /></label>
-          <label class="btn quiet"><Icon name="plus" size={14} /> Banner<input class="sr-only" type="file" {accept} onchange={(e) => picture(u, 'banner', e.currentTarget)} /></label>
+          <button class="btn" onclick={() => edit(u)}><Icon name="edit" size={14} /> Rename</button>
+          <label class="btn"><Icon name="plus" size={14} /> Picture<input class="sr-only" type="file" {accept} onchange={(e) => picture(u, 'avatar', e.currentTarget)} /></label>
+          <label class="btn"><Icon name="plus" size={14} /> Banner<input class="sr-only" type="file" {accept} onchange={(e) => picture(u, 'banner', e.currentTarget)} /></label>
           {#if u.avatar_url}<button class="btn quiet" onclick={() => run(u.id, 'Picture cleared.', () => store.setProfileImage('avatar', null, u.id))}>Clear picture</button>{/if}
           {#if u.banner_url}<button class="btn quiet" onclick={() => run(u.id, 'Banner cleared.', () => store.setProfileImage('banner', null, u.id))}>Clear banner</button>{/if}
           {#if !me}
@@ -81,26 +84,32 @@
           {/if}
         </div>
       {/if}
-    </li>
+    </div>
   {/each}
-</ul>
+</div>
+<p class="list-foot">Tap someone to rename them, set their picture, or remove them.</p>
 
 {#if removed.length}
-  <h3 class="eyebrow">Removed</h3>
-  <p class="faint small">{removed.map((u) => u.display_name || u.username).join(', ')}</p>
+  <h3 class="list-head">Removed</h3>
+  <p class="list-foot">{removed.map((u) => u.display_name || u.username).join(', ')}</p>
 {/if}
 
 <style>
-  .people { list-style: none; margin: 16px 0 24px; padding: 0; display: grid; gap: 4px; }
-  li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r); background: var(--bg-2); flex-wrap: wrap; }
-  li.busy { opacity: .6; pointer-events: none; }
-  .who { display: grid; min-width: 0; flex: 1 1 160px; }
-  .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .actions { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .person.busy { opacity: .6; pointer-events: none; }
+  .who-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 16px; text-align: start; transition: background-color var(--t-fast); }
+  .who-row:hover { background-color: var(--hover); }
+  .who { display: grid; min-width: 0; flex: 1; line-height: 1.3; }
+  .who b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who .faint { font-size: var(--fs-xs); }
+  .chev { display: grid; color: var(--ink-3); transform: rotate(-90deg); transition: transform var(--t-fast); }
+  .chev.up { transform: none; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 16px 14px 68px; }
   .actions label { cursor: pointer; }
-  .rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; flex: 1; }
+  .actions label:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  .rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 0 16px 14px 68px; }
   .rename label { display: grid; gap: 4px; flex: 1 1 160px; }
   .row { display: flex; gap: 6px; }
   .status { min-height: 1.4em; margin: 8px 0 0; font-size: var(--fs-sm); color: var(--ink-2); }
   .status.error { color: var(--danger); }
+  @media (max-width: 650px) { .actions, .rename { padding-left: 16px; } }
 </style>

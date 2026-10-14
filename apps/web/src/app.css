@@ -33,6 +33,8 @@
   --press: color-mix(in srgb, var(--ink) 10%, transparent);
   /* A chosen thing: a light wash of the accent. */
   --sel: color-mix(in srgb, var(--lamp) 14%, transparent);
+  /* The hairline between rows in a settings list. */
+  --hair: color-mix(in srgb, var(--line) 80%, transparent);
   --grid-guide: color-mix(in srgb, var(--ink) 6%, transparent);
   --sidebar-w: 288px;
   --members-w: 220px;
@@ -107,7 +109,10 @@ html.desktop .shell.no-members .main > .call-status { padding-right: max(12px, v
 html.desktop .shell.no-members .main > .call-view .expand { right: calc(var(--wco-right) + 6px); }
 html.desktop .shell.no-members .main > .call-view > .call-head { padding-right: max(20px, var(--wco-right)); }
 html.desktop .shell.no-members .main > .call-view > .call-pill { margin-right: max(12px, var(--wco-right)); }
-/* The Appearance drawer is pinned to the right edge over everything. */
+/* The Appearance drawer is pinned to the right edge over everything. It lies over
+   the room header, a drag region, and Electron drags through anything on top that
+   doesn't opt out, so its close button would move the window instead of closing. */
+html.desktop .customizer { -webkit-app-region: no-drag; }
 html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
 
 /* Signed out there is no header to drag by, so the login page gets a strip across
@@ -267,8 +272,8 @@ kbd {
 :where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
 
 /* One heading treatment across sibling settings pages. */
-.settings h2 { font-family: var(--display); font-size: var(--fs-large); font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
-.settings h3, .settings legend.eyebrow { font: 600 var(--fs-sm)/1.45 var(--body); color: var(--ink-2); }
+.settings h2:not(.list-head) { font-family: var(--display); font-size: var(--fs-large); font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+.settings h3:not(.list-head), .settings legend.eyebrow { font: 600 var(--fs-sm)/1.45 var(--body); color: var(--ink-2); }
 
 /* The shared controls. Use these before styling a button by hand. */
 /* One icon button: a round, quiet target for a single icon. */
@@ -296,6 +301,62 @@ button.pill:hover { color: var(--ink); }
 .segments button:hover { color: var(--ink); }
 .segments button[aria-pressed=true] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
 .segments.small button { min-height: 26px; padding: 2px 10px; font-size: var(--fs-xs); }
+/* The same control from radio buttons: the label is the segment, the radio stays for keyboards and screen readers. */
+.segments label { position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
+.segments label > input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+.segments label:hover { color: var(--ink); }
+.segments label:has(> input:checked) { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
+.segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.segments label:has(> input:disabled) { opacity: .5; cursor: default; }
+
+/* Settings lists, like iPhone Settings: rows in a rounded group, a short header
+   above and a line of help below. Rows draw an inset hairline between them. */
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 26px 0 0; padding: 0 4px 7px; font: 600 var(--fs-xs)/1.3 var(--body); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.slist { background: var(--bg-2); border-radius: var(--r-lg); overflow: clip; }
+.slist > * + * { background-image: linear-gradient(var(--hair), var(--hair)); background-size: calc(100% - 16px) 1px; background-position: 16px 0; background-repeat: no-repeat; }
+.list-foot { margin: 7px 4px 0; font-size: var(--fs-xs); line-height: 1.45; color: var(--ink-3); text-wrap: pretty; }
+/* A row that goes somewhere: label, an optional value, and a chevron. */
+.nav-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 16px; color: var(--ink); text-align: start; transition: background-color var(--t-fast); }
+.nav-row:hover { background-color: var(--hover); text-decoration: none; }
+.nav-row:active { background-color: var(--press); }
+.nav-row > .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nav-row > .val { color: var(--ink-3); font-size: var(--fs-sm); }
+.nav-row > .chev { display: grid; color: var(--ink-3); transform: rotate(-90deg); }
+/* A whole row that is one action, like "Log out". */
+.slist > button.action-row { display: block; width: 100%; min-height: 48px; padding: 8px 16px; color: var(--lamp); font-weight: 600; text-align: start; }
+.slist > button.action-row:hover { background-color: var(--hover); }
+.slist > button.action-row.danger { color: var(--danger); }
+.slist > button.action-row:disabled { opacity: .5; cursor: default; }
+/* Buttons inside a row are a size down, so the row stays one line. */
+.slist .btn { min-height: 34px; padding: 5px 14px; font-size: var(--fs-sm); }
+/* On or off: a switch, from a plain checkbox so every handler stays as it was. */
+input.toggle {
+  appearance: none; flex: none; position: relative; width: 46px; height: 28px; margin: 0; cursor: pointer;
+  border-radius: var(--r-pill); background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: background-color var(--t-fast), box-shadow var(--t-fast);
+}
+input.toggle::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+  border-radius: var(--r-pill); background: var(--ink-3); box-shadow: 0 1px 3px rgb(0 0 0 / .25);
+  transition: transform var(--t-fast) var(--ease-out), background-color var(--t-fast);
+}
+input.toggle:checked { background: var(--lamp); box-shadow: none; }
+input.toggle:checked::after { transform: translateX(18px); background: var(--on-lamp); }
+input.toggle:disabled { opacity: .45; cursor: default; }
+/* The shared field focus is a glow this control turns off when checked: use a ring. */
+input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+@media (pointer: coarse) {
+  input.toggle { width: 51px; height: 31px; }
+  input.toggle::after { width: 25px; height: 25px; }
+  input.toggle:checked::after { transform: translateX(20px); }
+  .nav-row, .slist > button.action-row { min-height: 52px; }
+  .slist .btn { min-height: 40px; }
+}
+/* Rows that fill their group draw focus inside, or the group's rounded clip hides it. */
+.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible { outline: 2px solid var(--lamp); outline-offset: -3px; }
+/* Settings search lands here: the row it found glows for a moment. */
+@keyframes found { from { background-color: var(--sel); } }
+.found { animation: found 2.4s ease-out; }
 /* One bottom sheet. A disclosure popover (see disclosure-popover.ts) with this class
    floats beside its button on a wide screen and rises from the bottom on a phone.
    `:root` outranks the component's own [popover] rule, which loads later. */
@@ -304,7 +365,7 @@ button.pill:hover { color: var(--ink); }
   :root .sheet[popover]::backdrop { background: rgb(0 0 0 / .35); }
 }
 @media (pointer: coarse) {
-  .segments button { min-height: 44px; }
+  .segments button, .segments label { min-height: 44px; }
   /* Dense rows (the thread strip, the call's layout switch) trade the full 44pt for
      not pushing the conversation down: 36pt, still a comfortable thumb. */
   .segments.small button, .pill { min-height: 36px; }
