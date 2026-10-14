@@ -19,6 +19,7 @@
   import ThreadPanel from './ThreadPanel.svelte'
   import { router } from '../lib/router.svelte'
   import { viewing } from '../lib/notify.svelte'
+  import { native } from '../lib/native'
   import { tick } from 'svelte'
   let q = $state('')
   let listening = $state(false)
@@ -248,8 +249,9 @@
   const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
   // On a phone the open call and a thread each take the whole screen, the way a
   // room covers the list: their own header row, with its own way back, replaces
-  // the room's.
-  const pushed = $derived(narrow && (callCovers || stowed))
+  // the room's. Not in the desktop app: there the room header is what drags the
+  // window, and its narrowest window is no phone.
+  const pushed = $derived(narrow && !native && (callCovers || stowed))
 
   function onDrop(e: DragEvent) {
     e.preventDefault(); e.stopPropagation(); dragging = 0

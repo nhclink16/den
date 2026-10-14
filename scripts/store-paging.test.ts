@@ -600,3 +600,46 @@ test('a preview refetch that lands first also brings the room details an older r
   assert.equal(s.channels[0].category_id, null, 'the room kept a deleted category and dropped out of the list')
   assert.equal(lastIn(s), 'A')
 })
+
+test('an icon save reply cannot undo a newer list that covered frames still queued', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  const saving = s.setChannelIcon('c', 'flame')
+  send({ type: 'resync', reason: 'connect' })                                  // slow; everything queues behind it
+  send({ type: 'channel_updated', channel: { ...room, icon: 'flame' } })
+  send({ type: 'channel_updated', channel: { ...room, icon: 'skull' } })       // another admin
+  await tick()
+  const manual = s.resync()
+  lists[1]!.release([{ ...room, icon: 'skull' }])
+  await manual
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  lists[0]!.release([{ ...room, icon: 'flame' }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels[0].icon, 'skull')
+  s.ready = false
+})
+
+test('a room moved into a category this list does not know fetches the categories', async () => {
+  const asked: string[] = []
+  api = { get: async (p: string) => { asked.push(p); return p === '/categories' ? [{ id: 'new', name: 'New', position: 1 }, { id: 'k', name: 'K', position: 0 }] : [] } }
+  const s = new Store('fixture')
+  s.categories = [{ id: 'k', name: 'K', position: 0 }]
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: 'k', position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  await s.handle({ type: 'channel_updated', channel: { ...room, category_id: 'k', position: 2 } })
+  assert.equal(asked.length, 0, 'a known category needs no fetch')
+  await s.handle({ type: 'channel_updated', channel: { ...room, category_id: 'new' } })
+  await new Promise((r) => setTimeout(r, 0))
+  assert.deepEqual(s.categories.map((k: any) => k.id), ['k', 'new'])
+})

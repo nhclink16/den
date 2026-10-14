@@ -1111,11 +1111,11 @@ export class Store {
 
   /// Admin: a Lucide icon for a room, or null for the default.
   async setChannelIcon(id: string, icon: string | null) {
-    const asked = this.previewN
+    const asked = this.previewN, lists = this.listAsks
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
-    // The socket usually brings this change first; a later one (another admin)
-    // may have come after it, and this reply must not put it back.
-    if ((this.roomSeen.get(id) ?? -1) > asked) return
+    // The socket usually brings this change first. A later change (another admin),
+    // or a list asked for since, may already be on screen; this reply must not undo it.
+    if ((this.roomSeen.get(id) ?? -1) > asked || this.applied.seq > lists) return
     this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
   }
   // Room previews: the newest channel list we asked for, with the message events
@@ -1176,11 +1176,20 @@ export class Store {
   /// The newest room frame per room, so a slower reply can tell it was overtaken.
   private roomSeen = new Map<string, number>()
   private receiveRoom(c: Channel, n: number) {
+    this.roomSeen.set(c.id, Math.max(n, this.roomSeen.get(c.id) ?? -1))
     // Already in a list asked for after this frame arrived.
     if (n <= this.applied.n) return
-    this.roomSeen.set(c.id, n)
+    // Categories have no event of their own: a room moved into a new one would vanish.
+    if (c.category_id && !this.categories.some((k) => k.id === c.category_id)) void this.refreshCategories()
     if (this.listsInFlight) this.roomLog.push({ n, channel: c })
     this.channels = this.channels.map((x) => (x.id === c.id ? this.withRoom(x, c) : x))
+  }
+  private async refreshCategories() {
+    const generation = this.generation
+    try {
+      const list = await this.api.get<Category[]>('/categories')
+      if (generation === this.generation) this.categories = list.sort((a, b) => a.position - b.position)
+    } catch { /* the next resync repairs it */ }
   }
   private roomChangesAfter(n: number) { return new Map(this.roomLog.filter((e) => e.n > n).map((e) => [e.channel.id, e.channel])) }
   /// Only what an admin can change: the event carries no preview, and DMs never change.
