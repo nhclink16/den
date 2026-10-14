@@ -104,19 +104,17 @@
   }
 </script>
 <section class="bgsec">
-  <div class="head">
-    <h3>Background</h3>
-    <p class="muted">A wallpaper behind the room. Presets are painted from your theme, so they change with it.</p>
-  </div>
-
-  <div class="target">
-    <div class="segments" role="group" aria-label="Which wallpaper to edit">
-      <button aria-pressed={target === 'main'} onclick={() => (target = 'main')}>Main</button>
-      <button aria-pressed={target === 'sidebar'} onclick={() => (target = 'sidebar')}>Sidebar{#if sidebarOwn}<span class="dot" aria-hidden="true"></span><span class="sr-only"> (has its own)</span>{/if}</button>
-    </div>
-    <p class="faint">{target === 'main' ? (sidebarOwn ? 'Behind the conversation. The sidebar has its own.' : 'Behind the room. Pick one for the sidebar too if you want two.') : 'Just the sidebar. None uses the main wallpaper there.'}</p>
-  </div>
-
+  <h3 class="list-head">Wallpaper</h3>
+  <div class="slist" data-find="wallpaper">
+  <SettingRow label="Which wallpaper" hint={target === 'main' ? (sidebarOwn ? 'Behind the conversation. The sidebar has its own.' : 'Behind the room. Pick one for the sidebar too if you want two.') : 'Just the sidebar. None uses the main wallpaper there.'}>
+    {#snippet control()}
+      <div class="segments" role="group" aria-label="Which wallpaper to edit">
+        <button aria-pressed={target === 'main'} onclick={() => (target = 'main')}>Main</button>
+        <button aria-pressed={target === 'sidebar'} onclick={() => (target = 'sidebar')}>Sidebar{#if sidebarOwn}<span class="dot" aria-hidden="true"></span><span class="sr-only"> (has its own)</span>{/if}</button>
+      </div>
+    {/snippet}
+  </SettingRow>
+  <div class="pad">
   <h4 class="eyebrow">Presets</h4>
   <div class="swatches">
     <button class="swatch none" class:chosen={!bg} onclick={clear} aria-pressed={!bg}>
@@ -134,6 +132,8 @@
     {/each}
   </div>
 
+  </div>
+  <div class="pad">
   <h4 class="eyebrow">Your pictures</h4>
   <div class="swatches">
     <button class="swatch add" onclick={() => fileInput.click()} disabled={busy}>
@@ -160,11 +160,13 @@
     {/each}
     <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept="image/*" aria-label="Choose a background picture" onchange={upload} />
   </div>
-  <p class="note faint">Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation, and stay still if your device asks for less motion.</p>
+  </div>
+  </div>
+  <p class="list-foot">Presets are painted from your theme, so they change with it. Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation, and stay still if your device asks for less motion.</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#if bg}
-    <div class="group">
+    <div class="slist sliders">
       <SettingRow label="Blur" hint="Softens the image so text stays legible.">
         {#snippet control()}
           <input type="range" min="0" max="40" value={bg.blur} oninput={e => set({ blur: +e.currentTarget.value })} aria-label="Background blur" />
@@ -210,24 +212,20 @@
 </section>
 
 <style>
-  .target { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 4px 0 16px; }
-  .target p { margin: 0; font-size: 13px; }
-  .target .dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--lamp); vertical-align: middle; }
-  .bgsec { margin-top: 34px; }
-  .head h3 { margin: 0 0 3px; }
-  .head p { margin: 0 0 14px; font-size: 13px; }
+  .pad { padding: 12px 16px 14px; }
+  .dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--lamp); vertical-align: middle; }
   .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
   .swatch { display: grid; gap: 6px; justify-items: stretch; text-align: start; }
   .chip, .none .x {
     display: grid; place-items: center; height: 58px; border-radius: var(--r);
     border: 1px solid var(--line); background-size: cover; background-position: center; color: var(--ink3);
   }
-  .none .x { background: var(--bg2); }
+  .none .x { background: var(--bg); }
   .swatch:hover .chip, .swatch:hover .x { border-color: var(--ink3); }
   .swatch.chosen .chip, .swatch.chosen .x { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
   .swatch .label { font-size: 12px; color: var(--ink2); }
-  .eyebrow { margin: 18px 0 8px; }
-  .add .chip { border-style: dashed; background: var(--bg2); color: var(--ink2); }
+  .eyebrow { margin: 0 0 8px; }
+  .add .chip { border-style: dashed; background: var(--bg); color: var(--ink2); }
   .add:disabled { cursor: progress; }
   .swatches > :global(details) > :global(summary) { display: grid; width: 100%; }
   .gif-mark { font-weight: 800; font-size: 11px; line-height: 1; letter-spacing: .06em; padding: 3px 4px 2px; border: 1.5px solid currentColor; border-radius: 4px; }
@@ -247,15 +245,14 @@
   .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(1turn); } }
   .swatch.chosen .label { color: var(--ink); font-weight: 600; }
-  .note { font-size: 12px; margin: 10px 0 0; }
   .error { color: var(--danger); font-size: 13px; margin: 8px 0 0; }
-  .group { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg2); }
-  input[type=range] { width: 170px; accent-color: var(--accent); }
+  .sliders { margin-top: 12px; }
+  input[type=range] { width: 150px; accent-color: var(--accent); }
   output { font-size: 12px; color: var(--ink2); min-width: 44px; text-align: end; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  @media (max-width: 720px) { input[type=range] { width: 100%; } }
+  @media (max-width: 650px) { input[type=range] { flex: 1; width: auto; min-width: 120px; } .swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
   @container panel (max-width: 460px) {
-    input[type=range] { width: 100%; }
+    input[type=range] { flex: 1; width: auto; min-width: 120px; }
     .swatches { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   }
 </style>

@@ -5,6 +5,7 @@
   import { call } from '../lib/call.svelte'
   import { CameraBlur, MicrophoneGain, blurCaptureRate, blurSupported, defaultMicrophone, defaultCamera, deviceId, capabilities, startPreviewBlur, supports, cameraConstraints, microphoneConstraints, type CameraBackground, type CameraCapabilities } from '../lib/av'
   import type { CameraSettings, MicrophoneSettings } from '../lib/types'
+  import SettingRow from './SettingRow.svelte'
 
   let devices = $state<MediaDeviceInfo[]>([])
   let audio = $state.raw<MediaStreamTrack | null>(null)
@@ -233,80 +234,101 @@
   })
 </script>
 
-<p class="muted intro">Adjust your devices here or during a call. Settings are saved per device to your account.</p>
-{#if !audio || (!camera && !paused)}<button class="btn lit" disabled={requesting} onclick={allow}>{requesting ? 'Opening devices…' : 'Allow microphone and camera'}</button>{/if}
-<div class="devices">
-  <section aria-label="Microphone controls">
-    <h3>Microphone</h3>
-    <label class="device">Input device<select class="field" aria-label="Microphone" value={call.prefs.microphone} onchange={e => input(e.currentTarget.value)}><option value="">Default microphone</option>{#each devices.filter(d => d.kind === 'audioinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Microphone'}</option>{/each}</select></label>
-    <label class="slider"><span>Input gain <output>{Math.round(draftGain * 100)}%</output></span><input aria-label="Input gain" aria-valuetext={`${Math.round(draftGain * 100)} percent`} type="range" min="0" max="2" step="0.05" value={draftGain} oninput={e => adjustGain(+e.currentTarget.value)} disabled={!audio || busy} onchange={e => changeMic({ gain: +e.currentTarget.value })} /></label>
-    <div class="meter" role="meter" aria-label="Microphone level" aria-valuenow={Math.round(level)} aria-valuemin="0" aria-valuemax="100"><span style:width={`${level}%`}></span></div>
-    <p class="muted hint">Level after gain. Your test audio stays here.</p>
-    {#each processing as [key, capability, label]}
-      {@const available = audio?.getCapabilities?.()[capability]}
-      <label class="switch"><input type="checkbox" checked={available?.includes(true) && available?.includes(false) ? mic[key] : Boolean(audio?.getSettings()[capability] ?? mic[key])} disabled={!audio || busy || !available?.includes(true) || !available?.includes(false)} onchange={e => { const el = e.currentTarget; void changeMic({ [key]: el.checked }).then(() => { el.checked = mic[key] }) }} /> {label}</label>
-      {#if audio && (!available?.includes(true) || !available?.includes(false))}<p class="muted hint">{label} is managed by this device.</p>{/if}
-    {/each}
-  </section>
-  <section aria-label="Camera controls">
-    <h3>Camera</h3>
-    <label class="device">Video device<select class="field" aria-label="Camera" value={call.prefs.camera} onchange={e => call.device('videoinput', e.currentTarget.value)}><option value="">Default camera</option>{#each devices.filter(d => d.kind === 'videoinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Camera'}</option>{/each}</select></label>
+{#if !audio || (!camera && !paused)}
+  <div class="slist allow">
+    <SettingRow label="Microphone and camera" hint="Allow access to test and adjust them here. Only you hear and see the test.">
+      {#snippet control()}<button class="btn lit" disabled={requesting} onclick={allow}>{requesting ? 'Opening devices…' : 'Allow microphone and camera'}</button>{/snippet}
+    </SettingRow>
+  </div>
+{/if}
+<h3 class="list-head">Microphone</h3>
+<section class="slist" aria-label="Microphone controls">
+  <SettingRow find="microphone" label="Input device">
+    {#snippet control()}<select class="field" aria-label="Microphone" value={call.prefs.microphone} onchange={e => input(e.currentTarget.value)}><option value="">Default microphone</option>{#each devices.filter(d => d.kind === 'audioinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Microphone'}</option>{/each}</select>{/snippet}
+  </SettingRow>
+  <SettingRow find="gain" label="Input gain" hint="The bar shows your level after gain. Your test audio stays here." wide>
+    {#snippet control()}
+      <div class="gain">
+        <span class="slider"><input aria-label="Input gain" aria-valuetext={`${Math.round(draftGain * 100)} percent`} type="range" min="0" max="2" step="0.05" value={draftGain} oninput={e => adjustGain(+e.currentTarget.value)} disabled={!audio || busy} onchange={e => changeMic({ gain: +e.currentTarget.value })} /><output>{Math.round(draftGain * 100)}%</output></span>
+        <div class="meter" role="meter" aria-label="Microphone level" aria-valuenow={Math.round(level)} aria-valuemin="0" aria-valuemax="100"><span style:width={`${level}%`}></span></div>
+      </div>
+    {/snippet}
+  </SettingRow>
+  {#each processing as [key, capability, label], i}
+    {@const available = audio?.getCapabilities?.()[capability]}
+    <SettingRow find={i === 0 ? 'processing' : undefined} {label} hint={audio && (!available?.includes(true) || !available?.includes(false)) ? `${label} is managed by this device.` : undefined}>
+      {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label={label} checked={available?.includes(true) && available?.includes(false) ? mic[key] : Boolean(audio?.getSettings()[capability] ?? mic[key])} disabled={!audio || busy || !available?.includes(true) || !available?.includes(false)} onchange={e => { const el = e.currentTarget; void changeMic({ [key]: el.checked }).then(() => { el.checked = mic[key] }) }} />{/snippet}
+    </SettingRow>
+  {/each}
+</section>
+
+<h3 class="list-head">Camera</h3>
+<section class="slist" aria-label="Camera controls">
+  <SettingRow find="camera" label="Video device">
+    {#snippet control()}<select class="field" aria-label="Camera" value={call.prefs.camera} onchange={e => call.device('videoinput', e.currentTarget.value)}><option value="">Default camera</option>{#each devices.filter(d => d.kind === 'videoinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Camera'}</option>{/each}</select>{/snippet}
+  </SettingRow>
+  <div class="pad">
     <div class="preview">
       {#if camera}<video bind:this={video} class:mirror={cam.mirror} autoplay muted playsinline aria-label="Camera preview"></video>{:else}<span class="muted">{paused ? 'Preview paused' : 'Camera preview'}</span>{/if}
     </div>
     <div class="preview-meta"><span class="muted">{#if camera}{actual.width} × {actual.height} · {Math.round(actual.frameRate || 0)} fps{:else}Only you can see this preview{/if}</span><button class="text-link" onclick={() => { paused = !paused; cameraRequested = true }}>{paused ? 'Resume preview' : 'Pause preview'}</button></div>
-    <div class="quality">
-      <label class="device">Resolution<select aria-label="Resolution" class="field" value={cam.resolution} disabled={!camera || busy} onchange={e => { const el = e.currentTarget; void changeCamera({ resolution: el.value as CameraSettings['resolution'] }).then(() => { el.value = cam.resolution }) }}><option value="auto">Auto</option>{#if requestedHeight && (!supports(caps.height, requestedHeight) || !supports(caps.width, requestedHeight * 16 / 9))}<option value={cam.resolution} disabled>{cam.resolution} unavailable</option>{/if}{#each [720, 1080] as height}{#if supports(caps.height, height) && supports(caps.width, height * 16 / 9)}<option value={`${height}p`}>{height}p</option>{/if}{/each}</select></label>
-      <label class="device">Frame rate<select aria-label="Frame rate" class="field" value={cam.frame_rate} disabled={!camera || busy || !supportedRates.length} onchange={e => { const el = e.currentTarget; void changeCamera({ frame_rate: +el.value }).then(() => { el.value = String(cam.frame_rate) }) }}>{#if !supportedRates.includes(cam.frame_rate)}<option value={cam.frame_rate} disabled>{Math.round(actual.frameRate || 0)} fps · device default</option>{/if}{#each supportedRates as rate}<option value={rate}>{rate} fps</option>{/each}</select></label>
-    </div>
-    <label class="switch"><input type="checkbox" checked={cam.mirror} disabled={!camera || busy} onchange={e => changeCamera({ mirror: e.currentTarget.checked })} /> Mirror my preview</label>
-    <fieldset class="background" disabled={!camera || busy}>
-      <legend>Background</legend>
-      {#each [['none', 'None'], ['blur', 'Blur'], ['light_blur', 'Light blur']] as [value, label]}
-        <label><input type="radio" name="camera-background" value={value} checked={(blurAvailable ? cam.background : 'none') === value} disabled={value !== 'none' && !blurAvailable} onchange={() => { void changeBackground(value as CameraBackground) }} /> {label}</label>
-      {/each}
-    </fieldset>
-    {#if !blurAvailable}<p class="muted hint">Background blur needs modern frame processing and WebGL2, which this browser does not have.</p>{/if}
-    {#if call.blurNotice}<p class="muted hint">{call.blurNotice}</p>{/if}
-    {#each ['brightness', 'contrast', 'saturation'] as key}
-      {@const control = key as 'brightness' | 'contrast' | 'saturation'}
-      {@const range = caps[control]}
-      {#if range && range.max > range.min}<label class="slider"><span class="capitalize">{control}</span><input aria-label={control} type="range" min={range.min} max={range.max} step={range.step || (range.max - range.min) / 100} value={cam[control] ?? (actual as MediaTrackSettings & Record<string, number>)[control] ?? range.min} disabled={busy} onchange={e => changeCamera({ [control]: +e.currentTarget.value })} /></label>{/if}
-    {/each}
-  </section>
-</div>
+  </div>
+  <SettingRow find="quality" label="Resolution and frame rate">
+    {#snippet control()}
+      <select aria-label="Resolution" class="field" value={cam.resolution} disabled={!camera || busy} onchange={e => { const el = e.currentTarget; void changeCamera({ resolution: el.value as CameraSettings['resolution'] }).then(() => { el.value = cam.resolution }) }}><option value="auto">Auto</option>{#if requestedHeight && (!supports(caps.height, requestedHeight) || !supports(caps.width, requestedHeight * 16 / 9))}<option value={cam.resolution} disabled>{cam.resolution} unavailable</option>{/if}{#each [720, 1080] as height}{#if supports(caps.height, height) && supports(caps.width, height * 16 / 9)}<option value={`${height}p`}>{height}p</option>{/if}{/each}</select>
+      <select aria-label="Frame rate" class="field" value={cam.frame_rate} disabled={!camera || busy || !supportedRates.length} onchange={e => { const el = e.currentTarget; void changeCamera({ frame_rate: +el.value }).then(() => { el.value = String(cam.frame_rate) }) }}>{#if !supportedRates.includes(cam.frame_rate)}<option value={cam.frame_rate} disabled>{Math.round(actual.frameRate || 0)} fps · device default</option>{/if}{#each supportedRates as rate}<option value={rate}>{rate} fps</option>{/each}</select>
+    {/snippet}
+  </SettingRow>
+  <SettingRow find="mirror" label="Mirror my preview" hint="Only how you see yourself. Others see you the right way round.">
+    {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Mirror my preview" checked={cam.mirror} disabled={!camera || busy} onchange={e => changeCamera({ mirror: e.currentTarget.checked })} />{/snippet}
+  </SettingRow>
+  <SettingRow find="background" label="Background" hint={!blurAvailable ? 'Background blur needs modern frame processing and WebGL2, which this browser does not have.' : call.blurNotice || undefined}>
+    {#snippet control()}
+      <fieldset class="segments" disabled={!camera || busy} aria-label="Camera background">
+        {#each [['none', 'None'], ['blur', 'Blur'], ['light_blur', 'Light blur']] as [value, label]}
+          <label><input type="radio" name="camera-background" value={value} checked={(blurAvailable ? cam.background : 'none') === value} disabled={value !== 'none' && !blurAvailable} onchange={() => { void changeBackground(value as CameraBackground) }} /> {label}</label>
+        {/each}
+      </fieldset>
+    {/snippet}
+  </SettingRow>
+  {#each ['brightness', 'contrast', 'saturation'] as key}
+    {@const prop = key as 'brightness' | 'contrast' | 'saturation'}
+    {@const range = caps[prop]}
+    {#if range && range.max > range.min}
+      <SettingRow label={prop[0]!.toUpperCase() + prop.slice(1)}>
+        {#snippet control()}<input aria-label={prop} type="range" min={range.min} max={range.max} step={range.step || (range.max - range.min) / 100} value={cam[prop] ?? (actual as MediaTrackSettings & Record<string, number>)[prop] ?? range.min} disabled={busy} onchange={e => changeCamera({ [prop]: +e.currentTarget.value })} />{/snippet}
+      </SettingRow>
+    {/if}
+  {/each}
+</section>
 {#if error}<p role="alert" class="error">{error}</p>{/if}
-<p role="status" class="muted hint status">{status}</p>
-{#if speakerSupported}<label class="device">Speaker<select class="field" value={call.prefs.speaker} onchange={e => call.device('audiooutput', e.currentTarget.value)}><option value="">Default speaker</option>{#each devices.filter(d => d.kind === 'audiooutput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Speaker'}</option>{/each}</select></label>{/if}
+<p role="status" class="hint status">{status}</p>
+{#if speakerSupported}
+  <h3 class="list-head">Speaker</h3>
+  <div class="slist">
+    <SettingRow find="speaker" label="Output device">
+      {#snippet control()}<select class="field" aria-label="Speaker" value={call.prefs.speaker} onchange={e => call.device('audiooutput', e.currentTarget.value)}><option value="">Default speaker</option>{#each devices.filter(d => d.kind === 'audiooutput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Speaker'}</option>{/each}</select>{/snippet}
+    </SettingRow>
+  </div>
+{/if}
 
 <style>
-  .intro { font-size: var(--fs-sm); line-height: 1.5; margin: 0 0 20px; }
-  .devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-  section { min-width: 0; }
-  h3 { margin: 0 0 12px; }
-  .device { display: grid; gap: 6px; margin: 0 0 14px; font-size: var(--fs-sm); }
-  select { width: 100%; min-width: 0; font: inherit; }
-  .slider { display: grid; gap: 6px; font-size: var(--fs-sm); margin: 16px 0 6px; }
-  .slider span { display: flex; justify-content: space-between; }
-  output { font-variant-numeric: tabular-nums; }
-  input[type=range] { width: 100%; min-height: 28px; accent-color: var(--lamp); }
+  .allow { margin-top: 18px; }
+  select.field { width: auto; min-width: 0; max-width: 100%; }
+  .gain { display: grid; gap: 8px; width: 100%; }
+  .slider { display: flex; align-items: center; gap: 10px; }
+  output { font-size: var(--fs-xs); color: var(--ink-2); min-width: 38px; text-align: end; font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; min-width: 0; min-height: 28px; accent-color: var(--lamp); }
   .meter { height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); }
   .meter span { display: block; height: 100%; background: var(--lamp); }
-  .hint { font-size: var(--fs-xs); line-height: 1.5; margin: 6px 0 12px; }
-  .switch { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: var(--fs-sm); }
-  .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .background { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; border: 0; font-size: var(--fs-sm); }
-  .background legend { margin: 0 0 8px; padding: 0; font: inherit; }
-  .background label { display: flex; align-items: center; gap: 6px; min-height: 32px; }
-  .background input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .preview { aspect-ratio: 16/9; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r-lg); overflow: hidden; }
+  .pad { padding: 4px 16px 12px; }
+  .preview { aspect-ratio: 16/9; display: grid; place-items: center; background: var(--bg-3); border-radius: var(--r); overflow: hidden; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .mirror { transform: scaleX(-1); }
-  .preview-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; font-size: var(--fs-xs); margin: 4px 0 10px; }
+  .preview-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; font-size: var(--fs-xs); margin-top: 4px; }
   .text-link { color: var(--ink-2); text-decoration: underline; min-height: 28px; font: inherit; }
-  .quality { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .capitalize { text-transform: capitalize; }
-  .error { font-size: var(--fs-sm); color: var(--ember); }
+  fieldset.segments { margin: 0; border: 0; }
+  .hint { font-size: var(--fs-xs); line-height: 1.5; margin: 6px 4px 0; color: var(--ink-3); }
+  .error { font-size: var(--fs-sm); color: var(--danger); }
   .status { min-height: 16px; }
-  @media (max-width: 760px) { .devices { grid-template-columns: 1fr; gap: 24px; } }
 </style>

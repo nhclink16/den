@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import SettingRow from './SettingRow.svelte'
   let downloaded = $state(false), removing = $state(false), error = $state('')
   let punctuation = $state(localStorage.getItem('den.dictation.punctuation') !== 'false')
   onMount(() => { void import('../lib/dictation-cache').then(async cache => { downloaded = await cache.hasModel() }).catch(() => {}) })
@@ -10,18 +11,20 @@
     finally { removing = false }
   }
 </script>
-<fieldset>
-  <legend class="eyebrow">Dictation</legend>
-  <label class="device">Language<select class="field" aria-label="Dictation language"><option value="en">English</option></select></label>
-  <p class="muted small">The on-device voice model supports English.</p>
-  <label class="switch"><input type="checkbox" bind:checked={punctuation} onchange={() => localStorage.setItem('den.dictation.punctuation', String(punctuation))} /> Punctuation</label>
-  <div class="model"><span class="muted small">Voice model: 40 MB, {downloaded ? 'downloaded' : 'not downloaded'}</span>{#if downloaded}<button class="btn quiet" disabled={removing} onclick={remove}>Remove</button>{/if}</div>
-  {#if error}<p role="alert">{error}</p>{/if}
-</fieldset>
+<h3 class="list-head">Dictation</h3>
+<div class="slist" data-find="dictation">
+  <SettingRow label="Language" hint="The on-device voice model supports English.">
+    {#snippet control()}<select class="field" aria-label="Dictation language"><option value="en">English</option></select>{/snippet}
+  </SettingRow>
+  <SettingRow label="Punctuation" hint="Adds full stops and commas as you speak.">
+    {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Punctuation" bind:checked={punctuation} onchange={() => localStorage.setItem('den.dictation.punctuation', String(punctuation))} />{/snippet}
+  </SettingRow>
+  <SettingRow label="Voice model" hint={`40 MB, ${downloaded ? 'downloaded to this device' : 'not downloaded'}. It downloads the first time you dictate.`}>
+    {#snippet control()}{#if downloaded}<button class="btn quiet" disabled={removing} onclick={remove}>Remove</button>{/if}{/snippet}
+  </SettingRow>
+</div>
+{#if error}<p role="alert" class="error">{error}</p>{/if}
 <style>
-  fieldset { border: 0; padding: 0; margin: 24px 0 16px; }
-  .device { display: grid; gap: 6px; margin: 12px 0 10px; }
-  .switch, .model { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-  .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .small { font-size: var(--fs-sm); }
+  select.field { width: auto; }
+  .error { color: var(--danger); font-size: var(--fs-sm); }
 </style>

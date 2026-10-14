@@ -1,6 +1,6 @@
 <script lang="ts">
   // A handful of 16px line icons. Stroke inherits color.
-  let { name, size = 16 }: { name: 'music' | 'monitor' | 'window' | 'browser' | 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'down' | 'game' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off' | 'blur' | 'smile' | 'image' | 'up' | 'back' | 'chevron' | 'thread'; size?: number } = $props()
+  let { name, size = 16 }: { name: 'music' | 'monitor' | 'window' | 'browser' | 'pin' | 'popout' | 'more' | 'hash' | 'lock' | 'inbox' | 'gear' | 'search' | 'panel' | 'people' | 'plus' | 'reply' | 'trash' | 'edit' | 'x' | 'file' | 'clip' | 'bot' | 'send' | 'menu' | 'check' | 'down' | 'game' | 'copy' | 'headset' | 'mic' | 'mic-off' | 'camera' | 'camera-off' | 'screen' | 'phone' | 'leave' | 'expand' | 'collapse' | 'sound' | 'sound-off' | 'blur' | 'smile' | 'image' | 'up' | 'back' | 'chevron' | 'thread' | 'user' | 'palette' | 'bell' | 'link' | 'puzzle' | 'terminal' | 'shield' | 'key'; size?: number } = $props()
   const paths: Record<string, string> = {
     music: 'M6 11V3l8-2v9M6 6l8-2M6 11a2 2 0 1 1-2-2c1 0 2 1 2 2M14 10a2 2 0 1 1-2-2c1 0 2 1 2 2',
     game: 'M5 5h6a4 4 0 0 1 0 8c-1.2 0-1.8-1-3-1s-1.8 1-3 1a4 4 0 0 1 0-8zM5 7.5v2M4 8.5h2M10.5 8h.01M12 9.5h.01',
@@ -48,6 +48,14 @@
     back: 'M10 3 5 8l5 5',
     chevron: 'M4.5 6.5 8 10l3.5-3.5',
     thread: 'M2 3h12v8H7l-3 3v-3H2zM5 6h6M5 8.5h4',
+    user: 'M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 14.5a5.5 5.5 0 0 1 11 0',
+    palette: 'M8 14.5a6.5 6.5 0 1 1 6.5-6.5c0 1.8-1.2 2.5-2.5 2.5H10a1.5 1.5 0 0 0-1 2.6c.7.7.2 1.4-1 1.4zM5 7.5h.01M7 4.5h.01M10.5 5h.01',
+    bell: 'M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11zM6.5 14a1.5 1.5 0 0 0 3 0',
+    link: 'M7 9a3 3 0 0 0 4.2.3l2-2a3 3 0 0 0-4.2-4.2l-1 1M9 7a3 3 0 0 0-4.2-.3l-2 2A3 3 0 0 0 7 12.9l1-1',
+    puzzle: 'M3 5h3a2 2 0 1 1 4 0h3v3a2 2 0 1 1 0 4v2H3v-3a2 2 0 1 0 0-4z',
+    terminal: 'M2 3h12v10H2zM4.5 6.5 6.5 8l-2 1.5M8 10h3.5',
+    shield: 'M8 1.5 13.5 3.5v4c0 3.5-2.5 6-5.5 7-3-1-5.5-3.5-5.5-7v-4zM5.5 8l2 2 3-3.5',
+    key: 'M5.5 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM7.6 8.4 13 3M11 5l2 2M12.5 3.5l1.5 1.5',
     smile: 'M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM5.5 9.5c.6 1 1.4 1.5 2.5 1.5s1.9-.5 2.5-1.5M6 6.5h.01M10 6.5h.01',
   }
 </script>

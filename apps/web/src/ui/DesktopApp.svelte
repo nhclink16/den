@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SettingRow from './SettingRow.svelte'
   // Browser-only settings section. Installers live on the GitHub release, so the
   // page asks GitHub for the latest one and picks the file for this computer.
   const RELEASES = 'https://github.com/nhclink16/den/releases/latest'
@@ -42,25 +43,32 @@
 <p class="muted">The desktop app adds push to talk that works while Den is in the background, screen share with system sound on Windows, and showing what you're playing. It signs in to the same server.</p>
 
 {#if failed}
-  <p><a class="btn lit" href={RELEASES} target="_blank" rel="noreferrer">Get it on GitHub</a></p>
+  <div class="slist gap-top" data-find="download">
+    <SettingRow label="Den for your computer" hint="Couldn't reach GitHub to find the right file.">
+      {#snippet control()}<a class="btn lit" href={RELEASES} target="_blank" rel="noreferrer">Get it on GitHub</a>{/snippet}
+    </SettingRow>
+  </div>
 {:else if !tag}
-  <p class="faint">Finding the latest version…</p>
+  <p class="list-foot">Finding the latest version…</p>
 {:else}
   {#if best}
-    <p><a class="btn lit" href={best.asset.browser_download_url}>Download for {osNames[best.os]}</a> <span class="faint small">{tag} · {mb(best.asset.size)}</span></p>
+    <div class="slist gap-top" data-find="download">
+      <SettingRow label={`Den for ${osNames[best.os]}`} hint={`${tag} · ${mb(best.asset.size)}`}>
+        {#snippet control()}<a class="btn lit" href={best.asset.browser_download_url}>Download</a>{/snippet}
+      </SettingRow>
+    </div>
   {:else if mobile}
-    <p class="faint">The desktop app runs on Windows, Mac and Linux. Open this page on a computer to install it.</p>
+    <p class="list-foot">The desktop app runs on Windows, Mac and Linux. Open this page on a computer to install it.</p>
   {/if}
-  <h3 class="eyebrow">All downloads</h3>
-  <ul class="files">
+  <h3 class="list-head">All downloads</h3>
+  <div class="slist" data-find={best ? undefined : 'download'}>
     {#each files as f (f.asset.name)}
-      <li><a href={f.asset.browser_download_url}>{osNames[f.os]}: {f.label}</a> <span class="faint small">{mb(f.asset.size)}</span></li>
+      <a class="nav-row" href={f.asset.browser_download_url}><span class="grow">{osNames[f.os]}: {f.label}</span><span class="val">{mb(f.asset.size)}</span></a>
     {/each}
-  </ul>
-  <p class="faint small"><a href={RELEASES} target="_blank" rel="noreferrer">Release notes</a></p>
+    <a class="nav-row" href={RELEASES} target="_blank" rel="noreferrer"><span class="grow">Release notes</span><span class="val">GitHub</span></a>
+  </div>
 {/if}
 
 <style>
-  .files { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
-  .small { font-size: var(--fs-sm); }
+  .gap-top { margin-top: 18px; }
 </style>

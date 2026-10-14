@@ -73,12 +73,8 @@
 </div>
 
 <style>
-  .card {
-    border: 1px solid var(--line); border-radius: var(--r-lg);
-    background: var(--bg2); padding: 10px 10px 4px; transition: border-color .15s; cursor: pointer;
-  }
-  .card:hover { border-color: var(--ink3); }
-  .card.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  /* Sits in a settings list: no box of its own, just the two halves and a name. */
+  .card { cursor: pointer; min-width: 0; }
   .previews { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .half {
     position: relative; aspect-ratio: 8 / 5; overflow: hidden; padding: 0;
@@ -94,11 +90,13 @@
     background: var(--accent); color: var(--on-lamp);
   }
   .half.chosen .badge { display: grid; }
-  .caption { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 2px 6px; min-height: 34px; }
-  .name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .caption { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 2px 0; min-height: 30px; }
+  .name { font-size: var(--fs-sm); font-weight: 500; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card.active .name { color: var(--ink); font-weight: 700; }
   .tools { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
   .card:hover .tools, .card:focus-within .tools { opacity: 1; }
   .tool { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r); color: var(--ink3); }
   .tool:hover { background: var(--bg3); color: var(--ink); }
+  .tools :global(.btn) { min-height: 26px; padding: 2px 8px; font-size: var(--fs-xs); }
   @media (max-width: 650px) { .tools { opacity: 1; } }
 </style>

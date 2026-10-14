@@ -150,14 +150,14 @@
 </script>
 
 <h2 class="display">Profile</h2>
-<p class="muted lede">What people see when they click your name. It follows you to every device.</p>
+<p class="muted lede">What people see when they tap your name. It follows you to every device.</p>
 
 <div class="layout">
   <form class="form" onsubmit={save}>
     <section>
-      <h3>Pictures</h3>
-      <div class="group">
-        <SettingRow label="Profile picture" hint="Square works best. You can frame a photo before it uploads. A GIF keeps moving and shows its centre.">
+      <h3 class="list-head">Pictures</h3>
+      <div class="slist">
+        <SettingRow find="avatar" label="Profile picture" hint="Square works best. You can frame a photo before it uploads. A GIF keeps moving and shows its centre.">
           {#snippet control()}
             <label class="btn" class:busy={busyImage === 'avatar'}><Icon name="plus" size={14} />{busyImage === 'avatar' ? 'Uploading…' : 'Upload'}<input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={(e) => { void choose('avatar', e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
             <GifPicker label="Choose a GIF for your picture" onpick={(g) => useGif('avatar', g)} disabled={!!busyImage}><span class="btn">GIF</span></GifPicker>
@@ -184,7 +184,7 @@
             </div>
           </div>
         {/if}
-        <SettingRow label="Banner" hint="The strip across the top of your card. Wide pictures work best.">
+        <SettingRow find="banner" label="Banner" hint="The strip across the top of your card. Wide pictures work best.">
           {#snippet control()}
             <label class="btn" class:busy={busyImage === 'banner'}><Icon name="plus" size={14} />{busyImage === 'banner' ? 'Uploading…' : 'Upload'}<input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={(e) => { void choose('banner', e.currentTarget.files?.[0]); e.currentTarget.value = '' }} /></label>
             <GifPicker label="Choose a GIF for your banner" onpick={(g) => useGif('banner', g)} disabled={!!busyImage}><span class="btn">GIF</span></GifPicker>
@@ -195,12 +195,12 @@
     </section>
 
     <section>
-      <h3>About you</h3>
-      <div class="group">
-        <SettingRow label="Name" hint="What everyone sees. Emoji and any language are fine." wide>
+      <h3 class="list-head">About you</h3>
+      <div class="slist">
+        <SettingRow find="name" label="Name" hint="What everyone sees. Emoji and any language are fine." wide>
           {#snippet control()}<input class="field" bind:value={displayName} maxlength="100" autocomplete="nickname" />{/snippet}
         </SettingRow>
-        <SettingRow label="Bio" hint="A line or two. Shown as plain text." wide>
+        <SettingRow find="bio" label="Bio" hint="A line or two. Shown as plain text." wide>
           {#snippet control()}
             <div class="counted">
               <textarea class="field" rows="3" bind:value={bio} placeholder="Builds redstone that mostly works."></textarea>
@@ -208,7 +208,7 @@
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow label="Profile colour" hint="Your message bubbles, your picture, and your card when it has no banner. Everyone sees it unless they turned colours off." wide>
+        <SettingRow find="colour" label="Profile colour" hint="Your message bubbles, your picture, and your card when it has no banner. Everyone sees it unless they turned colours off." wide>
           {#snippet control()}
             <div class="colors">
               <div class="swatches" role="group" aria-label="Profile colour">
@@ -228,9 +228,9 @@
     </section>
 
     <section>
-      <h3>Status</h3>
-      <div class="group">
-        <SettingRow label="What you're up to" hint="One emoji and a short line, shown on your card." wide>
+      <h3 class="list-head">Status</h3>
+      <div class="slist">
+        <SettingRow find="status" label="What you're up to" hint="One emoji and a short line, shown on your card." wide>
           {#snippet control()}
             <div class="status-row">
               <div class="emoji-pick">
@@ -243,7 +243,7 @@
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow label="Clear after" hint="Statuses go away on their own if you like.">
+        <SettingRow find="clear" label="Clear after" hint="Statuses go away on their own if you like.">
           {#snippet control()}
             <select class="field" bind:value={clearAfter} aria-label="Clear status after">
               {#if keepUntil}<option value="keep">Keep current (clears {keepUntil})</option>{/if}
@@ -260,12 +260,12 @@
     </section>
 
     <section>
-      <h3>Activity</h3>
-      <div class="group">
+      <h3 class="list-head">Activity</h3>
+      <div class="slist">
         {#if native}
-          <SettingRow label="Share what I'm playing or using" hint="Games share on their own; other apps are asked about once. Only the app's name is shared, never window titles. It clears after 10 idle minutes or when you lock your screen. This device only.">
+          <SettingRow find="activity" label="Share what I'm playing or using" hint="Games share on their own; other apps are asked about once. Only the app's name is shared, never window titles. It clears after 10 idle minutes or when you lock your screen. This device only.">
             {#snippet control()}
-              <label class="switch"><input type="checkbox" checked={activityShare.prefs.share} onchange={(e) => activityShare.save({ share: e.currentTarget.checked })} /><span class="sr-only">Share activity</span></label>
+              <label class="switch"><input class="toggle" type="checkbox" role="switch" checked={activityShare.prefs.share} onchange={(e) => activityShare.save({ share: e.currentTarget.checked })} /><span class="sr-only">Share activity</span></label>
             {/snippet}
           </SettingRow>
           <SettingRow label="Right now" hint={activityShare.detected ? (activityShare.shared ? 'Everyone can see this.' : activityShare.asking ? 'Not shared until you say yes.' : 'Hidden. Nobody sees it.') : 'Nothing detected.'}>
@@ -275,7 +275,7 @@
           </SettingRow>
           <SettingRow label="Ask about other apps" hint="Off: apps that aren't games stay private unless you show them below.">
             {#snippet control()}
-              <label class="switch"><input type="checkbox" checked={activityShare.prefs.askApps} onchange={(e) => activityShare.save({ askApps: e.currentTarget.checked })} /><span class="sr-only">Ask about other apps</span></label>
+              <label class="switch"><input class="toggle" type="checkbox" role="switch" checked={activityShare.prefs.askApps} onchange={(e) => activityShare.save({ askApps: e.currentTarget.checked })} /><span class="sr-only">Ask about other apps</span></label>
             {/snippet}
           </SettingRow>
           {#if activityShare.prefs.seen.length}
@@ -291,11 +291,11 @@
             </SettingRow>
           {/if}
         {:else}
-          <SettingRow label="Games and apps" hint="The Den desktop app shares what you're playing or using. Browsers can't see other apps.">
+          <SettingRow find="activity" label="Games and apps" hint="The Den desktop app shares what you're playing or using. Browsers can't see other apps.">
             {#snippet control()}<a class="btn quiet" href="https://github.com/nhclink16/den/releases/latest" target="_blank" rel="noopener noreferrer">Get the desktop app</a>{/snippet}
           </SettingRow>
         {/if}
-        <SettingRow label="Music" hint={store.spotify.share_listening ? "People see what you're listening to on Spotify while you're here." : "Off. Connect Spotify and turn on sharing to show what you're listening to."}>
+        <SettingRow find="music" label="Music" hint={store.spotify.share_listening ? "People see what you're listening to on Spotify while you're here." : "Off. Connect Spotify and turn on sharing to show what you're listening to."}>
           {#snippet control()}<button type="button" class="btn quiet" onclick={() => router.go('/settings/spotify')}>Spotify settings</button>{/snippet}
         </SettingRow>
       </div>
@@ -315,12 +315,13 @@
 </div>
 
 <style>
-  .lede { margin: 0 0 18px; }
+  .lede { margin: 0 0 20px; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
   .preview { position: sticky; top: 0; display: grid; gap: 8px; }
+  .preview .eyebrow { padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview { position: static; order: -1; } }
-  section { margin-bottom: 22px; }
-  .group { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); overflow: hidden; }
+  .form > section:first-child > .list-head { margin-top: 0; }
+  .actions { margin-top: 22px; }
   label.btn { cursor: pointer; }
   label.btn.busy { opacity: .6; pointer-events: none; }
   label.btn:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
@@ -371,7 +372,7 @@
   .zoom { display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--ink-2); }
   .zoom input { accent-color: var(--lamp); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .switch input { width: 18px; height: 18px; accent-color: var(--lamp); }
+  .switch { display: flex; }
   .now { font-size: var(--fs-sm); } .now b { font-weight: 700; } .now.off { color: var(--ink-3); text-decoration: line-through; }
   .apps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; width: 100%; }
   .apps li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }

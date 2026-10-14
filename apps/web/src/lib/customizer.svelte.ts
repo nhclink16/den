@@ -1,5 +1,5 @@
-// The live customizer: Appearance opens as a panel over the real app, so every
-// change shows where it matters instead of in a settings page. Changes save as
+// The live customizer: on a wide screen Appearance opens as a panel over the real
+// app, so every change shows where it matters instead of in a settings page. Changes save as
 // they happen; "Undo changes" returns to how things looked when it opened.
 import { themes } from './theme.svelte'
 import { store } from './store.svelte'
@@ -14,11 +14,20 @@ class Customizer {
   /** Where "Settings › Appearance" returns you: the last room or page outside Settings. */
   lastPlace = '/'
 
-  show() {
-    if (!this.open) this.start = { appearance: copy(themes.appearance), avatarShape: store.layout.avatarShape, presence: store.layout.presence }
+  /** A row for the panel to scroll to once it opens: settings search found it. */
+  find = $state<string | null>(null)
+
+  show(find?: string) {
+    this.begin()
+    this.find = find ?? null
     this.open = true
   }
-  close() { this.open = false; this.start = null; themes.reset() }
+  close() { this.open = false; this.end() }
+  /** Remembers how things look now, for Undo. The phone's Appearance page uses this without the panel. */
+  begin() {
+    if (!this.start) this.start = { appearance: copy(themes.appearance), avatarShape: store.layout.avatarShape, presence: store.layout.presence }
+  }
+  end() { this.start = null; themes.reset() }
 
   get changed() {
     const s = this.start

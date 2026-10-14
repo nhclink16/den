@@ -1,58 +1,107 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { api } from '../lib/api'
   import { notify } from '../lib/notify.svelte'
-  import type { BotCreated, Category, Channel, Invite, Token, TokenSecret } from '../lib/types'
   import { customizer } from '../lib/customizer.svelte'
+  import { visibleSections, findSettings, reveal, type Hit, type Section } from '../lib/settings-search'
   import ProfileSettings from './ProfileSettings.svelte'
   import MachineSettings from './MachineSettings.svelte'
-  import InlineConfirm from './InlineConfirm.svelte'
   import SettingRow from './SettingRow.svelte'
   import SoundSettings from './SoundSettings.svelte'
   import VoiceSettings from './VoiceSettings.svelte'
   import SpotifySettings from './SpotifySettings.svelte'
   import MemberSettings from './MemberSettings.svelte'
+  import KeySettings from './KeySettings.svelte'
+  import InviteSettings from './InviteSettings.svelte'
+  import RoomSettings from './RoomSettings.svelte'
+  import Appearance from './Appearance.svelte'
+  import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
-  import IconPicker from './IconPicker.svelte'
   import { roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
   import DesktopApp from './DesktopApp.svelte'
   import { isDesktop } from '../lib/desktop'
 
-  let { section = 'profile', narrow }: { section?: string; narrow: boolean } = $props()
+  /** `narrow`: one thing at a time. The list of sections, or a page pushed in over it, like iPhone Settings. */
+  let { section, narrow }: { section?: string; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
   // Everyday settings first. Machines, access and keys are for people running
-  // agents and terminals, so they sit last under Advanced, still one click away.
-  const sections = $derived([
-    ['profile', 'Profile'], ['appearance', 'Appearance'], ['notifications', 'Notifications'], ['sounds', 'Sounds'], ['voice', 'Voice'], ['spotify', 'Spotify'], ['layout', 'Layout'],
-    ...(admin ? [['members', 'Members'], ['invites', 'Invites'], ['rooms', 'Rooms'], ['plugins', 'Plugins']] : []), ...(isDesktop() ? [] : [['desktop', 'Desktop app']]), ['account', 'Account'],
-    ['machines', 'Machines', true], ['access', 'Access', true], ['keys', 'API keys', true], ['agents', 'Agents', true],
-  ] as [string, string, boolean?][])
-  // Appearance isn't a page: it opens over the room you came from, so each change
-  // shows where it matters.
+  // agents and terminals, so they sit last under Advanced, still one tap away.
+  const sections = $derived(visibleSections(admin, isDesktop()))
+  // A wide window always shows a page; a phone shows the list until you pick one.
+  const current = $derived(sections.some((s) => s.id === section) ? section! : narrow ? null : 'profile')
+  const title = $derived(sections.find((s) => s.id === current)?.label ?? 'Settings')
+  const groups = $derived((['you', 'app', 'account', 'server', 'advanced'] as const).map((g) => ({ g, list: sections.filter((s) => s.group === g) })).filter((x) => x.list.length))
+  const groupLabel = { you: '', app: '', account: '', server: 'Server', advanced: 'Advanced' } as const
+
+  // On a computer Appearance isn't a page: it opens over the room you came from,
+  // so each change shows where it matters. A phone has no room beside it, so there
+  // it is a page with a preview at the top.
   $effect(() => {
-    if (section !== 'appearance') return
-    customizer.show()
-    router.go(customizer.lastPlace, true)
+    if (current !== 'appearance' || narrow) return
+    untrack(() => { customizer.show(pending ?? undefined); pending = null; router.go(customizer.lastPlace, true) })
   })
-  let toc: HTMLElement
+  // The page still offers Undo, back to how things looked when you opened it.
   $effect(() => {
-    void section; void narrow
-    tick().then(() => {
-      const active = toc?.querySelector<HTMLElement>('[aria-current]')
-      if (!active || !matchMedia('(max-width: 650px)').matches) return
-      const link = active.getBoundingClientRect(), strip = toc.getBoundingClientRect()
-      // Scroll this strip only; scrollIntoView can also shift the whole settings page.
-      toc.scrollTo({ left: toc.scrollLeft + link.left - strip.left - (toc.clientWidth - link.width) / 2 })
+    if (current !== 'appearance' || !narrow) return
+    untrack(() => customizer.begin())
+    return () => untrack(() => customizer.end())
+  })
+
+  // --- moving around ---
+  let pane = $state<HTMLElement>()
+  let pending = $state<string | null>(null)
+  function open(id: string, find?: string) {
+    pending = find ?? null
+    if (id !== section) router.go(`/settings/${id}`, false, narrow ? '/settings' : undefined)
+    // Already showing it (a computer shows Profile at /settings): nothing changes to look again, so look now.
+    if (id === current) seek()
+  }
+  const go = (id: string) => (e: MouseEvent) => { e.preventDefault(); open(id) }
+  function toList() {
+    if (router.parent === '/settings') router.back()
+    else router.go('/settings', true)
+  }
+  // Land on the row a search found. Some pages load what they show, so look a few times.
+  function seek() {
+    const find = pending
+    if (!find) return
+    let tries = 0
+    const look = () => {
+      if (pending !== find) return
+      if ((pane && reveal(pane, find)) || ++tries > 12) { pending = null; return }
+      setTimeout(look, 120)
+    }
+    void tick().then(look)
+  }
+  $effect(() => { void current; if (pending) seek() })
+  // A new page starts at its top.
+  $effect(() => { void current; pane?.scrollTo({ top: 0 }) })
+  // Pushing a page in moves keyboard focus to its title; coming back puts it on the row you left from.
+  let heading = $state<HTMLElement>(), home = $state<HTMLElement>(), last: string | null = null
+  $effect(() => {
+    const now = current, from = last
+    last = now
+    if (!narrow || now === from) return
+    void tick().then(() => {
+      if (pending) return
+      if (now) heading?.focus({ preventScroll: true })
+      else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus({ preventScroll: true })
     })
   })
+
+  // --- search ---
   let q = $state('')
-  const visible = $derived(sections.filter(([, l]) => !q || l.toLowerCase().includes(q.toLowerCase())))
-  const go = (s: string) => (e: MouseEvent) => { e.preventDefault(); router.go(`/settings/${s}`) }
+  const hits = $derived(findSettings(q, sections, admin))
+  function pick(h: Hit) { q = ''; open(h.section.id, h.entry?.find) }
+  function searchKey(e: KeyboardEvent) {
+    if (e.key === 'Enter' && hits[0]) { e.preventDefault(); pick(hits[0]) }
+    if (e.key === 'Escape' && q) { e.preventDefault(); q = '' }
+  }
 
   // --- notifications ---
   // The iPhone app's page has no Notification at all: nothing to unblock there.
@@ -62,306 +111,255 @@
     const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
     store.saveNotif({ subscribed_channel_ids: [...s] })
   }
-
-  // --- agents ---
-  let tokens = $state<Token[]>([])
-  let botName = $state('')
-  let botDisplay = $state('')
-  let tokenName = $state('')
-  let reveal = $state<{ label: string; token: string } | null>(null)
-  let copied = $state(false)
-  let agentErr = $state('')
-  async function loadTokens() { try { tokens = await api.get<Token[]>('/tokens') } catch { tokens = [] } }
-  $effect(() => { if (section === 'agents' || section === 'keys') loadTokens() })
-  async function createBot(e: SubmitEvent) {
-    e.preventDefault(); agentErr = ''
-    try {
-      const b = await api.post<BotCreated>('/bots', { username: botName.trim(), display_name: botDisplay.trim() || botName.trim() })
-      reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
-      botName = ''; botDisplay = ''
-      await store.resync(); await loadTokens()
-    } catch (err) { agentErr = (err as Error).message }
-  }
-  async function createToken(e: SubmitEvent) {
-    e.preventDefault(); agentErr = ''
-    try {
-      const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-      reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
-      tokenName = ''; await loadTokens()
-    } catch (err) { agentErr = (err as Error).message }
-  }
-  async function revoke(t: Token) {
-    await api.del(`/tokens/${t.id}`); await loadTokens()
-  }
-  async function copy(s: string) { await navigator.clipboard.writeText(s); copied = true; setTimeout(() => (copied = false), 1500) }
-
-  // --- invites ---
-  let invites = $state<Invite[]>([])
-  let uses = $state(1)
-  let hours = $state(48)
-  async function makeInvite(e: SubmitEvent) {
-    e.preventDefault()
-    invites = [await api.post<Invite>('/invites', { uses, expires_in_hours: hours }), ...invites]
-  }
-  const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
-
-  // --- rooms ---
-  let serverName = $state('')
-  let nameBusy = $state(false)
-  let nameStatus = $state('')
-  $effect(() => { serverName = store.settings.instance_name })
-  async function saveName(e: SubmitEvent) {
-    e.preventDefault(); nameBusy = true; nameStatus = ''; roomErr = ''
-    try {
-      store.settings = await api.put('/settings', { instance_name: serverName.trim() })
-      nameStatus = 'Server name saved.'
-    } catch (err) { roomErr = (err as Error).message }
-    finally { nameBusy = false }
-  }
-  let newCat = $state('')
-  let newChan = $state('')
-  let newChanCat = $state('')
-  let roomErr = $state('')
-  async function addCategory(e: SubmitEvent) {
-    e.preventDefault(); roomErr = ''
-    try { await api.post<Category>('/categories', { name: newCat.trim(), position: store.categories.length }); newCat = ''; await store.resync() } catch (err) { roomErr = (err as Error).message }
-  }
-  async function addChannel(e: SubmitEvent) {
-    e.preventDefault(); roomErr = ''
-    try { await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length }); newChan = ''; await store.resync() } catch (err) { roomErr = (err as Error).message }
-  }
-  async function delChannel(c: Channel) {
-    await api.del(`/channels/${c.id}`); await store.resync()
-  }
-  async function delCategory(c: Category) {
-    await api.del(`/categories/${c.id}`); await store.resync()
-  }
+  let pluginErr = $state('')
 
   async function logout() { await store.logout(); router.go('/login') }
 </script>
 
-<section class="settings">
+{#snippet finder()}
+  <div class="find input-shell" role="search">
+    <Icon name="search" size={16} />
+    <input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" enterkeyhint="search" autocomplete="off" onkeydown={searchKey} />
+    {#if q}<button class="clear" onclick={() => (q = '')} aria-label="Clear search"><Icon name="x" size={12} /></button>{/if}
+  </div>
+{/snippet}
+
+{#snippet results()}
+  {#if hits.length}
+    <nav class="slist results" aria-label="Settings found">
+      {#each hits as h (h.section.id + (h.entry?.find ?? '') + (h.entry?.label ?? ''))}
+        <a class="nav-row" href="/settings/{h.section.id}" onclick={(e) => { e.preventDefault(); pick(h) }}>
+          <span class="grow"><span class="hit">{h.entry?.label ?? h.section.label}</span>{#if h.entry}<span class="where">{h.section.label}</span>{/if}</span>
+          <span class="chev"><Icon name="chevron" size={14} /></span>
+        </a>
+      {/each}
+    </nav>
+  {:else}
+    <p class="none" role="status">Nothing matches “{q.trim()}”.</p>
+  {/if}
+{/snippet}
+
+<section class="settings" class:drill={narrow} class:list-view={narrow && !current}>
   <header class="head">
-    {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
-    {#if narrow}<HomeButton />{/if}
-    <span class="kind"><Icon name="gear" size={18} /></span>
-    <h1 class="display">Settings</h1>
+    {#if narrow && current}
+      <button class="back" onclick={toList}><Icon name="back" size={22} /><span>Settings</span></button>
+      <h1 class="title" tabindex="-1" bind:this={heading}>{title}</h1>
+      {#if current === 'appearance'}
+        <button class="undo" disabled={!customizer.changed} onclick={() => customizer.undo()}>Undo</button>
+      {:else}<span class="undo" aria-hidden="true"></span>{/if}
+    {:else if narrow}
+      <HomeButton />
+    {:else}
+      {#if !store.layout.sidebar}<SidebarToggle />{/if}
+      <span class="kind"><Icon name="gear" size={18} /></span>
+      <h1 class="display">Settings</h1>
+    {/if}
   </header>
 
   <div class="body">
-    <nav class="toc" bind:this={toc} aria-label="Settings sections">
-      <div class="search input-shell"><Icon name="search" size={14} /><input bind:value={q} placeholder="Find a setting" aria-label="Find a setting" /></div>
-      {#each visible as [id, label, advanced], i (id)}
-        {#if advanced && !visible[i - 1]?.[2]}<span class="group-label eyebrow">Advanced</span>{/if}
-        <a href="/settings/{id}" class:active={section === id} aria-current={section === id ? 'page' : undefined} onclick={go(id)}>{label}</a>
-      {/each}
-    </nav>
-
-    <div class="pane" class:appearance-pane={section === 'appearance' || section === 'profile'}>
-      <div class="pane-inner">
-      {#if section === 'profile'}
-      <ProfileSettings />
-      {:else if section === 'machines' || section === 'access'}
-      <MachineSettings {section} />
-    {:else if section === 'notifications'}
-        <h2 class="display">Notifications</h2>
-        <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
-        {#if perm !== 'granted'}
-          <div class="callout">
-            <span>{perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Notifications are blocked in your browser settings.' : 'Desktop notifications are off.'}</span>
-            {#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}
-          </div>
-        {/if}
-        <label class="switch"><input type="checkbox" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} /> When someone mentions me</label>
-        <label class="switch"><input type="checkbox" checked={store.notif.dms} onchange={(e) => store.saveNotif({ dms: e.currentTarget.checked })} /> Direct messages</label>
-        <p class="small"><a href="/settings/sounds" onclick={go('sounds')}>Choose notification sounds and volume</a></p>
-        <h3 class="eyebrow">Rooms you follow</h3>
-        <p class="faint small">Every message in a followed room notifies you. Follow sparingly.</p>
-        {#each store.textChannels as c (c.id)}
-          <label class="switch"><input type="checkbox" checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} /> {roomName(c, themes.appearance.room_icons)}</label>
-        {/each}
-
-      {:else if section === 'sounds'}
-        <SoundSettings />
-      {:else if section === 'voice'}
-        <VoiceSettings />
-      {:else if section === 'spotify'}
-        <SpotifySettings />
-      {:else if section === 'plugins' && admin}
-        <h2 class="display">Plugins</h2>
-        <label class="switch"><input type="checkbox" checked={store.settings.canvas_enabled} onchange={async (e) => { try { store.settings = await api.put('/settings', { canvas_enabled: e.currentTarget.checked }); agentErr = '' } catch (err) { agentErr = (err as Error).message } }} /> Canvas</label>
-        <p class="muted">A shared drawing board anyone in a room can open. Uses tldraw.</p>
-        {#if agentErr}<p role="alert" class="error">{agentErr}</p>{/if}
-      {:else if section === 'layout'}
-        <h2 class="display">Layout</h2>
-        <label class="switch"><input type="checkbox" checked={store.layout.sidebar} onchange={(e) => store.saveLayout({ sidebar: e.currentTarget.checked })} /> Show the room list <kbd>Ctrl+\</kbd></label>
-        <label class="switch"><input type="checkbox" checked={store.layout.members} onchange={(e) => store.saveLayout({ members: e.currentTarget.checked })} /> Show people <kbd>Ctrl+Shift+M</kbd></label>
-        <p class="muted small">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty composer.</p>
-
-      {:else if section === 'keys' || section === 'agents'}
-        {#if section === 'keys'}
-          <h2 class="display">API keys</h2>
-          <p class="muted">An API key acts as you: scripts, the <code>den</code> CLI, or a relay like the Minecraft one. Anyone holding it can do what you can, so keep it private.</p>
+    {#if narrow && !current}
+      <!-- The phone's Settings list: you at the top, then every section. -->
+      <div class="home" bind:this={home}>
+        <h1 class="display large">Settings</h1>
+        {@render finder()}
+        {#if q.trim()}
+          {@render results()}
         {:else}
-          <h2 class="display">Agents</h2>
-          <p class="muted">An agent is a member of its own, with a name and picture, that talks through its key. No app registration, no OAuth.</p>
+          {#if store.me}
+            <a class="slist me" href="/settings/profile" onclick={go('profile')}>
+              <span class="nav-row">
+                <Avatar userId={store.me.id} size={56} presence={false} />
+                <span class="grow"><b>{store.me.display_name || store.me.username}</b><span class="sub">{#if store.me.status?.emoji || store.me.status?.text}{store.me.status.emoji ?? ''} {store.me.status.text ?? ''}{:else}Profile, picture and status{/if}</span></span>
+                <span class="chev"><Icon name="chevron" size={14} /></span>
+              </span>
+            </a>
+          {/if}
+          {#each groups.filter((x) => x.g !== 'you') as { g, list } (g)}
+            {#if groupLabel[g]}<h2 class="list-head">{groupLabel[g]}</h2>{:else}<div class="gap"></div>{/if}
+            <nav class="slist" aria-label={groupLabel[g] || 'Settings'}>
+              {#each list as s (s.id)}{@render navItem(s, true)}{/each}
+            </nav>
+          {/each}
         {/if}
-        {#if reveal}
-          <div class="reveal">
-            <div>{reveal.label}</div>
-            <code class="secret">{reveal.token}</code>
-            <div class="row">
-              <button class="btn" onclick={() => copy(reveal!.token)}><Icon name={copied ? 'check' : 'copy'} /> {copied ? 'Copied' : 'Copy'}</button>
-              <button class="btn quiet" onclick={() => (reveal = null)}>I saved it</button>
+      </div>
+    {:else}
+      {#if !narrow}
+        <nav class="toc" aria-label="Settings sections">
+          {@render finder()}
+          {#if q.trim()}
+            {@render results()}
+          {:else}
+            {#each groups as { g, list } (g)}
+              {#if groupLabel[g]}<span class="toc-label">{groupLabel[g]}</span>{/if}
+              {#each list as s (s.id)}{@render navItem(s, false)}{/each}
+            {/each}
+          {/if}
+        </nav>
+      {/if}
+
+      <div class="pane" bind:this={pane} class:wide-pane={current === 'profile' || current === 'appearance'}>
+        <div class="pane-inner">
+        {#if current === 'profile'}
+          <ProfileSettings />
+        {:else if current === 'appearance'}
+          <Appearance />
+        {:else if current === 'machines' || current === 'access'}
+          <MachineSettings section={current} />
+        {:else if current === 'notifications'}
+          <h2 class="display">Notifications</h2>
+          <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
+          {#if perm !== 'granted'}
+            <div class="slist callout">
+              <SettingRow find="permission" label={perm === 'unsupported' ? 'Notifications on this device' : 'Desktop notifications'} hint={perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Blocked in your browser settings. Allow them there for this site.' : 'Off. Turn them on to hear about mentions and DMs while Den is in the background.'}>
+                {#snippet control()}{#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}{/snippet}
+              </SettingRow>
             </div>
-            <div class="faint small">Use it as <code>DEN_TOKEN</code> with the <code>den</code> CLI, or as a bearer token.</div>
+          {/if}
+          <h3 class="list-head">Always</h3>
+          <div class="slist">
+            <SettingRow find="mentions" label="When someone mentions me">
+              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="When someone mentions me" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} />{/snippet}
+            </SettingRow>
+            <SettingRow find="dms" label="Direct messages">
+              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Direct messages" checked={store.notif.dms} onchange={(e) => store.saveNotif({ dms: e.currentTarget.checked })} />{/snippet}
+            </SettingRow>
+            <a class="nav-row" href="/settings/sounds" onclick={go('sounds')}><span class="grow">Notification sounds and volume</span><span class="chev"><Icon name="chevron" size={14} /></span></a>
           </div>
-        {/if}
-        {#if section === 'keys'}
-          <form class="inline" onsubmit={createToken}>
-            <h3 class="eyebrow">New API key</h3>
-            <input class="field" bind:value={tokenName} placeholder="What is it for, e.g. minecraft-relay" />
-            <button class="btn lit" type="submit"><Icon name="plus" /> Create key</button>
-          </form>
-        {:else}
-          <form class="inline" onsubmit={createBot}>
-            <h3 class="eyebrow">New agent</h3>
-            <input class="field" bind:value={botName} placeholder="username, e.g. hermes" pattern={'[a-z0-9_]{3,32}'} required />
-            <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" />
-            <button class="btn lit" type="submit"><Icon name="bot" /> Create agent</button>
-          </form>
-        {/if}
-        {#if agentErr}<p class="error">{agentErr}</p>{/if}
-        {@const shown = tokens.filter((t) => (section === 'keys') === (t.user_id === store.me?.id))}
-        <h3 class="eyebrow">{section === 'keys' ? 'Your keys' : 'Agent keys'}</h3>
-        {#if !shown.length}<p class="faint">None yet.</p>{:else}
-          <div class="group">
-            {#each shown as t (t.id)}
-              {@const owner = store.user(t.user_id)}
-              <SettingRow label={t.name} hint={section === 'agents' ? (owner ? owner.display_name || owner.username : 'agent') : undefined}>
-                {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
+          <h3 class="list-head">Rooms you follow</h3>
+          <div class="slist" data-find="follow">
+            {#each store.textChannels as c (c.id)}
+              {@const name = roomName(c, themes.appearance.room_icons)}
+              <SettingRow label={name}>
+                {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label={`Follow ${name}`} checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} />{/snippet}
               </SettingRow>
             {/each}
           </div>
+          <p class="list-foot">Every message in a followed room notifies you. Follow sparingly.</p>
+
+        {:else if current === 'sounds'}
+          <SoundSettings />
+        {:else if current === 'voice'}
+          <VoiceSettings />
+        {:else if current === 'spotify'}
+          <SpotifySettings />
+        {:else if current === 'plugins'}
+          <h2 class="display">Plugins</h2>
+          <p class="muted">Extras for everyone on this server.</p>
+          <div class="slist gap-top">
+            <SettingRow find="canvas" label="Canvas" hint="A shared drawing board anyone in a room can open. Uses tldraw.">
+              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Canvas" checked={store.settings.canvas_enabled} onchange={async (e) => { try { store.settings = await api.put('/settings', { canvas_enabled: e.currentTarget.checked }); pluginErr = '' } catch (err) { pluginErr = (err as Error).message } }} />{/snippet}
+            </SettingRow>
+          </div>
+          {#if pluginErr}<p role="alert" class="error">{pluginErr}</p>{/if}
+        {:else if current === 'layout'}
+          <h2 class="display">Layout</h2>
+          <p class="muted">What shows beside the conversation on a wide screen.</p>
+          <div class="slist gap-top">
+            <SettingRow find="sidebar" label="Show the room list" hint="Ctrl+\">
+              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Show the room list" checked={store.layout.sidebar} onchange={(e) => store.saveLayout({ sidebar: e.currentTarget.checked })} />{/snippet}
+            </SettingRow>
+            <SettingRow find="members" label="Show people" hint="Ctrl+Shift+M">
+              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Show people" checked={store.layout.members} onchange={(e) => store.saveLayout({ members: e.currentTarget.checked })} />{/snippet}
+            </SettingRow>
+          </div>
+          <p class="list-foot" data-find="shortcuts">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty message box.{#if narrow} On a phone the room list is your home screen, so these apply on wider screens.{/if}</p>
+
+        {:else if current === 'keys' || current === 'agents'}
+          <KeySettings section={current} />
+        {:else if current === 'members'}
+          <MemberSettings />
+        {:else if current === 'invites'}
+          <InviteSettings />
+        {:else if current === 'rooms'}
+          <RoomSettings />
+        {:else if current === 'desktop'}
+          <DesktopApp />
+        {:else if current === 'account'}
+          <h2 class="display">Account</h2>
+          <div class="slist gap-top">
+            <SettingRow label="Name">{#snippet control()}<span class="val">{store.me?.display_name || store.me?.username}</span>{/snippet}</SettingRow>
+            <SettingRow label="Username">{#snippet control()}<span class="val">@{store.me?.username}</span>{/snippet}</SettingRow>
+            <SettingRow label="Role">{#snippet control()}<span class="val">{admin ? 'Admin' : 'Member'}</span>{/snippet}</SettingRow>
+          </div>
+          <div class="slist gap-top" data-find="logout"><button class="action-row danger" onclick={logout}>Log out</button></div>
+          <p class="list-foot">Logging out signs out this device only.</p>
         {/if}
-
-      {:else if section === 'members' && admin}
-        <MemberSettings />
-
-      {:else if section === 'invites' && admin}
-        <h2 class="display">Invites</h2>
-        <form class="inline" onsubmit={makeInvite}>
-          <label><span class="eyebrow">Uses</span><input class="field" type="number" min="1" max="50" bind:value={uses} /></label>
-          <label><span class="eyebrow">Expires in hours</span><input class="field" type="number" min="1" max="720" bind:value={hours} /></label>
-          <button class="btn lit" type="submit"><Icon name="plus" /> New invite</button>
-        </form>
-        {#each invites as inv (inv.id)}
-          <div class="tok">
-            <code class="secret small">{inviteLink(inv.code)}</code>
-            <span class="faint">{inv.uses_left} left</span>
-            <button class="btn" onclick={() => copy(inviteLink(inv.code))}><Icon name={copied ? 'check' : 'copy'} /></button>
-          </div>
-        {/each}
-        {#if invites.length}<p class="faint small">Copy these links now. They won't be shown again after you leave this page.</p>{:else}<p class="faint">No invites yet.</p>{/if}
-
-      {:else if section === 'rooms' && admin}
-        <h2 class="display">Rooms</h2>
-        <form onsubmit={saveName} class="server-name">
-          <label for="server-name" class="eyebrow">Server name</label>
-          <div class="inline">
-            <input id="server-name" class="field" bind:value={serverName} required aria-describedby="name-help" />
-            <button class="btn" type="submit" disabled={nameBusy || !serverName.trim() || Array.from(serverName.trim()).length > 40}>Save name</button>
-          </div>
-          <p id="name-help" class="faint small">1–40 characters. Shown to members and on the login screen.</p>
-          <p class="small" role="status">{nameStatus}</p>
-        </form>
-        <form class="inline" onsubmit={addCategory}>
-          <input class="field" bind:value={newCat} placeholder="New category" required />
-          <button class="btn" type="submit"><Icon name="plus" /> Add category</button>
-        </form>
-        <form class="inline" onsubmit={addChannel}>
-          <input class="field" bind:value={newChan} placeholder="new-room" pattern={'[a-z0-9_-]{1,40}'} required />
-          <select class="field" bind:value={newChanCat}>
-            <option value="">No category</option>
-            {#each store.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
-          </select>
-          <button class="btn lit" type="submit"><Icon name="plus" /> Add room</button>
-        </form>
-        {#if roomErr}<p class="error">{roomErr}</p>{/if}
-        <p class="faint small">Choose a room's icon with the button beside its name. Everyone sees it, unless they picked # signs or nothing in Appearance.</p>
-        {#each [null, ...store.categories] as cat (cat?.id ?? 'none')}
-          {@const chans = store.textChannels.filter((c) => (c.category_id || null) === (cat?.id || null))}
-          {#if cat || chans.length}
-            <div class="cat-row">
-              <span class="eyebrow">{cat ? cat.name : 'Uncategorized'}</span>
-              {#if cat}<InlineConfirm action="Delete category" sentence={`Delete the "${cat.name}" category? Its rooms stay, uncategorised.`} confirm={() => delCategory(cat)} />{/if}
-            </div>
-            {#if chans.length}
-              <div class="group">
-                {#each chans as c (c.id)}
-                  <SettingRow label={roomName(c, themes.appearance.room_icons)}>
-                    {#snippet control()}<IconPicker channel={c} /><InlineConfirm action="Delete" sentence={`Delete ${roomName(c, themes.appearance.room_icons)} and every message in it?`} confirm={() => delChannel(c)} />{/snippet}
-                  </SettingRow>
-                {/each}
-              </div>
-            {/if}
-          {/if}
-        {/each}
-
-      {:else if section === 'desktop' && !isDesktop()}
-        <DesktopApp />
-
-      {:else if section === 'account'}
-        <h2 class="display">Account</h2>
-        <p>Signed in as <b>{store.me?.display_name || store.me?.username}</b> <span class="muted">@{store.me?.username}</span>{#if admin} <span class="faint">admin</span>{/if}</p>
-        <button class="btn" onclick={logout}>Log out</button>
-      {/if}
+        </div>
       </div>
-    </div>
+    {/if}
   </div>
 </section>
 
+{#snippet navItem(s: Section, tile: boolean)}
+  <a class="nav-row" class:item={!tile} href="/settings/{s.id}" aria-current={current === s.id ? 'page' : undefined} onclick={go(s.id)}>
+    <span class:tile class="ic"><Icon name={s.icon as 'gear'} size={tile ? 17 : 16} /></span>
+    <span class="grow">{s.label}</span>
+    {#if tile}<span class="chev"><Icon name="chevron" size={14} /></span>{/if}
+  </a>
+{/snippet}
+
 <style>
-  .server-name { margin-bottom: 24px; }
-  .server-name > label { display: block; margin-bottom: 6px; }
   .settings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
   .kind { color: var(--ink-3); display: grid; }
-  h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
-  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); }
-  @media (max-width: 700px) { .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .toc { flex-direction: row; flex-wrap: wrap; border-right: 0 !important; border-bottom: 1px solid var(--line); } }
-  .toc { display: flex; flex-direction: column; gap: 2px; padding: 16px 10px; border-right: 1px solid var(--line); }
-  .toc a { padding: 7px 10px; border-radius: var(--r); color: var(--ink-2); }
-  .toc a:hover { background: var(--bg-3); color: var(--ink); text-decoration: none; }
-  .toc a.active { background: var(--bg-3); color: var(--ink); font-weight: 700; }
-  .group-label { margin: 14px 10px 4px; }
-  /* The same search field as the room header and the Search page; app.css draws its focus ring. */
-  .search { display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin-bottom: 8px; color: var(--ink-3); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
-  .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .search input { flex: 1; min-width: 0; background: none; border: 0; color: var(--ink); font-size: var(--fs-sm); }
-  .pane { --pane-end: 40px; overflow-y: auto; padding: 20px 28px var(--pane-end); min-width: 0; }
-  .pane-inner { width: 100%; max-width: 760px; margin-inline: auto; }
-  .appearance-pane .pane-inner { max-width: 940px; }
-  @media (max-width: 650px) { .body { flex-direction: column; } .toc { width: 100%; flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 20px 8px 8px; mask-image: linear-gradient(to right, #000 94%, transparent); gap: 4px; } .toc .search { display: none; } .toc a { white-space: nowrap; } .group-label { margin: 0 0 0 8px; padding: 7px 4px 7px 12px; align-self: center; white-space: nowrap; border-left: 1px solid var(--line); } .pane { --pane-end: 20px; padding: 20px 16px; } }
-  h3.eyebrow { margin: 22px 0 8px; }
-  .muted.small, .faint.small { font-size: var(--fs-sm); }
-  .switch { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-  .switch input { accent-color: var(--lamp); width: 16px; height: 16px; }
-  .callout { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 12px 0; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); }
-  .inline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 8px 0 16px; }
-  .inline .eyebrow { display: block; margin: 0 0 8px; width: 100%; }
-  .inline h3 { flex-basis: 100%; }
-  .inline .field { width: auto; flex: 1; min-width: 160px; }
-  .inline:has(> label) { align-items: flex-end; }
-  .inline label { display: flex; flex-direction: column; }
-  .inline label .eyebrow { margin: 0 0 6px; }
-  .reveal { display: grid; gap: 10px; padding: 14px; margin: 12px 0; background: var(--lamp-glow); border: 1px solid var(--lamp-dim); border-radius: var(--r-lg); }
-  .secret { display: block; padding: 8px 10px; background: var(--bg); border-radius: var(--r); word-break: break-all; user-select: all; }
-  .secret.small { font-size: var(--fs-xs); flex: 1; }
-  .row { display: flex; gap: 8px; }
-  .tok { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 6px; }
-  .group { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); }
-  .cat-row { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 6px; }
-  .error { color: var(--ember); }
-  select.field { appearance: auto; }
+  .head h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+
+  /* The section list on a computer. */
+  .toc { display: flex; flex-direction: column; gap: 1px; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-2); overflow-y: auto; }
+  .toc .item { min-height: 34px; padding: 0 10px; gap: 10px; border-radius: var(--r); color: var(--ink-2); font-size: var(--fs-sm); }
+  .toc .item .ic { display: grid; color: var(--ink-3); }
+  .toc .item:hover { color: var(--ink); }
+  .toc .item[aria-current] { background: var(--sel); color: var(--ink); font-weight: 700; }
+  .toc .item[aria-current] .ic { color: var(--lamp); }
+  .toc-label { margin: 14px 10px 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .toc .results { background: var(--bg); }
+  .find { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; min-height: 36px; margin-bottom: 10px; color: var(--ink-3); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
+  .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .find input { flex: 1; min-width: 0; padding: 6px 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: var(--fs-sm); }
+  .find input::placeholder { color: var(--ink-3); }
+  .clear { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: var(--ink-2); flex: none; }
+  .results .nav-row { min-height: 44px; }
+  .hit { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .where { display: block; font-size: var(--fs-xs); color: var(--ink-3); }
+  .none { margin: 8px 6px; font-size: var(--fs-sm); color: var(--ink-3); }
+
+  /* The page. */
+  /* Positioned, so hidden file and colour inputs scroll with the page instead of
+     stretching the document: in Den Shell that let the whole page scroll, header and all. */
+  .pane, .home { position: relative; }
+  .pane { --pane-end: 48px; overflow-y: auto; padding: 28px 28px var(--pane-end); min-width: 0; }
+  .pane-inner { width: 100%; max-width: 640px; margin-inline: auto; }
+  .wide-pane .pane-inner { max-width: 940px; }
+  .pane-inner > :global(p.muted) { margin: 0; max-width: 62ch; }
+  .gap-top { margin-top: 20px; }
+  .callout { margin-top: 18px; }
+  .val { color: var(--ink-3); font-size: var(--fs-sm); }
+  .error { color: var(--danger); }
+
+  /* Phones and narrow windows: the list, or one page pushed in with a back chevron. */
+  .drill .body { grid-template-columns: minmax(0, 1fr); }
+  .drill .head { position: relative; justify-content: space-between; padding: 4px 8px; border-bottom-color: transparent; }
+  .back { display: inline-flex; align-items: center; gap: 0; min-height: var(--hit); padding: 0 8px 0 0; margin-inline-start: -2px; border-radius: var(--r-pill); color: var(--lamp); font-size: var(--fs-body); }
+  .back:active { background: var(--press); }
+  .drill .title:focus { outline: none; }
+  .drill .title { position: absolute; left: 50%; transform: translateX(-50%); max-width: calc(100% - 220px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); font-weight: 700; }
+  .undo { min-width: 64px; min-height: var(--hit); padding: 0 6px; color: var(--lamp); font-weight: 600; text-align: end; }
+  .undo:disabled { color: var(--ink-3); opacity: .6; cursor: default; }
+  .drill .pane { --pane-end: max(32px, env(safe-area-inset-bottom)); padding: 4px 16px var(--pane-end); }
+  /* The header carries the page's name on a phone. Only page titles: a profile card has its own h2. */
+  .drill .pane-inner > :global(h2.display), .drill .pane-inner > :global(.appearance > h2.display) { display: none; }
+  .home { overflow-y: auto; padding: 0 16px max(32px, env(safe-area-inset-bottom)); }
+  .large { margin: 0 4px 12px; font-size: var(--fs-large); font-weight: 700; line-height: 1.1; }
+  .home .find { min-height: 40px; margin-bottom: 18px; }
+  .home .find input { font-size: 16px; }
+  .gap { height: 22px; }
+  .me { display: block; color: inherit; }
+  .me:hover { text-decoration: none; }
+  .me .nav-row { gap: 14px; min-height: 80px; padding: 12px 16px; }
+  .me b { display: block; font-size: var(--fs-title); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { display: block; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: calc(var(--r) + 2px); background: color-mix(in srgb, var(--lamp) 16%, var(--bg-3)); color: var(--lamp); }
+  .home .slist .nav-row { min-height: 52px; }
+  .home .slist > .nav-row + .nav-row { background-position: 58px 0; background-size: calc(100% - 58px) 1px; }
 </style>
