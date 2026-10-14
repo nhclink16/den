@@ -7,6 +7,6 @@ echo '--- den.log (last 40 lines)'
 tail -n 40 "$dir/den.log" 2>/dev/null
 echo '--- livekit.log (warnings, connection states and joins)'
 grep -E 'INFO|WARN|ERROR|ICE|ice|state|connect' "$dir/livekit.log" 2>/dev/null | grep -v 'sent signal response' | tail -n 150
-echo '--- Den Shell log (calls, LiveKit, errors)'
-grep -iE 'denchat|livekit|ice|join|call|error' "$dir/shell.log" 2>/dev/null | tail -n 200
+echo '--- Den Shell log (its own lines, LiveKit, ICE)'
+tail -n 200 "$dir/shell.log" 2>/dev/null
 exit 0

@@ -26,15 +26,18 @@ export DEN_DB=$dir/data/den.db DEN_UPLOADS=$dir/data/uploads DEN_BOOTSTRAP_FILE=
 export DEN_LIVEKIT_URL=ws://localhost:7880 DEN_LIVEKIT_API_KEY=devkey DEN_LIVEKIT_API_SECRET=secret
 exec $dir/den-server > $dir/den.log 2>&1
 SH
+# The simulator only offers 10.255.0.2, where this machine resets incoming connections, so LiveKit also
+# offers 127.0.0.1 for the call's media.
 cat > livekit.sh <<SH
 #!/bin/sh
-exec $dir/livekit-server --dev --bind 0.0.0.0 > $dir/livekit.log 2>&1
+exec $dir/livekit-server --dev --bind 0.0.0.0 \\
+    --config-body 'rtc: {udp_port: 7882, tcp_port: 7881, enable_loopback_candidate: true}' > $dir/livekit.log 2>&1
 SH
 # Den Shell's own log, for ci_post_xcodebuild.sh. The simulator boots after this script, so keep trying.
 cat > shell-log.sh <<SH
 #!/bin/sh
 until xcrun simctl spawn ${CI_TEST_DESTINATION_UDID:-booted} log stream --level info --style compact \\
-    --predicate 'process == "DenShell"' >> $dir/shell.log 2>/dev/null; do sleep 2; done
+    --predicate 'process == "DenShell" AND (subsystem == "app.denchat.shell" OR eventMessage CONTAINS[c] "livekit" OR eventMessage CONTAINS "ICE")' >> $dir/shell.log 2>/dev/null; do sleep 2; done
 SH
 chmod +x den.sh livekit.sh shell-log.sh
 # LiveKit's media reaches the simulator over this machine's own addresses, not localhost, so the macOS
