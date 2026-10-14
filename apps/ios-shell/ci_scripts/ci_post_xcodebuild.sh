@@ -7,7 +7,6 @@ echo '--- den.log (last 40 lines)'
 tail -n 40 "$dir/den.log" 2>/dev/null
 echo '--- livekit.log (warnings, connection states and joins)'
 grep -E 'INFO|WARN|ERROR|ICE|ice|state|connect' "$dir/livekit.log" 2>/dev/null | grep -v 'sent signal response' | tail -n 150
-echo '--- Den Shell log'
-xcrun simctl spawn "${CI_TEST_DESTINATION_UDID:-booted}" log show --last 30m --info --style compact \
-    --predicate 'process == "DenShell" AND (subsystem == "app.denchat.shell" OR subsystem CONTAINS[c] "livekit" OR messageType >= 16)' 2>&1 | tail -n 200
+echo '--- Den Shell log (calls, LiveKit, errors)'
+grep -iE 'denchat|livekit|ice|join|call|error' "$dir/shell.log" 2>/dev/null | tail -n 200
 exit 0
