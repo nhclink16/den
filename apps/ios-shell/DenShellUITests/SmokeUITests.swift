@@ -42,26 +42,42 @@ final class SmokeUITests: XCTestCase {
     }
 
     /// The call runs in the native engine (debug simulator builds skip CallKit, which the simulator can't hold).
-    /// `-DenCallTestTone` swaps the mic's sound for a test hum.
+    /// `-DenCallTestTone` swaps the mic's sound for a test hum. On Xcode Cloud the call's media can't connect: the
+    /// simulator's only address (10.255.0.2) refuses connections, even from the same machine. So the join reaches
+    /// LiveKit and then times out, and this checks that the native engine's error comes back to the page and Den
+    /// recovers. Where media does connect, it checks joining, the call view and Leave instead.
     @MainActor func test5Call() throws {
         let app = try launchSignedIn()
-        try find(app, label: "Join hangout").tap()
-        // iOS may ask for the microphone (and the local network, for LiveKit's media) while joining.
+        let join = try find(app, label: "Join hangout")
+        join.tap()
+        // iOS may ask for the microphone while joining.
         let joined = element(app, label: "You're in", .contains)
+        let failed = element(app, label: "The call could not connect. Try again.")
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
-        let deadline = Date().addingTimeInterval(30)
-        while !joined.exists && Date() < deadline {
+        let deadline = Date().addingTimeInterval(45)
+        var joining = false
+        while !joined.exists && !failed.exists && Date() < deadline {
             if allow.exists { allow.tap() }
+            // The button says Joining… and is disabled until the native engine answers.
+            if !joining, join.exists, !join.isEnabled { joining = true; shot("5-call-joining") }
             _ = joined.waitForExistence(timeout: 1)
         }
+        if failed.exists {
+            XCTAssertTrue(joining, "Join was never disabled while joining.")
+            shot("6-call-no-media")
+            try find(app, label: "Dismiss").tap()
+            XCTAssertTrue(try find(app, label: "Join hangout", timeout: 5).isEnabled, "Join didn't come back.")
+            shot("7-call-after-error")
+            return
+        }
         try find(app, label: "You're in", .contains, timeout: 1)
-        shot("5-call-joined")
+        shot("6-call-joined")
         try find(app, label: "Open hangout").tap()
         try find(app, label: "Leave call")
-        shot("6-call-view")
+        shot("7-call-view")
         try find(app, label: "Leave call").tap()
         try find(app, label: "Join hangout", timeout: 15)
-        shot("7-call-left")
+        shot("8-call-left")
     }
 
     // MARK: Helpers

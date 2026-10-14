@@ -26,26 +26,18 @@ export DEN_DB=$dir/data/den.db DEN_UPLOADS=$dir/data/uploads DEN_BOOTSTRAP_FILE=
 export DEN_LIVEKIT_URL=ws://localhost:7880 DEN_LIVEKIT_API_KEY=devkey DEN_LIVEKIT_API_SECRET=secret
 exec $dir/den-server > $dir/den.log 2>&1
 SH
-# The simulator only offers 10.255.0.2, where this machine resets incoming connections, so LiveKit also
-# offers 127.0.0.1 for the call's media.
+# The simulator reaches LiveKit's signalling on localhost, but not its media: see test5Call.
 cat > livekit.sh <<SH
 #!/bin/sh
-exec $dir/livekit-server --dev --bind 0.0.0.0 \\
-    --config-body 'rtc: {udp_port: 7882, tcp_port: 7881, enable_loopback_candidate: true}' > $dir/livekit.log 2>&1
+exec $dir/livekit-server --dev --bind 0.0.0.0 > $dir/livekit.log 2>&1
 SH
 # Den Shell's own log, for ci_post_xcodebuild.sh. The simulator boots after this script, so keep trying.
 cat > shell-log.sh <<SH
 #!/bin/sh
 until xcrun simctl spawn ${CI_TEST_DESTINATION_UDID:-booted} log stream --level info --style compact \\
-    --predicate 'process == "DenShell" AND (subsystem == "app.denchat.shell" OR eventMessage CONTAINS[c] "livekit" OR eventMessage CONTAINS "ICE")' >> $dir/shell.log 2>/dev/null; do sleep 2; done
+    --predicate 'subsystem == "app.denchat.shell" OR subsystem BEGINSWITH "io.livekit"' >> $dir/shell.log 2>/dev/null; do sleep 2; done
 SH
 chmod +x den.sh livekit.sh shell-log.sh
-# LiveKit's media reaches the simulator over this machine's own addresses, not localhost, so the macOS
-# firewall must let it in.
-fw=/usr/libexec/ApplicationFirewall/socketfilterfw
-echo "Firewall: $($fw --getglobalstate 2>&1)"
-{ sudo -n "$fw" --add "$dir/livekit-server" && sudo -n "$fw" --unblockapp "$dir/livekit-server"; } ||
-    echo "Couldn't add LiveKit to the firewall" >&2
 for job in livekit den shell-log; do
     launchctl submit -l "app.denchat.ui-check.$job" -- "$dir/$job.sh" || nohup "$dir/$job.sh" >/dev/null 2>&1 &
 done
@@ -56,10 +48,6 @@ until curl --noproxy '*' -fsS http://localhost:7000/health; do
     sleep 1
 done
 echo
-for _ in $(seq 20); do curl --noproxy '*' -fs -m 2 http://localhost:7880 >/dev/null && break; sleep 1; done
-for ip in $(ifconfig | awk '/inet / && $2 != "127.0.0.1" { print $2 }'); do
-    echo "LiveKit on $ip:7880: $(curl --noproxy '*' -sS -m 3 "http://$ip:7880" 2>&1)"
-done
 # The keyboard test needs the on-screen keyboard, not the Mac's.
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 echo "Made-up Den for $commit is up on localhost:7000"
