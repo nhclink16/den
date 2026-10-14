@@ -691,3 +691,16 @@ test('an icon save reply never touches the name', async () => {
   await saving
   assert.deepEqual([s.channels[0].name, s.channels[0].icon], ['lobby', 'flame'])
 })
+
+test('two icon saves in a row with the socket down end on the second', async () => {
+  const replies = [held(), held()]
+  let i = 0
+  api = { get: async () => [], put: async () => replies[i++]!.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const first = s.setChannelIcon('c', 'flame'), second = s.setChannelIcon('c', 'skull')
+  replies[0]!.release({ ...room, icon: 'flame' }); await first
+  replies[1]!.release({ ...room, icon: 'skull' }); await second
+  assert.equal(s.channels[0].icon, 'skull', 'the first reply made the second look overtaken')
+})

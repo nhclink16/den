@@ -1178,13 +1178,13 @@ export class Store {
   // Room changes (a rename, a move, an icon) follow the same rule as previews:
   // one that arrived after a list was asked for may be newer than that list.
   private roomLog: { n: number; id: string; set: RoomChange }[] = []
-  /// The newest room frame that arrived per room, so a slower reply can tell it was overtaken.
+  /// The newest room frame the socket brought per room, so a slower save reply can
+  /// tell it was overtaken. Replies don't count: a second save's reply is news too.
   private roomSeen = new Map<string, number>()
   /// The number of the change last applied per room and field ("id:icon"), so an
   /// older change still queued can't undo a newer one (an icon save's reply).
   private roomApplied = new Map<string, number>()
   private receiveRoom(id: string, set: RoomChange, n: number) {
-    this.roomSeen.set(id, Math.max(n, this.roomSeen.get(id) ?? -1))
     // Already in a list asked for after this arrived.
     if (n <= this.applied.n) return
     const fresh = Object.fromEntries(Object.entries(set).filter(([k]) => n > (this.roomApplied.get(`${id}:${k}`) ?? -1))) as RoomChange
@@ -1389,7 +1389,10 @@ export class Store {
         this.drop(ev.id, ev.channel_id); this.preview(ev, n); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
-      case 'channel_updated': this.receiveRoom(ev.channel.id, this.roomMeta(ev.channel), n); break
+      case 'channel_updated':
+        this.roomSeen.set(ev.channel.id, Math.max(n, this.roomSeen.get(ev.channel.id) ?? -1))
+        this.receiveRoom(ev.channel.id, this.roomMeta(ev.channel), n)
+        break
       case 'thread_updated': {
         this.threadMetas.apply(ev.thread)
         this.remember(ev.thread.channel_id, [ev.thread.id])
