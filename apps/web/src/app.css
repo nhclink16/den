@@ -117,6 +117,7 @@ html.desktop .view.pushed .panel > header.head { -webkit-app-region: drag; paddi
 html.desktop .view.pushed > .call-view > .call-head :is(a, button, input, select, summary),
 html.desktop .view.pushed .panel > header.head :is(a, button, input, select, summary) { -webkit-app-region: no-drag; }
 html.desktop .view.pushed > .call-view > .call-pill { margin-right: max(12px, var(--wco-right)); }
+html.desktop .view.pushed > .jam { padding-right: max(var(--gutter), var(--wco-right)); }
 /* The Appearance drawer is pinned to the right edge over everything. It lies over
    the room header, a drag region, and Electron drags through anything on top that
    doesn't opt out, so its close button would move the window instead of closing. */

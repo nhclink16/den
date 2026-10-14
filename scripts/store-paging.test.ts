@@ -521,3 +521,64 @@ test('a resync that started before a room change keeps the change', async () => 
   await again
   assert.equal(s.channels[0].name, 'hangout-2')
 })
+
+test('an older resync landing after a newer one keeps the newer room names', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  const older = s.resync()
+  await s.handle({ type: 'channel_updated', channel: { ...room, name: 'lobby', last_message: null } })     // rename A
+  const newer = s.resync()                                                                               // a reconnect: rename B's frame was lost
+  lists[1]!.release([{ ...room, name: 'den' }])
+  await newer
+  lists[0]!.release([{ ...room, name: 'general' }, { ...room, id: 'd', name: 'new room' }])
+  await older
+  assert.equal(s.channels.find((c: any) => c.id === 'c').name, 'den', 'the older list brought back an older name')
+  assert.equal(s.channels.length, 2, 'the older list still decides which rooms exist')
+})
+
+test('a room frame queued behind a slow resync cannot undo a newer list', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  send({ type: 'resync', reason: 'connect' })
+  send({ type: 'channel_updated', channel: { ...room, name: 'lobby', icon: 'flame', last_message: null } })   // waits behind the resync
+  await tick()
+  const manual = s.resync()                                        // sees a later rename
+  lists[1]!.release([{ ...room, name: 'den', icon: 'skull' }])
+  await manual
+  lists[0]!.release([{ ...room, name: 'lobby', icon: 'flame' }])
+  for (let i = 0; i < 5; i++) await tick()
+  const c = s.channels.find((x: any) => x.id === 'c')
+  assert.deepEqual([c.name, c.icon], ['den', 'skull'], 'a frame the newer list already covered was applied on top of it')
+  s.ready = false
+})
+
+test('an icon save reply cannot undo a later change from the socket', async () => {
+  const reply = held()
+  api = { get: async () => [], put: async () => reply.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const saving = s.setChannelIcon('c', 'flame')
+  await s.handle({ type: 'channel_updated', channel: { ...room, icon: 'flame' } })   // this save
+  await s.handle({ type: 'channel_updated', channel: { ...room, icon: 'skull' } })   // another admin, after
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  assert.equal(s.channels[0].icon, 'skull')
+  // With no socket news, the reply is what there is.
+  const alone = held(); api.put = async () => alone.promise
+  const again = s.setChannelIcon('c', 'music'); alone.release({ ...room, icon: 'music' }); await again
+  assert.equal(s.channels[0].icon, 'music')
+})

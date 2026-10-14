@@ -30,7 +30,7 @@
       onpointerup={() => call.setHeld(false)} onpointercancel={() => call.setHeld(false)} onlostpointercapture={() => call.setHeld(false)}
       onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); call.setHeld(true) } }}
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
-    >{#if variant !== 'bar'}<Icon name="mic" size={icon} />{:else}hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk{/if}</button>
+    >{#if variant !== 'bar'}<Icon name="mic" size={icon} />{:else}<span class="ptt-icon"><Icon name="mic" size={icon} /></span><span class="ptt-label">hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk</span>{/if}</button>
   {:else}
     <button class:off={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} size={icon} /></button>
   {/if}
@@ -95,6 +95,13 @@
   .v-bar > button:not(.ptt), .v-dock > button { height: auto; aspect-ratio: 1; }
   .v-bar > :global(details > summary), .v-dock > :global(details > summary) { width: 100%; height: auto; aspect-ratio: 1; }
   .v-bar > .shares, .v-dock > .shares { width: calc(var(--cb) * .6); min-width: 17px; }
+  /* Push to talk's words don't fit a narrow open call: it becomes a mic like the rest. */
+  .ptt-icon { display: none; }
+  @container callview (max-width: 480px) {
+    .controls.v-bar > .ptt { flex: 0 1 auto; width: var(--cb); min-width: 28px; height: auto; aspect-ratio: 1; padding: 0; }
+    .v-bar > .ptt > .ptt-label { display: none; }
+    .v-bar > .ptt > .ptt-icon { display: grid; }
+  }
   .v-bar > .shares > summary, .v-dock > .shares > summary { width: 100%; aspect-ratio: 3 / 5; }
   .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
   .v-pill > .ptt, .v-dock > .ptt { width: var(--cb); padding: 0; }

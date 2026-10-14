@@ -726,9 +726,12 @@ export class Store {
     const previews = this.previewsFrom(channels, previewAsked)
     const changed = this.roomChangesAfter(previewAsked.n)
     this.listDone()
+    // A list asked for before one already applied (previews null) is older than
+    // what is shown: it may add or drop rooms, but the names and icons stay.
     this.channels = channels.map((c) => {
       const mine = this.channel(c.id), newer = changed.get(c.id)
-      return { ...(newer ? this.withRoom(c, newer) : c), last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
+      const room = !previews && mine ? this.withRoom(c, mine) : newer ? this.withRoom(c, newer) : c
+      return { ...room, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
     })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
@@ -1108,7 +1111,11 @@ export class Store {
 
   /// Admin: a Lucide icon for a room, or null for the default.
   async setChannelIcon(id: string, icon: string | null) {
+    const asked = this.previewN
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
+    // The socket usually brings this change first; a later one (another admin)
+    // may have come after it, and this reply must not put it back.
+    if ((this.roomSeen.get(id) ?? -1) > asked) return
     this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
   }
   // Room previews: the newest channel list we asked for, with the message events
@@ -1166,7 +1173,12 @@ export class Store {
   // Room changes (a rename, a move, an icon) follow the same rule as previews:
   // one that arrived after a list was asked for may be newer than that list.
   private roomLog: { n: number; channel: Channel }[] = []
+  /// The newest room frame per room, so a slower reply can tell it was overtaken.
+  private roomSeen = new Map<string, number>()
   private receiveRoom(c: Channel, n: number) {
+    // Already in a list asked for after this frame arrived.
+    if (n <= this.applied.n) return
+    this.roomSeen.set(c.id, n)
     if (this.listsInFlight) this.roomLog.push({ n, channel: c })
     this.channels = this.channels.map((x) => (x.id === c.id ? this.withRoom(x, c) : x))
   }

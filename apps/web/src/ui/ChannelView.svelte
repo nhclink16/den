@@ -360,6 +360,8 @@
     {:else if panel && loadingThread}
       <section class="panel-missing" aria-label="Conversation" aria-busy="true">
         <p class="muted">Opening that conversation…</p>
+        <!-- On a phone the room's header has given way, so the way back is here. -->
+        <button class="btn quiet" onclick={closePanel}>Back to room</button>
       </section>
     {:else if panel}
       <section class="panel-missing" aria-label="Conversation">
