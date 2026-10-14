@@ -338,6 +338,12 @@ pub enum Event {
     ServerUpdated {
         server: GameServer,
     },
+    /// An admin renamed a room, moved it or changed its icon. Authorized by the
+    /// room itself, like its messages. `last_message` is never filled here: keep
+    /// the one you have.
+    ChannelUpdated {
+        channel: Channel,
+    },
     /// A future notification this client does not understand. Receive-only: ignore it.
     #[serde(other, skip_serializing)]
     Unknown,

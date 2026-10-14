@@ -189,3 +189,113 @@ async fn websocket_filters_dms_marks_reconnect_and_closes_revoked_bot_tokens() {
         .insert("Origin", "https://evil.example".parse().unwrap());
     assert!(connect_async(request).await.is_err());
 }
+
+async fn channel_update(socket: &mut Socket) -> Channel {
+    loop {
+        match socket.next().await.unwrap().unwrap() {
+            Frame::Text(v) => {
+                if let Event::ChannelUpdated { channel } = serde_json::from_str(&v).unwrap() {
+                    return channel;
+                }
+            }
+            Frame::Ping(v) => socket.send(Frame::Pong(v)).await.unwrap(),
+            _ => {}
+        }
+    }
+}
+async fn soon(socket: &mut Socket) -> Channel {
+    tokio::time::timeout(Duration::from_secs(2), channel_update(socket))
+        .await
+        .expect("a room change should arrive")
+}
+async fn quiet(socket: &mut Socket) -> bool {
+    tokio::time::timeout(Duration::from_millis(300), channel_update(socket))
+        .await
+        .is_err()
+}
+
+#[tokio::test]
+async fn room_changes_reach_members_live_but_never_a_dm_they_cannot_see() {
+    let t = Test::new().await;
+    let alice = t.member("alice").await;
+    let bob = t.member("bob").await;
+    let general = t.general().await;
+    let mut alice_ws = socket(&t, &alice.token).await;
+    let mut bob_ws = socket(&t, &bob.token).await;
+    assert!(matches!(event(&mut alice_ws).await, Event::Resync { .. }));
+    assert!(matches!(event(&mut bob_ws).await, Event::Resync { .. }));
+
+    // An admin changes the icon: every member hears about it without a reload.
+    let r = t
+        .req(
+            Method::PUT,
+            &format!("/channels/{general}/icon"),
+            &t.admin.token,
+        )
+        .json(&json!({"icon":"flame"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    let seen = soon(&mut alice_ws).await;
+    assert_eq!(seen.id, general);
+    assert_eq!(seen.icon.as_deref(), Some("flame"));
+    assert_eq!(soon(&mut bob_ws).await.icon.as_deref(), Some("flame"));
+
+    // A rename carries the new name and keeps the icon.
+    let before: Channel = t
+        .req(Method::GET, &format!("/channels/{general}"), &t.admin.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let r = t
+        .req(Method::PUT, &format!("/channels/{general}"), &t.admin.token)
+        .json(&json!({"name":"lobby","category_id":before.category_id,"position":before.position}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200);
+    let seen = soon(&mut alice_ws).await;
+    assert_eq!(
+        (seen.name.as_str(), seen.icon.as_deref()),
+        ("lobby", Some("flame"))
+    );
+    assert_eq!(soon(&mut bob_ws).await.name, "lobby");
+
+    // A refused change announces nothing.
+    let r = t
+        .req(
+            Method::PUT,
+            &format!("/channels/{general}/icon"),
+            &alice.token,
+        )
+        .json(&json!({"icon":"skull"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 403);
+    assert!(quiet(&mut bob_ws).await);
+
+    // No route changes a DM, so send one directly: the socket filter alone must
+    // keep it from anyone outside the DM.
+    let dm: Channel = serde_json::from_value(
+        t.post(
+            "/dms",
+            &t.admin.token,
+            json!({"member_ids":[alice.user.id]}),
+        )
+        .await,
+    )
+    .unwrap();
+    t.state
+        .events
+        .send(Event::ChannelUpdated {
+            channel: dm.clone(),
+        })
+        .unwrap();
+    assert_eq!(soon(&mut alice_ws).await.id, dm.id);
+    assert!(quiet(&mut bob_ws).await);
+}

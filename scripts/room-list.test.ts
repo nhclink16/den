@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { SUGGESTED, callFaces, callLine, defaultIcon, lastOf, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
+import { SUGGESTED, callFaces, callLine, defaultIcon, lastOf, placedIn, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
 import type { Message } from '../apps/web/src/lib/types.ts'
 
 const lucide = new URL('../apps/web/node_modules/lucide-static/', import.meta.url)
@@ -86,4 +86,12 @@ test('call faces: one per person, you last, talking if any of their devices is',
     { userId: 't', name: 'Theo', local: false, music: false, speaking: false },
   ])
   assert.deepEqual(faces.map((f) => [f.userId, f.speaking]), [['m', true], ['t', false], ['e', false]])
+})
+
+test('a room in a category the list does not have shows with the uncategorized rooms', () => {
+  const room = (category_id: string | null) => ({ id: 'c', name: 'general', kind: 'text', position: 0, member_ids: [], category_id }) as any
+  const categories = [{ id: 'k', name: 'Games', position: 0 }]
+  assert.equal(placedIn(room('k'), categories), 'k')
+  assert.equal(placedIn(room(null), categories), null)
+  assert.equal(placedIn(room('just-made'), categories), null, 'a room moved into a new category vanished')
 })

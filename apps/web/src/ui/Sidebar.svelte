@@ -22,7 +22,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { themes } from '../lib/theme.svelte'
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
-  import { callFaces, callLine, previewText } from '../lib/room-list'
+  import { callFaces, callLine, placedIn, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
   import type { Channel } from '../lib/types'
@@ -32,7 +32,7 @@
   const inboxCount = $derived(instances.totalUnread)
   const inboxBadge = $derived(inboxCount > 99 ? '99+' : String(inboxCount))
   const iconMode = $derived(themes.appearance.room_icons ?? 'icons')
-  const uncategorized = $derived(store.textChannels.filter((c) => c.kind === 'text' && !c.category_id))
+  const uncategorized = $derived(store.textChannels.filter((c) => c.kind === 'text' && !placedIn(c, store.categories)))
   const voice = $derived(store.textChannels.filter((c) => c.kind === 'voice'))
   const serverActive = (slug: string) => router.route.name === 'server' && router.route.slug === slug
   const active = (id: string) => !phone && router.route.name === 'channel' && router.route.id === id
@@ -167,6 +167,9 @@
       {@const jam = jamLine(c.id)}
       <!-- In the call, the card says what the call pill says: who's talking. -->
       {@const talking = here && !call.reconnecting ? callLine(call.participants).talking : ''}
+      <!-- On a phone, the call pill above the list is this card while you're in the
+           call, with your mic and Leave besides, so the list doesn't repeat it. -->
+      {#if !(phone && here)}
       <div class="hang" class:live={ids.length > 0}>
         {#if ids.length}
           <CallFaces faces={here && call.participants.length ? callFaces(call.participants) : ids.map((userId) => ({ userId }))} size={phone ? 32 : 28} max={phone ? 3 : 2} />
@@ -184,12 +187,13 @@
           <button class="btn lit small" disabled={call.joining === c.id} onclick={() => call.join(c)} aria-label={jam ? `Join ${c.name}. ${jam}` : `Join ${c.name}`}>{call.joining === c.id ? 'Joining…' : 'Join'}</button>
         {/if}
       </div>
+      {/if}
     {/each}
 
     {#each uncategorized as c, i (c.id)}{@render room(c, i === uncategorized.length - 1)}{/each}
 
     {#each store.categories as cat (cat.id)}
-      {@render group(cat.id, cat.name, store.textChannels.filter((c) => c.kind === 'text' && c.category_id === cat.id))}
+      {@render group(cat.id, cat.name, store.textChannels.filter((c) => c.kind === 'text' && placedIn(c, store.categories) === cat.id))}
     {/each}
 
     {#if store.servers.length}

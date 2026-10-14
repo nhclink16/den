@@ -489,3 +489,218 @@ test('an edit that raced a list across a disconnect is put right by the reconnec
   assert.equal(line(s), 'v2')
   s.ready = false
 })
+
+test('a room renamed or given an icon changes live and keeps its preview line', async () => {
+  api = { get: async () => [] }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }]
+  await s.handle({ type: 'channel_updated', channel: { id: 'c', kind: 'text', name: 'lobby', icon: 'flame', category_id: 'k', position: 3, member_ids: [], last_message: null } })
+  const c = s.channels[0]
+  assert.deepEqual([c.name, c.icon, c.category_id, c.position], ['lobby', 'flame', 'k', 3])
+  assert.equal(lastIn(s), 'B', 'the event carries no preview and must not clear the line')
+  await s.handle({ type: 'channel_updated', channel: { id: 'gone', kind: 'text', name: 'x', icon: null, category_id: null, position: 0, member_ids: [], last_message: null } })
+  assert.equal(s.channels.length, 1, 'a change to a room this list does not have adds nothing')
+})
+
+test('a resync that started before a room change keeps the change', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  const before = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [before]
+  const resync = s.resync()
+  await s.handle({ type: 'channel_updated', channel: { ...before, name: 'lobby', icon: 'flame', last_message: null } })
+  lists[0]!.release([before])                                       // read before the change
+  await resync
+  assert.deepEqual([s.channels[0].name, s.channels[0].icon], ['lobby', 'flame'], 'the older list put the old name back')
+  assert.equal(s.roomLog.length, 0, 'nothing is kept once no list is in flight')
+  // A list asked for after the change already has it, and a later rename is not undone by the log.
+  const again = s.resync()
+  lists[1]!.release([{ ...before, name: 'hangout-2', icon: 'flame' }])
+  await again
+  assert.equal(s.channels[0].name, 'hangout-2')
+})
+
+test('an older resync landing after a newer one keeps the newer room names', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  const older = s.resync()
+  await s.handle({ type: 'channel_updated', channel: { ...room, name: 'lobby', last_message: null } })     // rename A
+  const newer = s.resync()                                                                               // a reconnect: rename B's frame was lost
+  lists[1]!.release([{ ...room, name: 'den' }])
+  await newer
+  lists[0]!.release([{ ...room, name: 'general' }, { ...room, id: 'd', name: 'new room' }])
+  await older
+  assert.equal(s.channels.find((c: any) => c.id === 'c').name, 'den', 'the older list brought back an older name')
+  assert.equal(s.channels.length, 2, 'the older list still decides which rooms exist')
+})
+
+test('a room frame queued behind a slow resync cannot undo a newer list', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  send({ type: 'resync', reason: 'connect' })
+  send({ type: 'channel_updated', channel: { ...room, name: 'lobby', icon: 'flame', last_message: null } })   // waits behind the resync
+  await tick()
+  const manual = s.resync()                                        // sees a later rename
+  lists[1]!.release([{ ...room, name: 'den', icon: 'skull' }])
+  await manual
+  lists[0]!.release([{ ...room, name: 'lobby', icon: 'flame' }])
+  for (let i = 0; i < 5; i++) await tick()
+  const c = s.channels.find((x: any) => x.id === 'c')
+  assert.deepEqual([c.name, c.icon], ['den', 'skull'], 'a frame the newer list already covered was applied on top of it')
+  s.ready = false
+})
+
+test('an icon save reply cannot undo a later change from the socket', async () => {
+  const reply = held()
+  api = { get: async () => [], put: async () => reply.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const saving = s.setChannelIcon('c', 'flame')
+  await s.handle({ type: 'channel_updated', channel: { ...room, icon: 'flame' } })   // this save
+  await s.handle({ type: 'channel_updated', channel: { ...room, icon: 'skull' } })   // another admin, after
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  assert.equal(s.channels[0].icon, 'skull')
+  // With no socket news, the reply is what there is.
+  const alone = held(); api.put = async () => alone.promise
+  const again = s.setChannelIcon('c', 'music'); alone.release({ ...room, icon: 'music' }); await again
+  assert.equal(s.channels[0].icon, 'music')
+})
+
+test('a preview refetch that lands first also brings the room details an older resync keeps', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: 'k', position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  const resync = s.resync()                                                   // after deleting category k
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })        // its refetch is asked later
+  lists[1]!.release([{ ...room, category_id: null, last_message: preview('A') }])
+  await tick(); await tick()
+  lists[0]!.release([{ ...room, category_id: null, last_message: preview('A') }])
+  await resync
+  assert.equal(s.channels[0].category_id, null, 'the room kept a deleted category and dropped out of the list')
+  assert.equal(lastIn(s), 'A')
+})
+
+test('an icon save reply cannot undo a newer list that covered frames still queued', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  const saving = s.setChannelIcon('c', 'flame')
+  send({ type: 'resync', reason: 'connect' })                                  // slow; everything queues behind it
+  send({ type: 'channel_updated', channel: { ...room, icon: 'flame' } })
+  send({ type: 'channel_updated', channel: { ...room, icon: 'skull' } })       // another admin
+  await tick()
+  const manual = s.resync()
+  lists[1]!.release([{ ...room, icon: 'skull' }])
+  await manual
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  lists[0]!.release([{ ...room, icon: 'flame' }])
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(s.channels[0].icon, 'skull')
+  s.ready = false
+})
+
+test('an icon save during a dropped connection survives a list read before it landed', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const saving = s.setChannelIcon('c', 'flame')   // the socket is down: its event never comes
+  const resync = s.resync()                        // the reconnect's list, read before the save committed
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  assert.equal(s.channels[0].icon, 'flame')
+  lists[0]!.release([room])
+  await resync
+  assert.equal(s.channels[0].icon, 'flame', 'a list read before the save put the old icon back')
+})
+
+test('an older room frame still queued cannot undo an icon save, but keeps its rename', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  s.me = { id: 'me' }; s.ready = true
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  sockets.length = 0
+  await s.connect()
+  const send = (ev: unknown) => sockets[0].onmessage({ data: JSON.stringify(ev) })
+  send({ type: 'resync', reason: 'connect' })                                          // slow
+  await tick()
+  send({ type: 'channel_updated', channel: { ...room, name: 'lobby', icon: null } })   // a rename, from before the save; queued
+  const saving = s.setChannelIcon('c', 'flame')
+  reply.release({ ...room, name: 'lobby', icon: 'flame' })
+  await saving
+  sockets[0].onclose()                                                                 // the save's own event is lost
+  lists[0]!.release([{ ...room }])                                                     // read before both
+  for (let i = 0; i < 5; i++) await tick()
+  const c = s.channels[0]
+  assert.deepEqual([c.name, c.icon], ['lobby', 'flame'])
+  s.ready = false
+})
+
+test('an icon save reply never touches the name', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const saving = s.setChannelIcon('c', 'flame')        // the socket is down
+  const resync = s.resync()                            // the reconnect: the save, then another admin's rename
+  lists[0]!.release([{ ...room, name: 'lobby', icon: 'flame' }])
+  await resync
+  reply.release({ ...room, icon: 'flame' })            // held up; still says general
+  await saving
+  assert.deepEqual([s.channels[0].name, s.channels[0].icon], ['lobby', 'flame'])
+})
+
+test('two icon saves in a row with the socket down end on the second', async () => {
+  const replies = [held(), held()]
+  let i = 0
+  api = { get: async () => [], put: async () => replies[i++]!.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const first = s.setChannelIcon('c', 'flame'), second = s.setChannelIcon('c', 'skull')
+  replies[0]!.release({ ...room, icon: 'flame' }); await first
+  replies[1]!.release({ ...room, icon: 'skull' }); await second
+  assert.equal(s.channels[0].icon, 'skull', 'the first reply made the second look overtaken')
+})

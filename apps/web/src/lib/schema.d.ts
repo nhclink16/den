@@ -2579,6 +2579,10 @@ export interface components {
             server: components["schemas"]["GameServer"];
             /** @enum {string} */
             type: "server_updated";
+        } | {
+            channel: components["schemas"]["Channel"];
+            /** @enum {string} */
+            type: "channel_updated";
         };
         FollowThread: {
             following: boolean;

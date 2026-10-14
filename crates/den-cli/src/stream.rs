@@ -61,6 +61,7 @@ pub fn tail(c: &Client, channel: Option<String>) -> anyhow::Result<()> {
                                 | Event::ObjectPresence { channel_id, .. }
                                 | Event::Typing { channel_id, .. } => Some(channel_id),
                                 Event::ThreadUpdated { thread } => Some(&thread.channel_id),
+                                Event::ChannelUpdated { channel } => Some(&channel.id),
                                 Event::ThreadReadStateUpdated { state, .. } => {
                                     Some(&state.channel_id)
                                 }

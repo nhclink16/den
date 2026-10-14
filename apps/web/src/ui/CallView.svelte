@@ -95,9 +95,9 @@
   @media (hover: hover) { .expand:hover { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
   /* The open call fills the room: a header row, the tiles, and a floating bar of
      round buttons. No backdrop of its own, so a chat wallpaper shows around the tiles. */
-  .expanded { flex: 1; display: flex; flex-direction: column; }
+  .expanded { flex: 1; display: flex; flex-direction: column; container: callview / inline-size; }
   .toolbar { z-index: 3; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 16px); padding: 8px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(20px) saturate(1.2); box-shadow: var(--lift), 0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent); }
-  .toolbar :global(.controls) { flex-wrap: wrap; justify-content: center; }
+  .toolbar :global(.controls) { justify-content: center; }
   /* Clear of the iPhone's home bar. */
   @media (max-width: 600px) { .toolbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
   .device-note { position: absolute; left: 12px; top: 4px; z-index: 5; margin: 0; padding: 4px 10px; max-width: calc(100% - 56px); border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); font-size: var(--fs-xs); color: var(--ink-2); }

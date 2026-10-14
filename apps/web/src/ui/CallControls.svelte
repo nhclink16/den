@@ -8,8 +8,9 @@
   import { shell } from '../lib/shell-call'
   import Icon from './Icon.svelte'
   // `bar` floats under the open call with every button. `dock` is the same set,
-  // smaller, for the call bar above the sidebar. `pill` is what you need while you
-  // chat: your mic, your sound when it's off, and Leave.
+  // smaller, for the call bar above the sidebar, whose Leave sits on the bar's top
+  // row instead (CallPill). `pill` is what you need while you chat: your mic, your
+  // sound when it's off, and Leave.
   let { variant = 'dock' }: { variant?: 'bar' | 'dock' | 'pill' } = $props()
   const pill = $derived(variant === 'pill')
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
@@ -29,7 +30,7 @@
       onpointerup={() => call.setHeld(false)} onpointercancel={() => call.setHeld(false)} onlostpointercapture={() => call.setHeld(false)}
       onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); call.setHeld(true) } }}
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
-    >{#if pill}<Icon name="mic" size={icon} />{:else}hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk{/if}</button>
+    >{#if variant !== 'bar'}<Icon name="mic" size={icon} />{:else}<span class="ptt-icon"><Icon name="mic" size={icon} /></span><span class="ptt-label">hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk</span>{/if}</button>
   {:else}
     <button class:off={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} size={icon} /></button>
   {/if}
@@ -55,7 +56,7 @@
   {#if variant === 'bar'}<details class="overflow options"><summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
   <MusicQueueButton />
   {/if}
-  <button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={icon} /></button>
+  {#if variant !== 'dock'}<button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={icon} /></button>{/if}
 </div>
 
 <style>
@@ -86,12 +87,27 @@
   @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
   .v-bar > .leave { margin-inline-start: 14px; }
   .v-pill > .leave { margin-inline-start: 0; }
-  /* The sidebar is narrow: with push to talk, camera and a share all on, the row
-     wraps rather than pushing Leave out of sight. */
-  .v-dock { flex-wrap: wrap; }
-  .v-dock > .leave { margin-inline-start: auto; }
+  /* The open call's bar and the sidebar's row stay one row each. In a narrow call
+     (a small phone, or a window with both side panels open) or with every toggle
+     showing in the sidebar, the round buttons shrink together rather than wrap. */
+  .v-bar, .v-dock { min-width: 0; }
+  .v-bar > button:not(.ptt), .v-dock > button, .v-bar > :global(details), .v-dock > :global(details) { flex: 0 1 auto; width: var(--cb); min-width: 28px; }
+  .v-bar > button:not(.ptt), .v-dock > button { height: auto; aspect-ratio: 1; }
+  .v-bar > :global(details > summary), .v-dock > :global(details > summary) { width: 100%; height: auto; aspect-ratio: 1; }
+  .v-bar > .shares, .v-dock > .shares { width: calc(var(--cb) * .6); min-width: 17px; }
+  /* Push to talk's words give way before anything overflows, and in a narrow open
+     call it becomes a mic like the rest. */
+  .ptt-icon { display: none; }
+  .controls.v-bar > .ptt { flex: 0 1 auto; min-width: var(--cb); }
+  .ptt-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  @container callview (max-width: 640px) {
+    .controls.v-bar > .ptt { flex: 0 1 auto; width: var(--cb); min-width: 28px; height: auto; aspect-ratio: 1; padding: 0; }
+    .v-bar > .ptt > .ptt-label { display: none; }
+    .v-bar > .ptt > .ptt-icon { display: grid; }
+  }
+  .v-bar > .shares > summary, .v-dock > .shares > summary { width: 100%; aspect-ratio: 3 / 5; }
   .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
-  .v-pill > .ptt { width: var(--cb); padding: 0; }
+  .v-pill > .ptt, .v-dock > .ptt { width: var(--cb); padding: 0; }
   .controls > .ptt.held { color: var(--on-lamp); background: var(--lamp); }
   /* A Jam is playing: the Music button lights like any other thing that is on. */
   .controls > :global(details > summary.live) { color: var(--on-lamp); background: var(--lamp); }
@@ -108,9 +124,4 @@
   @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
-  /* The sidebar is narrow. With camera, blur and a share all on, the row would
-     wrap Leave onto a line of its own; shrink the buttons instead. */
-  @media (pointer: fine) {
-    @container dock (max-width: 270px) { .v-dock { --cb: 28px; gap: 3px; } }
-  }
 </style>
