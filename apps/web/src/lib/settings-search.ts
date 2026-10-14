@@ -143,7 +143,9 @@ export function findSettings(q: string, sections: Section[], admin: boolean, lim
 export function reveal(root: ParentNode, find: string) {
   const row = root.querySelector<HTMLElement>(`[data-find="${CSS.escape(find)}"]`)
   if (!row) return false
-  row.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  // A tall target (a whole group) starts at the top, so its first control is in view.
+  const tall = row.getBoundingClientRect().height > innerHeight / 2
+  row.scrollIntoView({ block: tall ? 'start' : 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   row.classList.remove('found'); void row.offsetWidth; row.classList.add('found')
   // Keyboards land on the row's first control, or the row when it is one. A phone lands
   // on the row (or its own button), so no text field opens its keyboard.
