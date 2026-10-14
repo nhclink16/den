@@ -92,12 +92,12 @@ final class SmokeUITests: XCTestCase {
         let deadline = Date().addingTimeInterval(30)
         while !rooms.exists && !comeIn.exists && Date() < deadline { _ = rooms.waitForExistence(timeout: 1) }
         if comeIn.exists {
-            shot("0-sign-in")
             let web = app.webViews.firstMatch
             web.textFields.firstMatch.tap()
             web.textFields.firstMatch.typeText("ellis")
             web.secureTextFields.firstMatch.tap()
             web.secureTextFields.firstMatch.typeText("correct horse battery")
+            shot("0-sign-in")
             comeIn.tap()
         }
         try find(app, label: "Your profile and settings", timeout: 20)
