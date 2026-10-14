@@ -352,6 +352,8 @@ input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px
   .nav-row, .slist > button.action-row { min-height: 52px; }
   .slist .btn { min-height: 40px; }
 }
+/* Rows that fill their group draw focus inside, or the group's rounded clip hides it. */
+.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible { outline: 2px solid var(--lamp); outline-offset: -3px; }
 /* Settings search lands here: the row it found glows for a moment. */
 @keyframes found { from { background-color: var(--sel); } }
 .found { animation: found 2.4s ease-out; }

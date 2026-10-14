@@ -145,7 +145,11 @@ export function reveal(root: ParentNode, find: string) {
   if (!row) return false
   row.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   row.classList.remove('found'); void row.offsetWidth; row.classList.add('found')
-  // Keyboards land on the row's first control; a phone keeps its keyboard down.
-  if (!matchMedia('(pointer: coarse)').matches) row.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea, button, a[href]')?.focus({ preventScroll: true })
+  // Keyboards land on the row's first control (or the row, when it is one). A phone
+  // lands on the row itself, so no text field opens its keyboard.
+  const controls = 'input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), a[href]'
+  const control = matchMedia('(pointer: coarse)').matches ? null : row.matches(controls) ? row : row.querySelector<HTMLElement>(controls)
+  if (control) control.focus({ preventScroll: true })
+  else { if (!row.hasAttribute('tabindex')) row.tabIndex = -1; row.focus({ preventScroll: true }) }
   return true
 }
