@@ -57,8 +57,10 @@
   // --- moving around ---
   let pane = $state<HTMLElement>()
   let pending = $state<string | null>(null)
+  /** The page a pending search is looking on. */
+  let pendingOn: string | null = null
   function open(id: string, find?: string) {
-    pending = find ?? null
+    pending = find ?? null; pendingOn = id
     // Only a page opened from the list goes back to it with Back; one opened from another page swaps in the list.
     if (id !== section) router.go(`/settings/${id}`, false, narrow && !current ? '/settings' : undefined)
     // Already showing it (a computer shows Profile at /settings): nothing changes to look again, so look now.
@@ -91,6 +93,8 @@
   $effect(() => {
     const now = current, from = last
     last = now
+    // Leaving the page a search is still looking on (Back, a link) ends that search.
+    if (now !== pendingOn) untrack(() => { pending = null })
     // A search landing focuses the row it found instead.
     if (!narrow || now === from || untrack(() => pending)) return
     void tick().then(() => {
