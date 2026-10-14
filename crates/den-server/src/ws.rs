@@ -162,6 +162,7 @@ async fn allowed(s: &AppState, a: &Auth, v: &Event) -> bool {
         // Thread metadata is an ordinary channel-authorized event; a personal
         // thread position reaches nobody but its own user.
         Event::ThreadUpdated { thread } => Some(&thread.channel_id),
+        Event::ChannelUpdated { channel } => Some(&channel.id),
         Event::ThreadReadStateUpdated { user_id, state } => {
             if user_id != &a.user.id {
                 return false;

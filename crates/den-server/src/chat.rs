@@ -214,7 +214,7 @@ pub(crate) async fn update_channel(
     {
         return Err(Error::missing());
     }
-    Ok(Json(visible(&s, &a.user.id, &id).await?))
+    changed(&s, &a.user.id, &id).await
 }
 #[utoipa::path(put,path="/channels/{id}/icon",params(("id"=String,Path)),request_body=SetChannelIcon,responses((status=200,body=Channel)))]
 pub(crate) async fn set_icon(
@@ -248,7 +248,15 @@ pub(crate) async fn set_icon(
     {
         return Err(Error::missing());
     }
-    Ok(Json(visible(&s, &a.user.id, &id).await?))
+    changed(&s, &a.user.id, &id).await
+}
+/// Everyone who can see the room hears about the change, without a reload.
+async fn changed(s: &AppState, user_id: &str, id: &str) -> Result<Json<Channel>> {
+    let channel = visible(s, user_id, id).await?;
+    let _ = s.events.send(Event::ChannelUpdated {
+        channel: channel.clone(),
+    });
+    Ok(Json(channel))
 }
 #[utoipa::path(delete,path="/channels/{id}",params(("id"=String,Path)),responses((status=204)))]
 pub(crate) async fn delete_channel(

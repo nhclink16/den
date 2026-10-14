@@ -724,10 +724,11 @@ export class Store {
     this.users = new Map(users.map((u) => [u.id, u]))
     // The list decides which rooms exist; previewsFrom decides their lines.
     const previews = this.previewsFrom(channels, previewAsked)
+    const changed = this.roomChangesAfter(previewAsked.n)
     this.listDone()
     this.channels = channels.map((c) => {
-      const mine = this.channel(c.id)
-      return { ...c, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
+      const mine = this.channel(c.id), newer = changed.get(c.id)
+      return { ...(newer ? this.withRoom(c, newer) : c), last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
     })
     this.categories = categories.sort((a, b) => a.position - b.position)
     // Each key goes through its own acknowledgement queue against the epoch and
@@ -1137,7 +1138,7 @@ export class Store {
   }
   private askPreviews() { this.listsInFlight++; return { n: this.previewN, seq: ++this.listAsks } }
   /// Call once per askPreviews, after previewsFrom or instead of it.
-  private listDone() { if (--this.listsInFlight === 0) this.previewLog = [] }
+  private listDone() { if (--this.listsInFlight === 0) { this.previewLog = []; this.roomLog = [] } }
   /// The lines for `list`, or null when a list asked for later is already applied.
   private previewsFrom(list: Channel[], asked: { n: number; seq: number }): Map<string, LastMessage | null> | null {
     if (asked.seq < this.applied.seq) return null
@@ -1162,6 +1163,16 @@ export class Store {
     if (step.created) return { last: !last || step.created.id > last.id ? step.created : last, gone: false }
     return { last: step.edited && last?.id === step.edited.id ? step.edited : last, gone: false }
   }
+  // Room changes (a rename, a move, an icon) follow the same rule as previews:
+  // one that arrived after a list was asked for may be newer than that list.
+  private roomLog: { n: number; channel: Channel }[] = []
+  private receiveRoom(c: Channel, n: number) {
+    if (this.listsInFlight) this.roomLog.push({ n, channel: c })
+    this.channels = this.channels.map((x) => (x.id === c.id ? this.withRoom(x, c) : x))
+  }
+  private roomChangesAfter(n: number) { return new Map(this.roomLog.filter((e) => e.n > n).map((e) => [e.channel.id, e.channel])) }
+  /// Only what an admin can change: the event carries no preview, and DMs never change.
+  private withRoom(c: Channel, change: Channel): Channel { return { ...c, name: change.name, icon: change.icon, category_id: change.category_id, position: change.position } }
   private async refetchPreviews() {
     const generation = this.generation, asked = this.askPreviews()
     let list: Channel[]
@@ -1340,6 +1351,7 @@ export class Store {
         this.drop(ev.id, ev.channel_id); this.preview(ev, n); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
+      case 'channel_updated': this.receiveRoom(ev.channel, n); break
       case 'thread_updated': {
         this.threadMetas.apply(ev.thread)
         this.remember(ev.thread.channel_id, [ev.thread.id])

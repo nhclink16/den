@@ -29,7 +29,12 @@ class Call {
   origin = $state('')
   instanceName = $state('')
   owner: Store | null = null
-  get title() { return this.channel ? this.owner?.title(this.channel) || this.channel.name : '' }
+  // The store's copy, so a rename during the call shows here too.
+  get title() {
+    if (!this.channel) return ''
+    const c = this.owner?.channel(this.channel.id) ?? this.channel
+    return this.owner?.title(c) || c.name
+  }
   room = $state.raw<Room | null>(null)
   channel = $state<Channel | null>(null)
   participants = $state.raw<CallParticipant[]>([])

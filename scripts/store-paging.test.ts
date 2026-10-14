@@ -489,3 +489,35 @@ test('an edit that raced a list across a disconnect is put right by the reconnec
   assert.equal(line(s), 'v2')
   s.ready = false
 })
+
+test('a room renamed or given an icon changes live and keeps its preview line', async () => {
+  api = { get: async () => [] }
+  const s = new Store('fixture')
+  s.channels = [{ id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }]
+  await s.handle({ type: 'channel_updated', channel: { id: 'c', kind: 'text', name: 'lobby', icon: 'flame', category_id: 'k', position: 3, member_ids: [], last_message: null } })
+  const c = s.channels[0]
+  assert.deepEqual([c.name, c.icon, c.category_id, c.position], ['lobby', 'flame', 'k', 3])
+  assert.equal(lastIn(s), 'B', 'the event carries no preview and must not clear the line')
+  await s.handle({ type: 'channel_updated', channel: { id: 'gone', kind: 'text', name: 'x', icon: null, category_id: null, position: 0, member_ids: [], last_message: null } })
+  assert.equal(s.channels.length, 1, 'a change to a room this list does not have adds nothing')
+})
+
+test('a resync that started before a room change keeps the change', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const s = new Store('fixture')
+  const before = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [before]
+  const resync = s.resync()
+  await s.handle({ type: 'channel_updated', channel: { ...before, name: 'lobby', icon: 'flame', last_message: null } })
+  lists[0]!.release([before])                                       // read before the change
+  await resync
+  assert.deepEqual([s.channels[0].name, s.channels[0].icon], ['lobby', 'flame'], 'the older list put the old name back')
+  assert.equal(s.roomLog.length, 0, 'nothing is kept once no list is in flight')
+  // A list asked for after the change already has it, and a later rename is not undone by the log.
+  const again = s.resync()
+  lists[1]!.release([{ ...before, name: 'hangout-2', icon: 'flame' }])
+  await again
+  assert.equal(s.channels[0].name, 'hangout-2')
+})
