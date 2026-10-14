@@ -103,7 +103,12 @@
   // --- search ---
   let q = $state('')
   const hits = $derived(findSettings(q, sections, admin))
-  function pick(h: Hit) { q = ''; open(h.section.id, h.entry?.find) }
+  function pick(h: Hit) {
+    q = ''; open(h.section.id, h.entry?.find)
+    // A whole section has no row to land on, and the result just went away: on a computer, focus the page's title.
+    // (A phone's drill-in focuses its own title.)
+    if (!h.entry && !narrow) void tick().then(() => { const t = pane?.querySelector<HTMLElement>('h2'); if (t) { t.tabIndex = -1; t.focus({ preventScroll: true }) } })
+  }
   function searchKey(e: KeyboardEvent) {
     if (e.key === 'Enter' && hits[0]) { e.preventDefault(); pick(hits[0]) }
     if (e.key === 'Escape' && q) { e.preventDefault(); q = '' }

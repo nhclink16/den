@@ -7,7 +7,7 @@
   import Icon from './Icon.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
   import SettingRow from './SettingRow.svelte'
-  import { shownOnce } from '../lib/settings-secrets.svelte'
+  import { settingsVisit, shownOnce } from '../lib/settings-secrets.svelte'
 
   let { section }: { section: 'keys' | 'agents' } = $props()
   let tokens = $state<Token[]>([])
@@ -17,18 +17,20 @@
   $effect(() => { void section; load() })
   async function createBot(e: SubmitEvent) {
     e.preventDefault(); error = ''
+    const visit = settingsVisit()
     try {
       const b = await api.post<BotCreated>('/bots', { username: botName.trim(), display_name: botDisplay.trim() || botName.trim() })
-      shownOnce.reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
+      if (visit === settingsVisit()) shownOnce.reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
       botName = ''; botDisplay = ''
       await store.resync(); await load()
     } catch (err) { error = (err as Error).message }
   }
   async function createToken(e: SubmitEvent) {
     e.preventDefault(); error = ''
+    const visit = settingsVisit()
     try {
       const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-      shownOnce.reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
+      if (visit === settingsVisit()) shownOnce.reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
       tokenName = ''; await load()
     } catch (err) { error = (err as Error).message }
   }

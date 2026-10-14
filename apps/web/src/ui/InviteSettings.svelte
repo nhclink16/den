@@ -6,13 +6,14 @@
   import type { Invite } from '../lib/types'
   import Icon from './Icon.svelte'
   import SettingRow from './SettingRow.svelte'
-  import { shownOnce } from '../lib/settings-secrets.svelte'
+  import { settingsVisit, shownOnce } from '../lib/settings-secrets.svelte'
 
   let uses = $state(1), hours = $state(48)
   let copied = $state<string | null>(null), error = $state('')
   async function makeInvite(e: SubmitEvent) {
     e.preventDefault(); error = ''
-    try { const made = await api.post<Invite>('/invites', { uses, expires_in_hours: hours }); shownOnce.invites = [made, ...shownOnce.invites] }
+    const visit = settingsVisit()
+    try { const made = await api.post<Invite>('/invites', { uses, expires_in_hours: hours }); if (visit === settingsVisit()) shownOnce.invites = [made, ...shownOnce.invites] }
     catch (err) { error = (err as Error).message }
   }
   const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
