@@ -104,6 +104,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - 0.4.2: revamp slice 4, the call (#93, D22). FaceTime-style tiles and round buttons with a red Leave; while you chat the call shrinks to a pill (faces, who's talking, mute, leave) instead of the phone video strip; the call now shows "Reconnecting…" when LiveKit resumes a dropped connection.
 - 0.4.3: revamp slice 5, settings (#95, D23), the last slice of the redesign. Grouped lists like iPhone Settings, drill-in on phones, Appearance as a page with theme cards drawing today's app; no setting removed or changed. Also Den Shell UI checks in Xcode Cloud against a made-up Den from the branch (#96), and the live server now has Den's APNs key (D24) for push once Den Shell registers devices.
 - 0.4.4: push notifications in Den Shell (#98, D25): permission after sign-in, mentions/DMs/followed rooms as alerts, taps open the room or thread, badge = unread count. Den Shell build 25 in TestFlight. Call ringing waits for the real-phone call test (D4).
+- 0.4.5: redesign clean-up (#101, D29): on phones the open call and threads fill the screen and Search is a button; the phone home shows only the call pill during a call; call buttons stay on one row and the sidebar call bar is a tidy two-row panel; room icon and name changes show live for everyone (`channel_updated`). Also Den Shell on iOS 17 (#100): its web fix ships here, TestFlight build 29+ installs on iOS 17.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
