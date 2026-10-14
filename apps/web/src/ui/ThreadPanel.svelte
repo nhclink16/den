@@ -286,8 +286,10 @@
      where they fit, this changes nothing. */
   .head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px var(--gutter); min-height: 56px; }
   .head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  /* The same chevron a room has back to the list. */
-  .back { flex: none; margin-inline-start: -6px; color: var(--lamp); }
+  /* The same chevron a room has back to the list, in the same place: HomeButton's
+     inset, and the room header's phone padding. */
+  .back { flex: none; margin-inline-start: -6px; padding-inline-start: 2px; place-items: center start; color: var(--lamp); }
+  @media (max-width: 600px) { .head { padding-inline-start: 10px; } }
   .title { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
   h2 { font-size: var(--fs-body); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sub { font-size: var(--fs-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
