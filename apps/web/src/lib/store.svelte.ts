@@ -1111,12 +1111,13 @@ export class Store {
 
   /// Admin: a Lucide icon for a room, or null for the default.
   async setChannelIcon(id: string, icon: string | null) {
-    const asked = this.previewN, lists = this.listAsks
+    const asked = this.previewN
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
-    // The socket usually brings this change first. A later change (another admin),
-    // or a list asked for since, may already be on screen; this reply must not undo it.
-    if ((this.roomSeen.get(id) ?? -1) > asked || this.applied.seq > lists) return
-    this.channels = this.channels.map((x) => (x.id === id ? { ...x, icon: c.icon } : x))
+    // Anything the socket brought for this room since is as new or newer: keep it.
+    if ((this.roomSeen.get(id) ?? -1) > asked) return
+    // Otherwise the reply counts as a room change arriving now, so a list asked
+    // for before it (perhaps read before the save) can't put the old icon back.
+    this.receiveRoom(c, ++this.previewN)
   }
   // Room previews: the newest channel list we asked for, with the message events
   // since that request replayed on top. Every socket frame is numbered when it
@@ -1302,12 +1303,15 @@ export class Store {
     let events = Promise.resolve()
     ws.onmessage = (e) => {
       const n = ++this.previewN
+      let ev: Event
+      try { ev = JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event } catch { ws.close(); return }
+      // A room change counts from when it arrives, however long it then waits, so
+      // a slower save reply can tell it was overtaken (setChannelIcon).
+      if (ev.type === 'channel_updated') this.roomSeen.set(ev.channel.id, n)
       // Events already queued when the account changed are dropped rather than
       // repopulating state that a logout deliberately cleared. `generation` is
       // the connection/account epoch this socket was opened for.
-      events = events.then(() => generation === this.generation
-        ? this.handle(JSON.parse(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data)) as Event, n)
-        : undefined)
+      events = events.then(() => generation === this.generation ? this.handle(ev, n) : undefined)
         .catch(() => { ws.close() })
     }
     ws.onclose = () => {

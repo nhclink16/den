@@ -629,3 +629,21 @@ test('an icon save reply cannot undo a newer list that covered frames still queu
   assert.equal(s.channels[0].icon, 'skull')
   s.ready = false
 })
+
+test('an icon save during a dropped connection survives a list read before it landed', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const reply = held()
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => reply.promise }
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: null, position: 0, member_ids: [], last_message: null }
+  s.channels = [room]
+  const saving = s.setChannelIcon('c', 'flame')   // the socket is down: its event never comes
+  const resync = s.resync()                        // the reconnect's list, read before the save committed
+  reply.release({ ...room, icon: 'flame' })
+  await saving
+  assert.equal(s.channels[0].icon, 'flame')
+  lists[0]!.release([room])
+  await resync
+  assert.equal(s.channels[0].icon, 'flame', 'a list read before the save put the old icon back')
+})
