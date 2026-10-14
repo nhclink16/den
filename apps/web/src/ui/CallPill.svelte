@@ -1,12 +1,13 @@
 <script lang="ts">
   // The call, small, while you chat: who's in, who's talking, your mic and Leave.
   // Tap it to open the call. `full` is the call bar above the sidebar: the same
-  // pill with every call button under it.
+  // pill with Leave beside it and every other call button on a row under it.
   import { call } from '../lib/call.svelte'
   import { native } from '../lib/native'
   import { callFaces, callLine } from '../lib/room-list'
   import CallControls from './CallControls.svelte'
   import CallFaces from './CallFaces.svelte'
+  import Icon from './Icon.svelte'
   let { full = false }: { full?: boolean } = $props()
   const faces = $derived(callFaces(call.participants))
   const line = $derived(callLine(call.participants, call.reconnecting))
@@ -24,6 +25,7 @@
     </span>
     <span class="sr-only">{call.expanded ? ', back to the chat' : ', open the call'}</span>
   </button>
+  {#if full}<button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={18} /></button>{/if}
   <CallControls variant={full ? 'dock' : 'pill'} />
 </div>
 
@@ -51,9 +53,16 @@
     container: dock / inline-size; flex-wrap: wrap; row-gap: 8px; margin: 6px 8px; padding: 10px;
     border-radius: calc(var(--r-lg) * 1.4); background: var(--bg-3); backdrop-filter: none; box-shadow: none;
   }
-  .full .open { min-height: 36px; padding-inline-start: 2px; }
+  .full .open { flex: 1 1 0; min-height: 36px; padding-inline-start: 2px; }
   .full b { font-size: var(--fs-sm); }
   .full .line { font-size: var(--fs-xs); }
-  /* Too narrow for one row (the sidebar): the buttons take their own, Leave at its end. */
-  @container dock (max-width: 520px) { .full .open { flex-basis: 100%; } .full :global(.controls) { flex: 1; } }
+  /* Red and apart from the toggles, like the open call's. */
+  .leave { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-pill); color: var(--bg); background: var(--danger); transition: filter var(--t-fast); }
+  @media (hover: hover) { .leave:hover { filter: brightness(1.1); } }
+  @media (pointer: coarse) { .leave { width: 44px; height: 44px; } }
+  /* Too narrow for one row (the sidebar): who's in and Leave on top, the toggles
+     spread across a row of their own, like Discord's voice panel. */
+  @container dock (max-width: 520px) { .full :global(.controls) { flex-basis: 100%; justify-content: space-between; gap: 4px; } }
+  /* Wide (the bottom of the window with the sidebar hidden): one row, Leave last. */
+  @container dock (min-width: 521px) { .full .open { flex-basis: 160px; } .leave { order: 1; margin-inline-start: 4px; } }
 </style>
