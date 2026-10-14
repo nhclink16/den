@@ -11,6 +11,7 @@
   import BubblePreview from './BubblePreview.svelte'
   import AppearancePreview from './AppearancePreview.svelte'
   import { store, type AvatarShape, type PresenceStyle } from '../lib/store.svelte'
+  import { customizer } from '../lib/customizer.svelte'
 
   /** `panel`: shown in the live customizer over the app. Otherwise it is the phone's Appearance page, with its own preview. */
   let { panel = false }: { panel?: boolean } = $props()
@@ -112,7 +113,8 @@
     return () => link.remove()
   })
 
-  onDestroy(() => themes.reset())
+  // Widening the window swaps this page for the panel over the room; unsaved theme edits go with it.
+  onDestroy(() => { if (!panel && customizer.open) return; themes.reset() })
 </script>
 
 <div class="appearance" class:panel>

@@ -75,7 +75,9 @@
     let tries = 0
     const look = () => {
       if (pending !== find) return
-      if ((pane && reveal(pane, find)) || ++tries > 12) { pending = null; return }
+      if (pane && reveal(pane, find)) { pending = null; return }
+      // Nothing to land on (it isn't shown right now): a phone still moves focus to the page.
+      if (++tries > 12) { pending = null; if (narrow) heading?.focus({ preventScroll: true }); return }
       setTimeout(look, 120)
     }
     void tick().then(look)
@@ -92,7 +94,8 @@
     if (!narrow || now === from || untrack(() => pending)) return
     void tick().then(() => {
       if (now) heading?.focus({ preventScroll: true })
-      else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus({ preventScroll: true })
+      // The list starts at its top again, so let the row scroll into view.
+      else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus()
     })
   })
 
@@ -218,7 +221,8 @@
             </div>
           {/if}
           <h3 class="list-head">Always</h3>
-          <div class="slist">
+          <!-- Notifications already on: a search for them lands here. -->
+          <div class="slist" data-find={perm === 'granted' ? 'permission' : undefined}>
             <SettingRow find="mentions" label="When someone mentions me">
               {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="When someone mentions me" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} />{/snippet}
             </SettingRow>
