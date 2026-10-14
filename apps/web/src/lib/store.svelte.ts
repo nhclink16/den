@@ -38,6 +38,7 @@ function loadLayout(): Layout {
 const PAGE = 50
 type PreviewEvent = Extract<Event, { type: 'message_created' | 'message_edited' | 'message_deleted' }>
 type PreviewStep = { n: number; channel_id: string; created?: LastMessage; edited?: LastMessage; deleted?: string }
+type RoomChange = Partial<Pick<Channel, 'name' | 'icon' | 'category_id' | 'position'>>
 const activeListeners = new Set<(event: Event) => void>()
 const noSpotify = (): SpotifyAccount => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null, share_listening: false })
 
@@ -730,7 +731,7 @@ export class Store {
     // what is shown: it may add or drop rooms, but the names and icons stay.
     this.channels = channels.map((c) => {
       const mine = this.channel(c.id), newer = changed.get(c.id)
-      const room = !previews && mine ? this.withRoom(c, mine) : newer ? this.withRoom(c, newer) : c
+      const room = !previews && mine ? { ...c, ...this.roomMeta(mine) } : { ...c, ...newer }
       return { ...room, last_message: previews ? previews.get(c.id) : mine ? mine.last_message : c.last_message }
     })
     this.categories = categories.sort((a, b) => a.position - b.position)
@@ -1115,9 +1116,12 @@ export class Store {
     const c = await this.api.put<Channel>(`/channels/${id}/icon`, { icon })
     // Anything the socket brought for this room since is as new or newer: keep it.
     if ((this.roomSeen.get(id) ?? -1) > asked) return
-    // Otherwise the reply counts as a room change arriving now, so a list asked
-    // for before it (perhaps read before the save) can't put the old icon back.
-    this.receiveRoom(c, ++this.previewN)
+    // Otherwise the icon counts as a room change arriving now, so a list asked for
+    // before it (perhaps read before the save) can't put the old one back. Known
+    // limit: a reply held up past a reconnect whose list already shows a later
+    // icon (its event lost in the drop) wins until the next refresh. Closing that
+    // needs revisions from the server.
+    this.receiveRoom(id, { icon: c.icon ?? null }, ++this.previewN)
   }
   // Room previews: the newest channel list we asked for, with the message events
   // since that request replayed on top. Every socket frame is numbered when it
@@ -1173,19 +1177,29 @@ export class Store {
   }
   // Room changes (a rename, a move, an icon) follow the same rule as previews:
   // one that arrived after a list was asked for may be newer than that list.
-  private roomLog: { n: number; channel: Channel }[] = []
-  /// The newest room frame per room, so a slower reply can tell it was overtaken.
+  private roomLog: { n: number; id: string; set: RoomChange }[] = []
+  /// The newest room frame that arrived per room, so a slower reply can tell it was overtaken.
   private roomSeen = new Map<string, number>()
-  private receiveRoom(c: Channel, n: number) {
-    this.roomSeen.set(c.id, Math.max(n, this.roomSeen.get(c.id) ?? -1))
-    // Already in a list asked for after this frame arrived.
+  /// The number of the change last applied per room and field ("id:icon"), so an
+  /// older change still queued can't undo a newer one (an icon save's reply).
+  private roomApplied = new Map<string, number>()
+  private receiveRoom(id: string, set: RoomChange, n: number) {
+    this.roomSeen.set(id, Math.max(n, this.roomSeen.get(id) ?? -1))
+    // Already in a list asked for after this arrived.
     if (n <= this.applied.n) return
-    if (this.listsInFlight) this.roomLog.push({ n, channel: c })
-    this.channels = this.channels.map((x) => (x.id === c.id ? this.withRoom(x, c) : x))
+    const fresh = Object.fromEntries(Object.entries(set).filter(([k]) => n > (this.roomApplied.get(`${id}:${k}`) ?? -1))) as RoomChange
+    if (!Object.keys(fresh).length) return
+    for (const k of Object.keys(fresh)) this.roomApplied.set(`${id}:${k}`, n)
+    if (this.listsInFlight) this.roomLog.push({ n, id, set: fresh })
+    this.channels = this.channels.map((x) => (x.id === id ? { ...x, ...fresh } : x))
   }
-  private roomChangesAfter(n: number) { return new Map(this.roomLog.filter((e) => e.n > n).map((e) => [e.channel.id, e.channel])) }
+  private roomChangesAfter(n: number) {
+    const out = new Map<string, RoomChange>()
+    for (const e of this.roomLog) if (e.n > n) out.set(e.id, { ...out.get(e.id), ...e.set })
+    return out
+  }
   /// Only what an admin can change: the event carries no preview, and DMs never change.
-  private withRoom(c: Channel, change: Channel): Channel { return { ...c, name: change.name, icon: change.icon, category_id: change.category_id, position: change.position } }
+  private roomMeta(c: Channel): RoomChange { return { name: c.name, icon: c.icon ?? null, category_id: c.category_id ?? null, position: c.position } }
   private async refetchPreviews() {
     const generation = this.generation, asked = this.askPreviews()
     let list: Channel[]
@@ -1200,7 +1214,7 @@ export class Store {
     const listed = new Map(list.map((c) => [c.id, c]))
     this.channels = this.channels.map((c) => {
       const l = listed.get(c.id)
-      return l ? { ...this.withRoom(c, changed.get(c.id) ?? l), last_message: fresh.get(c.id) } : c
+      return l ? { ...c, ...this.roomMeta(l), ...changed.get(c.id), last_message: fresh.get(c.id) } : c
     })
   }
 
@@ -1375,7 +1389,7 @@ export class Store {
         this.drop(ev.id, ev.channel_id); this.preview(ev, n); break
       case 'reactions_updated': this.setReactions(ev.channel_id, ev.message_id, ev.reactions); break
       case 'read_state_updated': this.setRead(ev.state); break
-      case 'channel_updated': this.receiveRoom(ev.channel, n); break
+      case 'channel_updated': this.receiveRoom(ev.channel.id, this.roomMeta(ev.channel), n); break
       case 'thread_updated': {
         this.threadMetas.apply(ev.thread)
         this.remember(ev.thread.channel_id, [ev.thread.id])
