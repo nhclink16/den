@@ -101,6 +101,7 @@ Electron replaced Tauri for the desktop app (0.3.0 was the first Electron releas
 - 0.3.9: the web half of native calls in Den Shell (#84). No change outside Den Shell.
 - 0.4.0: revamp slice 1 (Quiet direction, D16/D17, #86). A plain grey "Neutral" theme with a blue accent is the default for anyone who never changed Appearance; amber Den stays as a theme. The accent is its own setting, normal text drops the code font and the slashed zero, buttons, pills and switches share one style, and the phone message box gets a round + menu.
 - 0.4.1: revamp slices 2 and 3 (#89, #90, #91, D20/D21). Phones open on a room list with each room's newest message; rooms push in with a back chevron. Rooms get Lucide icons an admin picks (migration 0026, a nullable `channels.icon`), and each person chooses icons, # or nothing. Messages are bubbles with a bubble-shape setting and per-person colours (everyone's, only mine, or plain); open threads sit behind one pill; code blocks use the full width.
+- 0.4.2: revamp slice 4, the call (#93, D22). FaceTime-style tiles and round buttons with a red Leave; while you chat the call shrinks to a pill (faces, who's talking, mute, leave) instead of the phone video strip; the call now shows "Reconnecting…" when LiveKit resumes a dropped connection.
 
 ## Backlog (decided or asked for, not built)
 - **Servers follow-ups:**
