@@ -18,7 +18,11 @@ export const push = $state({ available: typeof shell?.push === 'function', statu
 
 let sent = ''
 let sending = ''
-let badge = -1
+// Numbers each registration, and moves on at sign-out, so a late reply can't stand for a newer one.
+let attempt = 0
+// Set at sign-out, cleared once the server has the next account's token. If that sign-out never reached the
+// server, the old account's registration still holds this token there.
+const SIGNED_OUT = 'den.push.signedOut'
 const ask = <T>(command: PushCommand) => shell!.push!(command) as Promise<T>
 
 /** After sign-in and whenever Den comes back to the front. iOS shows its prompt only the first time; after that this
@@ -27,6 +31,8 @@ export async function pushStart() {
   if (!push.available) return
   const status = await ask<PushStatus>({ type: 'register' }).catch(() => null)
   if (status) await receive(status)
+  // iOS may have changed the badge from a notification while Den was away.
+  if (instances.active.ready) pushBadge(instances.active.readState.values())
   await openTap()
 }
 
@@ -37,23 +43,32 @@ async function receive(status: PushStatus) {
   // Once per account and token for this page; the server keeps it until that sign-in ends.
   const key = `${source.me.id} ${status.environment} ${status.token}`
   if (key === sent || key === sending) return
+  const mine = ++attempt
   sending = key
   const device: RegisterDevice = { platform: 'ios', token: status.token, app_version: status.appVersion, purpose: 'alert', environment: status.environment }
   try {
     await source.api.post('/devices', device)
-    if (sending === key) { sent = key; push.connected = true }
+    if (mine !== attempt) return
+    sent = key
+    push.connected = true
+    localStorage.removeItem(SIGNED_OUT)
   } catch {
-    if (sending === key) push.connected = false
+    if (mine !== attempt) return
+    push.connected = false
+    // Apple would deliver the old account's alerts to this token again: switch push off until a later try works.
+    if (localStorage.getItem(SIGNED_OUT)) void ask({ type: 'signedOut' }).catch(() => {})
   } finally {
-    if (sending === key) sending = ''
+    if (mine === attempt) sending = ''
   }
 }
 
 async function openTap() {
   const source = instances.active
   if (!source.ready) return
+  const lifetime = source.drafts, token = lifetime.token
   const tap = await ask<PushTap | null>({ type: 'take' }).catch(() => null)
-  if (tap) await goToMessage(source, tap.channelId, tap.messageId)
+  // Signed out (and maybe someone else in) while the shell answered: the tap belonged to the old account.
+  if (tap && lifetime.holds(token)) await goToMessage(source, tap.channelId, tap.messageId)
 }
 
 /** Installed while someone is signed in. Before that a tap waits in the shell, and `present` gets the full alert. */
@@ -67,13 +82,12 @@ export function listenForPush() {
   return () => { window.denShell!.onPush = null }
 }
 
-/** The app icon's number: the same count the server puts in each notification. */
+/** The app icon's number: the same count the server puts in each notification. Always sent, because iOS also
+ *  sets it from notifications the page never sees. */
 export function pushBadge(states: Iterable<ChannelReadState>) {
   if (!push.available) return
   let count = 0
   for (const s of states) count += s.notification_count
-  if (count === badge) return
-  badge = count
   void ask({ type: 'badge', count }).catch(() => {})
 }
 
@@ -81,8 +95,9 @@ export function pushBadge(states: Iterable<ChannelReadState>) {
 export function pushSignedOut() {
   if (!push.available) return
   sent = sending = ''
-  badge = -1
+  attempt++
   push.connected = false
+  localStorage.setItem(SIGNED_OUT, '1')
   void ask({ type: 'signedOut' }).catch(() => {})
 }
 

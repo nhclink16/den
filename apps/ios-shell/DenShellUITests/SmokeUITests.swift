@@ -142,9 +142,7 @@ final class SmokeUITests: XCTestCase {
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }
 
-    /// Waits for Den's notification on the Home Screen and taps it. In Xcode Cloud's simulator the tap reaches Den
-    /// (its log says "notification tapped") but iOS may leave Den behind the Home Screen; on a phone iOS brings it
-    /// forward. So if Den isn't in front after the tap, the test brings it forward itself and checks the room.
+    /// Waits for Den's notification on the Home Screen and taps it; iOS must then bring Den to the front.
     @MainActor private func tapBanner(containing text: String, shot name: String, app: XCUIApplication) throws {
         let notification = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
         guard notification.waitForExistence(timeout: 30) else {
@@ -156,10 +154,11 @@ final class SmokeUITests: XCTestCase {
             throw Missing(description: "No notification containing \"\(text)\" after 30 s.")
         }
         shot(name)
-        notification.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        if app.wait(for: .runningForeground, timeout: 5) { return }
-        shot("\(name)-left-behind")
-        app.activate()
+        notification.tap()
+        guard app.wait(for: .runningForeground, timeout: 10) else {
+            shot("\(name)-not-opened")
+            throw Missing(description: "Tapping the notification didn't bring Den to the front.")
+        }
     }
 
     /// Maya posts in a room over the API, the way her own phone would.

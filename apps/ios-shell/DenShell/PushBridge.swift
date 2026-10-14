@@ -86,6 +86,10 @@ struct PushStatus: Encodable {
     /// The token Apple gave this install, kept until sign-out. Never logged.
     private var token: String?
     private var tapped: PushTap?
+    /// Counts sign-outs, so a registration that was waiting on iOS when one happened doesn't switch push back on.
+    private var signOuts = 0
+    /// Whether a token from Apple is wanted now: not after sign-out, until the page registers again.
+    private var registering = false
 
     /// Adds `push` and `onPush` to the `window.denShell` that CallBridge's script made, so install after it.
     func install(in controller: WKUserContentController, den: Origin) {
@@ -140,14 +144,16 @@ struct PushStatus: Encodable {
     }
 
     private func register() async -> PushStatus {
+        let started = signOuts
         let center = UNUserNotificationCenter.current()
         if await center.notificationSettings().authorizationStatus == .notDetermined {
             do { _ = try await center.requestAuthorization(options: [.alert, .badge, .sound]) }
             catch { log.error("notification permission failed: \(error, privacy: .public)") }
         }
         let current = await status()
-        guard current.permission == "granted" else { return current }
+        guard current.permission == "granted", signOuts == started else { return current }
         // Apple asks for this at every launch; the token arrives in AppDelegate, then goes to the page.
+        registering = true
         UIApplication.shared.registerForRemoteNotifications()
         #if DEBUG && targetEnvironment(simulator)
         // A simulator in Xcode Cloud may get no token from Apple; the UI check passes a made-up one.
@@ -164,6 +170,8 @@ struct PushStatus: Encodable {
         // reached the server: Apple then refuses the old token, and the server forgets it.
         token = nil
         tapped = nil
+        signOuts += 1
+        registering = false
         UIApplication.shared.unregisterForRemoteNotifications()
         let center = UNUserNotificationCenter.current()
         center.removeAllDeliveredNotifications()
@@ -173,7 +181,7 @@ struct PushStatus: Encodable {
     // MARK: From iOS
 
     func received(token: String) {
-        guard token != self.token else { return }
+        guard registering, token != self.token else { return }
         self.token = token
         Task {
             let status = await status()
@@ -181,22 +189,20 @@ struct PushStatus: Encodable {
         }
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let tap = PushTap(response.notification.request.content.userInfo)
-        log.info("notification tapped, \(tap == nil ? "not Den's" : "for a Den room", privacy: .public)")
-        await opened(tap)
-    }
+    // Both on the main actor: iOS finishes these on the thread they return on, and UIKit aborts the app when a tap's
+    // answer comes back off the main thread (seen in Xcode Cloud).
 
     /// Kept until the page takes it: after a cold launch the page may still be loading or signing in.
-    private func opened(_ tap: PushTap?) {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let tap = PushTap(response.notification.request.content.userInfo)
+        log.info("notification tapped, \(tap == nil ? "not Den's" : "for a Den room", privacy: .public)")
         guard let tap else { return }
         tapped = tap
         send(#"{"type":"tap"}"#)
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        let tap = PushTap(notification.request.content.userInfo)
-        return await presentation(tap)
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        await presentation(PushTap(notification.request.content.userInfo))
     }
 
     /// With Den open, the page already plays its own alert sound and keeps the badge, so iOS only shows the banner,
