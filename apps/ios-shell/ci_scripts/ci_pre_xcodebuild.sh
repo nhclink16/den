@@ -37,8 +37,23 @@ cat > shell-log.sh <<SH
 until xcrun simctl spawn ${CI_TEST_DESTINATION_UDID:-booted} log stream --level info --style compact \\
     --predicate 'subsystem == "app.denchat.shell" OR subsystem BEGINSWITH "io.livekit"' >> $dir/shell.log 2>/dev/null; do sleep 2; done
 SH
-chmod +x den.sh livekit.sh shell-log.sh
-for job in livekit den shell-log; do
+# Stands in for Apple's push service, which the made-up Den can't reach: when the UI test posts a "push check"
+# message, this sends the simulator the alert Den would send for it (the payload of crates/den-server/src/push.rs).
+cat > push.sh <<SH
+#!/bin/sh
+last=
+while sleep 1; do
+    alert=\$(sqlite3 $dir/data/den.db "SELECT json_object('aps', json_object('alert', json_object('title', 'You were mentioned in Den',
+        'body', content), 'sound', 'default', 'badge', 1), 'type', 'notification', 'channel_id', channel_id, 'message_id', id,
+        'reason', 'mention') FROM messages WHERE content LIKE '%push check%' ORDER BY id DESC LIMIT 1" 2>/dev/null)
+    [ -n "\$alert" ] && [ "\$alert" != "\$last" ] || continue
+    last=\$alert
+    printf '%s' "\$alert" > $dir/push.json
+    xcrun simctl push ${CI_TEST_DESTINATION_UDID:-booted} app.denchat.ios $dir/push.json >> $dir/push.log 2>&1
+done
+SH
+chmod +x den.sh livekit.sh shell-log.sh push.sh
+for job in livekit den shell-log push; do
     launchctl submit -l "app.denchat.ui-check.$job" -- "$dir/$job.sh" || nohup "$dir/$job.sh" >/dev/null 2>&1 &
 done
 tries=0

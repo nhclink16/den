@@ -3,6 +3,7 @@
 // into what the call view reads. Everywhere else `window.denShell` is missing and none of this runs.
 import type { ConnectionQuality } from 'livekit-client'
 import type { CallParticipant } from './call.svelte'
+import type { PushCommand, PushEvent } from './shell-push.svelte'
 
 export type ShellPerson = { identity: string; name: string; local: boolean; speaking: boolean; muted: boolean; quality: string; camera: boolean; screen: boolean }
 /** `revision` grows with every snapshot; `micSeq`/`soundSeq` echo the last mute/sound command the shell applied. */
@@ -18,7 +19,13 @@ export type ShellCommand =
   | { type: 'join'; url: string; token: string; channelId: string; title: string; micOn: boolean }
   | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean; seq: number } | { type: 'sound'; off: boolean; seq: number }
 declare global {
-  interface Window { denShell?: { call(command: ShellCommand): Promise<ShellUpdate | null>; onCall: ((update: ShellUpdate) => void) | null } }
+  // `push` and `onPush` came later (shell-push.svelte.ts): older shells don't have them.
+  interface Window {
+    denShell?: {
+      call(command: ShellCommand): Promise<ShellUpdate | null>; onCall: ((update: ShellUpdate) => void) | null
+      push?(command: PushCommand): Promise<unknown>; onPush?: ((event: PushEvent) => unknown) | null
+    }
+  }
 }
 
 export const shell = typeof window !== 'undefined' ? window.denShell : undefined

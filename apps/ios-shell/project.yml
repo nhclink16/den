@@ -29,6 +29,13 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: '1'
         GENERATE_INFOPLIST_FILE: YES
+      # Which APNs the device token belongs to, told to the server with it. Xcode and simulator builds are signed for
+      # development (sandbox); TestFlight and App Store builds for production.
+      configs:
+        Debug:
+          DEN_APNS_ENVIRONMENT: sandbox
+        Release:
+          DEN_APNS_ENVIRONMENT: production
     info:
       path: DenShell/Info.plist
       properties:
@@ -46,9 +53,15 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSMicrophoneUsageDescription: Use your microphone in Den calls.
         NSCameraUsageDescription: Share your camera in Den calls.
+        DenAPNSEnvironment: $(DEN_APNS_ENVIRONMENT)
         UIBackgroundModes:
           - audio
           - voip
+    # Xcode swaps in "production" when it signs an archive for TestFlight or the App Store.
+    entitlements:
+      path: DenShell/DenShell.entitlements
+      properties:
+        aps-environment: development
   DenShellTests:
     type: bundle.unit-test
     platform: iOS

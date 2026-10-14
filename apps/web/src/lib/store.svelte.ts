@@ -2,6 +2,7 @@
 // that the WebSocket keeps warm and a resync throws away.
 import { sounds as playback } from './sounds'
 import { receiveAlert } from './notify.svelte'
+import { pushSignedOut } from './shell-push.svelte'
 import type { SoundState, SoundPreferences } from './types'
 import { Uploads } from './uploads.svelte'
 import { Drafts, type Draft } from './drafts'
@@ -669,6 +670,7 @@ export class Store {
     this.reads.reset()
     this.readError = ''
     socket?.close()
+    pushSignedOut()
     if (call.origin === this.origin || !native) await call.leave()
     if (this.active) { call.snapshot([]); objects.active = null; objects.expanded = false; objects.presence = {} }
     try { await this.api.post('/auth/logout') } catch { /* already gone */ }
