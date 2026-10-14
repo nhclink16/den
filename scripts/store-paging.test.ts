@@ -582,3 +582,21 @@ test('an icon save reply cannot undo a later change from the socket', async () =
   const again = s.setChannelIcon('c', 'music'); alone.release({ ...room, icon: 'music' }); await again
   assert.equal(s.channels[0].icon, 'music')
 })
+
+test('a preview refetch that lands first also brings the room details an older resync keeps', async () => {
+  const lists: ReturnType<typeof held>[] = []
+  const empty: Record<string, unknown> = { '/presence': { online_user_ids: [], objects: [] }, '/users/me/notification-preferences': {}, '/settings': {}, '/users/me/appearance': {}, '/users/me/voice': {}, '/users/me/sounds': {}, '/users/me/spotify': {} }
+  api = { get: async (p: string) => { if (p === '/channels') { const h = held(); lists.push(h); return h.promise } return p in empty ? empty[p] : [] }, put: async () => null }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const s = new Store('fixture')
+  const room = { id: 'c', kind: 'text', name: 'general', icon: null, category_id: 'k', position: 0, member_ids: [], last_message: preview('B') }
+  s.channels = [room]
+  const resync = s.resync()                                                   // after deleting category k
+  await s.handle({ type: 'message_deleted', id: 'B', channel_id: 'c' })        // its refetch is asked later
+  lists[1]!.release([{ ...room, category_id: null, last_message: preview('A') }])
+  await tick(); await tick()
+  lists[0]!.release([{ ...room, category_id: null, last_message: preview('A') }])
+  await resync
+  assert.equal(s.channels[0].category_id, null, 'the room kept a deleted category and dropped out of the list')
+  assert.equal(lastIn(s), 'A')
+})

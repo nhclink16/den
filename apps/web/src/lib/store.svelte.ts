@@ -1191,8 +1191,16 @@ export class Store {
     try { list = await this.api.get<Channel[]>('/channels') } catch { this.listDone(); return /* the next resync repairs it */ }
     if (generation !== this.generation) { this.listDone(); return }
     const fresh = this.previewsFrom(list, asked)
+    const changed = this.roomChangesAfter(asked.n)
     this.listDone()
-    if (fresh) this.channels = this.channels.map((c) => (fresh.has(c.id) ? { ...c, last_message: fresh.get(c.id) } : c))
+    if (!fresh) return
+    // This is now the newest list applied, so it brings the room details too: an
+    // older resync landing later keeps what is on screen.
+    const listed = new Map(list.map((c) => [c.id, c]))
+    this.channels = this.channels.map((c) => {
+      const l = listed.get(c.id)
+      return l ? { ...this.withRoom(c, changed.get(c.id) ?? l), last_message: fresh.get(c.id) } : c
+    })
   }
 
   async openDm(userIds: string[]) {
