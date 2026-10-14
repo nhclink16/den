@@ -59,6 +59,16 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios.tests
+  DenShellUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: DenShellUITests
+    dependencies:
+      - target: DenShell
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.denchat.ios.uitests
 schemes:
   DenShell:
     build:
@@ -72,3 +82,12 @@ schemes:
         - DenShellTests
     archive:
       config: Release
+  # Xcode Cloud's "UI check" workflow: screenshots against a made-up Den on the runner (ci_scripts/ci_pre_xcodebuild.sh).
+  DenShellUI:
+    build:
+      targets:
+        DenShell: all
+    test:
+      config: Debug
+      targets:
+        - DenShellUITests
