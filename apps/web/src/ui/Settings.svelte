@@ -49,7 +49,8 @@
   $effect(() => {
     if (current !== 'appearance' || !narrow) return
     untrack(() => customizer.begin())
-    return () => untrack(() => customizer.end())
+    // Widening the window hands the page over to the panel, which keeps the same Undo.
+    return () => queueMicrotask(() => { if (!customizer.open) customizer.end() })
   })
 
   // --- moving around ---
@@ -57,7 +58,8 @@
   let pending = $state<string | null>(null)
   function open(id: string, find?: string) {
     pending = find ?? null
-    if (id !== section) router.go(`/settings/${id}`, false, narrow ? '/settings' : undefined)
+    // Only a page opened from the list goes back to it with Back; one opened from another page swaps in the list.
+    if (id !== section) router.go(`/settings/${id}`, false, narrow && !current ? '/settings' : undefined)
     // Already showing it (a computer shows Profile at /settings): nothing changes to look again, so look now.
     if (id === current) seek()
   }
@@ -86,9 +88,9 @@
   $effect(() => {
     const now = current, from = last
     last = now
-    if (!narrow || now === from) return
+    // A search landing focuses the row it found instead.
+    if (!narrow || now === from || untrack(() => pending)) return
     void tick().then(() => {
-      if (pending) return
       if (now) heading?.focus({ preventScroll: true })
       else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus({ preventScroll: true })
     })

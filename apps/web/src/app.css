@@ -343,6 +343,8 @@ input.toggle::after {
 input.toggle:checked { background: var(--lamp); box-shadow: none; }
 input.toggle:checked::after { transform: translateX(18px); background: var(--on-lamp); }
 input.toggle:disabled { opacity: .45; cursor: default; }
+/* The shared field focus is a glow this control turns off when checked: use a ring. */
+input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 @media (pointer: coarse) {
   input.toggle { width: 51px; height: 31px; }
   input.toggle::after { width: 25px; height: 25px; }
