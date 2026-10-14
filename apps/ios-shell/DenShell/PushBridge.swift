@@ -183,6 +183,7 @@ struct PushStatus: Encodable {
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let tap = PushTap(response.notification.request.content.userInfo)
+        log.info("notification tapped, \(tap == nil ? "not Den's" : "for a Den room", privacy: .public)")
         await opened(tap)
     }
 

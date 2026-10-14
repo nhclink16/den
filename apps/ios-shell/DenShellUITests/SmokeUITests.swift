@@ -23,15 +23,14 @@ final class SmokeUITests: XCTestCase {
 
         XCUIDevice.shared.press(.home)
         try await mention("@ellis push check: can you grab ice on the way?", in: "plans")
-        try tapBanner(containing: "grab ice", shot: "0-banner-background")
+        try tapBanner(containing: "grab ice", shot: "0-banner-background", app: app)
         try find(app, label: "Message plans", timeout: 15)
         try find(app, label: "grab ice", .contains)
         shot("0-opened-from-background")
 
         app.terminate()
         try await mention("@ellis push check: the speaker is in my car", in: "music")
-        try tapBanner(containing: "speaker is in my car", shot: "0-banner-closed")
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), "The tap didn't open Den.")
+        try tapBanner(containing: "speaker is in my car", shot: "0-banner-closed", app: app)
         try find(app, label: "Message music", timeout: 30)
         try find(app, label: "speaker is in my car", .contains)
         shot("0-opened-from-closed")
@@ -143,19 +142,29 @@ final class SmokeUITests: XCTestCase {
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }
 
-    /// Waits for Den's notification on the Home Screen and taps it.
-    @MainActor private func tapBanner(containing text: String, shot name: String) throws {
-        let banner = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
-        if !banner.waitForExistence(timeout: 30) {
-            shot("missing-banner-\(text)")
+    /// Waits for Den's notification on the Home Screen and taps it. If the banner goes before the tap lands, the
+    /// same notification is still in Notification Center, so it tries there.
+    @MainActor private func tapBanner(containing text: String, shot name: String, app: XCUIApplication) throws {
+        let notification = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        func missing(_ what: String) -> Missing {
+            shot("missing-\(what)")
             let tree = XCTAttachment(string: springboard.debugDescription)
-            tree.name = "tree-missing-banner"
+            tree.name = "tree-missing-\(what)"
             tree.lifetime = .keepAlways
             add(tree)
-            throw Missing(description: "No notification containing \"\(text)\" after 30 s.")
+            return Missing(description: "No \(what) containing \"\(text)\".")
         }
+        guard notification.waitForExistence(timeout: 30) else { throw missing("banner") }
         shot(name)
-        banner.tap()
+        notification.tap()
+        if app.wait(for: .runningForeground, timeout: 5) { return }
+        shot("\(name)-not-opened")
+        springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.01))
+            .press(forDuration: 0.1, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.7)))
+        guard notification.waitForExistence(timeout: 5) else { throw missing("notification-center") }
+        shot("\(name)-notification-center")
+        notification.tap()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "Tapping the notification didn't open Den.")
     }
 
     /// Maya posts in a room over the API, the way her own phone would.
