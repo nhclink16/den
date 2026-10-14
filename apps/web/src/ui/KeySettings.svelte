@@ -7,11 +7,11 @@
   import Icon from './Icon.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
   import SettingRow from './SettingRow.svelte'
+  import { shownOnce } from '../lib/settings-secrets.svelte'
 
   let { section }: { section: 'keys' | 'agents' } = $props()
   let tokens = $state<Token[]>([])
   let botName = $state(''), botDisplay = $state(''), tokenName = $state('')
-  let reveal = $state<{ label: string; token: string } | null>(null)
   let copied = $state(false), error = $state('')
   async function load() { try { tokens = await api.get<Token[]>('/tokens') } catch { tokens = [] } }
   $effect(() => { void section; load() })
@@ -19,7 +19,7 @@
     e.preventDefault(); error = ''
     try {
       const b = await api.post<BotCreated>('/bots', { username: botName.trim(), display_name: botDisplay.trim() || botName.trim() })
-      reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
+      shownOnce.reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
       botName = ''; botDisplay = ''
       await store.resync(); await load()
     } catch (err) { error = (err as Error).message }
@@ -28,7 +28,7 @@
     e.preventDefault(); error = ''
     try {
       const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-      reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
+      shownOnce.reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
       tokenName = ''; await load()
     } catch (err) { error = (err as Error).message }
   }
@@ -45,13 +45,13 @@
   <p class="muted">An agent is a member of its own, with a name and picture, that talks through its key. No app registration, no OAuth.</p>
 {/if}
 
-{#if reveal}
+{#if shownOnce.reveal}
   <div class="reveal" role="status">
-    <div>{reveal.label}</div>
-    <code class="secret">{reveal.token}</code>
+    <div>{shownOnce.reveal.label}</div>
+    <code class="secret">{shownOnce.reveal.token}</code>
     <div class="buttons">
-      <button class="btn" onclick={() => copy(reveal!.token)}><Icon name={copied ? 'check' : 'copy'} /> {copied ? 'Copied' : 'Copy'}</button>
-      <button class="btn quiet" onclick={() => (reveal = null)}>I saved it</button>
+      <button class="btn" onclick={() => copy(shownOnce.reveal!.token)}><Icon name={copied ? 'check' : 'copy'} /> {copied ? 'Copied' : 'Copy'}</button>
+      <button class="btn quiet" onclick={() => (shownOnce.reveal = null)}>I saved it</button>
     </div>
     <div class="faint small">Use it as <code>DEN_TOKEN</code> with the <code>den</code> CLI, or as a bearer token.</div>
   </div>

@@ -1,18 +1,18 @@
 <script lang="ts">
   // Admins make invite links. The server keeps only a hash, so a link shows once:
-  // the ones made on this visit stay listed until you leave the page.
+  // the ones made on this visit stay listed until you leave Settings.
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
   import type { Invite } from '../lib/types'
   import Icon from './Icon.svelte'
   import SettingRow from './SettingRow.svelte'
+  import { shownOnce } from '../lib/settings-secrets.svelte'
 
-  let invites = $state<Invite[]>([])
   let uses = $state(1), hours = $state(48)
   let copied = $state<string | null>(null), error = $state('')
   async function makeInvite(e: SubmitEvent) {
     e.preventDefault(); error = ''
-    try { invites = [await api.post<Invite>('/invites', { uses, expires_in_hours: hours }), ...invites] }
+    try { const made = await api.post<Invite>('/invites', { uses, expires_in_hours: hours }); shownOnce.invites = [made, ...shownOnce.invites] }
     catch (err) { error = (err as Error).message }
   }
   const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
@@ -34,17 +34,17 @@
 </form>
 {#if error}<p class="error" role="alert">{error}</p>{/if}
 
-{#if invites.length}
+{#if shownOnce.invites.length}
   <h3 class="list-head">Made just now</h3>
   <div class="slist">
-    {#each invites as inv (inv.id)}
+    {#each shownOnce.invites as inv (inv.id)}
       <div class="invite">
         <div class="text"><code class="link">{inviteLink(inv.code)}</code><span class="hint">{inv.uses_left} {inv.uses_left === 1 ? 'use' : 'uses'} left</span></div>
         <button class="icon-btn" onclick={() => copy(inv.id, inviteLink(inv.code))} aria-label="Copy invite link" title="Copy"><Icon name={copied === inv.id ? 'check' : 'copy'} /></button>
       </div>
     {/each}
   </div>
-  <p class="list-foot">Copy these links now. They won't be shown again after you leave this page.</p>
+  <p class="list-foot">Copy these links now. They won't be shown again after you leave Settings.</p>
 {:else}
   <p class="list-foot">No invites made on this visit yet. Links show once, right after you make them.</p>
 {/if}

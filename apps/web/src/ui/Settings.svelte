@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte'
+  import { onDestroy, tick, untrack } from 'svelte'
+  import { forgetShownOnce } from '../lib/settings-secrets.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
   import { store } from '../lib/store.svelte'
@@ -117,6 +118,9 @@
     store.saveNotif({ subscribed_channel_ids: [...s] })
   }
   let pluginErr = $state('')
+
+  // Keys and invite links shown once stay across sections, and go when you leave Settings.
+  onDestroy(forgetShownOnce)
 
   async function logout() { await store.logout(); router.go('/login') }
 </script>
