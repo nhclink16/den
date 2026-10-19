@@ -46,10 +46,11 @@ final class SmokeUITests: XCTestCase {
         let banner = try notification(containing: "spare key")
         shot("0-reply-banner")
         banner.press(forDuration: 1.5)
-        let reply = springboard.buttons["Reply"]
-        try wait(for: reply, "Reply action")
-        reply.tap()
-        springboard.typeText("I do, by the door")
+        // iOS 27 opens the reply field straight away when the only action takes text; older iOS shows Reply first.
+        let field = springboard.textViews.matching(NSPredicate(format: "placeholderValue == 'Reply'")).firstMatch
+        if !field.waitForExistence(timeout: 3), springboard.buttons["Reply"].exists { springboard.buttons["Reply"].tap() }
+        try wait(for: field, "reply field")
+        field.typeText("I do, by the door")
         let send = springboard.buttons["Send"]
         try wait(for: send, "Send button")
         shot("0-reply-typed")
