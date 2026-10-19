@@ -207,6 +207,8 @@ struct QuickReply: Equatable {
 
     init(_ done: @escaping () -> Void) { self.done = done }
 
+    var finished: Bool { done == nil }
+
     func callAsFunction() {
         guard let done else { return }
         self.done = nil
@@ -392,24 +394,27 @@ struct PushStatus: Encodable {
     // MARK: Replies
 
     /// iOS gives an action a short while in the background. iOS hears it's done when the reply finishes, after 20
-    /// seconds, or when iOS calls time, whichever comes first.
+    /// seconds, or when iOS calls time, whichever comes first, and only once the outcome is reported.
     private func reply(_ text: String, to info: [AnyHashable: Any], then done: @escaping () -> Void) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return done() }
         let reply = QuickReply(info, text: text), to = PushTap(info), started = signOuts
         let finish = Finish(done)
         let job = Task {
-            await deliver(reply, text: text, to: to, started: started)
+            if let outcome = await deliver(reply, started: started), !finish.finished { report(outcome, text: text, to: to) }
             finish()
         }
         replies.insert(job)
-        finish.background = UIApplication.shared.beginBackgroundTask(withName: "Den reply") {
+        // Out of time: the reply may or may not have gone, and the text must not be lost before iOS suspends Den.
+        let giveUp: @MainActor @Sendable () -> Void = { [self] in
             job.cancel()
+            guard !finish.finished else { return }
+            if signOuts == started { report(.notSent(.unknown), text: text, to: to) }
             finish()
         }
+        finish.background = UIApplication.shared.beginBackgroundTask(withName: "Den reply", expirationHandler: giveUp)
         Task {
             try? await Task.sleep(for: .seconds(20))
-            job.cancel()
-            finish()
+            giveUp()
         }
         Task {
             await job.value
@@ -417,24 +422,32 @@ struct PushStatus: Encodable {
         }
     }
 
-    private func deliver(_ reply: QuickReply?, text: String, to: PushTap?, started: Int) async {
+    /// Nil when someone signed out meanwhile: the badge and the text belong to the account that left.
+    private func deliver(_ reply: QuickReply?, started: Int) async -> QuickReply.Outcome? {
         let den = Origin(startURL)!
         var outcome = QuickReply.Outcome.notSent(.failed)
         if let reply, let cookies = await cookies() {
             outcome = await reply.send(den: den, session: QuickReply.session(in: cookies, den: den), transport: QuickReply.transport)
         }
-        // Signed out meanwhile: the badge and the text belong to the account that left.
         guard signOuts == started else {
             log.info("notification reply ended after sign-out")
-            return
+            return nil
         }
+        return outcome
+    }
+
+    /// Hands both to iOS straight away, so they're through before Den gives back its background time.
+    private func report(_ outcome: QuickReply.Outcome, text: String, to: PushTap?) {
+        let center = UNUserNotificationCenter.current()
         switch outcome {
         case .sent(let badge):
             log.info("notification reply sent")
-            if let badge { try? await UNUserNotificationCenter.current().setBadgeCount(min(badge, 9999)) }
+            if let badge { center.setBadgeCount(min(badge, 9999)) { _ in } }
         case .notSent(let why):
             log.error("notification reply not sent: \(String(describing: why), privacy: .public)")
-            await notSent(text, why, to: to)
+            center.add(notSent(text, why, to: to)) { error in
+                if let error { log.error("reply-not-sent notification failed: \(error, privacy: .public)") }
+            }
         }
     }
 
@@ -455,7 +468,7 @@ struct PushStatus: Encodable {
     }
 
     /// So nothing typed is lost: the text comes back in a notification, and a tap opens the conversation.
-    private func notSent(_ text: String, _ why: QuickReply.Failure, to: PushTap?) async {
+    private func notSent(_ text: String, _ why: QuickReply.Failure, to: PushTap?) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = why == .unknown ? "Reply might not have been sent" : "Reply not sent"
         content.subtitle = switch why {
@@ -467,9 +480,7 @@ struct PushStatus: Encodable {
         content.body = text
         content.sound = .default
         content.userInfo = (to?.userInfo ?? [:]).merging(["type": "reply_failed"]) { $1 }
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        do { try await UNUserNotificationCenter.current().add(request) }
-        catch { log.error("reply-not-sent notification failed: \(error, privacy: .public)") }
+        return UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
     }
 
     /// With Den open, the page already plays its own alert sound and keeps the badge, so iOS only shows the banner,
