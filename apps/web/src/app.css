@@ -139,7 +139,8 @@ body {
 * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent; }
 
 a { color: var(--lamp); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* Hover only where there is one: a phone keeps the look of the last thing tapped until the next tap. */
+@media (hover: hover) { a:hover { text-decoration: underline; } }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 input, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
@@ -166,16 +167,16 @@ pre code { background: none; padding: 0; border: 0; }
   white-space: nowrap;
 }
 .btn { transition: border-color var(--t-fast), background-color var(--t-fast), color var(--t-fast), box-shadow var(--t), filter var(--t-fast); }
-.btn:hover { border-color: var(--ink-2); }
+@media (hover: hover) { .btn:hover { border-color: var(--ink-2); } }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.lit { background: var(--lamp); color: var(--on-lamp); border-color: var(--lamp); }
-.btn.lit:hover { filter: brightness(1.06); box-shadow: 0 6px 22px -6px color-mix(in srgb, var(--lamp) 70%, transparent); }
+@media (hover: hover) { .btn.lit:hover { filter: brightness(1.06); box-shadow: 0 6px 22px -6px color-mix(in srgb, var(--lamp) 70%, transparent); } }
 /* Declared after .btn.quiet so a quiet destructive button still reads as destructive. */
 .btn.danger, .btn.quiet.danger { color: var(--danger); }
-.btn.danger:hover, .btn.quiet.danger:hover { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+@media (hover: hover) { .btn.danger:hover, .btn.quiet.danger:hover { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); } }
 .btn.quiet { background: none; border-color: transparent; color: var(--ink-2); font-weight: 500; }
-.btn.quiet:hover { color: var(--ink); background: var(--bg-3); }
+@media (hover: hover) { .btn.quiet:hover { color: var(--ink); background: var(--bg-3); } }
 .field {
   min-height: var(--control-height);
   width: 100%; padding: 9px 11px; border-radius: var(--r);
@@ -268,6 +269,17 @@ kbd {
   input, textarea, select { font-size: 16px !important; }
 }
 
+/* Touch screens, where these give a web page away. A tap draws no grey box (controls show
+   their own pressed state instead). A long press on a control or a title neither selects
+   its text nor offers a link preview; WebKit passes -webkit-user-select down, so text
+   fields take it back. And the page itself never rubber-bands, only the lists inside it.
+   Vertical only: the shell's swipe back is horizontal. */
+@media (pointer: coarse) {
+  html { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  :is(button, a, summary, label, [role=button], header, nav, h1, h2, h3, .list-head, .eyebrow) { -webkit-user-select: none; -webkit-touch-callout: none; }
+  :is(input:not([type=checkbox], [type=radio]), textarea, [contenteditable]) { -webkit-user-select: text; }
+}
+
 /* Shells that manage their own focus ring: keep the inner field quiet. */
 :where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
 
@@ -291,20 +303,23 @@ kbd {
   display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 12px;
   border: 1px solid transparent; border-radius: var(--r-pill); background: var(--bg-3); color: var(--ink-2);
   font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; white-space: nowrap;
-  transition: color var(--t-fast), background-color var(--t-fast), border-color var(--t-fast);
+  transition: color var(--t-fast), background-color var(--t-fast), border-color var(--t-fast), transform var(--t) var(--ease-out);
 }
-button.pill:hover { color: var(--ink); }
+@media (hover: hover) { button.pill:hover { color: var(--ink); } }
+:is(button, summary).pill:active { transform: scale(.96); }
 .pill:is([aria-pressed=true], [aria-checked=true], .on) { background: var(--sel); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); color: var(--ink); }
 /* A segmented control: one choice from a few, all visible. `.small` for tight spots. */
 .segments { display: inline-flex; padding: 2px; gap: 2px; background: var(--bg-3); border-radius: var(--r-pill); }
 .segments button { min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
-.segments button:hover { color: var(--ink); }
+@media (hover: hover) { .segments button:hover { color: var(--ink); } }
+.segments button:not([aria-pressed=true], :disabled):active { background: var(--press); }
 .segments button[aria-pressed=true] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
 .segments.small button { min-height: 26px; padding: 2px 10px; font-size: var(--fs-xs); }
 /* The same control from radio buttons: the label is the segment, the radio stays for keyboards and screen readers. */
 .segments label { position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
 .segments label > input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
-.segments label:hover { color: var(--ink); }
+@media (hover: hover) { .segments label:hover { color: var(--ink); } }
+.segments label:not(:has(> input:checked, > input:disabled)):active { background: var(--press); }
 .segments label:has(> input:checked) { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
 .segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
 .segments label:has(> input:disabled) { opacity: .5; cursor: default; }
@@ -317,14 +332,14 @@ button.pill:hover { color: var(--ink); }
 .list-foot { margin: 7px 4px 0; font-size: var(--fs-xs); line-height: 1.45; color: var(--ink-3); text-wrap: pretty; }
 /* A row that goes somewhere: label, an optional value, and a chevron. */
 .nav-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 16px; color: var(--ink); text-align: start; transition: background-color var(--t-fast); }
-.nav-row:hover { background-color: var(--hover); text-decoration: none; }
+@media (hover: hover) { .nav-row:hover { background-color: var(--hover); text-decoration: none; } }
 .nav-row:active { background-color: var(--press); }
 .nav-row > .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .nav-row > .val { color: var(--ink-3); font-size: var(--fs-sm); }
 .nav-row > .chev { display: grid; color: var(--ink-3); transform: rotate(-90deg); }
 /* A whole row that is one action, like "Log out". */
 .slist > button.action-row { display: block; width: 100%; min-height: 48px; padding: 8px 16px; color: var(--lamp); font-weight: 600; text-align: start; }
-.slist > button.action-row:hover { background-color: var(--hover); }
+@media (hover: hover) { .slist > button.action-row:hover { background-color: var(--hover); } }
 .slist > button.action-row.danger { color: var(--danger); }
 .slist > button.action-row:disabled { opacity: .5; cursor: default; }
 /* Buttons inside a row are a size down, so the row stays one line. */

@@ -83,6 +83,7 @@ struct DenWebView: UIViewRepresentable {
         config.preferences.inactiveSchedulingPolicy = .none
         context.coordinator.calls.install(in: config.userContentController)
         PushBridge.shared.install(in: config.userContentController, den: context.coordinator.den)
+        context.coordinator.haptics.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
         context.coordinator.calls.webView = webView
         PushBridge.shared.webView = webView
@@ -120,6 +121,7 @@ struct DenWebView: UIViewRepresentable {
     let den: Origin
     let engine = CallEngine()
     lazy var calls = CallBridge(den: den, engine: engine)
+    lazy var haptics = Haptics(den: den)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     private var inCall = false
@@ -177,6 +179,8 @@ struct DenWebView: UIViewRepresentable {
         do {
             if inCall {
                 try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
+                // Den's haptics, which iOS otherwise mutes while the mic records.
+                try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
                 try session.setActive(true)
             } else {
                 try session.setActive(false, options: .notifyOthersOnDeactivation)

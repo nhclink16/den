@@ -21,6 +21,7 @@
   import ServerView from './ServerView.svelte'
   import { notify } from '../lib/notify.svelte'
   import { listenForPush, pushBadge, pushStart } from '../lib/shell-push.svelte'
+  import { listenForSelection } from '../lib/haptics'
 
   let palette = $state(false)
   // Narrow screens show one thing at a time: the room list is the home screen,
@@ -88,6 +89,7 @@
     return () => { stop(); document.removeEventListener('visibilitychange', back) }
   }))
   $effect(() => pushBadge(store.readState.values()))
+  $effect(listenForSelection)
   // Den Shell keeps a call running through a page reload; show it again once the rooms have loaded.
   $effect(() => { if (store.channels.length) untrack(() => void call.resumeShell()) })
   // Per-device avatar preferences, read by Avatar through root attributes.

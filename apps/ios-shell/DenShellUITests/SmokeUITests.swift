@@ -107,6 +107,29 @@ final class SmokeUITests: XCTestCase {
         shot("8-call-left")
     }
 
+    /// Touch: the + sheet closes when pulled down, and a sent message asks for a haptic (the simulator has none to
+    /// play, so the proof is "haptic light" in Den Shell's log). Each is checked on its own, so one miss shows the other.
+    /// Not here: swipe back from the left edge. XCUITest's edge drag didn't start WebKit's back gesture (2026-10-19,
+    /// nor did AXe's), so it's checked on a phone.
+    @MainActor func test6Touch() throws {
+        continueAfterFailure = true
+        let app = try launchSignedIn()
+        try find(app, label: "general", .prefix).tap()
+        try find(app, label: "More").tap()
+        let photo = try find(app, label: "Photo or file")
+        let grip = photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        grip.press(forDuration: 0.05, thenDragTo: grip.withOffset(CGVector(dx: 0, dy: 320)))
+        XCTAssertTrue(photo.waitForNonExistence(timeout: 3), "Pulling the + sheet down didn't close it.")
+        shot("6-sheet-pulled-closed")
+
+        let composer = try find(app, label: "Message general")
+        composer.tap()
+        composer.typeText("haptic check")
+        try find(app, label: "Send").tap()
+        XCTAssertTrue(element(app, label: "haptic check", .contains).waitForExistence(timeout: 5), "The message didn't send.")
+        shot("6-sent")
+    }
+
     // MARK: Helpers
 
     /// Opens Den Shell on the runner's Den, signing in as Ellis unless the web view still has the session.

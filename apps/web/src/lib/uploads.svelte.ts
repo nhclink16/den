@@ -2,6 +2,7 @@ import { upload, type Progress } from './upload'
 import { conversationKey, type Conversation } from './conversation'
 import { append, busy, busyInChannel, consume, drop, patch, tray, type Queues } from './upload-queue'
 import type { Upload } from './types'
+import { haptic } from './haptics'
 
 export type PendingUpload = { id: number; file: File; progress: Progress; done?: Upload; error?: string; abort: AbortController }
 
@@ -25,12 +26,15 @@ export class Uploads {
       const p: PendingUpload = { id: ++this.seq, file, progress: { sent: 0, total: file.size }, abort: new AbortController() }
       if (file.size > 1024 ** 3) p.error = 'Over the 1 GB limit'
       this.queues = append(this.queues, key, p)
-      if (p.error) continue
+      if (p.error) { haptic('warning'); continue }
       const at = (part: Partial<PendingUpload>) => { this.queues = patch(this.queues, key, p.id, part) }
       // The file is uploaded to the CHANNEL; only the tray is per conversation.
       void upload(c.channelId, file, progress => at({ progress }), p.abort.signal, this.origin)
         .then(done => { at({ done }); window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin: this.origin, sound: 'upload_complete' } })) })
-        .catch(e => at({ error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' }))
+        .catch(e => {
+          if (e.name !== 'AbortError') haptic('warning')
+          at({ error: e.name === 'AbortError' ? 'Cancelled' : e.message || 'Upload failed' })
+        })
     }
   }
   remove(c: Conversation, item: PendingUpload) {

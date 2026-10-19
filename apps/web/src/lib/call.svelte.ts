@@ -1,4 +1,5 @@
 import { sounds } from './sounds'
+import { haptic } from './haptics'
 import { CameraBlur, MicrophoneGain, blurCaptureRate, blurSupported, defaultMicrophone, defaultCamera, deviceId, cameraConstraints, microphoneConstraints, type CameraBackground } from './av'
 import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Participant, type RemoteTrack, type ConnectionQuality, type LocalAudioTrack } from 'livekit-client'
 import { store, instances, type Store } from './store.svelte'
@@ -290,6 +291,7 @@ class Call {
   snapshot(states: CallState[]) { this.states = new Map(states.map((s) => [s.channel_id, s.participant_ids])) }
   ids(id: string) { return this.states.get(id) || [] }
   report(err: unknown) {
+    haptic('warning')
     if (!(err instanceof HttpError)) void sounds.play('error', this.owner || store)
     if (err instanceof HttpError && err.status === 503) this.error = "Voice isn't set up on this server yet."
     else if (err instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(err.name)) this.error = `Allow camera and microphone access in your browser’s site settings.`
@@ -328,7 +330,7 @@ class Call {
     if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
     const owner = instances.active
     const ticket = ++this.joinTicket
-    await this.leave()
+    await this.leave(false)
     // Den Shell's Leave waits for the native call to end, so a later Join can overtake this one meanwhile.
     if (shell && ticket !== this.joinTicket) return
     this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
@@ -394,7 +396,7 @@ class Call {
       if (generation !== this.generation) { await room.disconnect(); return }
       if (prefs.cameraOn) await this.enableCamera(room, true)
       await this.applyAV()
-      this.refresh(); this.sound(true)
+      this.refresh(); this.sound(true); haptic('medium')
     } catch (err) {
       await room.disconnect()
       if (generation === this.generation) { this.clear(); this.report(err) }
@@ -423,7 +425,7 @@ class Call {
         if (this.prefs.mode === 'activity') this.save({ micOn: wanted })
         void this.applyMic()
       }
-      this.sound(true)
+      this.sound(true); haptic('medium')
     } catch (err) {
       if (generation === this.generation) { this.clear(); this.report(err) }
     } finally {
@@ -458,7 +460,9 @@ class Call {
     if (state.channelId !== this.channel.id) return
     if (state.phase === 'ended') {
       const quiet = this.outputMuted
-      this.clear(); if (state.error) this.error = state.error
+      // The error it ends with was usually shown, and buzzed, already.
+      const fresh = state.error && state.error !== this.shellError
+      this.clear(); if (state.error) { this.error = state.error; if (fresh) haptic('warning') }
       if (!quiet) this.sound(false)
       return
     }
@@ -476,7 +480,8 @@ class Call {
     if (state.soundSeq >= this.soundSent) { this.soundSent = state.soundSeq; this.outputMuted = state.soundOff }
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
-    if (state.error && state.error !== this.shellError) this.error = state.error
+    // A reload adopts the call with its last error: show it again, but don't buzz for it again.
+    if (state.error && state.error !== this.shellError) { this.error = state.error; if (!adopt) haptic('warning') }
     this.shellError = state.error || ''
   }
   private shellError = ''
@@ -519,11 +524,13 @@ class Call {
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
     this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0
   }
-  async leave() {
+  /** `feedback` false: a switch to another call, which buzzes once when the new one joins. */
+  async leave(feedback = true) {
     ++this.generation; this.joining = null
     if (shell) {
       const was = !!this.channel, quiet = this.outputMuted
       this.clear()
+      if (was && feedback) haptic('medium')
       await shell.call({ type: 'leave' }).catch(() => {})
       if (was && !quiet) this.sound(false)
       return
@@ -531,6 +538,7 @@ class Call {
     const room = this.room, quiet = this.outputMuted
     const pendingBlur = this.cancelPendingBlur(room)
     this.clear()
+    if (room && feedback) haptic('medium')
     await pendingBlur.catch(() => {})
     if (room) { await room.disconnect(); if (!quiet) this.sound(false) }
   }
@@ -600,7 +608,7 @@ class Call {
     }).catch((err) => this.report(err))
     return this.micQueue
   }
-  toggleMic() { this.save({ micOn: !this.prefs.micOn }); return this.applyMic() }
+  toggleMic() { haptic('medium'); this.save({ micOn: !this.prefs.micOn }); return this.applyMic() }
   setHeld(held: boolean) {
     if (this.held === held) return
     this.held = held; void this.applyMic()

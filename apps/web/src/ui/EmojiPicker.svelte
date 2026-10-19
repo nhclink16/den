@@ -143,6 +143,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); padding-top: 4px; }
   .grid button { height: 38px; font-size: 24px; line-height: 1; border-radius: var(--r); transition: background-color var(--t-fast); }
   .grid button:hover, .grid button:focus-visible { background: var(--bg-3); }
+  .quick button:active, .tabs button:active, .grid button:active { background: var(--press); }
   .note { margin: 24px 12px; text-align: center; color: var(--ink-2); }
   /* A phone gets a sheet the width of the screen, with thumb-sized targets. */
   @media (max-width: 600px) {
