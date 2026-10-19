@@ -15,6 +15,7 @@
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
   import { bubbleFill, nameInk, personColor, withContrast } from '../lib/bubbles'
+  import { haptic } from '../lib/haptics'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
   // room does, so an unscoped id would exist twice and a deep link could reveal
@@ -92,7 +93,7 @@
     dismissing = !!document.querySelector(':popover-open')
     pressed = false
     pressAt = { x: e.clientX, y: e.clientY }
-    press = setTimeout(() => { press = undefined; pressed = true; held = true }, 450)
+    press = setTimeout(() => { press = undefined; pressed = true; held = true; haptic('medium') }, 450)
   }
   function move(e: PointerEvent) { if (press && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 10) lift() }
   function lift() { clearTimeout(press); press = undefined }
@@ -250,7 +251,8 @@
   .meta { display: flex; align-items: baseline; gap: 6px; max-width: 100%; margin: 0 0 3px 12px; font-size: var(--fs-xs); color: var(--ink-2); }
   /* A very long name stops at one line; the agent badge stays whole. */
   .author { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .author:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  @media (hover: hover) { .author:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; } }
+  .author:active { opacity: .6; }
   .bot {
     flex: none; display: inline-flex; align-items: center; gap: 3px; align-self: center; padding: 0 6px 0 5px;
     border-radius: var(--r-pill, 999px); font: 600 var(--fs-xs)/1.45 var(--body);
@@ -324,7 +326,7 @@
   /* A fingertip-sized target around a small pill. */
   .rx::after { content: ''; position: absolute; inset: -8px -2px; }
   .rx[aria-pressed=true] { background: var(--sel); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
-  .rx:hover { transform: translateY(-1px); }
+  @media (hover: hover) { .rx:hover { transform: translateY(-1px); } }
   .rx:active { transform: scale(.94); }
   .rx .n { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .rx[aria-pressed=true] .n { color: var(--lamp); }
@@ -340,7 +342,8 @@
     display: inline-flex; align-items: center; gap: 6px; max-width: min(640px, 100%); min-height: 26px; margin: 3px 4px 0; padding: 0 10px 0 4px;
     border-radius: var(--r-pill, 999px); color: var(--ink-2); font-size: var(--fs-xs); white-space: nowrap;
   }
-  .thread-link:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
+  @media (hover: hover) { .thread-link:hover { background: var(--hover); color: var(--ink); text-decoration: none; } }
+  .thread-link:active { background: var(--press); }
   .thread-link .replies { flex: none; color: var(--lamp); font-weight: 700; }
   .thread-link .said { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .thread-link .who { color: var(--ink); font-weight: 600; }
@@ -370,6 +373,7 @@
   .msg.held .tools, .msg:focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
   .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); }
+  .tools button:active, .tool:active { background: var(--press); }
   .tool { line-height: 20px; }
   .tools button.danger:hover { color: var(--ember); }
 

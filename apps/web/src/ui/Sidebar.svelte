@@ -267,7 +267,8 @@
   .btn.small { min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
 
   .cat { display: flex; align-items: center; gap: 4px; width: 100%; padding: 14px 10px 4px 12px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); text-align: left; border-radius: var(--r); }
-  .cat:hover { color: var(--ink-2); }
+  @media (hover: hover) { .cat:hover { color: var(--ink-2); } }
+  .cat:active { background: var(--press); }
   .chev { display: grid; transition: transform var(--t-fast); }
   .chev.shut { transform: rotate(-90deg); }
   .sum { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); }
@@ -306,7 +307,8 @@
 
   /* The phone home: Messages-sized rows with hairlines between them. */
   .phone .topbar { display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 4px 8px 0 12px; }
-  .me-btn { display: grid; place-items: center; width: var(--hit); height: var(--hit); border-radius: 50%; }
+  .me-btn { display: grid; place-items: center; width: var(--hit); height: var(--hit); border-radius: 50%; transition: transform var(--t) var(--ease-out); }
+  .me-btn:active { transform: scale(.94); }
   .phone .large { margin: 0; padding: 0 20px 12px; font-size: var(--fs-large); font-weight: 700; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .find { display: flex; align-items: center; gap: 8px; margin: 0 16px 14px; padding: 0 12px; min-height: 40px; border-radius: var(--r-pill); background: var(--bg-3); color: var(--ink-3); border: 1px solid transparent; }
   .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }

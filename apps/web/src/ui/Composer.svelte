@@ -28,6 +28,7 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
+  import { haptic } from '../lib/haptics'
   import { disclosurePopover } from '../lib/disclosure-popover'
 
   // `conversation` defaults to the room, so every existing caller keeps its
@@ -254,6 +255,7 @@
     const placement: { thread_id?: string; reply_to?: string } =
       threadId ? { thread_id: threadId } : here.rootId ? { reply_to: here.rootId } : {}
     await send(channel.id, url, { ...placement, reply_to: replyToId ?? placement.reply_to })
+    haptic('light')
     if (owner.holds(token) && owner.for(conversation).replyToId === replyToId) {
       owner.setReplyTo(conversation, null)
       if (alive && sameConversation(conversation, here)) replyTo = null
@@ -316,6 +318,7 @@
         // elsewhere keeps its own files and this one loses only what it sent.
         queue.sent(conversation, plan.uploadIds)
       }
+      haptic('light')
       // Clear only the draft that was actually sent, in the conversation it was
       // sent from, on the owner it was read from. A cleared and refilled owner
       // can hand out the same revision again, so the token is checked too.
@@ -329,6 +332,7 @@
       // while it is still showing this account.
       if (live()) requestAnimationFrame(grow)
     } catch (err) {
+      haptic('warning')
       if (live()) error = (err as Error).message
     } finally {
       if (live()) busy = false

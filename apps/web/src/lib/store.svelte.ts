@@ -3,6 +3,7 @@
 import { sounds as playback } from './sounds'
 import { receiveAlert } from './notify.svelte'
 import { pushSignedOut } from './shell-push.svelte'
+import { haptic } from './haptics'
 import type { SoundState, SoundPreferences } from './types'
 import { Uploads } from './uploads.svelte'
 import { Drafts, type Draft } from './drafts'
@@ -1085,6 +1086,7 @@ export class Store {
     const reactions = mine
       ? await this.api.del<Reaction[]>(`/messages/${m.id}/reactions`, { emoji })
       : await this.api.put<Reaction[]>(`/messages/${m.id}/reactions`, { emoji })
+    if (!mine) haptic('light')
     this.setReactions(m.channel_id, m.id, reactions)
   }
   private setReactions(channelId: string, id: string, reactions: Reaction[]) {

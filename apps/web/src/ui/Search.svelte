@@ -95,7 +95,8 @@
   .big { font-size: 24px; }
   .count { padding: 4px 4px 10px; }
   .hit { width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--r); color: var(--ink); border: 1px solid transparent; }
-  .hit:hover { background: var(--bg-2); border-color: var(--line); }
+  @media (hover: hover) { .hit:hover { background: var(--bg-2); border-color: var(--line); } }
+  .hit:active { background: var(--press); }
   .where { font-size: var(--fs-xs); margin-bottom: 4px; }
   .line { display: flex; align-items: flex-start; gap: 8px; }
   .who { font-weight: 700; flex: none; }

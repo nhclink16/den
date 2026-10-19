@@ -232,7 +232,8 @@
   /* One pill under the room's title. Kept small: it is a way in, not a headline. */
   summary.pill { min-height: 26px; padding: 2px 9px 2px 8px; gap: 5px; font-size: var(--fs-xs); color: var(--ink-2); max-width: 100%; }
   summary.pill b { color: var(--lamp); font-weight: 700; }
-  summary.pill:hover, .threads[open] > summary { color: var(--ink); }
+  @media (hover: hover) { summary.pill:hover { color: var(--ink); } }
+  .threads[open] > summary { color: var(--ink); }
   summary.pill.lit { border-color: color-mix(in srgb, var(--lamp) 45%, transparent); }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (pointer: coarse) { summary.pill { min-height: 30px; } }
@@ -241,7 +242,8 @@
   .tabs { margin: 10px 10px 6px; align-self: flex-start; }
   .list { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 8px; display: grid; gap: 2px; }
   .row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r); text-align: left; color: var(--ink); min-width: 0; }
-  .row:hover { background: var(--hover); }
+  @media (hover: hover) { .row:hover { background: var(--hover); } }
+  .row:active { background: var(--press); }
   .row.on { background: var(--sel); }
   .text { flex: 1; min-width: 0; display: grid; gap: 1px; }
   .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

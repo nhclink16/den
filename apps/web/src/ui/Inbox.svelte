@@ -163,12 +163,13 @@
   .group { border: 1px solid var(--line); border-radius: var(--r-lg); margin: 0 auto 12px; max-width: 880px; overflow: hidden; background: var(--bg-2); box-shadow: var(--lift); }
   .group.mention { border-color: var(--lamp-dim); box-shadow: var(--lift), 0 0 0 1px var(--lamp-glow), 0 0 24px -8px var(--lamp); }
   .title { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; text-align: left; color: var(--ink-2); border-bottom: 1px solid var(--line); }
-  .title:hover { background: var(--bg-3); }
+  @media (hover: hover) { .title:hover { background: var(--bg-3); } }
   .title, .line { transition: background-color var(--t-fast); }
+  .title:active, .line:active { background: var(--press); }
   .name { font-size: 17px; color: var(--ink); flex: 1; }
   .at { font: 700 var(--fs-xs)/1.5 var(--body); color: var(--bg); background: var(--lamp); padding: 0 7px; border-radius: var(--r-pill, 999px); }
   .line { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 14px; text-align: left; color: var(--ink-2); }
-  .line:hover { background: var(--bg-3); }
+  @media (hover: hover) { .line:hover { background: var(--bg-3); } }
   .who { font-weight: 700; color: var(--ink); flex: none; }
   .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text :global(br) { display: none; }

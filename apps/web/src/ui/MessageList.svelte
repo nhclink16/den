@@ -267,6 +267,7 @@
     transition: background-color var(--t-fast), transform var(--t) var(--ease-out);
   }
   .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); }
+  .latest:active { transform: translateX(-50%) scale(.96); }
   .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--bg); box-shadow: var(--lift), var(--glow); }
   @media (prefers-reduced-motion: no-preference) { .latest { animation: latest-in .2s var(--ease-out); } }
   @keyframes latest-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
