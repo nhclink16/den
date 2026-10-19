@@ -52,14 +52,182 @@ struct PushTap: Equatable, Encodable {
     }
 
     init?(_ info: [AnyHashable: Any]) {
-        func id(_ key: String) -> String? {
-            guard let value = info[key] as? String, (1 ... 64).contains(value.count),
-                  value.allSatisfy({ $0.isASCII && ($0.isUppercase || $0.isNumber) }) else { return nil }
-            return value
-        }
-        guard let channel = id("channel_id") else { return nil }
-        self.init(channelId: channel, messageId: id("message_id"), threadId: id("thread_id"))
+        guard let channel = Self.id(info["channel_id"]) else { return nil }
+        self.init(channelId: channel, messageId: Self.id(info["message_id"]), threadId: Self.id(info["thread_id"]))
     }
+
+    static func id(_ value: Any?) -> String? {
+        guard let value = value as? String, (1 ... 64).contains(value.count),
+              value.allSatisfy({ $0.isASCII && ($0.isUppercase || $0.isNumber) }) else { return nil }
+        return value
+    }
+
+    /// The same ids, for a notification the shell makes itself.
+    var userInfo: [String: String] {
+        var info = ["channel_id": channelId]
+        info["message_id"] = messageId
+        info["thread_id"] = threadId
+        return info
+    }
+}
+
+/// A reply typed into a Den notification on the lock screen or a banner. iOS may start the shell in the background
+/// with no page loaded, so the shell sends it itself, with the page's own sign-in: WebKit's `den_session` cookie, read
+/// when the reply is sent and never kept. The server's logout clears that cookie, so nothing outlives a sign-out.
+/// The cookie goes as a bearer token, which the server takes for the same session without the page's CSRF token,
+/// and only to Den's own origin, for the four requests below.
+struct QuickReply: Equatable {
+    static let action = "reply"
+    /// The server names it in each message alert (`aps.category`, crates/den-server/src/push.rs).
+    static var category: UNNotificationCategory {
+        // Unlocking first means someone holding a locked phone can't post as its owner.
+        let reply = UNTextInputNotificationAction(identifier: action, title: "Reply", options: [.authenticationRequired],
+                                                  textInputButtonTitle: "Send", textInputPlaceholder: "Reply")
+        return UNNotificationCategory(identifier: "message", actions: [reply], intentIdentifiers: [])
+    }
+
+    /// Where it goes: the thread when the notification was a thread reply, otherwise the room or DM.
+    let to: PushTap
+    /// Whom the notification was for. The reply is sent only from that account.
+    let userId: String
+    let text: String
+
+    init(to: PushTap, userId: String, text: String) {
+        self.to = to
+        self.userId = userId
+        self.text = text
+    }
+
+    init?(_ info: [AnyHashable: Any], text: String) {
+        // A thread id that doesn't read must not turn a thread reply into a room post.
+        guard info["type"] as? String == "notification", let to = PushTap(info), to.messageId != nil,
+              (info["thread_id"] == nil) == (to.threadId == nil), let user = PushTap.id(info["to_user_id"]) else { return nil }
+        self.init(to: to, userId: user, text: text)
+    }
+
+    enum Failure: Equatable {
+        case signedOut, otherAccount, failed
+        /// The reply may have reached the server before the connection went.
+        case unknown
+    }
+
+    enum Outcome: Equatable {
+        /// With the app icon's new number, when the server gave it.
+        case sent(badge: Int?)
+        case notSent(Failure)
+    }
+
+    /// The page's sign-in for Den's host, if it hasn't expired.
+    static func session(in cookies: [HTTPCookie], den: Origin, now: Date = .now) -> String? {
+        cookies.first {
+            $0.name == "den_session" && $0.domain.lowercased() == den.host && $0.path == "/"
+                && ($0.isSecure || den.scheme == "http") && ($0.expiresDate ?? .distantFuture) > now
+                && !$0.value.isEmpty && $0.value.allSatisfy(\.isHexDigit)
+        }?.value
+    }
+
+    static func request(_ method: String, _ path: String, body: [String: Any]? = nil, den: Origin, session: String) -> URLRequest {
+        var request = URLRequest(url: URL(string: den.serialized + path)!)
+        request.httpMethod = method
+        request.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        return request
+    }
+
+    func post(den: Origin, session: String) -> URLRequest {
+        var body: [String: Any] = ["content": text]
+        body["thread_id"] = to.threadId
+        return Self.request("POST", "/channels/\(to.channelId)/messages", body: body, den: den, session: session)
+    }
+
+    /// Through the message the notification showed, as the page marks what's on screen: later ones stay unread.
+    /// The reply itself never counts as unread.
+    func read(den: Origin, session: String) -> URLRequest {
+        let message = to.messageId ?? ""
+        if let thread = to.threadId { return Self.request("PUT", "/threads/\(thread)/read", body: ["message_id": message], den: den, session: session) }
+        return Self.request("PUT", "/channels/\(to.channelId)/read", body: ["message_id": message, "roots_only": true], den: den, session: session)
+    }
+
+    typealias Transport = @Sendable (URLRequest) async throws -> (Data, Int)
+
+    /// Checks who the sign-in belongs to, posts, then marks the conversation read and fetches the badge. The same
+    /// session makes every request, so the person checked is the person who posts.
+    func send(den: Origin, session: String?, transport: Transport) async -> Outcome {
+        guard let session else { return .notSent(.signedOut) }
+        func json(_ data: Data) -> Any? { try? JSONSerialization.jsonObject(with: data) }
+        var posting = false
+        do {
+            let (me, status) = try await transport(Self.request("GET", "/users/me", den: den, session: session))
+            if status == 401 { return .notSent(.signedOut) }
+            guard status == 200, let id = (json(me) as? [String: Any])?["id"] as? String else { return .notSent(.failed) }
+            guard id == userId else { return .notSent(.otherAccount) }
+            posting = true
+            let (_, posted) = try await transport(post(den: den, session: session))
+            if posted == 401 { return .notSent(.signedOut) }
+            // The server saves the message before it answers, so a server error may still have posted it.
+            if posted >= 500 { return .notSent(.unknown) }
+            guard posted == 200 else { return .notSent(.failed) }
+            // The reply is in. What's left only tidies the badge; the page catches up if it fails.
+            _ = try? await transport(read(den: den, session: session))
+            guard let counts = try? await transport(Self.request("GET", "/users/me/read-state", den: den, session: session)),
+                  counts.1 == 200, let states = json(counts.0) as? [[String: Any]] else { return .sent(badge: nil) }
+            return .sent(badge: states.reduce(0) { $0 + (($1["notification_count"] as? Int) ?? 0) })
+        } catch {
+            let unsent: [URLError.Code] = [.notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed]
+            if posting, !unsent.contains((error as? URLError)?.code ?? .unknown) { return .notSent(.unknown) }
+            return .notSent(.failed)
+        }
+    }
+
+    /// Ephemeral: no cookies, cache or credentials of its own, and redirects refused so the session can't follow one.
+    static let http: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        config.urlCache = nil
+        config.urlCredentialStorage = nil
+        config.timeoutIntervalForRequest = 8
+        return URLSession(configuration: config, delegate: NoRedirects(), delegateQueue: nil)
+    }()
+
+    static func transport(_ request: URLRequest) async throws -> (Data, Int) {
+        let (data, response) = try await http.data(for: request)
+        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+}
+
+/// Tells iOS a reply is done, once, and gives back its background time.
+@MainActor private final class Finish {
+    private var done: (() -> Void)?
+    var background = UIBackgroundTaskIdentifier.invalid
+
+    init(_ done: @escaping () -> Void) { self.done = done }
+
+    var finished: Bool { done == nil }
+
+    func callAsFunction() {
+        guard let done else { return }
+        self.done = nil
+        done()
+        if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
+    }
+}
+
+@MainActor private final class Once {
+    private var taken = false
+    func take() -> Bool {
+        defer { taken = true }
+        return !taken
+    }
+}
+
+final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? { nil }
 }
 
 struct PushStatus: Encodable {
@@ -92,6 +260,8 @@ struct PushStatus: Encodable {
     private var signOuts = 0
     /// Whether a token from Apple is wanted now: not after sign-out, until the page registers again.
     private var registering = false
+    /// Replies being sent from notifications, stopped at sign-out.
+    private var replies: Set<Task<Void, Never>> = []
 
     /// Adds `push` and `onPush` to the `window.denShell` that CallBridge's script made, so install after it.
     func install(in controller: WKUserContentController, den: Origin) {
@@ -174,6 +344,7 @@ struct PushStatus: Encodable {
         tapped = nil
         signOuts += 1
         registering = false
+        for reply in replies { reply.cancel() }
         UIApplication.shared.unregisterForRemoteNotifications()
         let center = UNUserNotificationCenter.current()
         center.removeAllDeliveredNotifications()
@@ -197,6 +368,11 @@ struct PushStatus: Encodable {
     /// Kept until the page takes it: after a cold launch the page may still be loading or signing in.
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.actionIdentifier == QuickReply.action {
+            reply((response as? UNTextInputNotificationResponse)?.userText ?? "", to: response.notification.request.content.userInfo,
+                  then: completionHandler)
+            return
+        }
         let tap = PushTap(response.notification.request.content.userInfo)
         log.info("notification tapped, \(tap == nil ? "not Den's" : "for a Den room", privacy: .public)")
         if let tap {
@@ -208,8 +384,103 @@ struct PushStatus: Encodable {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        let tap = PushTap(notification.request.content.userInfo)
+        let info = notification.request.content.userInfo
+        // A reply that didn't go always shows, even over its own conversation.
+        if info["type"] as? String == "reply_failed" { return completionHandler([.banner, .list, .sound]) }
+        let tap = PushTap(info)
         Task { completionHandler(await presentation(tap)) }
+    }
+
+    // MARK: Replies
+
+    /// iOS gives an action a short while in the background. iOS hears it's done when the reply finishes, after 20
+    /// seconds, or when iOS calls time, whichever comes first, and only once the outcome is reported.
+    private func reply(_ text: String, to info: [AnyHashable: Any], then done: @escaping () -> Void) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return done() }
+        let reply = QuickReply(info, text: text), to = PushTap(info), started = signOuts
+        let finish = Finish(done)
+        let job = Task {
+            if let outcome = await deliver(reply, started: started), !finish.finished { report(outcome, text: text, to: to) }
+            finish()
+        }
+        replies.insert(job)
+        // Out of time: the reply may or may not have gone, and the text must not be lost before iOS suspends Den.
+        let giveUp: @MainActor @Sendable () -> Void = { [self] in
+            job.cancel()
+            guard !finish.finished else { return }
+            if signOuts == started { report(.notSent(.unknown), text: text, to: to) }
+            finish()
+        }
+        finish.background = UIApplication.shared.beginBackgroundTask(withName: "Den reply", expirationHandler: giveUp)
+        Task {
+            try? await Task.sleep(for: .seconds(20))
+            giveUp()
+        }
+        Task {
+            await job.value
+            replies.remove(job)
+        }
+    }
+
+    /// Nil when someone signed out meanwhile: the badge and the text belong to the account that left.
+    private func deliver(_ reply: QuickReply?, started: Int) async -> QuickReply.Outcome? {
+        let den = Origin(startURL)!
+        var outcome = QuickReply.Outcome.notSent(.failed)
+        if let reply, let cookies = await cookies() {
+            outcome = await reply.send(den: den, session: QuickReply.session(in: cookies, den: den), transport: QuickReply.transport)
+        }
+        guard signOuts == started else {
+            log.info("notification reply ended after sign-out")
+            return nil
+        }
+        return outcome
+    }
+
+    /// Hands both to iOS straight away, so they're through before Den gives back its background time.
+    private func report(_ outcome: QuickReply.Outcome, text: String, to: PushTap?) {
+        let center = UNUserNotificationCenter.current()
+        switch outcome {
+        case .sent(let badge):
+            log.info("notification reply sent")
+            if let badge { center.setBadgeCount(min(badge, 9999)) { _ in } }
+        case .notSent(let why):
+            log.error("notification reply not sent: \(String(describing: why), privacy: .public)")
+            center.add(notSent(text, why, to: to)) { error in
+                if let error { log.error("reply-not-sent notification failed: \(error, privacy: .public)") }
+            }
+        }
+    }
+
+    /// WebKit's cookies, or nil if it doesn't answer within a few seconds.
+    private func cookies() async -> [HTTPCookie]? {
+        let store = WKWebsiteDataStore.default().httpCookieStore
+        return await withCheckedContinuation { (answer: CheckedContinuation<[HTTPCookie]?, Never>) in
+            let once = Once()
+            Task { @MainActor in
+                let cookies = await store.allCookies()
+                if once.take() { answer.resume(returning: cookies) }
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                if once.take() { answer.resume(returning: nil) }
+            }
+        }
+    }
+
+    /// So nothing typed is lost: the text comes back in a notification, and a tap opens the conversation.
+    private func notSent(_ text: String, _ why: QuickReply.Failure, to: PushTap?) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = why == .unknown ? "Reply might not have been sent" : "Reply not sent"
+        content.subtitle = switch why {
+        case .signedOut: "Sign in to Den to send it."
+        case .otherAccount: "Den is signed in to another account."
+        case .failed: "Open Den to send it again."
+        case .unknown: "Open Den to check."
+        }
+        content.body = text
+        content.sound = .default
+        content.userInfo = (to?.userInfo ?? [:]).merging(["type": "reply_failed"]) { $1 }
+        return UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
     }
 
     /// With Den open, the page already plays its own alert sound and keeps the badge, so iOS only shows the banner,
@@ -243,6 +514,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // Set before launch ends, or the tap that launched the app is lost.
         UNUserNotificationCenter.current().delegate = PushBridge.shared
+        UNUserNotificationCenter.current().setNotificationCategories([QuickReply.category])
         return true
     }
 

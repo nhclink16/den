@@ -236,6 +236,8 @@ async fn real_notification_path_encodes_http2_signed_headers_deep_links_badge_an
     assert_eq!(request.body["channel_id"], "general");
     assert_eq!(request.body["reason"], "mention");
     assert_eq!(request.body["aps"]["badge"], 1);
+    assert_eq!(request.body["aps"]["category"], "message");
+    assert_eq!(request.body["to_user_id"], "bob");
     let jwt = request.headers["authorization"]
         .to_str()
         .unwrap()
@@ -477,6 +479,8 @@ async fn call_invitation_alert_has_future_voip_fields_and_expires_in_45_seconds(
     assert_eq!(r.body["expires_at"], invite.expires_at);
     assert_eq!(r.headers["apns-expiration"], invite.expires_at.to_string());
     assert_eq!(r.headers["apns-push-type"], "alert");
+    // A call can't be answered with text: no Reply action.
+    assert!(r.body["aps"].get("category").is_none());
     r.reply.send((StatusCode::OK, json!({}))).unwrap();
 }
 

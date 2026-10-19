@@ -159,8 +159,10 @@ pub(crate) fn notification(
         NotificationReason::SubscribedChannel => "New message in Den",
     };
     let body: String = message.content.chars().take(180).collect();
-    let mut payload = json!({"aps":{"alert":{"title":title,"body":body},"sound":"default","badge":badge},
-        "type":"notification","channel_id":message.channel_id,"message_id":message.id,"reason":reason});
+    // The category gives Den Shell its lock-screen Reply action; older shells ignore it.
+    // to_user_id is whom this is for: the shell refuses to reply from any other account.
+    let mut payload = json!({"aps":{"alert":{"title":title,"body":body},"sound":"default","badge":badge,"category":"message"},
+        "type":"notification","channel_id":message.channel_id,"message_id":message.id,"reason":reason,"to_user_id":user});
     // The conversation this belongs to, when it is a thread reply. A native client
     // that suppresses alerts for the channel on screen needs it to suppress only the
     // conversation actually open, rather than every thread of that channel.

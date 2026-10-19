@@ -36,6 +36,43 @@ final class SmokeUITests: XCTestCase {
         shot("0-opened-from-closed")
     }
 
+    /// A reply typed into Den's notification with Den closed: iOS starts Den Shell in the background with no page, and
+    /// the shell sends the reply itself with the page's sign-in. Maya must then see it in the room, from Ellis, and Den
+    /// must stay in the background.
+    @MainActor func test0QuickReply() async throws {
+        let app = try launchSignedIn()
+        app.terminate()
+        try await mention("@ellis push check: who has the spare key?", in: "minecraft")
+        let banner = try notification(containing: "spare key")
+        shot("0-reply-banner")
+        banner.press(forDuration: 1.5)
+        // iOS 27 opens the reply field straight away when the only action takes text; older iOS shows Reply first.
+        let field = springboard.textViews.matching(NSPredicate(format: "placeholderValue == 'Reply'")).firstMatch
+        if !field.waitForExistence(timeout: 3), springboard.buttons["Reply"].exists { springboard.buttons["Reply"].tap() }
+        try wait(for: field, "reply field")
+        field.typeText("I do, by the door")
+        let send = springboard.buttons["Send"]
+        try wait(for: send, "Send button")
+        shot("0-reply-typed")
+        send.tap()
+        let maya = try await signIn("maya")
+        let users = try await api("GET", "/users", token: maya) as? [[String: Any]] ?? []
+        let ellis = try XCTUnwrap(users.first { $0["username"] as? String == "ellis" }?["id"] as? String)
+        let room = try await roomId("minecraft", token: maya)
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline {
+            let messages = try await api("GET", "/channels/\(room)/messages?limit=5", token: maya) as? [[String: Any]] ?? []
+            if messages.contains(where: { $0["content"] as? String == "I do, by the door" && $0["author_id"] as? String == ellis }) {
+                shot("0-reply-sent")
+                XCTAssertNotEqual(app.state, .runningForeground, "Replying opened Den.")
+                return
+            }
+            try await Task.sleep(for: .seconds(1))
+        }
+        shot("missing-reply")
+        XCTFail("Ellis's reply never reached the room.")
+    }
+
     @MainActor func test1RoomList() throws {
         let app = try launchSignedIn()
         try find(app, label: "general", .prefix)
@@ -168,15 +205,7 @@ final class SmokeUITests: XCTestCase {
 
     /// Waits for Den's notification on the Home Screen and taps it; iOS must then bring Den to the front.
     @MainActor private func tapBanner(containing text: String, shot name: String, app: XCUIApplication) throws {
-        let notification = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
-        guard notification.waitForExistence(timeout: 30) else {
-            shot("missing-banner")
-            let tree = XCTAttachment(string: springboard.debugDescription)
-            tree.name = "tree-missing-banner"
-            tree.lifetime = .keepAlways
-            add(tree)
-            throw Missing(description: "No notification containing \"\(text)\" after 30 s.")
-        }
+        let notification = try notification(containing: text)
         shot(name)
         notification.tap()
         guard app.wait(for: .runningForeground, timeout: 10) else {
@@ -185,28 +214,56 @@ final class SmokeUITests: XCTestCase {
         }
     }
 
+    @MainActor private func notification(containing text: String) throws -> XCUIElement {
+        let notification = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        try wait(for: notification, "banner", timeout: 30)
+        return notification
+    }
+
+    /// For iOS's own screens. On a miss, keeps a screenshot and what the Home Screen showed.
+    @MainActor private func wait(for element: XCUIElement, _ name: String, timeout: TimeInterval = 10) throws {
+        if element.waitForExistence(timeout: timeout) { return }
+        shot("missing-\(name)")
+        let tree = XCTAttachment(string: springboard.debugDescription)
+        tree.name = "tree-missing-\(name)"
+        tree.lifetime = .keepAlways
+        add(tree)
+        throw Missing(description: "No \(name) after \(Int(timeout)) s.")
+    }
+
     /// Maya posts in a room over the API, the way her own phone would.
     @MainActor private func mention(_ text: String, in room: String) async throws {
-        func call(_ method: String, _ path: String, _ body: [String: Any]?, token: String?) async throws -> Any {
-            var request = URLRequest(url: URL(string: "http://localhost:7000\(path)")!)
-            request.httpMethod = method
-            request.setValue("application/json", forHTTPHeaderField: "content-type")
-            request.setValue("http://localhost:7000", forHTTPHeaderField: "origin")
-            if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "authorization") }
-            if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                throw Missing(description: "\(method) \(path) answered \(String(data: data, encoding: .utf8) ?? "")")
-            }
-            return try JSONSerialization.jsonObject(with: data)
-        }
-        let session = try await call("POST", "/auth/login", ["username": "maya", "password": "correct horse battery"], token: nil)
-        guard let token = (session as? [String: Any])?["token"] as? String else { throw Missing(description: "No token for Maya.") }
-        let channels = try await call("GET", "/channels", nil, token: token) as? [[String: Any]] ?? []
+        let token = try await signIn("maya")
+        let id = try await roomId(room, token: token)
+        _ = try await api("POST", "/channels/\(id)/messages", ["content": text], token: token)
+    }
+
+    @MainActor private func signIn(_ username: String) async throws -> String {
+        let session = try await api("POST", "/auth/login", ["username": username, "password": "correct horse battery"], token: nil)
+        guard let token = (session as? [String: Any])?["token"] as? String else { throw Missing(description: "No token for \(username).") }
+        return token
+    }
+
+    @MainActor private func roomId(_ room: String, token: String) async throws -> String {
+        let channels = try await api("GET", "/channels", token: token) as? [[String: Any]] ?? []
         guard let id = channels.first(where: { $0["name"] as? String == room })?["id"] as? String else {
             throw Missing(description: "No room called \(room).")
         }
-        _ = try await call("POST", "/channels/\(id)/messages", ["content": text], token: token)
+        return id
+    }
+
+    @MainActor private func api(_ method: String, _ path: String, _ body: [String: Any]? = nil, token: String?) async throws -> Any {
+        var request = URLRequest(url: URL(string: "http://localhost:7000\(path)")!)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.setValue("http://localhost:7000", forHTTPHeaderField: "origin")
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "authorization") }
+        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw Missing(description: "\(method) \(path) answered \(String(data: data, encoding: .utf8) ?? "")")
+        }
+        return try JSONSerialization.jsonObject(with: data)
     }
 
     enum Match: String { case exact = "==", prefix = "BEGINSWITH", contains = "CONTAINS" }
