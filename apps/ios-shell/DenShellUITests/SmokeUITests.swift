@@ -107,9 +107,10 @@ final class SmokeUITests: XCTestCase {
         shot("8-call-left")
     }
 
-    /// Touch: the + sheet closes when pulled down, a sent message asks for a haptic (the simulator has none to play,
-    /// so the proof is "haptic light" in Den Shell's log), and a swipe from the left edge goes from the room back to
-    /// the list (WebKit's back gesture over the page's history). Each is checked on its own, so one miss shows the rest.
+    /// Touch: the + sheet closes when pulled down, and a sent message asks for a haptic (the simulator has none to
+    /// play, so the proof is "haptic light" in Den Shell's log). Each is checked on its own, so one miss shows the other.
+    /// Not here: swipe back from the left edge. XCUITest's edge drag didn't start WebKit's back gesture (2026-10-19,
+    /// nor did AXe's), so it's checked on a phone.
     @MainActor func test6Touch() throws {
         continueAfterFailure = true
         let app = try launchSignedIn()
@@ -127,13 +128,6 @@ final class SmokeUITests: XCTestCase {
         try find(app, label: "Send").tap()
         XCTAssertTrue(element(app, label: "haptic check", .contains).waitForExistence(timeout: 5), "The message didn't send.")
         shot("6-sent")
-
-        let window = app.windows.firstMatch
-        window.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
-            .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)))
-        XCTAssertTrue(element(app, label: "Message general").waitForNonExistence(timeout: 5), "Swiping from the left edge didn't leave the room.")
-        XCTAssertTrue(element(app, label: "Your profile and settings").waitForExistence(timeout: 5), "Swiping back didn't show the room list.")
-        shot("6-swiped-back")
     }
 
     // MARK: Helpers
