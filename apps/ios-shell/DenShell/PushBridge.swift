@@ -99,7 +99,9 @@ struct QuickReply: Equatable {
     }
 
     init?(_ info: [AnyHashable: Any], text: String) {
-        guard info["type"] as? String == "notification", let to = PushTap(info), let user = PushTap.id(info["to_user_id"]) else { return nil }
+        // A thread id that doesn't read must not turn a thread reply into a room post.
+        guard info["type"] as? String == "notification", let to = PushTap(info), to.messageId != nil,
+              (info["thread_id"] == nil) == (to.threadId == nil), let user = PushTap.id(info["to_user_id"]) else { return nil }
         self.init(to: to, userId: user, text: text)
     }
 
@@ -142,10 +144,11 @@ struct QuickReply: Equatable {
         return Self.request("POST", "/channels/\(to.channelId)/messages", body: body, den: den, session: session)
     }
 
-    /// Through the reply, as the page does when you reply there: the thread it landed in, or the room's main
-    /// conversation.
-    func read(_ message: String, thread: String?, den: Origin, session: String) -> URLRequest {
-        if let thread { return Self.request("PUT", "/threads/\(thread)/read", body: ["message_id": message], den: den, session: session) }
+    /// Through the message the notification showed, as the page marks what's on screen: later ones stay unread.
+    /// The reply itself never counts as unread.
+    func read(den: Origin, session: String) -> URLRequest {
+        let message = to.messageId ?? ""
+        if let thread = to.threadId { return Self.request("PUT", "/threads/\(thread)/read", body: ["message_id": message], den: den, session: session) }
         return Self.request("PUT", "/channels/\(to.channelId)/read", body: ["message_id": message, "roots_only": true], den: den, session: session)
     }
 
@@ -163,11 +166,13 @@ struct QuickReply: Equatable {
             guard status == 200, let id = (json(me) as? [String: Any])?["id"] as? String else { return .notSent(.failed) }
             guard id == userId else { return .notSent(.otherAccount) }
             posting = true
-            let (sent, posted) = try await transport(post(den: den, session: session))
+            let (_, posted) = try await transport(post(den: den, session: session))
             if posted == 401 { return .notSent(.signedOut) }
-            guard posted == 200, let message = json(sent) as? [String: Any], let messageId = PushTap.id(message["id"]) else { return .notSent(.failed) }
+            // The server saves the message before it answers, so a server error may still have posted it.
+            if posted >= 500 { return .notSent(.unknown) }
+            guard posted == 200 else { return .notSent(.failed) }
             // The reply is in. What's left only tidies the badge; the page catches up if it fails.
-            _ = try? await transport(read(messageId, thread: PushTap.id(message["thread_id"]), den: den, session: session))
+            _ = try? await transport(read(den: den, session: session))
             guard let counts = try? await transport(Self.request("GET", "/users/me/read-state", den: den, session: session)),
                   counts.1 == 200, let states = json(counts.0) as? [[String: Any]] else { return .sent(badge: nil) }
             return .sent(badge: states.reduce(0) { $0 + (($1["notification_count"] as? Int) ?? 0) })
@@ -192,6 +197,21 @@ struct QuickReply: Equatable {
     static func transport(_ request: URLRequest) async throws -> (Data, Int) {
         let (data, response) = try await http.data(for: request)
         return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+}
+
+/// Tells iOS a reply is done, once, and gives back its background time.
+@MainActor private final class Finish {
+    private var done: (() -> Void)?
+    var background = UIBackgroundTaskIdentifier.invalid
+
+    init(_ done: @escaping () -> Void) { self.done = done }
+
+    func callAsFunction() {
+        guard let done else { return }
+        self.done = nil
+        done()
+        if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
     }
 }
 
@@ -238,6 +258,8 @@ struct PushStatus: Encodable {
     private var signOuts = 0
     /// Whether a token from Apple is wanted now: not after sign-out, until the page registers again.
     private var registering = false
+    /// Replies being sent from notifications, stopped at sign-out.
+    private var replies: Set<Task<Void, Never>> = []
 
     /// Adds `push` and `onPush` to the `window.denShell` that CallBridge's script made, so install after it.
     func install(in controller: WKUserContentController, den: Origin) {
@@ -320,6 +342,7 @@ struct PushStatus: Encodable {
         tapped = nil
         signOuts += 1
         registering = false
+        for reply in replies { reply.cancel() }
         UIApplication.shared.unregisterForRemoteNotifications()
         let center = UNUserNotificationCenter.current()
         center.removeAllDeliveredNotifications()
@@ -368,26 +391,42 @@ struct PushStatus: Encodable {
 
     // MARK: Replies
 
-    /// iOS gives an action a short while in the background. The reply gets 20 seconds, then iOS hears it's done.
+    /// iOS gives an action a short while in the background. iOS hears it's done when the reply finishes, after 20
+    /// seconds, or when iOS calls time, whichever comes first.
     private func reply(_ text: String, to info: [AnyHashable: Any], then done: @escaping () -> Void) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return done() }
-        let reply = QuickReply(info, text: text), to = PushTap(info)
-        let job = Task { await deliver(reply, text: text, to: to) }
-        let background = UIApplication.shared.beginBackgroundTask(withName: "Den reply") { job.cancel() }
+        let reply = QuickReply(info, text: text), to = PushTap(info), started = signOuts
+        let finish = Finish(done)
+        let job = Task {
+            await deliver(reply, text: text, to: to, started: started)
+            finish()
+        }
+        replies.insert(job)
+        finish.background = UIApplication.shared.beginBackgroundTask(withName: "Den reply") {
+            job.cancel()
+            finish()
+        }
         Task {
-            let deadline = Task { try? await Task.sleep(for: .seconds(20)); job.cancel() }
+            try? await Task.sleep(for: .seconds(20))
+            job.cancel()
+            finish()
+        }
+        Task {
             await job.value
-            deadline.cancel()
-            done()
-            UIApplication.shared.endBackgroundTask(background)
+            replies.remove(job)
         }
     }
 
-    private func deliver(_ reply: QuickReply?, text: String, to: PushTap?) async {
+    private func deliver(_ reply: QuickReply?, text: String, to: PushTap?, started: Int) async {
         let den = Origin(startURL)!
         var outcome = QuickReply.Outcome.notSent(.failed)
         if let reply, let cookies = await cookies() {
             outcome = await reply.send(den: den, session: QuickReply.session(in: cookies, den: den), transport: QuickReply.transport)
+        }
+        // Signed out meanwhile: the badge and the text belong to the account that left.
+        guard signOuts == started else {
+            log.info("notification reply ended after sign-out")
+            return
         }
         switch outcome {
         case .sent(let badge):

@@ -82,7 +82,8 @@ struct QuickReplyTests {
         #expect(QuickReply(room.merging(["to_user_id": "ellis/../x"]) { $1 }, text: "hi") == nil)
         #expect(QuickReply(room.merging(["channel_id": "ROOM1/../users"]) { $1 }, text: "hi") == nil)
         #expect(QuickReply(room.merging(["type": "call_invite"]) { $1 }, text: "hi") == nil)
-        #expect(QuickReply(room.merging(["thread_id": "T?x=1"]) { $1 }, text: "hi")?.to.threadId == nil)
+        #expect(QuickReply(room.merging(["thread_id": "T?x=1"]) { $1 }, text: "hi") == nil, "a thread reply never becomes a room post")
+        #expect(QuickReply(room.filter { $0.key as? String != "message_id" }, text: "hi") == nil)
     }
 
     @Test func requestsGoToDenOnlyWithTheSession() throws {
@@ -98,13 +99,14 @@ struct QuickReplyTests {
         #expect(me.url?.absoluteString == "https://denchat.app/users/me")
         #expect(me.httpBody == nil)
 
-        let threadRead = reply.read("MINE", thread: "THREAD1", den: den, session: "ab12")
+        // Read through what the notification showed, not the reply: anything newer stays unread.
+        let threadRead = reply.read(den: den, session: "ab12")
         #expect(threadRead.httpMethod == "PUT")
         #expect(threadRead.url?.path() == "/threads/THREAD1/read")
-        #expect(body(threadRead) == ["message_id": "MINE"])
-        let roomRead = reply.read("MINE", thread: nil, den: den, session: "ab12")
+        #expect(body(threadRead) == ["message_id": "MSG2"])
+        let roomRead = try #require(QuickReply(room, text: "hi")).read(den: den, session: "ab12")
         #expect(roomRead.url?.path() == "/channels/ROOM1/read")
-        #expect(body(roomRead) == ["message_id": "MINE", "roots_only": true])
+        #expect(body(roomRead) == ["message_id": "MSG1", "roots_only": true])
 
         let config = QuickReply.http.configuration
         #expect(config.httpCookieStorage == nil && !config.httpShouldSetCookies && config.urlCache == nil)
@@ -141,13 +143,11 @@ struct QuickReplyTests {
         let me: String
         let fail: [String: Int]
         let drop: [String: URLError.Code]
-        let postedThread: String?
 
-        init(me: String = "ELLIS", fail: [String: Int] = [:], drop: [String: URLError.Code] = [:], postedThread: String? = nil) {
+        init(me: String = "ELLIS", fail: [String: Int] = [:], drop: [String: URLError.Code] = [:]) {
             self.me = me
             self.fail = fail
             self.drop = drop
-            self.postedThread = postedThread
         }
 
         func answer(_ request: URLRequest) throws -> (Data, Int) {
@@ -158,7 +158,7 @@ struct QuickReplyTests {
             let json: Any
             switch step {
             case "GET /users/me": json = ["id": me]
-            case "POST /channels/ROOM1/messages": json = ["id": "MINE", "thread_id": (postedThread as Any?) ?? NSNull()] as [String: Any]
+            case "POST /channels/ROOM1/messages": json = ["id": "MINE"]
             case "GET /users/me/read-state": json = [["notification_count": 2], ["notification_count": 1]]
             default: json = [String: String]()
             }
@@ -175,7 +175,7 @@ struct QuickReplyTests {
         let roomDen = FakeDen()
         #expect(try await send(room, to: roomDen) == .sent(badge: 3))
         #expect(await roomDen.asked == ["GET /users/me", "POST /channels/ROOM1/messages", "PUT /channels/ROOM1/read", "GET /users/me/read-state"])
-        let threadDen = FakeDen(postedThread: "THREAD1")
+        let threadDen = FakeDen()
         #expect(try await send(thread, to: threadDen) == .sent(badge: 3))
         #expect(await threadDen.asked[2] == "PUT /threads/THREAD1/read")
     }
@@ -201,6 +201,8 @@ struct QuickReplyTests {
         #expect(try await send(room, to: FakeDen(drop: ["POST /channels/ROOM1/messages": .networkConnectionLost])) == .notSent(.unknown))
         #expect(try await send(room, to: FakeDen(drop: ["POST /channels/ROOM1/messages": .cancelled])) == .notSent(.unknown), "out of time")
         #expect(try await send(room, to: FakeDen(fail: ["POST /channels/ROOM1/messages": 400])) == .notSent(.failed))
+        #expect(try await send(room, to: FakeDen(fail: ["POST /channels/ROOM1/messages": 500])) == .notSent(.unknown),
+                "the server saves before it answers")
         #expect(try await send(room, to: FakeDen(fail: ["PUT /channels/ROOM1/read": 500, "GET /users/me/read-state": 500])) == .sent(badge: nil),
                 "sent is sent, even if the badge can't follow")
     }
