@@ -330,7 +330,7 @@ class Call {
     if (this.origin === store.origin && (this.channel?.id === channel.id || this.joining === channel.id)) return
     const owner = instances.active
     const ticket = ++this.joinTicket
-    await this.leave()
+    await this.leave(false)
     // Den Shell's Leave waits for the native call to end, so a later Join can overtake this one meanwhile.
     if (shell && ticket !== this.joinTicket) return
     this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name
@@ -460,7 +460,9 @@ class Call {
     if (state.channelId !== this.channel.id) return
     if (state.phase === 'ended') {
       const quiet = this.outputMuted
-      this.clear(); if (state.error) { this.error = state.error; haptic('warning') }
+      // The error it ends with was usually shown, and buzzed, already.
+      const fresh = state.error && state.error !== this.shellError
+      this.clear(); if (state.error) { this.error = state.error; if (fresh) haptic('warning') }
       if (!quiet) this.sound(false)
       return
     }
@@ -478,7 +480,8 @@ class Call {
     if (state.soundSeq >= this.soundSent) { this.soundSent = state.soundSeq; this.outputMuted = state.soundOff }
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
-    if (state.error && state.error !== this.shellError) { this.error = state.error; haptic('warning') }
+    // A reload adopts the call with its last error: show it again, but don't buzz for it again.
+    if (state.error && state.error !== this.shellError) { this.error = state.error; if (!adopt) haptic('warning') }
     this.shellError = state.error || ''
   }
   private shellError = ''
@@ -521,12 +524,13 @@ class Call {
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
     this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0
   }
-  async leave() {
+  /** `feedback` false: a switch to another call, which buzzes once when the new one joins. */
+  async leave(feedback = true) {
     ++this.generation; this.joining = null
     if (shell) {
       const was = !!this.channel, quiet = this.outputMuted
       this.clear()
-      if (was) haptic('medium')
+      if (was && feedback) haptic('medium')
       await shell.call({ type: 'leave' }).catch(() => {})
       if (was && !quiet) this.sound(false)
       return
@@ -534,7 +538,7 @@ class Call {
     const room = this.room, quiet = this.outputMuted
     const pendingBlur = this.cancelPendingBlur(room)
     this.clear()
-    if (room) haptic('medium')
+    if (room && feedback) haptic('medium')
     await pendingBlur.catch(() => {})
     if (room) { await room.disconnect(); if (!quiet) this.sound(false) }
   }

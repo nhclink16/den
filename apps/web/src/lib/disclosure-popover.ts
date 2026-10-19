@@ -34,6 +34,8 @@ function pullDown(node: HTMLElement) {
     return node.scrollTop > 0
   }
   const start = (e: TouchEvent) => {
+    // A second finger mid-pull: put the sheet back before starting over.
+    if (pulling) cancel()
     tracking = e.touches.length === 1 && node.classList.contains('sheet') && matchMedia('(max-width: 600px)').matches && !scrolled(e.target)
     pulling = false; dy = speed = 0; x = e.touches[0]!.clientX; y = e.touches[0]!.clientY; at = e.timeStamp
   }
@@ -50,9 +52,11 @@ function pullDown(node: HTMLElement) {
     speed = (next - dy) / Math.max(1, e.timeStamp - at); at = e.timeStamp; dy = next
     node.style.translate = `0 ${dy > 0 ? dy : dy / 4}px`
   }
-  const end = () => {
+  const end = (e?: Event) => {
     if (!pulling) return
     tracking = pulling = false
+    // A flick counts only if the finger was still moving when it let go.
+    if (e && e.timeStamp - at > 80) speed = 0
     node.style.transition = 'translate var(--t) var(--ease-out)'
     if (dy > node.offsetHeight / 3 || (dy > 24 && speed > 0.5)) {
       node.style.translate = '0 100%'

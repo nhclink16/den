@@ -135,9 +135,10 @@ enum CallRules {
     }
 
     /// Speaker unless headphones or AirPods are in; iOS's call screen can switch to the earpiece.
-    /// Set before CallKit starts, never activated here.
+    /// Set before CallKit starts, never activated here. iOS mutes haptics while the mic records unless asked not to.
     static func prepareAudioSession() throws {
         try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
+        try AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
     }
 
     var snapshot: CallSnapshot? { call.map(snapshot) }

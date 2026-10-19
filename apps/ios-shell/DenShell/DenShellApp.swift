@@ -179,6 +179,8 @@ struct DenWebView: UIViewRepresentable {
         do {
             if inCall {
                 try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
+                // Den's haptics, which iOS otherwise mutes while the mic records.
+                try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
                 try session.setActive(true)
             } else {
                 try session.setActive(false, options: .notifyOthersOnDeactivation)

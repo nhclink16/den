@@ -254,7 +254,7 @@
     const replyToId = owner.for(conversation).replyToId
     const placement: { thread_id?: string; reply_to?: string } =
       threadId ? { thread_id: threadId } : here.rootId ? { reply_to: here.rootId } : {}
-    await send(channel.id, url, { ...placement, reply_to: replyToId ?? placement.reply_to })
+    try { await send(channel.id, url, { ...placement, reply_to: replyToId ?? placement.reply_to }) } catch (err) { haptic('warning'); throw err }
     haptic('light')
     if (owner.holds(token) && owner.for(conversation).replyToId === replyToId) {
       owner.setReplyTo(conversation, null)
