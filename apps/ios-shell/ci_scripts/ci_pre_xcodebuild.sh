@@ -44,8 +44,8 @@ cat > push.sh <<SH
 last=
 while sleep 1; do
     alert=\$(sqlite3 $dir/data/den.db "SELECT json_object('aps', json_object('alert', json_object('title', 'You were mentioned in Den',
-        'body', content), 'sound', 'default', 'badge', 1), 'type', 'notification', 'channel_id', channel_id, 'message_id', id,
-        'reason', 'mention') FROM messages WHERE content LIKE '%push check%' ORDER BY id DESC LIMIT 1" 2>/dev/null)
+        'body', content), 'sound', 'default', 'badge', 1, 'category', 'message'), 'type', 'notification', 'channel_id', channel_id,
+        'message_id', id, 'reason', 'mention', 'to_user_id', (SELECT id FROM users WHERE username = 'ellis')) FROM messages WHERE content LIKE '%push check%' ORDER BY id DESC LIMIT 1" 2>/dev/null)
     [ -n "\$alert" ] && [ "\$alert" != "\$last" ] || continue
     last=\$alert
     printf '%s' "\$alert" > $dir/push.json
