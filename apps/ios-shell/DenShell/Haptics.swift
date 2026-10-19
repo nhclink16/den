@@ -40,7 +40,7 @@ enum Haptic: String, CaseIterable {
         })
         """
         controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        controller.addScriptMessageHandler(self, contentWorld: .page, name: "denHaptic")
+        controller.add(self, contentWorld: .page, name: "denHaptic")
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
