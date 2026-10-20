@@ -113,6 +113,38 @@ test('an "undecided" that replies after iOS\'s prompt was answered does not brin
   assert.equal(p.push.asking, false)
 })
 
+test('an old account\'s Turn On finishing after sign-out does not cancel the next account\'s registration', async () => {
+  const p = load('undecided')
+  await p.pushStart({ askFirst: true })
+  let tap!: () => void
+  p.state.prompt = new Promise<void>((r) => { tap = r })
+  p.pushAnswer(true)
+  await settle()
+  p.pushSignedOut()
+  // The next account signs in while iOS's prompt is still up; its launch check is slow.
+  let reply!: () => void
+  p.state.status = new Promise<void>((r) => { reply = r })
+  const next = p.pushStart({ askFirst: true })
+  tap(); await settle(); await settle()
+  p.state.prompt = null
+  reply(); await next
+  assert.equal(p.sent.filter((t: string) => t === 'register').length, 2, 'the next account registered')
+})
+
+test('Settings\' Turn on is protected the same way: a stale "undecided" does not bring the question back', async () => {
+  const p = load('undecided')
+  let tap!: () => void, reply!: () => void
+  p.state.prompt = new Promise<void>((r) => { tap = r })
+  const settings = p.pushStart()
+  await settle()
+  p.state.status = new Promise<void>((r) => { reply = r })
+  const late = p.pushStart({ askFirst: true })
+  tap(); await settings
+  p.state.permission = 'undecided'
+  reply(); await late
+  assert.equal(p.push.asking, false)
+})
+
 test('sign-out takes the question down', async () => {
   const p = load('undecided')
   await p.pushStart({ askFirst: true })

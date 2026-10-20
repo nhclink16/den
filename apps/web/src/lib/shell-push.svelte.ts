@@ -26,10 +26,12 @@ let attempt = 0
 const SIGNED_OUT = 'den.push.signedOut'
 // "Not Now" on Den's question, for this iPhone. Settings > Notifications still has Turn on.
 const NOT_NOW = 'den.push.notNow'
-// Set while iOS's prompt is up after a Turn On, so Den coming back doesn't ask again on top of it.
-let prompting = false
-// Numbers the checks of iOS's answer. Signing out, or Turn On starting or finishing, makes the ones in flight stale.
+// Registrations under way. The first one brings up iOS's prompt, so while any is out Den doesn't ask on top of it.
+let registering = 0
+// Numbers the checks of iOS's answer. Signing out, or a registration starting or finishing, makes the ones in flight
+// stale. `session` moves on at sign-out, so an old account's registration finishing can't touch the next one's checks.
 let checks = 0
+let session = 0
 const ask = <T>(command: PushCommand) => shell!.push!(command) as Promise<T>
 
 /** Registers this iPhone for whoever is signed in, and opens a notification tapped while the page was away. Apple
@@ -44,10 +46,15 @@ export async function pushStart({ askFirst = false } = {}) {
   if (askFirst && check !== checks) return
   if (now?.permission === 'undecided') {
     push.status = now
-    push.asking = !prompting && !localStorage.getItem(NOT_NOW)
+    push.asking = !registering && !localStorage.getItem(NOT_NOW)
   } else {
     push.asking = false
+    const mine = session
+    registering++
     const status = await ask<PushStatus>({ type: 'register' }).catch(() => null)
+    registering--
+    if (mine !== session) return
+    checks++
     if (status) await receive(status)
   }
   // iOS may have changed the badge from a notification while Den was away.
@@ -93,9 +100,8 @@ async function openTap() {
 /** The answer to Den's question. Turn On brings up iOS's prompt. */
 export function pushAnswer(on: boolean) {
   push.asking = false
-  if (!on) return localStorage.setItem(NOT_NOW, '1')
-  prompting = true
-  void pushStart().finally(() => { prompting = false; checks++ })
+  if (on) void pushStart()
+  else localStorage.setItem(NOT_NOW, '1')
 }
 
 /** Installed while someone is signed in. Before that a tap waits in the shell, and `present` gets the full alert. */
@@ -124,6 +130,7 @@ export function pushSignedOut() {
   sent = sending = ''
   attempt++
   checks++
+  session++
   push.connected = false
   push.asking = false
   localStorage.setItem(SIGNED_OUT, '1')
