@@ -12,10 +12,12 @@
   // many are open: the open ones; the unread ones, which include resolved
   // conversations the open list can never show; and resolved history, which is
   // browseable rather than archived away.
-  let { channel, selected, onopen }: {
+  // `subtitle`: on a phone the pill is the grey line under the room's name in its bar, and opens the same list.
+  let { channel, selected, onopen, subtitle = false }: {
     channel: Channel
     selected?: string
     onopen: (threadId: string, rootId: string) => void
+    subtitle?: boolean
   } = $props()
 
   type Mode = 'open' | 'unread' | 'resolved'
@@ -170,12 +172,12 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
-<details class="threads" bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
-  <summary class="pill" class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
-    <Icon name="thread" size={14} />
+<details class="threads" class:subtitle bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
+  <summary class:pill={!subtitle} class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
+    {#if !subtitle}<Icon name="thread" size={14} />{/if}
     <span class="label">{#if openCount}<b>{openCount}{lists.open.more ? '+' : ''}</b> open {openCount === 1 && !lists.open.more ? 'thread' : 'threads'}{:else}Threads{/if}</span>
     {#if unreadAll.length}<span class="count" class:at={unreadAll.some((u) => u.mention)}>{unreadAll.some((u) => u.mention) ? '@' : unreadAll.reduce((n, u) => n + u.count, 0)}</span>{/if}
-    <Icon name="down" size={12} />
+    <Icon name={subtitle ? 'chevron' : 'down'} size={subtitle ? 11 : 12} />
   </summary>
   <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
     {#if open}
@@ -237,6 +239,13 @@
   summary.pill.lit { border-color: color-mix(in srgb, var(--lamp) 45%, transparent); }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (pointer: coarse) { summary.pill { min-height: 30px; } }
+  /* The bar's grey subtitle. The tap area reaches past the text without moving it. */
+  .subtitle { justify-content: center; max-width: 100%; }
+  .subtitle summary { display: flex; align-items: center; gap: 3px; max-width: 100%; padding: 4px 6px; margin: -4px 0; font-size: 12px; line-height: 1.2; color: var(--ink-3); }
+  .subtitle summary b { font-weight: 600; color: inherit; }
+  .subtitle summary.lit b { color: var(--lamp); }
+  .subtitle summary:active { opacity: .5; }
+  .subtitle .count { min-width: 16px; padding: 0 4px; font-size: 11px; line-height: 16px; }
   [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   .box { width: min(400px, calc(100vw - 16px)); max-height: min(480px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .tabs { margin: 10px 10px 6px; align-self: flex-start; }

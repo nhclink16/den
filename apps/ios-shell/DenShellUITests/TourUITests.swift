@@ -176,7 +176,7 @@ final class TourUITests: XCTestCase {
         await themes { _ in
             let app = try launchSignedIn()
             try find(app, label: "Inbox", .prefix).tap()
-            try find(app, label: "Mark all read", .contains)
+            try find(app, label: "Read All")
             shotScrolling("inbox", app)
         }
     }
@@ -234,7 +234,13 @@ final class TourUITests: XCTestCase {
                 if !joining, join.exists, !join.isEnabled { joining = true; shot("call-joining") }
                 _ = failed.waitForExistence(timeout: 1)
             }
-            if joined.exists { shot("call-joined") } else if failed.exists { shot("call-error") } else {
+            if joined.exists { shot("call-joined") } else if failed.exists {
+                shot("call-error")
+                // Once the toast is put away, the hangout row offers Retry.
+                failed.tap()
+                try find(app, label: "Retry joining hangout", timeout: 5)
+                shot("call-retry")
+            } else {
                 missing("call outcome", tree: app.debugDescription)
                 throw Missing(description: "The join neither connected nor failed in 45 s.")
             }
