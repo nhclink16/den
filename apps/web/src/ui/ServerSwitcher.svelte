@@ -33,12 +33,17 @@
 </details>
 <style>
   .switcher { min-width: 0; flex: 0 1 auto; }
-  /* Padding with a matching negative margin: the hover and open fill reach past the mark and name without moving them. */
-  .wordmark { display:flex; align-items:center; gap:8px; margin:-4px -8px; padding:4px 8px; border-radius:var(--r-pill); font-size:22px; text-align:left; list-style:none; cursor:pointer; transition:background-color var(--t-fast); }
+  .wordmark { display:flex; align-items:center; gap:8px; font-size:22px; text-align:left; list-style:none; cursor:pointer; }
   .wordmark::-webkit-details-marker { display:none; }
-  @media (hover: hover) { .wordmark:hover { background:var(--bg-3); } }
-  .switcher[open] > .wordmark { background:var(--bg-3); }
-  .wordmark:active { background:var(--press); }
+  /* In the sidebar header, the icon buttons' fill. Padding with a matching negative margin lets it reach past the
+     mark and name without moving them. */
+  :global(.brand) .wordmark { margin:-4px -8px; padding:4px 8px; border-radius:var(--r-pill); transition:background-color var(--t-fast); }
+  @media (hover: hover) { :global(.brand) .wordmark:hover { background:var(--bg-3); } }
+  :global(.brand) .switcher[open] > .wordmark { background:var(--bg-3); }
+  :global(.brand) .switcher > .wordmark:active { background:var(--press); }
+  /* In the phone top bar, next to the profile button, its buttons' fade instead (no padding to overlap it). */
+  @media (hover: hover) { :global(.navbar) .wordmark:hover { opacity:.75; } }
+  :global(.navbar) .wordmark:active { opacity:.5; }
   .mark { position:relative; display:flex; flex:none; }
   .attention::after { content:''; position:absolute; width:6px; height:6px; background:var(--lamp); border-radius:50%; right:-3px; top:-2px; }
   /* A gap round the dot cut out of the mark, so it reads on any background (hover, open, wallpaper). */
