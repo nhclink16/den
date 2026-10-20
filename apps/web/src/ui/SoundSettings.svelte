@@ -24,7 +24,12 @@
   // The iPhone app has no terminals to ring.
   const events = soundEvents.filter(e => !(shell && e.id === 'terminal_bell'))
   const event = $derived(soundEvents.find(e => e.id === moment))
-  async function action(fn: () => Promise<void>) {
+  // Every write copies the preferences it changes, so writes go one at a time: one still in flight can't be
+  // undone by the next (a volume, a choice, a new pack).
+  let writes: Promise<unknown> = Promise.resolve()
+  function queued<T>(fn: () => Promise<T>): Promise<T> { const next = writes.then(fn); writes = next.catch(() => {}); return next }
+  const action = (fn: () => Promise<void>) => queued(() => run(fn))
+  async function run(fn: () => Promise<void>) {
     busy = true; error = ''; status = ''
     try { await fn() } catch (e) { error = (e as Error).message } finally { busy = false }
   }
@@ -51,15 +56,12 @@
   const packName = $derived(!value || !prefs ? '' : prefs.pack_id === 'den' ? 'Den' : prefs.custom_packs.find(p => p.id === prefs.pack_id)?.name ?? value.server_pack.name)
   /**
    * Choosing a sound plays it, as iOS does. The radios stay enabled while it saves (disabling them would drop
-   * keyboard focus mid-arrow), so choices queue and save in the order they were made.
+   * keyboard focus mid-arrow); the write queue keeps the choices in order.
    */
-  let choosing = Promise.resolve()
-  function choose(event: SoundEvent, ref: SoundRef | null) {
-    choosing = choosing.then(async () => {
-      sounds.stop()
-      await save(p => { if (ref) p.overrides[event] = ref; else delete p.overrides[event] })
-      if (!error && ref?.type !== 'silent') void sounds.play(event, owner)
-    })
+  async function choose(event: SoundEvent, ref: SoundRef | null) {
+    sounds.stop()
+    await save(p => { if (ref) p.overrides[event] = ref; else delete p.overrides[event] })
+    if (!error && ref?.type !== 'silent') void sounds.play(event, owner)
   }
   const picked = (event: SoundEvent, ref: SoundRef | null) => {
     const o = prefs?.overrides[event]
@@ -100,7 +102,7 @@
   async function savePack() {
     // Everything else waits, even if the dialog is cancelled mid-save: another save would drop the new pack.
     busy = true
-    try { await writePack() } finally { busy = false }
+    try { await queued(writePack) } finally { busy = false }
   }
   async function writePack() {
     const p: SoundPreferences = JSON.parse(JSON.stringify(owner.sounds!.preferences))

@@ -26,8 +26,9 @@
     try { await work(); status = done } catch (err) { error = (err as Error).message }
   }
   function saveName() {
+    // Every change saves, even back to the name on the server: an earlier one may still be on its way.
     const name = serverName.trim()
-    if (!name || name === store.settings.instance_name) return
+    if (!name) return
     void run(async () => { store.settings = await api.put('/settings', { instance_name: name }) }, 'Server name saved.')
   }
   async function addChannel() {
@@ -67,7 +68,7 @@
   <div class="slist gap-top">
     <SettingRow label="Name">
       {#snippet control()}<input class="field plain value-field" aria-label="Room name" value={room.name} pattern={'[a-z0-9_-]{1,40}'} autocapitalize="off" autocomplete="off" enterkeyhint="done"
-        onchange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (v && v !== room.name) void saveRoom(room, { name: v }) }} />{/snippet}
+        onchange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (v) void saveRoom(room, { name: v }) }} />{/snippet}
     </SettingRow>
     <SettingRow label="Category">
       {#snippet control()}
@@ -89,7 +90,7 @@
   <div class="slist gap-top">
     <SettingRow label="Name">
       {#snippet control()}<input class="field plain value-field" aria-label="Category name" value={category.name} maxlength="40" autocomplete="off" enterkeyhint="done"
-        onchange={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== category.name) void saveCategory(category, v) }} />{/snippet}
+        onchange={(e) => { const v = e.currentTarget.value.trim(); if (v) void saveCategory(category, v) }} />{/snippet}
     </SettingRow>
   </div>
   <div class="slist gap-top"><button class="action-row danger" onclick={() => (deleting = true)}>Delete Category</button></div>
