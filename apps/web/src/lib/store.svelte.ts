@@ -143,11 +143,20 @@ export class Store {
   private generation = 0
   get active() { return !native || instances.active === this }
   get attention() { return this.channels.some(c => { const u = this.unread(c.id); return u.mention || (c.kind === 'dm' && u.count > 0) }) }
-  private receiveAppearance(a: Appearance) {
+  private appearanceTaken = 0
+  /** Taken before a sync asks, so its copy is set aside if another came in meanwhile. */
+  private appearanceMark() { return [this.appearanceTaken, themes.mark()] as const }
+  /** The showing server's copy is kept by `themes` (with the cache); a switch away copies it back here. */
+  private receiveAppearance(a: Appearance, asked?: readonly [number, number]) {
+    if (asked && asked[0] !== this.appearanceTaken) return false
+    if (this.active && !themes.receive(a, asked?.[1])) return false
+    this.appearanceTaken++
     this.appearance = a
-    if (native) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
-    if (this.active) themes.receive(a)
+    if (native && !this.active) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
+    return true
   }
+  /** Stops showing: keeps the newest copy `themes` had, its saves' replies included. */
+  hideAppearance() { this.appearance = themes.latest(); this.appearanceTaken++ }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
   onEvent(fn: (event: Event) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }
@@ -694,6 +703,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
+    const appearanceAt = this.appearanceMark()
     const previewAsked = this.askPreviews()
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
@@ -716,8 +726,7 @@ export class Store {
     // Everything below mutates this Store. A resync that was in flight across a
     // logout belongs to the account that asked for it, not to this one.
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
-    this.receiveAppearance(appearance)
-    if (this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save({ ...themes.appearance, ...patch }, true))
+    if (this.receiveAppearance(appearance, appearanceAt) && this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save(patch, true))
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)
@@ -1467,8 +1476,9 @@ class Instances {
   }
   select(s: Store) {
     objects.active = null; objects.expanded = false; objects.presence = {}
+    this.active.hideAppearance()
     this.active = s; setOrigin(s.origin)
-    themes.draft = null; themes.receive(s.appearance, true); call.snapshot(s.calls)
+    themes.draft = null; themes.receive(s.appearance); call.snapshot(s.calls)
     window.dispatchEvent(new CustomEvent('den-instance'))
     router.go(s.me ? '/' : '/login')
   }
@@ -1491,6 +1501,7 @@ export const store = new Proxy({} as Store, {
   get(_target, key: keyof Store) { if (key === 'onEvent') return (fn: (event: Event) => void) => { activeListeners.add(fn); return () => activeListeners.delete(fn) }; const s = instances.active; const value = s[key]; return typeof value === 'function' ? value.bind(s) : value },
   set(_target, key, value) { Reflect.set(instances.active, key, value); return true },
 })
+themes.owner = () => `${activeOrigin()}|${store.me?.id ?? ''}`
 
 window.addEventListener('den-sound-event', event => {
   const { origin, sound } = (event as CustomEvent<{ origin: string; sound: import('./types').SoundEvent }>).detail

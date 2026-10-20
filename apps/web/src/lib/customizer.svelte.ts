@@ -2,14 +2,12 @@
 // app, so every change shows where it matters instead of in a settings page. Changes save as
 // they happen; "Undo changes" returns to how things looked when it opened.
 import { themes } from './theme.svelte'
-import { activeOrigin } from './native'
-import { store } from './store.svelte'
-import type { Appearance } from './types'
+import type { Appearance, Theme } from './types'
 
 type Snapshot = { owner: string; appearance: Appearance }
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 /** Whose appearance is showing: a snapshot belongs to one account on one server. */
-const owner = () => `${activeOrigin()}|${store.me?.id ?? ''}`
+const owner = () => themes.owner()
 
 class Customizer {
   open = $state(false)
@@ -49,8 +47,13 @@ class Customizer {
     // Opened on another server or account: its snapshot is not this one's to restore.
     if (!s || s.owner !== owner()) return
     themes.reset()
-    const custom = themes.appearance.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
-    void themes.save({ ...copy(s.appearance), custom_themes: copy(custom) })
+    const now = themes.appearance
+    // Only what differs goes back, and the custom themes only when one is put back, so a
+    // change another device makes meanwhile to something else stays.
+    const patch = Object.fromEntries(Object.entries(copy(s.appearance)).filter(([k, v]) => k !== 'custom_themes' && JSON.stringify(v) !== JSON.stringify(now[k as keyof Appearance])))
+    const back = (t: Theme) => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t
+    if (now.custom_themes.some(t => JSON.stringify(back(t)) !== JSON.stringify(t))) patch.custom_themes = now.custom_themes.map(back)
+    void themes.save(patch)
   }
 }
 export const customizer = new Customizer()
