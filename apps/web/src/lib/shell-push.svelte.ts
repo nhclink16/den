@@ -28,6 +28,8 @@ const SIGNED_OUT = 'den.push.signedOut'
 const NOT_NOW = 'den.push.notNow'
 // Set while iOS's prompt is up after a Turn On, so Den coming back doesn't ask again on top of it.
 let prompting = false
+// Numbers the checks of iOS's answer. Signing out, or Turn On starting or finishing, makes the ones in flight stale.
+let checks = 0
 const ask = <T>(command: PushCommand) => shell!.push!(command) as Promise<T>
 
 /** Registers this iPhone for whoever is signed in, and opens a notification tapped while the page was away. Apple
@@ -35,7 +37,11 @@ const ask = <T>(command: PushCommand) => shell!.push!(command) as Promise<T>
  *  whenever Den comes back (`askFirst`) Den asks in its own words first, and only a yes brings up iOS's prompt. */
 export async function pushStart({ askFirst = false } = {}) {
   if (!push.available) return
+  const check = ++checks
   const now = askFirst ? await ask<PushStatus>({ type: 'status' }).catch(() => null) : null
+  // The reply speaks for an older moment: someone signed out (it would register them again), or iOS's prompt was
+  // answered since (an "undecided" would bring the question back).
+  if (askFirst && check !== checks) return
   if (now?.permission === 'undecided') {
     push.status = now
     push.asking = !prompting && !localStorage.getItem(NOT_NOW)
@@ -89,7 +95,7 @@ export function pushAnswer(on: boolean) {
   push.asking = false
   if (!on) return localStorage.setItem(NOT_NOW, '1')
   prompting = true
-  void pushStart().finally(() => (prompting = false))
+  void pushStart().finally(() => { prompting = false; checks++ })
 }
 
 /** Installed while someone is signed in. Before that a tap waits in the shell, and `present` gets the full alert. */
@@ -117,6 +123,7 @@ export function pushSignedOut() {
   if (!push.available) return
   sent = sending = ''
   attempt++
+  checks++
   push.connected = false
   push.asking = false
   localStorage.setItem(SIGNED_OUT, '1')

@@ -17,11 +17,13 @@ function load(permission: 'granted' | 'denied' | 'undecided') {
   const sent: string[] = []
   const stored = new Map<string, string>()
   // `prompt`: while set, iOS's prompt is up and a register waits for it.
-  const state = { permission, prompt: null as Promise<void> | null }
+  // `status`: while set, a status reply waits for it (read when it resolves).
+  const state = { permission, prompt: null as Promise<void> | null, status: null as Promise<void> | null }
   const shell = {
     push: async (m: { type: string }) => {
       sent.push(m.type)
       if (m.type === 'register' && state.prompt) await state.prompt
+      if (m.type === 'status' && state.status) await state.status
       if (m.type === 'register' && state.permission === 'undecided') state.permission = 'granted'
       if (m.type === 'register' || m.type === 'status') return { permission: state.permission, environment: 'sandbox', appVersion: 'test' }
       return null
@@ -80,6 +82,35 @@ test('an iPhone that already answered registers at every launch, without a quest
     assert.equal(p.push.asking, false)
     assert.deepEqual(p.sent.slice(0, 2), ['status', 'register'], permission)
   }
+})
+
+test('a check that replies after sign-out neither registers nor asks', async () => {
+  for (const permission of ['granted', 'undecided'] as const) {
+    const p = load(permission)
+    let reply!: () => void
+    p.state.status = new Promise<void>((r) => { reply = r })
+    const started = p.pushStart({ askFirst: true })
+    p.pushSignedOut()
+    reply(); await started
+    assert.ok(!p.sent.includes('register'), permission)
+    assert.equal(p.push.asking, false, permission)
+  }
+})
+
+test('an "undecided" that replies after iOS\'s prompt was answered does not bring the question back', async () => {
+  const p = load('undecided')
+  await p.pushStart({ askFirst: true })
+  let tap!: () => void, reply!: () => void
+  p.state.prompt = new Promise<void>((r) => { tap = r })
+  p.pushAnswer(true)
+  await settle()
+  // Den comes back while the prompt is up; the shell's answer is slow and says undecided.
+  p.state.status = new Promise<void>((r) => { reply = r })
+  const late = p.pushStart({ askFirst: true })
+  tap(); await settle(); await settle()
+  p.state.permission = 'undecided'
+  reply(); await late
+  assert.equal(p.push.asking, false)
 })
 
 test('sign-out takes the question down', async () => {
