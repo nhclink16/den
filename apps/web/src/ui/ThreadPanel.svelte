@@ -387,6 +387,9 @@
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
   .root { padding-bottom: 4px; }
+  /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
+     reply box under the keyboard. */
+  .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .empty { flex: 1; display: grid; place-items: center; padding: 24px; text-align: center; font-size: var(--fs-sm); }
   .typing { height: 18px; padding: 0 20px; font-size: var(--fs-xs); color: var(--ink-3); }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
