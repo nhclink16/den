@@ -267,7 +267,10 @@
       await tick()
       // The history request can outlive this view, and this conversation: a
       // thread panel reuses its scroller for the next thread.
-      if (el === scroller && scroller.isConnected && shownKey === key) scroller.scrollTop += scroller.scrollHeight - before
+      // A thread's root still on screen when they arrive (a quick swipe up) stays put, with them under it.
+      const root = lead && scroller.firstElementChild
+      const rootSeen = !!root && root.getBoundingClientRect().bottom > scroller.getBoundingClientRect().top + covered().top
+      if (el === scroller && scroller.isConnected && shownKey === key && !rootSeen) scroller.scrollTop += scroller.scrollHeight - before
     }
   }
 
