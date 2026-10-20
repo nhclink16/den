@@ -6,8 +6,10 @@ import { activeOrigin } from './native'
 import { store } from './store.svelte'
 import type { Appearance } from './types'
 
-type Snapshot = { origin: string; appearance: Appearance; avatarShape: typeof store.layout.avatarShape; presence: typeof store.layout.presence }
+type Snapshot = { owner: string; appearance: Appearance; avatarShape: typeof store.layout.avatarShape; presence: typeof store.layout.presence }
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
+/** Whose appearance is showing: a snapshot belongs to one account on one server. */
+const owner = () => `${activeOrigin()}|${store.me?.id ?? ''}`
 
 class Customizer {
   open = $state(false)
@@ -28,15 +30,15 @@ class Customizer {
   close() { this.open = false; this.end() }
   /** Remembers how things look now, for Undo. The phone's Appearance page uses this without the panel. */
   begin() {
-    if (!this.start) this.start = { origin: activeOrigin(), appearance: copy(themes.appearance), avatarShape: store.layout.avatarShape, presence: store.layout.presence }
+    if (!this.start) this.start = { owner: owner(), appearance: copy(themes.appearance), avatarShape: store.layout.avatarShape, presence: store.layout.presence }
   }
   end() { this.start = null; this.edited.clear(); themes.reset() }
   /** Undo puts these themes back, and leaves the rest as they are now (another device may have changed one). */
-  editedTheme(id: string) { if (this.start) this.edited.add(id) }
+  editedTheme(id: string) { if (this.start?.owner === owner()) this.edited.add(id) }
 
   get changed() {
     const s = this.start
-    if (!s || s.origin !== activeOrigin()) return false
+    if (!s || s.owner !== owner()) return false
     return JSON.stringify(s.appearance) !== JSON.stringify(themes.appearance) || s.avatarShape !== store.layout.avatarShape || s.presence !== store.layout.presence
   }
 
@@ -44,8 +46,8 @@ class Customizer {
    *  your own themes changed here in place (corners, density, fonts) go back too. */
   undo() {
     const s = this.start
-    // Opened on another server: its snapshot is not this account's to restore.
-    if (!s || s.origin !== activeOrigin()) return
+    // Opened on another server or account: its snapshot is not this one's to restore.
+    if (!s || s.owner !== owner()) return
     themes.reset()
     const custom = themes.appearance.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
     void themes.save({ ...copy(s.appearance), custom_themes: copy(custom) })
