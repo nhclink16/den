@@ -1,3 +1,12 @@
+<script module lang="ts">
+  import type { Channel as Room } from '../lib/types'
+  // The server takes the whole room, so saves go one at a time, each from the room as the last one left it, and
+  // across visits to the page too: a rename still in flight can't be undone by a category change sent with the old
+  // name. The server's answer stands in until a resync brings the room back, in case that resync fails.
+  let queue = Promise.resolve()
+  const answered = new Map<string, Room>()
+</script>
+
 <script lang="ts">
   // Admins name the server and look after its rooms. The list comes first, the way iOS lists things: each room
   // and each category opens its own page (`sub`, a room's or category's id) with its name, its place, its icon
@@ -40,11 +49,6 @@
     await owner.api.post<Category>('/categories', { name: newCat.trim(), position: owner.categories.length })
     newCat = ''; await owner.resync()
   }
-  // The server takes the whole room, so saves go one at a time, each from the room as the last one left it:
-  // a rename still in flight can't be undone by a category change sent with the old name.
-  // The server's answer stands in until a resync brings the room back, in case that resync fails.
-  let queue = Promise.resolve()
-  const answered = new Map<string, Channel>()
   const later = (work: () => Promise<void>) => (queue = queue.then(() => run(work, 'Saved.')))
   const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => later(async () => {
     const now = answered.get(c.id) ?? owner.textChannels.find((x) => x.id === c.id) ?? c

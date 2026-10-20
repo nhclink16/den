@@ -32,7 +32,9 @@
   // The iPhone app has no terminals to ring.
   const events = soundEvents.filter(e => !(shell && e.id === 'terminal_bell'))
   const event = $derived(soundEvents.find(e => e.id === moment))
-  const action = (fn: () => Promise<void>) => queued(() => run(fn))
+  // A write queued by one account never runs for the next one signed in after it.
+  const mine = (fn: () => Promise<void>) => { const who = owner.me?.id; return () => (owner.me?.id === who ? fn() : Promise.resolve()) }
+  const action = (fn: () => Promise<void>) => queued(mine(() => run(fn)))
   async function run(fn: () => Promise<void>) {
     busy = true; error = ''; status = ''
     try { await fn() } catch (e) { error = (e as Error).message } finally { busy = false }
@@ -106,7 +108,7 @@
   async function savePack() {
     // Everything else waits, even if the dialog is cancelled mid-save: another save would drop the new pack.
     busy = true
-    try { await queued(writePack) } finally { busy = false }
+    try { await queued(mine(writePack)) } finally { busy = false }
   }
   async function writePack() {
     const p: SoundPreferences = JSON.parse(JSON.stringify(owner.sounds!.preferences))
