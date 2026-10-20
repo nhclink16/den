@@ -2,14 +2,12 @@
 // app, so every change shows where it matters instead of in a settings page. Changes save as
 // they happen; "Undo changes" returns to how things looked when it opened.
 import { themes } from './theme.svelte'
-import { activeOrigin } from './native'
-import { store } from './store.svelte'
 import type { Appearance } from './types'
 
 type Snapshot = { owner: string; appearance: Appearance }
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 /** Whose appearance is showing: a snapshot belongs to one account on one server. */
-const owner = () => `${activeOrigin()}|${store.me?.id ?? ''}`
+const owner = () => themes.owner()
 
 class Customizer {
   open = $state(false)

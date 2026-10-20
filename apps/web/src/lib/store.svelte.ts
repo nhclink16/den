@@ -717,7 +717,7 @@ export class Store {
     // logout belongs to the account that asked for it, not to this one.
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
     this.receiveAppearance(appearance)
-    if (this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save({ ...themes.appearance, ...patch }, true))
+    if (this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save(patch, true))
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)
@@ -1468,7 +1468,7 @@ class Instances {
   select(s: Store) {
     objects.active = null; objects.expanded = false; objects.presence = {}
     this.active = s; setOrigin(s.origin)
-    themes.draft = null; themes.receive(s.appearance, true); call.snapshot(s.calls)
+    themes.draft = null; themes.receive(s.appearance); call.snapshot(s.calls)
     window.dispatchEvent(new CustomEvent('den-instance'))
     router.go(s.me ? '/' : '/login')
   }
@@ -1491,6 +1491,7 @@ export const store = new Proxy({} as Store, {
   get(_target, key: keyof Store) { if (key === 'onEvent') return (fn: (event: Event) => void) => { activeListeners.add(fn); return () => activeListeners.delete(fn) }; const s = instances.active; const value = s[key]; return typeof value === 'function' ? value.bind(s) : value },
   set(_target, key, value) { Reflect.set(instances.active, key, value); return true },
 })
+themes.owner = () => `${activeOrigin()}|${store.me?.id ?? ''}`
 
 window.addEventListener('den-sound-event', event => {
   const { origin, sound } = (event as CustomEvent<{ origin: string; sound: import('./types').SoundEvent }>).detail

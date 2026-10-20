@@ -371,3 +371,64 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     assert_eq!(renamed["custom_themes"][0]["name"], "My neutral");
     assert_eq!(put(chose.token.clone(), renamed).await.status(), 200);
 }
+
+#[tokio::test]
+async fn a_save_keeps_every_field_it_does_not_name() {
+    // Two devices saving at once each send only what they changed, so neither
+    // writes its older copy of the other's setting back.
+    let t = Test::new().await;
+    let ann = t.member("appearance_partial").await;
+    let path = "/users/me/appearance";
+    let put = |body: Value| {
+        let t = &t;
+        let token = ann.token.clone();
+        async move {
+            t.req(Method::PUT, path, &token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+        }
+    };
+    let mut theme = builtin_themes()[1].clone();
+    theme.id = "plum".into();
+    theme.name = "Plum".into();
+    let res = put(json!({"custom_themes":[theme],"dark_theme":"plum"})).await;
+    assert_eq!(res.status(), 200);
+    assert_eq!(put(json!({"mode":"light"})).await.status(), 200);
+    let res = put(json!({"accent":"green","contrast":110})).await;
+    assert_eq!(res.status(), 200);
+    let saved = res.json::<Value>().await.unwrap();
+    assert_eq!(
+        (
+            saved["mode"].clone(),
+            saved["dark_theme"].clone(),
+            saved["light_theme"].clone(),
+            saved["custom_themes"][0]["id"].clone(),
+            saved["accent"].clone(),
+            saved["contrast"].clone()
+        ),
+        (
+            json!("light"),
+            json!("plum"),
+            json!("neutral"),
+            json!("plum"),
+            json!("green"),
+            json!(110)
+        )
+    );
+    // The result still has to be valid as a whole: a theme in use can't go.
+    assert_eq!(put(json!({"custom_themes":[]})).await.status(), 400);
+    // And a field that is there must be a real value.
+    assert_eq!(put(json!({"mode":null})).await.status(), 422);
+    assert_eq!(put(json!(["mode"])).await.status(), 422);
+    let after = t
+        .req(Method::GET, path, &ann.token)
+        .send()
+        .await
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+    assert_eq!(after, saved);
+}
