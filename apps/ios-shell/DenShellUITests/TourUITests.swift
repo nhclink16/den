@@ -316,7 +316,17 @@ final class TourUITests: XCTestCase {
             .contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
     }
 
-    @MainActor private func tapCentre(_ element: XCUIElement) {
+    /// Scrolls the page towards `element` until it is well inside the view, then taps its centre.
+    @MainActor private func scrollAndTap(_ element: XCUIElement, _ name: String, _ app: XCUIApplication) throws {
+        let web = app.webViews.firstMatch
+        for _ in 0..<8 where !onScreen(element, app) {
+            if element.frame.midY < web.frame.midY { web.swipeDown(velocity: .slow) } else { web.swipeUp(velocity: .slow) }
+            pause(0.5)
+        }
+        guard onScreen(element, app) else {
+            missing(name, tree: app.debugDescription)
+            throw Missing(description: "Couldn't scroll \(name) into view.")
+        }
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
@@ -367,9 +377,7 @@ final class TourUITests: XCTestCase {
     @MainActor private func signOut(_ app: XCUIApplication) throws {
         try find(app, label: "Your profile and settings").tap()
         try find(app, label: "Account").tap()
-        let logOut = try find(app, label: "Log out")
-        for _ in 0..<6 where !onScreen(logOut, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
-        tapCentre(logOut)
+        try scrollAndTap(try find(app, label: "Log out"), "Log out", app)
         try find(app, label: "Come in", timeout: 15)
     }
 
@@ -377,9 +385,8 @@ final class TourUITests: XCTestCase {
     @MainActor private func settingsPages(_ app: XCUIApplication, _ pages: [String]) throws {
         for page in pages {
             let row = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == %@", page)).firstMatch
-            for _ in 0..<6 where !onScreen(row, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
             guard row.exists else { continue }
-            tapCentre(row)
+            try scrollAndTap(row, page, app)
             pause()
             shotScrolling("settings-" + page.lowercased().replacingOccurrences(of: " ", with: "-"), app)
             let back = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == 'Settings'")).firstMatch
