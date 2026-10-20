@@ -12,8 +12,9 @@
   }
 </script>
 <details class="switcher" bind:open>
-  <summary bind:this={trigger} class="wordmark display" aria-label="Switch server">
-    <Mark size={22} /><span>{store.settings.instance_name}</span><span class="chevron" class:attention={instances.attention} aria-label={instances.attention ? 'Unread mentions or DMs on another server' : undefined}>⌄</span>
+  <!-- The mark and the name are the button. A dot on the mark: unread mentions or DMs on another server. -->
+  <summary bind:this={trigger} class="wordmark display" aria-label={instances.attention ? 'Switch server, unread on another server' : 'Switch server'}>
+    <span class="mark" class:attention={instances.attention}><Mark size={22} /></span><span class="name">{store.settings.instance_name}</span>
   </summary>
   <div bind:this={list} class="popover" popover="auto" use:disclosurePopover={'start'} ontoggle={closed} role="dialog" aria-label="Servers">
     {#if open}
@@ -32,11 +33,17 @@
 </details>
 <style>
   .switcher { min-width: 0; flex: 0 1 auto; }
-  .wordmark { display:flex; align-items:center; gap:8px; width:100%; font-size:22px; text-align:left; list-style:none; cursor:pointer; }
+  /* Padding with a matching negative margin: the hover and open fill reach past the mark and name without moving them. */
+  .wordmark { display:flex; align-items:center; gap:8px; margin:-4px -8px; padding:4px 8px; border-radius:var(--r-pill); font-size:22px; text-align:left; list-style:none; cursor:pointer; transition:background-color var(--t-fast); }
   .wordmark::-webkit-details-marker { display:none; }
-  .wordmark > span:first-of-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-  .chevron { position:relative; font-size:18px; }
-  .attention::after { content:''; position:absolute; width:6px; height:6px; background:var(--lamp); border-radius:50%; right:-3px; top:1px; }
+  @media (hover: hover) { .wordmark:hover { background:var(--bg-3); } }
+  .switcher[open] > .wordmark { background:var(--bg-3); }
+  .wordmark:active { background:var(--press); }
+  .mark { position:relative; display:flex; flex:none; }
+  .attention::after { content:''; position:absolute; width:6px; height:6px; background:var(--lamp); border-radius:50%; right:-3px; top:-2px; }
+  /* A gap round the dot cut out of the mark, so it reads on any background (hover, open, wallpaper). */
+  .attention > :global(svg) { mask:radial-gradient(circle at 100% 1px, transparent 5px, #000 5.5px); }
+  .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
   .popover { position:fixed; inset:auto; margin:0; width:320px; max-width:calc(100vw - 16px); padding:6px; border:1px solid var(--line); background:var(--bg2); color:var(--ink); border-radius:var(--r-lg); box-shadow:0 12px 40px var(--scrim); }
   .server { display:flex; align-items:center; border-radius:var(--r); }
   .server.active { background:var(--bg3); }
