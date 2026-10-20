@@ -1,5 +1,6 @@
 import OSLog
-import PhotosUI
+// The SDK declares the picker's `Mode.compact` as a plain static var, which Swift 6 refuses without this.
+@preconcurrency import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
 import WebKit
