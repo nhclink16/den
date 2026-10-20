@@ -18,8 +18,8 @@ final class TourUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    /// Before signing in: the sign-in page, the invite page, a wrong password. Then the first sign-in and iOS's
-    /// notification question, which only comes once (light only). The signed-out page takes the last account's look,
+    /// Before signing in: the sign-in page, the invite page, a wrong password. Then the first sign-in, Den's question
+    /// about notifications and iOS's prompt after Turn On, which only come once (light only). The signed-out page takes the last account's look,
     /// so the dark half signs Ellis out with Den set to Dark.
     @MainActor func test01SignIn() async throws {
         await themes { theme in
@@ -46,6 +46,11 @@ final class TourUITests: XCTestCase {
             fillSignIn(fresh, user: "ellis", password: password)
             again.tap()
             try find(fresh, label: "Your profile and settings", timeout: 20)
+            let turnOn = element(fresh, label: "Turn On")
+            if turnOn.waitForExistence(timeout: theme == "light" ? 10 : 1) {
+                shot("notification-ask")
+                turnOn.tap()
+            }
             let allow = springboard.alerts.buttons["Allow"]
             if allow.waitForExistence(timeout: theme == "light" ? 10 : 1) {
                 shot("notification-question")
@@ -357,6 +362,8 @@ final class TourUITests: XCTestCase {
             comeIn.tap()
         }
         try find(app, label: "Your profile and settings", timeout: 20)
+        let turnOn = element(app, label: "Turn On")
+        if turnOn.waitForExistence(timeout: 2) { turnOn.tap() }
         let allow = springboard.alerts.buttons["Allow"]
         if allow.waitForExistence(timeout: 1) { allow.tap() }
         return app

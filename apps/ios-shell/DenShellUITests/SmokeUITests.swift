@@ -10,7 +10,8 @@ final class SmokeUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// Runs first, so it sees iOS's one-time prompt. The page registers this iPhone with the made-up Den after sign-in;
+    /// Runs first, so it sees Den's question and then iOS's one-time prompt. The page registers this iPhone with the
+    /// made-up Den once Ellis says yes;
     /// Settings only says "On" once Den took the token. Then Maya mentions Ellis over the API, a stand-in for Apple's
     /// push service on the runner (ci_scripts/ci_pre_xcodebuild.sh) delivers Den's alert for it, and tapping the
     /// banner must open that room: once with Den in the background, once with Den closed.
@@ -204,13 +205,20 @@ final class SmokeUITests: XCTestCase {
             comeIn.tap()
         }
         try find(app, label: "Your profile and settings", timeout: 20)
-        // iOS asks about notifications once, after the first sign-in.
+        // After the first sign-in Den asks about notifications in its own words; Turn On brings up iOS's one-time prompt.
+        let turnOn = element(app, label: "Turn On")
+        guard turnOn.waitForExistence(timeout: notificationPrompt ? 10 : 2) else {
+            if notificationPrompt { XCTFail("Den didn't ask about notifications after sign-in.") }
+            return app
+        }
+        if notificationPrompt { shot("0-notification-question") }
+        turnOn.tap()
         let allow = springboard.alerts.buttons["Allow"]
-        if allow.waitForExistence(timeout: notificationPrompt ? 10 : 2) {
+        if allow.waitForExistence(timeout: 10) {
             if notificationPrompt { shot("0-notification-prompt") }
             allow.tap()
         } else if notificationPrompt {
-            XCTFail("iOS didn't ask about notifications after sign-in.")
+            XCTFail("iOS didn't ask about notifications after Turn On.")
         }
         return app
     }

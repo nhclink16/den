@@ -13,8 +13,9 @@ export type PushCommand = { type: 'register' | 'status' | 'take' | 'signedOut' |
 /** From the shell. `present` asks whether a notification arriving while Den is open is already on screen. */
 export type PushEvent = ({ type: 'status' } & PushStatus) | { type: 'tap' } | { type: 'present'; channelId: string; threadId?: string }
 
-/** `connected`: the server has this iPhone's token for the signed-in account. */
-export const push = $state({ available: typeof shell?.push === 'function', status: null as PushStatus | null, connected: false })
+/** `connected`: the server has this iPhone's token for the signed-in account. `asking`: Den's own question is up
+ *  (PushAsk.svelte). */
+export const push = $state({ available: typeof shell?.push === 'function', status: null as PushStatus | null, connected: false, asking: false })
 
 let sent = ''
 let sending = ''
@@ -23,14 +24,26 @@ let attempt = 0
 // Set at sign-out, cleared once the server has the next account's token. If that sign-out never reached the
 // server, the old account's registration still holds this token there.
 const SIGNED_OUT = 'den.push.signedOut'
+// "Not Now" on Den's question, for this iPhone. Settings > Notifications still has Turn on.
+const NOT_NOW = 'den.push.notNow'
+// Set while iOS's prompt is up after a Turn On, so Den coming back doesn't ask again on top of it.
+let prompting = false
 const ask = <T>(command: PushCommand) => shell!.push!(command) as Promise<T>
 
-/** After sign-in and whenever Den comes back to the front. iOS shows its prompt only the first time; after that this
- *  registers again (Apple asks for that at every launch), and opens a notification tapped while the page was away. */
-export async function pushStart() {
+/** Registers this iPhone for whoever is signed in, and opens a notification tapped while the page was away. Apple
+ *  asks for a registration at every launch. iOS shows its own prompt only once, the first time, so after sign-in and
+ *  whenever Den comes back (`askFirst`) Den asks in its own words first, and only a yes brings up iOS's prompt. */
+export async function pushStart({ askFirst = false } = {}) {
   if (!push.available) return
-  const status = await ask<PushStatus>({ type: 'register' }).catch(() => null)
-  if (status) await receive(status)
+  const now = askFirst ? await ask<PushStatus>({ type: 'status' }).catch(() => null) : null
+  if (now?.permission === 'undecided') {
+    push.status = now
+    push.asking = !prompting && !localStorage.getItem(NOT_NOW)
+  } else {
+    push.asking = false
+    const status = await ask<PushStatus>({ type: 'register' }).catch(() => null)
+    if (status) await receive(status)
+  }
   // iOS may have changed the badge from a notification while Den was away.
   if (instances.active.ready) pushBadge(instances.active.readState.values())
   await openTap()
@@ -71,6 +84,14 @@ async function openTap() {
   if (tap && lifetime.holds(token)) await goToMessage(source, tap.channelId, tap.messageId)
 }
 
+/** The answer to Den's question. Turn On brings up iOS's prompt. */
+export function pushAnswer(on: boolean) {
+  push.asking = false
+  if (!on) return localStorage.setItem(NOT_NOW, '1')
+  prompting = true
+  void pushStart().finally(() => (prompting = false))
+}
+
 /** Installed while someone is signed in. Before that a tap waits in the shell, and `present` gets the full alert. */
 export function listenForPush() {
   if (!push.available) return () => {}
@@ -97,6 +118,7 @@ export function pushSignedOut() {
   sent = sending = ''
   attempt++
   push.connected = false
+  push.asking = false
   localStorage.setItem(SIGNED_OUT, '1')
   void ask({ type: 'signedOut' }).catch(() => {})
 }
