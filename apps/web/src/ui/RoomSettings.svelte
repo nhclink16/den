@@ -29,7 +29,7 @@
     // Every change saves, even back to the name on the server: an earlier one may still be on its way.
     const name = serverName.trim()
     if (!name) return
-    void run(async () => { store.settings = await api.put('/settings', { instance_name: name }) }, 'Server name saved.')
+    void later(async () => { store.settings = await api.put('/settings', { instance_name: name }) })
   }
   async function addChannel() {
     await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length })

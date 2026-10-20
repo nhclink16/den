@@ -27,6 +27,7 @@
   // Every write copies the preferences it changes, so writes go one at a time: one still in flight can't be
   // undone by the next (a volume, a choice, a new pack).
   let writes: Promise<unknown> = Promise.resolve()
+  // Read anything from the event before calling in: a queued write runs after the event is over.
   function queued<T>(fn: () => Promise<T>): Promise<T> { const next = writes.then(fn); writes = next.catch(() => {}); return next }
   const action = (fn: () => Promise<void>) => queued(() => run(fn))
   async function run(fn: () => Promise<void>) {
@@ -155,7 +156,7 @@
   <div class="slist gap-top">
     <SettingRow find="pack" label="Sound pack">
       {#snippet control()}
-        <select id="sound-pack" class="field" aria-label="Your sound pack" disabled={busy} value={prefs.pack_id || ''} onchange={e => save(p => { p.pack_id = e.currentTarget.value || null; p.overrides = {} })}>
+        <select id="sound-pack" class="field" aria-label="Your sound pack" disabled={busy} value={prefs.pack_id || ''} onchange={e => { const id = e.currentTarget.value || null; save(p => { p.pack_id = id; p.overrides = {} }) }}>
           <option value="">Server default · {value.server_pack.name}</option>
           <option value="den">Den · built-in</option>
           {#each prefs.custom_packs as pack (pack.id)}<option value={pack.id}>{pack.name}</option>{/each}
@@ -163,7 +164,7 @@
       {/snippet}
     </SettingRow>
     <SettingRow find="volume" label="Volume">
-      {#snippet control()}<input aria-label="Master volume" type="range" min="0" max="100" value={prefs.master_volume} disabled={busy} onchange={e => save(p => p.master_volume = +e.currentTarget.value)} /><output>{prefs.master_volume}%</output>{/snippet}
+      {#snippet control()}<input aria-label="Master volume" type="range" min="0" max="100" value={prefs.master_volume} disabled={busy} onchange={e => { const v = +e.currentTarget.value; save(p => p.master_volume = v) }} /><output>{prefs.master_volume}%</output>{/snippet}
     </SettingRow>
     <button class="action-row" onclick={test}>{testing ? 'Stop' : 'Play All'}</button>
   </div>
