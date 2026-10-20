@@ -1,7 +1,8 @@
 #!/bin/sh
-# After the "UI check" tests: put the made-up Den's logs, LiveKit's and Den Shell's own in the Xcode Cloud log,
-# for when a flow fails.
-[ "${CI_WORKFLOW:-}" = 'UI check' ] && [ "${CI_XCODEBUILD_ACTION:-}" = test-without-building ] || exit 0
+# After the "UI check" or "Visual tour" tests: put the made-up Den's logs, LiveKit's and Den Shell's own in the
+# Xcode Cloud log, for when a flow fails.
+case ${CI_WORKFLOW:-} in 'UI check' | 'Visual tour') ;; *) exit 0 ;; esac
+[ "${CI_XCODEBUILD_ACTION:-}" = test-without-building ] || exit 0
 dir=${TMPDIR:-/tmp}/den-ui-check
 echo '--- den.log (last 40 lines)'
 tail -n 40 "$dir/den.log" 2>/dev/null

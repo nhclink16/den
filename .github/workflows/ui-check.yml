@@ -1,5 +1,5 @@
 name: UI check server
-# Builds the made-up Den that Den Shell's Xcode Cloud "UI check" runs against, from this commit:
+# Builds the made-up Den that Den Shell's Xcode Cloud "UI check" and "Visual tour" run against, from this commit:
 # den-server for macOS arm64, the web app, LiveKit and a database seeded with made-up people.
 # It is published as den-ui-check-<commit>.tar.gz on the "ui-check" prerelease, where the test
 # machine downloads it (apps/ios-shell/ci_scripts/ci_pre_xcodebuild.sh). Xcode Cloud has no

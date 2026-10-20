@@ -13,6 +13,9 @@
   },
   "testTargets" : [
     {
+      "skippedTests" : [
+        "TourUITests"
+      ],
       "target" : {
         "containerPath" : "container:DenShell.xcodeproj",
         "identifier" : "B6267FF7D146310BE81E01EC",

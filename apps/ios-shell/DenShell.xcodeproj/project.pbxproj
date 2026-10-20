@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		113799ECDE8C4B8F1F9AEF0C /* OriginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640BB40042AD461BB7D3EAA8 /* OriginTests.swift */; };
 		11C736E722051529A584F628 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A1C415263ABD0C2ACD64B27 /* LiveKit */; };
+		2FFA02BBBA423F68E06DA453 /* TourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637E201D940AF29246B5B2CF /* TourUITests.swift */; };
 		383B4B0B94797F2BBCDD24D2 /* PushBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A64572FA32191F88AB0E3174 /* PushBridge.swift */; };
 		48AF6E397FAE6E60FFF839A4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 944E927586E73EED81BAAB65 /* PrivacyInfo.xcprivacy */; };
 		8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */; };
@@ -46,6 +47,7 @@
 		5039DD1EF1C3D42D13B7555F /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallEngine.swift; sourceTree = "<group>"; };
 		622C3E909B67E09BEB69F7CB /* PushBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushBridgeTests.swift; sourceTree = "<group>"; };
+		637E201D940AF29246B5B2CF /* TourUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourUITests.swift; sourceTree = "<group>"; };
 		640BB40042AD461BB7D3EAA8 /* OriginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginTests.swift; sourceTree = "<group>"; };
 		6557F9B7F8BAB3A3FD83C433 /* DenShell.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DenShell.entitlements; sourceTree = "<group>"; };
 		66B48E12D014890145BF8A95 /* DenShellApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenShellApp.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 			isa = PBXGroup;
 			children = (
 				8985E1E2084B9D5B52A41C5E /* SmokeUITests.swift */,
+				637E201D940AF29246B5B2CF /* TourUITests.swift */,
 			);
 			path = DenShellUITests;
 			sourceTree = "<group>";
@@ -254,6 +257,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FEC8858D285EAE78CCD9F2AC /* SmokeUITests.swift in Sources */,
+				2FFA02BBBA423F68E06DA453 /* TourUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

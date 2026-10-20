@@ -6,6 +6,8 @@
 #   xcloud.sh fetch <run-id> [out-dir]            download its logs and .xcresult bundles (test screenshots are inside)
 #   xcloud.sh ui [branch] [out-dir]               "UI check": screenshots of Den Shell running the branch's web app
 #                                                 against made-up people, as PNG files in <out-dir>/shots
+#   xcloud.sh tour [branch] [out-dir]             "Visual tour": every screen in light and dark, the same way, plus a
+#                                                 contact sheet (<out-dir>/sheet.html) and a list (<out-dir>/shots.txt)
 # Goes through the App Store Connect key on the iMac (`ssh imac`); the key never leaves it.
 # The branch must be pushed to GitHub first. Compute time is shared with H3: 25 hours a month.
 set -euo pipefail
@@ -74,10 +76,10 @@ shots() {
     done
 }
 
-# "UI check" needs the branch's test server build from GitHub Actions (.github/workflows/ui-check.yml), which a
-# push starts. Wait for it (or start it), then run the workflow and bring the screenshots back.
+# "UI check" and "Visual tour" need the branch's test server build from GitHub Actions (.github/workflows/ui-check.yml),
+# which a push starts. Wait for it (or start it), then run the workflow and bring the screenshots back.
 ui() {
-    local branch=${1:-$(git branch --show-current)} out=${2:-} sha runs ghrun run tested status=0
+    local workflow=$1 branch=${2:-$(git branch --show-current)} out=${3:-} sha runs ghrun run tested status=0
     sha=$(gh api "repos/nhclink16/den/commits/$branch" -q .sha) || { echo "GitHub has no branch $branch. Push it first." >&2; exit 1; }
     # Only a finished upload counts: a failed one can leave an empty file behind.
     built() {
@@ -102,13 +104,17 @@ ui() {
         gh run watch "$ghrun" -R nhclink16/den --exit-status --interval 30 >/dev/null && built ||
             { echo "The test server build failed: https://github.com/nhclink16/den/actions/runs/$ghrun" >&2; exit 1; }
     fi
-    run=$(start "UI check" "$branch")
+    run=$(start "$workflow" "$branch")
     echo "build run $run" >&2
     out=${out:-xcloud-$run}
     wait_run "$run" || status=$?
     fetch "$run" "$out" || status=1
     shots "$out" || status=1
-    ls "$out/shots" >&2 2>/dev/null || true
+    if [ "$workflow" = 'Visual tour' ]; then
+        python3 "$(dirname "$0")/tour-sheet.py" "$out" || status=1
+    else
+        ls "$out/shots" >&2 2>/dev/null || true
+    fi
     # Xcode Cloud builds the branch as it is when the run starts; a push meanwhile changes what was tested.
     tested=$(asc "/v1/ciBuildRuns/$run" | jq -r '.data.attributes.sourceCommit.commitSha // empty')
     [ "$tested" = "$sha" ] || { echo "This run tested ${tested:-an unknown commit}, not $sha." >&2; status=1; }
@@ -119,7 +125,8 @@ case ${1:-} in
     start) shift; start "$@" ;;
     wait) wait_run "$2" ;;
     fetch) fetch "$2" "${3:-}" ;;
-    ui) shift; ui "$@" ;;
+    ui) shift; ui 'UI check' "$@" ;;
+    tour) shift; ui 'Visual tour' "$@" ;;
     run)
         shift
         run=$(start "${1:-Branch check}" "${2:-}")
@@ -127,5 +134,5 @@ case ${1:-} in
         status=0; wait_run "$run" || status=$?
         fetch "$run" "${3:-}" || status=1
         exit $status ;;
-    *) sed -n '2,10p' "$0"; exit 2 ;;
+    *) sed -n '2,12p' "$0"; exit 2 ;;
 esac

@@ -97,7 +97,8 @@ schemes:
     archive:
       config: Release
   # Xcode Cloud's "UI check" workflow: screenshots against a made-up Den on the runner (ci_scripts/ci_pre_xcodebuild.sh).
-  # Its test plan turns off xcodebuild's simulator diagnostics, which waited 10 minutes after any failure.
+  # Its test plan turns off xcodebuild's simulator diagnostics, which waited 10 minutes after any failure, and skips
+  # the visual tour, which has its own plan for the "Visual tour" workflow.
   DenShellUI:
     build:
       targets:
@@ -109,3 +110,4 @@ schemes:
       testPlans:
         - path: DenShellUI.xctestplan
           defaultPlan: true
+        - path: DenShellTour.xctestplan
