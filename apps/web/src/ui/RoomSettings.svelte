@@ -3,6 +3,11 @@
   // room fresh from the server first: a rename still in flight can't be undone by a category change sent with the
   // old name, whatever the screen's copy says.
   let queue = Promise.resolve()
+  /** A name field that takes the saved name, except while someone is typing in it: a save landing mid-edit can't wipe the edit. */
+  function keep(node: HTMLInputElement, value: string) {
+    node.value = value
+    return { update(v: string) { if (document.activeElement !== node) node.value = v } }
+  }
 </script>
 
 <script lang="ts">
@@ -22,10 +27,9 @@
   let { sub }: { sub?: string } = $props()
   // Writes go to the server this page opened on, even if a queued one runs after switching servers.
   const owner = instances.active
-  let serverName = $state(''), status = $state(''), error = $state('')
+  let status = $state(''), error = $state('')
   let newChan = $state(''), newChanCat = $state(''), newCat = $state('')
   let addingRoom = $state(false), addingCat = $state(false), deleting = $state(false)
-  $effect(() => { serverName = store.settings.instance_name })
   const room = $derived(sub ? store.textChannels.find((c) => c.id === sub) : undefined)
   const category = $derived(sub && !room ? store.categories.find((c) => c.id === sub) : undefined)
 
@@ -33,9 +37,9 @@
     error = ''; status = ''
     try { await work(); status = done } catch (err) { error = (err as Error).message }
   }
-  function saveName() {
+  function saveName(e: Event) {
     // Every change saves, even back to the name on the server: an earlier one may still be on its way.
-    const name = serverName.trim()
+    const name = (e.currentTarget as HTMLInputElement).value.trim()
     if (!name) return
     void later(async () => { owner.settings = await owner.api.put('/settings', { instance_name: name }) })
   }
@@ -47,7 +51,8 @@
     await owner.api.post<Category>('/categories', { name: newCat.trim(), position: owner.categories.length })
     newCat = ''; await owner.resync()
   }
-  const later = (work: () => Promise<void>) => (queue = queue.then(() => run(work, 'Saved.')))
+  // Queued work runs only for the account that queued it, not for whoever signed in meanwhile.
+  const later = (work: () => Promise<void>) => { const who = owner.me?.id; return (queue = queue.then(() => (owner.me?.id === who ? run(work, 'Saved.') : undefined))) }
   const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => later(async () => {
     const now = await owner.api.get<Channel>(`/channels/${c.id}`)
     await owner.api.put(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch })
@@ -70,7 +75,7 @@
   <h2 class="display">{room.name}</h2>
   <div class="slist gap-top">
     <SettingRow label="Name">
-      {#snippet control()}<input class="field plain value-field" aria-label="Room name" value={room.name} pattern={'[a-z0-9_-]{1,40}'} autocapitalize="off" autocomplete="off" enterkeyhint="done"
+      {#snippet control()}<input class="field plain value-field" aria-label="Room name" use:keep={room.name} pattern={'[a-z0-9_-]{1,40}'} autocapitalize="off" autocomplete="off" enterkeyhint="done"
         onchange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (v) void saveRoom(room, { name: v }) }} />{/snippet}
     </SettingRow>
     <SettingRow label="Category">
@@ -92,7 +97,7 @@
   <h2 class="display">{category.name}</h2>
   <div class="slist gap-top">
     <SettingRow label="Name">
-      {#snippet control()}<input class="field plain value-field" aria-label="Category name" value={category.name} maxlength="40" autocomplete="off" enterkeyhint="done"
+      {#snippet control()}<input class="field plain value-field" aria-label="Category name" use:keep={category.name} maxlength="40" autocomplete="off" enterkeyhint="done"
         onchange={(e) => { const v = e.currentTarget.value.trim(); if (v) void saveCategory(category, v) }} />{/snippet}
     </SettingRow>
   </div>
@@ -105,7 +110,7 @@
   <h2 class="display">Rooms</h2>
   <div class="slist gap-top">
     <SettingRow find="server-name" label="Server name">
-      {#snippet control()}<input id="server-name" class="field plain value-field" aria-label="Server name" bind:value={serverName} maxlength="40" autocomplete="off" enterkeyhint="done" onchange={saveName} />{/snippet}
+      {#snippet control()}<input id="server-name" class="field plain value-field" aria-label="Server name" use:keep={store.settings.instance_name} maxlength="40" autocomplete="off" enterkeyhint="done" onchange={saveName} />{/snippet}
     </SettingRow>
   </div>
   <p class="list-foot">Shown to members and on the sign-in screen.</p>
