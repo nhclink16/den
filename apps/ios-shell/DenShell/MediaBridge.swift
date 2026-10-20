@@ -20,7 +20,8 @@ import WebKit
 // The strip of recent photos at the top of the + sheet is the same picker, embedded as one row (iOS 17's compact
 // mode). It sits over the web view, where the page says its slot is, and only while the sheet is still: the page hides
 // it while anything moves it (shell-media.ts says why). A tap ticks a photo and hands it over as a pick would; another
-// tap unticks it and the page takes it out of the tray.
+// tap unticks it and the page takes it out of the tray. Each tick has its own id, so the page lands only a photo's
+// latest one, whichever strip it came from.
 
 private let log = Logger(subsystem: "app.denchat.shell", category: "media")
 
@@ -101,6 +102,7 @@ struct StripEvent: Encodable, Equatable {
     let type: String
     var session: Int?
     var asset: String?
+    var tick: String?
     var file: PickedFile?
 }
 
@@ -361,14 +363,18 @@ struct StripEvent: Encodable, Equatable {
             strip.ticked[asset] = tick
             let load = Task { [weak self] in
                 guard let self else { return }
+                // First that it's coming, so a strip opened before it arrives shows it ticked.
+                await send(StripEvent(type: "ticked", session: strip.session, asset: asset, tick: tick.uuidString))
                 do {
                     let file = try await keep(provider)
                     // Unticked while it came in, or the page went: not wanted.
                     guard strip.ticked[asset] == tick, self.page == page else { return forget(file.id) }
-                    await send(StripEvent(type: "added", session: strip.session, asset: asset, file: file))
+                    await send(StripEvent(type: "added", session: strip.session, asset: asset, tick: tick.uuidString, file: file))
                 } catch {
                     log.error("strip photo not kept: \(error, privacy: .public)")
-                    if strip.ticked[asset] == tick, self.page == page { await send(StripEvent(type: "failed", session: strip.session, asset: asset)) }
+                    if strip.ticked[asset] == tick, self.page == page {
+                        await send(StripEvent(type: "failed", session: strip.session, asset: asset, tick: tick.uuidString))
+                    }
                 }
             }
             stripLoads[strip.session, default: []].append(load)

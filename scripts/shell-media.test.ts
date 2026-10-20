@@ -50,36 +50,68 @@ test('a picker that fails to open says why', async () => {
 })
 
 // The + sheet's strip of recent photos: a tick puts the photo in the tray, an untick takes it out (or drops it if it is
-// still on its way), and a new strip ticks the strip's photos that are still in the tray.
-test('the strip fills and empties the tray it was opened from', async () => {
-  let release!: () => void
-  const held = new Promise<void>((r) => (release = r))
-  const slow = async (id: string, offset: number) => { if (id === 'late') await held; return chunk(id, offset) }
+// still on its way), and a new strip ticks the strip's photos that are in the tray or still coming.
+function stripRig(key = 'room') {
+  const holds: Record<string, () => void> = {}
+  const slow = async (id: string, offset: number) => { if (id.startsWith('late')) await new Promise<void>((r) => (holds[id] = r)); return chunk(id, offset) }
   const shell: { photoChunk: typeof chunk; onPhotoStrip?: ((e: ShellStripEvent) => void) | null } = { photoChunk: slow }
   ;(globalThis as { window?: unknown }).window = { denShell: shell }
   const files: File[] = [], warned: string[] = []
-  const tray: StripTray = { files: () => files, add: (f) => files.push(f), remove: (f) => files.splice(files.indexOf(f), 1), warn: (m) => warned.push(m) }
-  const session = openStrip(tray)
-  const settle = () => new Promise((r) => setTimeout(r, 0))
+  const tray: StripTray = { key, files: () => files, add: (f) => files.push(f), remove: (f) => files.splice(files.indexOf(f), 1), warn: (m) => warned.push(m) }
+  const send = (e: ShellStripEvent) => shell.onPhotoStrip!(e)
+  const pick = (session: number, asset: string, tick: string, id = asset) => {
+    send({ type: 'ticked', session, asset, tick })
+    send({ type: 'added', session, asset, tick, file: photo(id, Buffer.from(id)) })
+  }
+  return { tray, files, warned, send, pick, holds, names: () => files.map((f) => f.name) }
+}
+const settle = () => new Promise((r) => setTimeout(r, 0))
 
-  shell.onPhotoStrip!({ type: 'added', session, asset: 'A', file: photo('lake', Buffer.from('lake')) })
-  shell.onPhotoStrip!({ type: 'added', session, asset: 'B', file: photo('late', Buffer.from('late')) })
+test('the strip fills and empties the tray it was opened from', async () => {
+  const { tray, warned, send, pick, holds, names } = stripRig()
+  const session = openStrip(tray)
+  pick(session, 'A', 't1', 'lake')
+  pick(session, 'B', 't2', 'late-b')
   await settle()
-  assert.deepEqual(files.map((f) => f.name), ['lake.jpeg'])
-  assert.deepEqual(stripSelected(tray), ['A'])
+  assert.deepEqual(names(), ['lake.jpeg'])
+  assert.deepEqual(stripSelected(tray), ['A', 'B'])
 
   // Unticked while it was still coming in: it never reaches the tray.
-  shell.onPhotoStrip!({ type: 'removed', session, asset: 'B' })
-  release()
+  send({ type: 'removed', session, asset: 'B' })
+  holds['late-b']!()
   await settle()
-  assert.deepEqual(files.map((f) => f.name), ['lake.jpeg'])
+  assert.deepEqual(names(), ['lake.jpeg'])
 
-  shell.onPhotoStrip!({ type: 'removed', session, asset: 'A' })
-  assert.deepEqual(files, [])
-  shell.onPhotoStrip!({ type: 'failed', session, asset: 'C' })
-  // Another strip's events don't land here.
-  shell.onPhotoStrip!({ type: 'added', session: session + 1, asset: 'D', file: photo('other', Buffer.from('x')) })
+  send({ type: 'removed', session, asset: 'A' })
+  assert.deepEqual(names(), [])
+  send({ type: 'ticked', session, asset: 'C', tick: 't3' })
+  send({ type: 'failed', session, asset: 'C', tick: 't3' })
+  // A strip the page never opened doesn't land anything.
+  pick(session + 1, 'D', 't4', 'other')
   await settle()
-  assert.deepEqual(files, [])
+  assert.deepEqual(names(), [])
+  assert.deepEqual(stripSelected(tray), [])
   assert.deepEqual(warned, ["That photo couldn't be added."])
+})
+
+test('a photo still coming when the sheet opens again shows ticked, lands once, and stays out once unticked', async () => {
+  const { tray, send, holds, names } = stripRig('dm')
+  const first = openStrip(tray)
+  send({ type: 'ticked', session: first, asset: 'A', tick: 't1' })
+  const second = openStrip(tray)
+  assert.deepEqual(stripSelected(tray), ['A'])
+  // Unticked in the new strip before the first one's copy arrived: that copy is dropped.
+  send({ type: 'removed', session: second, asset: 'A' })
+  send({ type: 'added', session: first, asset: 'A', tick: 't1', file: photo('a1', Buffer.from('a')) })
+  await settle()
+  assert.deepEqual(names(), [])
+  // Ticked again: only the newest tick lands, however the copies are ordered.
+  send({ type: 'ticked', session: second, asset: 'A', tick: 't2' })
+  send({ type: 'added', session: second, asset: 'A', tick: 't2', file: photo('late-a2', Buffer.from('a')) })
+  send({ type: 'added', session: first, asset: 'A', tick: 't1', file: photo('a3', Buffer.from('a')) })
+  holds['late-a2']!()
+  await settle()
+  assert.deepEqual(names(), ['late-a2.jpeg'])
+  // Another conversation's strip doesn't see it as ticked.
+  assert.deepEqual(stripSelected({ ...tray, key: 'room', files: () => [] }), [])
 })

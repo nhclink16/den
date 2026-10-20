@@ -229,6 +229,7 @@
   function stripTray(): StripTray {
     const { uploads, at, same, warn } = target()
     return {
+      key: conversationKey(at),
       files: () => uploads.forConversation(at).map((p) => p.file),
       add: (file) => { if (same()) uploads.add(at, [file]) },
       remove: (file) => { const p = uploads.forConversation(at).find((p) => p.file === file); if (p && same()) uploads.remove(at, p) },
