@@ -40,9 +40,12 @@ final class TourUITests: XCTestCase {
             comeIn.tap()
             pause(2)
             shot("sign-in-wrong-password")
-            fillSignIn(app, user: "ellis", password: password)
-            comeIn.tap()
-            try find(app, label: "Your profile and settings", timeout: 20)
+            // A fresh page for the real sign-in: typing over the wrong one left both in the field.
+            let fresh = launch()
+            let again = try find(fresh, label: "Come in", timeout: 30)
+            fillSignIn(fresh, user: "ellis", password: password)
+            again.tap()
+            try find(fresh, label: "Your profile and settings", timeout: 20)
             let allow = springboard.alerts.buttons["Allow"]
             if allow.waitForExistence(timeout: theme == "light" ? 10 : 1) {
                 shot("notification-question")
@@ -127,7 +130,8 @@ final class TourUITests: XCTestCase {
             reply.press(forDuration: 1)
             try find(app, label: "Copy text")
             try XCTUnwrap(nearest(app, label: "Reply", above: reply), "No Reply button by the message.").tap()
-            pause()
+            try find(app, label: "Cancel reply")
+            putKeyboardAway(app, "thread-reply-bar")
             shot("thread-reply-bar")
         }
     }
@@ -148,18 +152,26 @@ final class TourUITests: XCTestCase {
         }
     }
 
-    /// Search, empty and with results, and the inbox.
+    /// Search: focused on the home, its results, and the empty search page. Then the inbox.
     @MainActor func test08SearchInbox() async throws {
         await themes { _ in
             let app = try launchSignedIn()
             let field = try find(app, label: "Search messages")
             field.tap()
             pause()
-            shot("search")
+            shot("home-search-focus")
             app.typeText("cabin\n")
             try find(app, label: "results", .contains, timeout: 10)
             pause()
             shot("search-results")
+        }
+        await themes { _ in
+            let app = try openGeneral()
+            let search = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == 'Search messages'")).firstMatch
+            try wait(for: search, "room's search link")
+            search.tap()
+            try find(app, label: "Words are matched exactly", .contains)
+            shot("search")
         }
         await themes { _ in
             let app = try launchSignedIn()
@@ -222,7 +234,10 @@ final class TourUITests: XCTestCase {
                 if !joining, join.exists, !join.isEnabled { joining = true; shot("call-joining") }
                 _ = failed.waitForExistence(timeout: 1)
             }
-            shot(joined.exists ? "call-joined" : "call-error")
+            if joined.exists { shot("call-joined") } else if failed.exists { shot("call-error") } else {
+                missing("call outcome", tree: app.debugDescription)
+                throw Missing(description: "The join neither connected nor failed in 45 s.")
+            }
         }
     }
 
@@ -294,9 +309,15 @@ final class TourUITests: XCTestCase {
         return token
     }
 
-    /// On screen, for things the page draws: XCUITest's own hit test failed outright on a link in Settings.
+    /// Well inside the web view, for things the page draws. XCUITest's own hit test (isHittable, tap) failed outright
+    /// on a Settings link 25 pt from the bottom edge, and that ends the whole test, so these get tapped by coordinate.
     @MainActor private func onScreen(_ element: XCUIElement, _ app: XCUIApplication) -> Bool {
-        element.exists && app.windows.firstMatch.frame.contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
+        element.exists && app.webViews.firstMatch.frame.insetBy(dx: 0, dy: 80)
+            .contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
+    }
+
+    @MainActor private func tapCentre(_ element: XCUIElement) {
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     @MainActor private func launch(url: String = "http://localhost:7000") -> XCUIApplication {
@@ -348,7 +369,7 @@ final class TourUITests: XCTestCase {
         try find(app, label: "Account").tap()
         let logOut = try find(app, label: "Log out")
         for _ in 0..<6 where !onScreen(logOut, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
-        logOut.tap()
+        tapCentre(logOut)
         try find(app, label: "Come in", timeout: 15)
     }
 
@@ -358,7 +379,7 @@ final class TourUITests: XCTestCase {
             let row = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == %@", page)).firstMatch
             for _ in 0..<6 where !onScreen(row, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
             guard row.exists else { continue }
-            row.tap()
+            tapCentre(row)
             pause()
             shotScrolling("settings-" + page.lowercased().replacingOccurrences(of: " ", with: "-"), app)
             let back = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == 'Settings'")).firstMatch
@@ -385,7 +406,7 @@ final class TourUITests: XCTestCase {
                 photo.tap()
                 let add = app.buttons["Add"]
                 if add.waitForExistence(timeout: 3) { add.tap() }
-                if element(app, label: "Remove").waitForExistence(timeout: 10) { return try putKeyboardAway(app) }
+                if element(app, label: "Remove").waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
             }
             let cancel = app.buttons["Cancel"]
             if cancel.exists { cancel.tap() }
@@ -403,15 +424,16 @@ final class TourUITests: XCTestCase {
         try wait(for: paste, "Paste")
         paste.tap()
         try find(app, label: "Remove", timeout: 10)
-        try putKeyboardAway(app)
+        putKeyboardAway(app, "room-photo-waiting")
     }
 
-    /// The composer keeps focus after a photo is added, and the keyboard covers it: shoot that, then lower it.
-    @MainActor private func putKeyboardAway(_ app: XCUIApplication) throws {
+    /// The composer keeps focus after a photo is added or a reply starts, and the keyboard covers what changed:
+    /// shoot that as "<stop>-keyboard", then lower it.
+    @MainActor private func putKeyboardAway(_ app: XCUIApplication, _ stop: String) {
         pause()
         let tip = app.buttons["Continue"]
         if tip.exists { shot("keyboard-tip"); tip.tap() }
-        shot("room-photo-waiting-keyboard")
+        shot("\(stop)-keyboard")
         let done = app.buttons["Done"]
         if done.exists { done.tap() } else { app.webViews.firstMatch.swipeDown(velocity: .slow) }
         pause()
@@ -533,6 +555,7 @@ private extension XCUIElement {
     /// Empties a text field the page may have kept from an earlier try.
     @MainActor func clear() {
         guard let text = value as? String, !text.isEmpty, text != placeholderValue else { return }
+        coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: text.count))
     }
 }
