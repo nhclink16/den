@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
+  import { onMount } from 'svelte'
   import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { native } from '../lib/native'
@@ -23,17 +23,19 @@
   let error = $state('')
   let busy = $state(false)
   let forgot = $state(false)
-  let shake = $state(false)
   let mark: HTMLElement
+  let fields: HTMLElement
 
   $effect(() => { if (invite) mode = 'register' })
 
   const usernameOk = $derived(USERNAME_RE.test(username.trim()))
   const passwordOk = $derived(password.length >= 12)
 
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+
   // The mark rises from the middle of the screen, where the boot screen (and Den Shell's launch screen) drew it.
   onMount(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (still()) return
     const r = mark.getBoundingClientRect()
     mark.animate([{ transform: `translateY(${innerHeight / 2 - (r.top + r.height / 2)}px)` }, { transform: 'none' }], { duration: 550, easing: 'cubic-bezier(.2, .8, .2, 1)' })
   })
@@ -52,9 +54,8 @@
       const e = err as { status?: number; message?: string }
       error = e.status === 401 && mode === 'login' ? 'Wrong username or password.' : e.message || 'Something went wrong. Try again.'
       haptic('warning')
-      shake = false
-      await tick()
-      shake = true
+      // A script animation, so it never touches the fields' entrance animation.
+      if (!still()) fields.animate([{ transform: 'none' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(3px)' }, { transform: 'none' }], 400)
     } finally {
       busy = false
     }
@@ -79,7 +80,7 @@
     </header>
 
     <!-- Placeholders name the fields; aria-label keeps the name once something is typed. -->
-    <div class="fields" class:shake onanimationend={() => (shake = false)}>
+    <div class="fields" bind:this={fields}>
       {#if mode === 'register'}
         <input class="field" bind:value={displayName} aria-label="Display name" placeholder="Display name" autocomplete="nickname" autocapitalize="words" maxlength="100" aria-describedby="hint-display" />
         <p class="note" id="hint-display">What everyone sees. Spaces, emoji, any language. Change it whenever.</p>
@@ -88,12 +89,12 @@
       <input class="field" bind:value={username} aria-label="Username" placeholder="Username" autocomplete="username" autocapitalize="off" spellcheck="false" required minlength="3" maxlength="32" pattern={USERNAME_PATTERN} title="3-32 letters, digits, dots, hyphens or underscores, starting and ending with a letter or digit" aria-describedby={mode === 'register' ? 'hint-username' : undefined} />
       {#if mode === 'register'}
         <!-- A rule stays put once met and gains a tick at its end, so nothing moves while you type. -->
-        <p class="note" class:met={usernameOk} id="hint-username">3 to 32 letters, digits, dots, hyphens or underscores. Capitals are fine.{#if usernameOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
+        <p class="note" id="hint-username">3 to 32 letters, digits, dots, hyphens or underscores. Capitals are fine.{#if usernameOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
       {/if}
 
       <input class="field" type="password" bind:value={password} aria-label="Password" placeholder="Password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} aria-describedby={mode === 'register' ? 'hint-password' : undefined} />
       {#if mode === 'register'}
-        <p class="note" class:met={passwordOk} id="hint-password">At least 12 characters. A sentence works.{#if passwordOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
+        <p class="note" id="hint-password">At least 12 characters. A sentence works.{#if passwordOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
 
         <input class="field mono" bind:value={invite} aria-label="Invite code" placeholder="Invite code" autocomplete="off" autocapitalize="off" spellcheck="false" required />
       {/if}
@@ -173,9 +174,7 @@
     .light { animation: lamp-on 1.1s .15s var(--ease-out) both; }
     .mark::before { animation: lamp-on .9s .1s var(--ease-out) both; }
     .door > :not(.head), .head > :not(.mark) { animation: rise .5s .15s var(--ease-out) both; }
-    .fields.shake { animation: shake .4s; }
   }
   @keyframes lamp-on { 0% { opacity: 0; } 35% { opacity: .45; } 45% { opacity: .2; } 100% { } }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-  @keyframes shake { 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
 </style>

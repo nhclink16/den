@@ -10,6 +10,7 @@
   let checked = $state(false)
 
   onMount(async () => {
+    document.getElementById('boot')?.remove()
     const ok = await instances.resume()
     checked = true
     if (!ok && router.route.name !== 'login') router.go('/login', true)
@@ -22,8 +23,8 @@
 
 <svelte:head><title>{store.totalUnread && store.me ? `(${store.totalUnread}) ` : ''}{store.settings.instance_name}</title></svelte:head>
 
-<!-- The Den mark in the middle of the screen: where Den Shell's launch screen draws it (apps/ios-shell, LaunchMark),
-     so opening the app doesn't jump. -->
+<!-- The Den mark in the middle of the screen: where Den Shell's launch screen draws it (apps/ios-shell, LaunchMark)
+     and index.html did until now, so opening the app doesn't jump. -->
 {#if !checked}
   <div class="boot"><Mark size={64} /><span class="sr-only">{store.settings.instance_name}</span></div>
 {:else if router.route.name === 'login' || !store.me}
