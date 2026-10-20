@@ -140,7 +140,7 @@
       <ServerView slug={router.route.slug} {narrow} />
     {:else if router.route.name === 'home' && narrow}
       <!-- The phone home is the room list, so it takes the sidebar's wallpaper. -->
-      <div class="home bg-host scope-sidebar"><Sidebar phone /></div>
+      <div class="home bg-host scope-sidebar edge"><Sidebar phone /></div>
     {:else if router.route.name === 'spotify-callback'}
       <SpotifyCallback route={router.route} />
     {/if}
@@ -194,5 +194,10 @@
   .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
 
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
+  /* A phone screen whose NavBar is the first thing on screen (`.edge`) reaches up under the status bar, so its
+     content can scroll under the bar's blur; the bar keeps its own row clear with --nav-inset. Anything above
+     it (a call pill, a status strip) keeps the shell's padding instead. */
+  .shell.narrow:has(> .main > :global(.edge:first-child)) { padding-top: 0; }
+  .shell.narrow > .main > :global(.edge:first-child) { --nav-inset: env(safe-area-inset-top, 0px); }
   .home { flex: 1; min-height: 0; }
 </style>

@@ -3,6 +3,9 @@
   import JamCard from './JamCard.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
+  import NavBar, { trouble } from './NavBar.svelte'
+  import Avatar from './Avatar.svelte'
+  import { profileCard } from '../lib/people.svelte'
   import RoomIcon from './RoomIcon.svelte'
   import { roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
@@ -10,7 +13,7 @@
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
   import CallView from './CallView.svelte'
-  import { store } from '../lib/store.svelte'
+  import { store, instances } from '../lib/store.svelte'
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
@@ -20,7 +23,7 @@
   import { router } from '../lib/router.svelte'
   import { viewing } from '../lib/notify.svelte'
   import { native } from '../lib/native'
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   let q = $state('')
   let listening = $state(false)
   // Searches everywhere: a miss in this room reads as "the message is gone".
@@ -34,11 +37,21 @@
   // A rejected first page is shown and retryable; an empty room and a room that
   // failed to load are not the same thing.
   let roomError = $state('')
+  // Only the newest load may report a failure: a reconnect's retry and the resync's reload can overlap.
+  let loads = 0
   function loadRoom() {
+    const mine = ++loads
     roomError = ''
-    void store.loadLatest(channel.id).catch((e) => { roomError = (e as Error).message })
+    void store.loadLatest(channel.id).catch((e) => { if (mine === loads) roomError = (e as Error).message })
   }
   $effect(() => { if (channel.kind !== 'voice' && !store.messages.has(channel.id)) loadRoom() })
+  // Once Den is back, a room that couldn't load tries again.
+  let wasConnected = store.connected
+  $effect(() => {
+    const now = store.connected
+    if (now && !wasConnected && untrack(() => roomError)) loadRoom()
+    wasConnected = now
+  })
 
   // Closing the room's window cancels its in-flight pages when the target goes.
   $effect(() => {
@@ -165,6 +178,9 @@
   const roomWindow = $derived(roomKey ? store.windowAt(roomKey) : undefined)
   const roomWindowStatus = $derived(roomKey ? store.windowStatus(roomKey) : undefined)
   const roomWindowed = $derived(!!roomWindow?.length)
+  // Messages already here (the latest, or an older part opened from a link) stay on screen; with none,
+  // the room says it couldn't load.
+  const cached = $derived(!!store.messages.get(channel.id)?.length || roomWindowed)
 
   const roomSource = $derived<Source>({
     list: roomWindowed ? roomWindow! : store.messages.get(channel.id) || [],
@@ -212,7 +228,7 @@
     restoring = ''
     void tick().then(() => {
       const opener = document.querySelector<HTMLButtonElement>(`#m-${CSS.escape(back)} button[title="Reply"]`)
-      const fallback = document.querySelector<HTMLElement>('.view .head h1')
+      const fallback = document.querySelector<HTMLElement>('.view h1')
       ;(opener ?? fallback)?.focus()
     })
   })
@@ -252,6 +268,12 @@
   // the room's. Not in the desktop app: there the room header is what drags the
   // window, and its narrowest window is no phone.
   const pushed = $derived(narrow && !native && (callCovers || stowed))
+  // A phone gets the iPhone bar. The desktop app keeps its header even in a narrow window: that header is
+  // what drags the window.
+  const nav = $derived(narrow && !native)
+  // The person on the other end of a two-person DM, whose face and profile the bar offers.
+  const other = $derived(isDm && (channel.member_ids || []).length <= 2 ? (channel.member_ids || []).find((id) => id !== store.me?.id) : undefined)
+  const showThreads = $derived(channel.kind === 'text' && !callCovers && (store.threadsIn(channel.id, false).length || threadsFailed))
 
   function onDrop(e: DragEvent) {
     e.preventDefault(); e.stopPropagation(); dragging = 0
@@ -261,8 +283,31 @@
   }
 </script>
 
-<section class="view" class:pushed aria-label={store.title(channel)}>
-  {#if !pushed}
+{#snippet person()}
+  <h1 class="person">
+    <button onclick={(e) => other && profileCard.open(other, e.currentTarget, instances.active)} disabled={!other} aria-label={other ? `${store.title(channel)}'s profile` : undefined}>
+      {#if other}<Avatar userId={other} size={26} presence={false} />{:else}<RoomIcon {channel} size={26} />{/if}
+      <span>{store.title(channel)}</span>
+    </button>
+  </h1>
+{/snippet}
+{#snippet threadLine()}<ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} subtitle />{/snippet}
+{#snippet roomActions()}
+  {#if isDm}<button class="icon-btn" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" size={22} /></button>{/if}
+  <a href="/find" class="icon-btn" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find', false, roomUrl) }}><Icon name="search" size={22} /></a>
+{/snippet}
+
+<!-- `edge`: the bar is the first thing on a phone screen, so it reaches up under the status bar (Shell). -->
+<section class="view" class:pushed class:edge={nav && (!pushed || !call.channel)} aria-label={store.title(channel)}>
+  {#if nav && !pushed}
+  <NavBar
+    title={store.title(channel)} status={trouble(store.connected)} subtitle={roomError && cached ? "Couldn't load new messages" : ''}
+    heading={isDm ? person : undefined} subline={showThreads && !(roomError && cached) ? threadLine : undefined}
+  >
+    {#snippet leading()}<HomeButton />{/snippet}
+    {#snippet trailing()}{@render roomActions()}{/snippet}
+  </NavBar>
+  {:else if !pushed}
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<HomeButton />{/if}
@@ -271,7 +316,7 @@
       <h1 class="display" tabindex="-1">{callCovers ? call.title : store.title(channel)}</h1>
       <!-- Only where there is something to show, and DMs open their threads from
            the line under each message. -->
-      {#if channel.kind === 'text' && !callCovers && (store.threadsIn(channel.id, false).length || threadsFailed)}
+      {#if showThreads}
         <ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} />
       {/if}
     </div>
@@ -309,7 +354,15 @@
       ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
       ondrop={onDrop}
     >
-      {#if roomError}
+      {#if roomError && !cached}
+        <!-- Nothing to show: say so plainly, with one way to try again. -->
+        <div class="failed" role="alert">
+          <Icon name="offline" size={40} />
+          <h2>Can't load {roomName(channel, themes.appearance.room_icons)}</h2>
+          <p>{store.connected ? 'Something went wrong on the way. Try again in a moment.' : "You're offline. Den tries again as soon as you're back."}</p>
+          <button class="btn lit" onclick={loadRoom}>Try Again</button>
+        </div>
+      {:else if roomError && !nav}
         <p class="windowed" role="alert">
           {roomError}
           <button class="btn quiet" onclick={loadRoom}>Retry</button>
@@ -335,7 +388,7 @@
           <button class="btn quiet" onclick={() => router.go(roomUrl, true)}>Jump to newest</button>
         </p>
       {/if}
-      <MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} />
+      {#if !(roomError && !cached)}<MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} />{/if}
 
       <div class="typing" aria-live="polite">
         {#if listening}<span>listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
@@ -354,7 +407,7 @@
     </div>
     {#if panel && rootOf}
       <ThreadPanel
-        {channel} rootId={rootOf} threadId={openThread} target={target} narrow={!pair}
+        {channel} rootId={rootOf} threadId={openThread} target={target} narrow={!pair} phone={nav}
         onclose={closePanel}
         onjump={() => router.go(openThread ? `/c/${channel.id}/t/${openThread}` : `/c/${channel.id}`, true)}
         onvalid={(ok) => (panelValid = ok)}
@@ -389,6 +442,14 @@
      sight, out of the tab order and no longer being read. */
   .room.stowed { visibility: hidden; position: absolute; inset: 0; }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
+  .failed { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px 32px; text-align: center; color: var(--ink-3); }
+  .failed h2 { margin: 8px 0 0; font-size: var(--fs-title); font-weight: 600; color: var(--ink); }
+  .failed p { margin: 0 0 10px; max-width: 30ch; font-size: var(--fs-sm); color: var(--ink-2); text-wrap: pretty; }
+  /* A DM's bar title: the person's face and name, which open their profile. */
+  .person { margin: 0; max-width: 100%; font-size: inherit; }
+  .person button { display: flex; align-items: center; gap: 7px; max-width: 100%; padding: 2px 4px; color: var(--ink); font: 600 17px/1.25 var(--display); }
+  .person button:active:not(:disabled) { opacity: .6; }
+  .person span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .panel-missing { flex: 1; display: grid; place-content: center; gap: 10px; justify-items: center; padding: 24px; text-align: center; }
   .panel-missing .row { display: flex; gap: 8px; }
   .object-slot { display: contents; }

@@ -1222,7 +1222,10 @@ export class Store {
   }
 
   async openDm(userIds: string[]) {
+    const gen = this.generation
     const c = await this.api.post<Channel>('/dms', { member_ids: [...new Set([...userIds, this.me!.id])] })
+    // A sign-out (and maybe someone else's sign-in) while the request was out: the DM isn't theirs.
+    if (this.generation !== gen) throw new Error('You signed out before that conversation opened.')
     if (!this.channels.some((x) => x.id === c.id)) this.channels = [...this.channels, c]
     if (!this.messages.has(c.id)) await this.loadLatest(c.id)
     return c
