@@ -190,7 +190,7 @@
     <label class="action-row file">Import a Pack…<input type="file" accept=".den-sounds.zip" aria-label="Import sound pack" disabled={busy} onchange={e => importPack(e.currentTarget)} /></label>
     <button class="action-row" disabled={busy} onclick={exportPack}>Export My Sounds</button>
     <button class="action-row" disabled={busy} onclick={() => save(p => { p.overrides = {}; p.pack_id = null })}>Use Server Defaults</button>
-    {#if prefs.pack_id && prefs.pack_id !== 'den'}<button class="action-row danger" disabled={busy} onclick={() => save(p => { p.custom_packs = p.custom_packs.filter(pack => pack.id !== p.pack_id); p.pack_id = null })}>Remove {packName}</button>{/if}
+    {#if prefs.pack_id && prefs.pack_id !== 'den'}<button class="action-row danger" disabled={busy} onclick={() => { const id = prefs.pack_id; void save(p => { p.custom_packs = p.custom_packs.filter(pack => pack.id !== id); if (p.pack_id === id) p.pack_id = null }) }}>Remove {packName}</button>{/if}
   </div>
   <p class="list-foot">A pack file carries its sounds with it: share it in any room.</p>
   {#if owner.me?.role === 'admin'}
