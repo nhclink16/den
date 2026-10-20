@@ -211,12 +211,13 @@
   })
 
   function add(files: File[]) { store.uploads.add(here, files); ta?.focus() }
-  // Den Shell has iOS's photo picker; elsewhere the <input>. Files land where Photos was tapped, on that account,
-  // even if they take a while to come in.
+  // Den Shell has iOS's photo picker; elsewhere the <input>. Files land where Photos was tapped, and only while
+  // the same person is signed in to the same server: a big video can take a while to come in.
   function pickPhotos() {
     if (!shellPhotos()) return photoInput?.click()
-    const uploads = store.uploads, at = here
-    void pickShellPhotos((files) => uploads.add(at, files), (message) => { haptic('warning'); store.toast = message })
+    const uploads = store.uploads, at = here, who = `${store.origin}|${store.me?.id}`
+    const same = () => store.uploads === uploads && `${store.origin}|${store.me?.id}` === who
+    void pickShellPhotos((files) => { if (same()) uploads.add(at, files) }, (message) => { if (same()) { haptic('warning'); store.toast = message } })
   }
   // A staged picture shows itself, so you can tell which one you're about to send.
   function preview(img: HTMLImageElement, file: File) {

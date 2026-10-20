@@ -2,8 +2,10 @@
 // "Photo Library / Take Photo / Choose File" menu first. It also shows iOS's share sheet, which `navigator.share`
 // didn't bring up there. Shells from before this, browsers and the desktop keep the <input> and `navigator.share`.
 
-/** A picked photo or video, kept by the shell until the page has read it. */
+/** A picked photo or video, kept by the shell until the page has read it (one over 1 GB isn't kept). */
 export type ShellPhoto = { id: string; name: string; type: string; size: number }
+/** `failed`: picked items the shell couldn't get, such as a video iCloud didn't hand over. */
+export type ShellPick = { files: ShellPhoto[]; failed: number }
 /** `from`: what was tapped, in the page's CSS pixels, so an iPad's popover points at it. */
 export type ShellShare = { url: string; text?: string; from?: { x: number; y: number; width: number; height: number } }
 
@@ -18,10 +20,11 @@ export const shellPhotos = () => !!window.denShell?.photos
  */
 export async function pickShellPhotos(add: (files: File[]) => void, warn: (message: string) => void) {
   const shell = window.denShell!
-  let picked: ShellPhoto[]
+  let picked: ShellPick
   try { picked = await shell.photos!() }
   catch (e) { warn((e as Error).message || 'Your photos couldn\'t be opened.'); return }
-  for (const photo of picked) {
+  if (picked.failed) warn(picked.failed === 1 ? 'One of those couldn\'t be added.' : `${picked.failed} of those couldn't be added.`)
+  for (const photo of picked.files) {
     if (photo.size > MAX) { warn(`${photo.name} is over the 1 GB limit.`); continue }
     try { add([await readPhoto(photo, (id, offset) => shell.photoChunk!(id, offset))]) }
     catch { warn(`${photo.name} couldn't be added.`) }
@@ -35,7 +38,8 @@ export async function readPhoto(photo: ShellPhoto, chunk: (id: string, offset: n
     const piece = decode(await chunk(photo.id, offset))
     // A file that changed size under us would otherwise loop for ever.
     if (!piece.length && offset < photo.size) throw new Error('short read')
-    parts.push(piece)
+    // A Blob at once, so WebKit keeps the bytes and the page's own copy can go: a video never sits in the page whole.
+    parts.push(new Blob([piece]))
     offset += piece.length
   } while (offset < photo.size)
   return new File(parts, photo.name, { type: photo.type })

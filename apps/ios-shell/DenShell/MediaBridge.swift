@@ -13,7 +13,8 @@ import WebKit
 // time (`photoChunk`), base64 over the same reply channel the call bridge uses, and makes a File of the pieces. A
 // custom URL scheme the page fetches would be simpler, but WebKit refuses one from an https page (mixed content), and
 // Den is always https. Pieces keep every message small whatever the video's size. Each temporary file goes once its
-// last piece is read; any left over (a page that reloaded half way) go at the next launch.
+// last piece is read, or at once when it's over the upload limit; any left over (a page that reloaded half way) go at
+// the next launch.
 
 private let log = Logger(subsystem: "app.denchat.shell", category: "media")
 
@@ -57,7 +58,13 @@ struct Picked: @unchecked Sendable {
     let results: [PHPickerResult]
 }
 
-/// What the page learns about a picked file before it reads it.
+/// What a pick hands the page: the files it can read, and how many picked items couldn't be kept.
+struct Pick: Encodable {
+    let files: [PickedFile]
+    let failed: Int
+}
+
+/// What the page learns about a picked file before it reads it. One over `maxSize` comes with nothing to read.
 struct PickedFile: Encodable, Equatable {
     let id: String
     let name: String
@@ -70,11 +77,15 @@ struct PickedFile: Encodable, Equatable {
     nonisolated static let pieceSize = 2 << 20
     /// As many as a message sensibly carries; the server takes any number.
     static let limit = 10
+    /// Den's upload limit, as the page applies it (uploads.svelte.ts). A bigger file isn't kept.
+    static let maxSize = 1 << 30
     let den: Origin
     weak var webView: WKWebView?
     private let folder: URL
     private var picked: [String: URL] = [:]
     private var picking: CheckedContinuation<Picked, Never>?
+    /// The picker `picking` waits for.
+    private weak var shown: PHPickerViewController?
 
     init(den: Origin) {
         self.den = den
@@ -119,10 +130,13 @@ struct PickedFile: Encodable, Equatable {
 
     // MARK: Photos
 
-    private func pick() async throws -> [PickedFile] {
+    private func pick() async throws -> Pick {
+        if picking != nil {
+            if shown?.viewIfLoaded?.window != nil { throw CallError(message: "Your photos are already open.") }
+            // A picker that went without saying so mustn't block the next one.
+            finish([])
+        }
         guard let top = presenter() else { throw CallError(message: "Den can't show your photos right now.") }
-        // A picker that went without saying so mustn't block the next one.
-        finish([])
         var config = PHPickerConfiguration()
         config.filter = .any(of: [.images, .videos])
         config.selectionLimit = Self.limit
@@ -131,24 +145,26 @@ struct PickedFile: Encodable, Equatable {
         config.preferredAssetRepresentationMode = .compatible
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = self
+        shown = picker
         let results = await withCheckedContinuation { picking = $0; top.present(picker, animated: true) }.results
         var files: [PickedFile] = []
         for result in results {
             do { files.append(try await keep(result.itemProvider)) } catch { log.error("picked item not kept: \(error, privacy: .public)") }
         }
         log.info("picked \(files.count, privacy: .public) of \(results.count, privacy: .public)")
-        if files.isEmpty && !results.isEmpty { throw CallError(message: "Those couldn't be added.") }
-        return files
+        return Pick(files: files, failed: results.count - files.count)
     }
 
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true)
-        finish(results)
+        // Only the picker that's being waited for answers.
+        if picker === shown { finish(results) }
     }
 
     private func finish(_ results: [PHPickerResult]) {
         picking?.resume(returning: Picked(results: results))
         picking = nil
+        shown = nil
     }
 
     /// Moves the picked photo or video into the shell's own temporary folder, where the page can read it.
@@ -177,7 +193,7 @@ struct PickedFile: Encodable, Equatable {
         let base = (provider.suggestedName ?? "").replacingOccurrences(of: "/", with: "-")
         let name = (base.isEmpty ? "Photo" : base) + (ext.isEmpty ? "" : ".\(ext)")
         let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? chosen.preferredMIMEType ?? "application/octet-stream"
-        picked[id] = url
+        if size > Self.maxSize { try? FileManager.default.removeItem(at: url) } else { picked[id] = url }
         return PickedFile(id: id, name: name, type: mime, size: size)
     }
 

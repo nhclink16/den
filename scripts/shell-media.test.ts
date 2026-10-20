@@ -32,14 +32,14 @@ test('an empty file is one ask, and a file shorter than promised fails instead o
   await assert.rejects(readPhoto(short, chunk), /short read/)
 })
 
-test('a pick adds each file in order, skips one over the limit, and keeps going past one that fails', async () => {
+test('a pick adds each file in order, skips one over the limit, keeps going past one that fails, and says what was lost', async () => {
   const picked = [photo('one', Buffer.from('first')), { ...photo('huge', Buffer.from('x')), size: 1024 ** 3 + 1 },
     { id: 'gone', name: 'gone.mov', type: 'video/quicktime', size: 4 }, photo('two', Buffer.from('second'))]
-  ;(globalThis as { window?: unknown }).window = { denShell: { photos: async () => picked, photoChunk: chunk } }
+  ;(globalThis as { window?: unknown }).window = { denShell: { photos: async () => ({ files: picked, failed: 1 }), photoChunk: chunk } }
   const added: string[] = [], warned: string[] = []
   await pickShellPhotos((files) => added.push(...files.map((f) => f.name)), (m) => warned.push(m))
   assert.deepEqual(added, ['one.jpeg', 'two.jpeg'])
-  assert.deepEqual(warned, ['huge.jpeg is over the 1 GB limit.', "gone.mov couldn't be added."])
+  assert.deepEqual(warned, ["One of those couldn't be added.", 'huge.jpeg is over the 1 GB limit.', "gone.mov couldn't be added."])
 })
 
 test('a picker that fails to open says why', async () => {
