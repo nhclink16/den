@@ -5,6 +5,7 @@
   import Native from './ui/Native.svelte'
   import Login from './ui/Login.svelte'
   import Shell from './ui/Shell.svelte'
+  import Mark from './ui/Mark.svelte'
 
   let checked = $state(false)
 
@@ -21,20 +22,22 @@
 
 <svelte:head><title>{store.totalUnread && store.me ? `(${store.totalUnread}) ` : ''}{store.settings.instance_name}</title></svelte:head>
 
+<!-- The Den mark in the middle of the screen: where Den Shell's launch screen draws it (apps/ios-shell, LaunchMark),
+     so opening the app doesn't jump. -->
 {#if !checked}
-  <div class="boot"><span class="display">{store.settings.instance_name}</span></div>
+  <div class="boot"><Mark size={64} /><span class="sr-only">{store.settings.instance_name}</span></div>
 {:else if router.route.name === 'login' || !store.me}
   <Login />
 {:else if store.ready}
   <Shell />
 {:else}
-  <div class="boot"><span class="display">{store.settings.instance_name}</span><span class="faint">Opening the room</span></div>
+  <div class="boot" role="status"><Mark size={64} /><span class="faint">Opening the room</span></div>
 {/if}
 
 <style>
-  .boot {
-    height: 100%; display: grid; place-content: center; gap: 8px; text-align: center;
-    font-size: 28px; color: var(--ink-2);
-  }
-  .boot .faint { font-size: 13px; }
+  .boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--ink); }
+  /* Under the mark without moving it, and only once the wait is long enough to need words. */
+  .boot .faint { position: absolute; top: calc(50% + 48px); font-size: 13px; }
+  @media (prefers-reduced-motion: no-preference) { .boot .faint { animation: show .3s 1s both; } }
+  @keyframes show { from { opacity: 0; } }
 </style>
