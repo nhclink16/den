@@ -65,7 +65,7 @@ struct PickedFile: Encodable, Equatable {
     let size: Int
 }
 
-@MainActor final class MediaBridge: NSObject, WKScriptMessageHandlerWithReply, @preconcurrency PHPickerViewControllerDelegate {
+@MainActor final class MediaBridge: NSObject, WKScriptMessageHandlerWithReply, PHPickerViewControllerDelegate {
     /// Bytes per piece: about 2.7 MB of base64 per message.
     nonisolated static let pieceSize = 2 << 20
     /// As many as a message sensibly carries; the server takes any number.
