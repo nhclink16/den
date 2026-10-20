@@ -452,7 +452,7 @@
   .room.stowed { visibility: hidden; position: absolute; inset: 0; }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
   .failed { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px 32px; text-align: center; color: var(--ink-3); }
-  .failed h2 { margin: 8px 0 0; font-size: var(--fs-title); font-weight: 600; color: var(--ink); text-wrap: balance; }
+  .failed h2 { margin: 8px 0 0; font-size: var(--fs-title); font-weight: 600; color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
   .failed p { margin: 0 0 10px; max-width: 30ch; font-size: var(--fs-sm); color: var(--ink-2); text-wrap: pretty; }
   /* A DM's bar title: the person's face and name, which open their profile. */
   .person { margin: 0; max-width: 100%; font-size: inherit; }
@@ -516,5 +516,5 @@
     display: grid; place-items: center; padding: 16px; pointer-events: none;
   }
   .drop-inner { display: grid; justify-items: center; gap: 6px; text-align: center; color: var(--lamp); }
-  .big { font-size: 26px; text-wrap: balance; }
+  .big { font-size: 26px; text-wrap: balance; overflow-wrap: anywhere; }
 </style>
