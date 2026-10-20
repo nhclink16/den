@@ -89,22 +89,24 @@ final class TourUITests: XCTestCase {
         }
     }
 
-    /// A long press on someone's message, the reaction picker, and the + sheet with its emoji and GIF sheets.
+    /// A long press on someone's message (its menu), the full reaction picker from the menu's +, and the + sheet with
+    /// its emoji and GIF sheets.
     @MainActor func test05Menus() async throws {
         await themes { _ in
             let app = try openGeneral()
             let message = try find(app, label: "Leaving 10am from my place", .contains)
             message.press(forDuration: 1)
-            try find(app, label: "Copy text")
+            try find(app, label: "Copy")
+            pause()
             shot("message-menu")
-            try XCTUnwrap(nearest(app, label: "React to this message", above: message), "No reaction button by the message.").tap()
+            try find(app, label: "More reactions").tap()
             pause()
             shot("reaction-picker")
         }
         await themes { _ in
             let app = try openGeneral()
             try find(app, label: "More").tap()
-            try find(app, label: "Photo or file")
+            try find(app, label: "Photos")
             shot("plus-sheet")
             try find(app, label: "Emoji").tap()
             pause()
@@ -128,8 +130,9 @@ final class TourUITests: XCTestCase {
             let reply = try find(app, label: "I need a ride, my car is in the shop")
             shot("thread")
             reply.press(forDuration: 1)
-            try find(app, label: "Copy text")
-            try XCTUnwrap(nearest(app, label: "Reply", above: reply), "No Reply button by the message.").tap()
+            try find(app, label: "Copy")
+            // The menu is a modal dialog over every message's own (invisible) toolbar: tap the Reply a finger can reach.
+            try XCTUnwrap(reachable(app, label: "Reply"), "No Reply in the message's menu.").tap()
             try find(app, label: "Cancel reply")
             putKeyboardAway(app, "thread-reply-bar")
             shot("thread-reply-bar")
@@ -397,11 +400,11 @@ final class TourUITests: XCTestCase {
         }
     }
 
-    /// A photo waiting in the composer, the way a person adds one: + → Photo or file → Photo Library → pick one.
+    /// A photo waiting in the composer, the way a person adds one: + → Photos → Photo Library → pick one.
     /// If the simulator's library has nothing to pick, pastes Maya's lake picture from the made-up Den instead.
     @MainActor private func attachPhoto(_ app: XCUIApplication) async throws {
         try find(app, label: "More").tap()
-        try find(app, label: "Photo or file").tap()
+        try find(app, label: "Photos").tap()
         let library = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Photo Library'")).firstMatch
         if library.waitForExistence(timeout: 5) {
             shot("file-menu")
@@ -447,12 +450,11 @@ final class TourUITests: XCTestCase {
         pause()
     }
 
-    /// The page's element labelled `label` closest above `target`: the tool bar a long press shows sits just above
-    /// its message, while every other message keeps an invisible one of its own.
-    @MainActor private func nearest(_ app: XCUIApplication, label: String, above target: XCUIElement) -> XCUIElement? {
-        let top = target.frame.minY
-        return app.webViews.firstMatch.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
-            .allElementsBoundByIndex.filter { $0.frame.maxY <= top + 8 }.min { top - $0.frame.maxY < top - $1.frame.maxY }
+    /// The first element labelled `label` that a tap would land on: the long-press menu covers the toolbars every
+    /// message keeps for VoiceOver, which carry the same labels.
+    @MainActor private func reachable(_ app: XCUIApplication, label: String) -> XCUIElement? {
+        app.webViews.firstMatch.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
+            .allElementsBoundByIndex.first { $0.isHittable }
     }
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }

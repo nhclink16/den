@@ -41,6 +41,7 @@
   import { roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
   import RoomIcon from './RoomIcon.svelte'
+  import Avatar from './Avatar.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { atBottom, landing } from '../lib/landing'
 
@@ -140,10 +141,16 @@
   // tail on screen, has reached it though nothing scrolled to say so: a bigger
   // window, or a panel closing beside it.
   // The Jump to latest pill follows the same layout changes.
+  let lastHeight = 0
   function reached() {
-    if (!landed || !el || source.hidden) return
+    if (!el) return
+    const lost = lastHeight ? lastHeight - el.clientHeight : 0
+    lastHeight = el.clientHeight
+    if (!landed || source.hidden) return
     // A view that got shorter (the keyboard came up, the composer grew) stays on the newest message, as iMessage does.
     if (stickToBottom && !source.target) el.scrollTop = el.scrollHeight
+    // Anywhere else its bottom edge stays put, so what you were reading just above the composer stays in view.
+    else if (lost) el.scrollTop += lost
     far = el.scrollHeight - el.scrollTop - el.clientHeight > 400
     if (!stickToBottom && !source.target && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
   }
@@ -205,9 +212,29 @@
     })
   }
 
+  // While the reader scrolls history, the day they're in floats at the top
+  // (touch screens: CSS hides it elsewhere), then fades once they stop.
+  let day = $state(''), dayShown = $state(false)
+  let dayTimer: ReturnType<typeof setTimeout> | undefined
+  // Only for the reader's own scrolling (and its glide), not the keyboard nudging the list.
+  let swiped = 0
+  function showDay() {
+    const top = el.getBoundingClientRect().top
+    let label = ''
+    for (const t of el.querySelectorAll<HTMLElement>(':scope > .time')) {
+      if (t.getBoundingClientRect().top > top) break
+      label = t.dataset.day!
+    }
+    day = label || day
+    dayShown = !!label
+    clearTimeout(dayTimer)
+    dayTimer = setTimeout(() => (dayShown = false), 1200)
+  }
+
   async function onScroll() {
     const scroller = el
     if (!scroller) return
+    if (Date.now() - swiped < 1500) showDay()
     const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     // A hidden view scrolls only programmatically, at a width nobody sees.
     stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight) && !source.hidden
@@ -224,18 +251,23 @@
 
   // Runs of one person's messages, and where the time shows between them.
   const placed = $derived(places(list, firstUnread))
+  // A DM with one person opens on their picture rather than an icon.
+  const dm = $derived(channel.kind === 'dm')
+  const other = $derived(dm && (channel.member_ids?.length ?? 0) <= 2 ? channel.member_ids?.find((id) => id !== store.me?.id) ?? store.me?.id : undefined)
 </script>
 
 <div class="wrap">
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
-<div class="list" class:thread={prefix === 't'} bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => (touched = true)} ontouchstart={() => (touched = true)} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
+<div class="list" class:thread={prefix === 't'} bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => { touched = true; swiped = Date.now() }} ontouchstart={() => (touched = true)} ontouchmove={() => (swiped = Date.now())} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
-    <div class="start">
-      <div class="start-mark" aria-hidden="true">{#if channel.kind === 'dm'}<Icon name="lock" size={24} />{:else}<RoomIcon {channel} size={24} bare />{/if}</div>
-      <div class="display start-title">{channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}</div>
-      <div class="muted">{list.length ? 'This is where it started.' : 'Nobody has said anything here yet. Say the first thing.'}</div>
+    <!-- Where a conversation begins. An empty one shows it in the middle of the screen. -->
+    <div class="start" class:empty={!list.length}>
+      {#if other}<span class="start-face" aria-hidden="true"><Avatar userId={other} size={72} presence={false} /></span>
+      {:else}<div class="start-mark" aria-hidden="true"><RoomIcon {channel} size={28} bare /></div>{/if}
+      <div class="display start-title">{dm ? store.title(channel) : `Welcome to ${roomName(channel, themes.appearance.room_icons)}`}</div>
+      <div class="muted">{list.length ? 'This is where it started.' : dm ? `Say hello. Only ${other ? 'the two of you' : 'the people here'} can see this.` : 'Nobody has said anything yet. Say the first thing.'}</div>
     </div>
   {:else if source.loadingOlder}
     <div class="faint center">Loading older messages</div>
@@ -244,7 +276,7 @@
   {#each list as m, i (m.id)}
     {@const at = placed[i]}
     {#if at?.time}
-      <div class="time"><b>{dayLabel(m.created_at)}</b> {shortTime(m.created_at)}</div>
+      <div class="time" data-day={dayLabel(m.created_at)}><b>{dayLabel(m.created_at)}</b> {shortTime(m.created_at)}</div>
     {/if}
     {#if m.id === firstUnread}
       <div class="new"><span>New</span></div>
@@ -252,9 +284,12 @@
     <MessageItem {m} {prefix} head={at?.head ?? true} tail={at?.tail ?? true} {onreply} onmediaready={mediaReady} />
   {/each}
 </div>
+{#if day}<div class="day" class:shown={dayShown} aria-hidden="true">{day}</div>{/if}
 {#if far}
-  <button class="latest" class:lit={arrived > 0} onclick={latest}>
-    {arrived ? `${arrived} new ${arrived === 1 ? 'message' : 'messages'}` : 'Jump to latest'}<Icon name="down" size={14} />
+  <!-- A pill with words on a wide screen; a round button with a count on a phone. -->
+  <button class="latest" class:lit={arrived > 0} onclick={latest} aria-label={arrived ? `${arrived} new ${arrived === 1 ? 'message' : 'messages'}` : 'Jump to latest'}>
+    <span class="words">{arrived ? `${arrived} new ${arrived === 1 ? 'message' : 'messages'}` : 'Jump to latest'}</span><Icon name="down" size={14} />
+    {#if arrived}<span class="count">{arrived > 99 ? '99+' : arrived}</span>{/if}
   </button>
 {/if}
 </div>
@@ -273,6 +308,28 @@
   .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--bg); box-shadow: var(--lift), var(--glow); }
   @media (prefers-reduced-motion: no-preference) { .latest { animation: latest-in .2s var(--ease-out); } }
   @keyframes latest-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
+  .latest .count { display: none; }
+  /* A phone: a round chevron in the corner, clear of the words, with how many are new. */
+  @media (max-width: 600px) {
+    .latest, .latest.lit { left: auto; right: 12px; bottom: 12px; transform: none; width: 40px; height: 40px; padding: 0; justify-content: center;
+      border: 0; border-radius: 50%; background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
+    .latest :global(svg) { width: 20px; height: 20px; }
+    .latest .words { display: none; }
+    .latest .count {
+      display: block; position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+      background: var(--lamp); color: var(--on-lamp); font: 700 12px/20px var(--body); text-align: center; font-variant-numeric: tabular-nums;
+    }
+    .latest:active { transform: scale(.94); }
+    @keyframes latest-in { from { opacity: 0; transform: translateY(6px); } }
+  }
+  /* The day you're reading, floating at the top while you scroll, on touch screens. */
+  .day {
+    position: absolute; top: 8px; left: 50%; z-index: 3; transform: translateX(-50%); padding: 3px 10px; border-radius: var(--r-pill, 999px);
+    background: var(--glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 0 0 .5px var(--line);
+    font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); pointer-events: none; opacity: 0; transition: opacity .3s;
+  }
+  .day.shown { opacity: 1; transition-duration: .1s; }
+  @media (hover: hover) { .day { display: none; } }
   /* A short conversation sits down by the composer, where the next line will appear,
      not at the top of an empty page. */
   .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; display: flex; flex-direction: column; }
@@ -281,8 +338,11 @@
   /* A thread reads on from its first message, pinned above, so its replies start
      right under it rather than down by the reply box. */
   .list.thread > :global(:first-child) { margin-top: 0; }
-  .start { padding: 28px var(--gutter) 18px; }
-  .start-title { font-size: 28px; }
+  .start { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 28px var(--gutter) 18px; text-align: center; }
+  .start.empty { margin-block: auto; padding-bottom: 28px; }
+  .start-title { font-size: 26px; text-wrap: balance; }
+  .start .muted { max-width: 34ch; text-wrap: pretty; }
+  .start-face { display: grid; margin-bottom: 10px; }
   .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
   /* The time sits between bursts, not on every line. */
   .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }
@@ -291,5 +351,5 @@
   .new { display: flex; align-items: center; gap: 10px; margin: 12px var(--gutter) 0; color: var(--lamp); font: 700 var(--fs-xs)/1.5 var(--body); }
   .new::before, .new::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--lamp) 50%, transparent); }
   .start-title { color: var(--ink); }
-  .start-mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: var(--r-avatar, 35%); color: var(--lamp); background: var(--lamp-glow); box-shadow: inset 0 0 0 1px var(--lamp-dim); }
+  .start-mark { display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: 10px; border-radius: var(--r-avatar, 35%); color: var(--lamp); background: var(--lamp-glow); box-shadow: inset 0 0 0 1px var(--lamp-dim); }
 </style>
