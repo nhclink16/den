@@ -11,18 +11,23 @@
   import Composer, { focusComposer } from './Composer.svelte'
   import { roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
+  import { disclosurePopover } from '../lib/disclosure-popover'
+  import NavBar, { trouble } from './NavBar.svelte'
+  import HomeButton from './HomeButton.svelte'
 
   // One conversation. Its identity is channel plus ROOT message, which exists
   // before the server has a thread for it: replying opens this panel immediately
   // and the thread is created by the first reply that is actually sent.
   let {
-    channel, rootId, threadId, target, narrow, onclose, onjump, onvalid,
+    channel, rootId, threadId, target, narrow, phone = false, onclose, onjump, onvalid,
   }: {
     channel: Channel
     rootId: string
     threadId?: string
     target?: string
     narrow: boolean
+    /** A phone screen (not the desktop app), where a conversation on its own gets the iPhone bar. */
+    phone?: boolean
     onclose: () => void
     onjump: () => void
     /// True only once a valid root for THIS room is actually mounted.
@@ -52,7 +57,7 @@
   let title = $state('')
   let error = $state('')
   let busy = $state(false)
-  let head: HTMLElement
+  let head = $state<HTMLElement>(), panel = $state<HTMLElement>()
 
   // The root itself, which stays in the room feed and is also shown here. It is
   // cached in the Store, so edits and reactions reach this copy too, and it is
@@ -111,8 +116,26 @@
     if (id && !store.thread(id)) void store.loadThread(id).catch(() => {})
   })
   // Focus the panel when it opens: the reply box, so typing goes somewhere,
-  // or the header when there is nothing to reply to or a phone didn't ask.
-  $effect(() => { void conversationKey(here); void tick().then(() => { if (resolved || !focusComposer(head?.parentElement)) head?.focus() }) })
+  // or the header when there is nothing to reply to. Not on a touch screen: opening a
+  // conversation to read it shouldn't throw the keyboard up over it.
+  $effect(() => {
+    void conversationKey(here)
+    if (matchMedia('(pointer: coarse)').matches) return
+    void tick().then(() => { if (resolved || !focusComposer(panel)) (head ?? panel?.querySelector<HTMLElement>('h1'))?.focus() })
+  })
+
+  // A phone gets the iPhone bar: "Thread" (or the name someone gave it), the room and count under it, and
+  // Rename, Follow and Resolve behind ⋯. The title only repeats the root's first line until it's renamed.
+  const bar = $derived(narrow && phone)
+  // The automatic title is the server's (threads.rs title_from): the root's first line, else its card's name,
+  // else "Conversation", at most 80 characters. An edited root can't be told from a rename without the server
+  // saying so, so it shows "Thread" rather than its old first line (the name still shows in the room's list).
+  const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
+  const auto = $derived(root ? [...(root.content.split('\n').map(squash).find(Boolean) || squash(root.objects?.[0]?.name ?? '') || 'Conversation')].slice(0, 80).join('') : '')
+  const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
+  const where = $derived(`${channel.kind === 'text' ? `#${channel.name}` : store.title(channel)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
+  let menu = $state(false)
+  const fromMenu = (work: () => void) => { menu = false; work() }
 
   // An old target gets a contiguous window, owned by the Store so every update
   // reaches it, kept apart from the latest cache so a gap cannot look like read
@@ -168,7 +191,7 @@
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
 <section
-  class="panel" data-thread-panel aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
+  class="panel" data-thread-panel bind:this={panel} aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -179,6 +202,37 @@
     if (files.length) dropped = files
   }}
 >
+  {#if bar}
+  <NavBar title={named ? plainMentions(summary!.title, store.users) : 'Thread'} subtitle={where} status={trouble(store.connected)}>
+    {#snippet leading()}<HomeButton onback={onclose} aria="Back to room" />{/snippet}
+    {#snippet trailing()}
+      {#if live}
+        <details class="menu-btn" bind:open={menu}>
+          <summary class="icon-btn" aria-label="Conversation options"><Icon name="more" size={24} /></summary>
+          <div class="sheet" popover="auto" use:disclosurePopover={'end'}>
+            {#if menu}
+              <div class="menu" role="menu" aria-label="Conversation options">
+                <button role="menuitem" onclick={() => fromMenu(() => { title = summary?.title ?? ''; renaming = true })} disabled={busy}><Icon name="edit" size={20} />Rename</button>
+                <button role="menuitem" onclick={() => fromMenu(() => setFollowing(!position?.following))} disabled={busy}><Icon name="bell" size={20} />{position?.following ? 'Stop Following' : 'Follow'}</button>
+                <button role="menuitem" onclick={() => fromMenu(() => setResolved(!resolved))} disabled={busy}><Icon name="check" size={20} />{resolved ? 'Reopen' : 'Resolve'}</button>
+              </div>
+            {/if}
+          </div>
+        </details>
+      {/if}
+    {/snippet}
+  </NavBar>
+  {#if renaming}
+    <div class="rename-row">
+      <input
+        class="field rename" bind:value={title} aria-label="Conversation title"
+        onkeydown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') renaming = false }}
+      />
+      <button class="btn quiet" onclick={() => (renaming = false)}>Cancel</button>
+      <button class="btn lit" onclick={rename} disabled={busy}>Save</button>
+    </div>
+  {/if}
+  {:else}
   <header class="head" bind:this={head} tabindex="-1">
     {#if narrow}<button class="icon-btn back" onclick={onclose} aria-label="Back to room"><Icon name="back" size={22} /></button>{/if}
     {#if renaming}
@@ -195,7 +249,8 @@
     {/if}
     {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
   </header>
-  {#if live && !renaming}
+  {/if}
+  {#if live && !renaming && !bar}
     <div class="acts">
       <button class="pill" onclick={() => { title = summary?.title ?? ''; renaming = true }} disabled={busy}><Icon name="edit" size={14} />Rename</button>
       <button class="pill" aria-pressed={!!position?.following} onclick={() => setFollowing(!position?.following)} disabled={busy}>
@@ -276,6 +331,20 @@
 
 <style>
   .panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; border-left: 1px solid var(--line); position: relative; }
+  /* On a phone the conversation is the whole screen: no edge to draw. */
+  .panel:has(> :global(.navbar)) { border-left: 0; }
+  .menu-btn summary { list-style: none; cursor: pointer; }
+  .menu-btn summary::-webkit-details-marker { display: none; }
+  .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  /* The same rows as the composer's + sheet. */
+  .menu { display: grid; padding: 12px 12px 16px; }
+  .menu button { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }
+  .menu button:first-child { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .menu button:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); border-bottom: 0; }
+  .menu button:active { background: var(--press); }
+  .menu button:disabled { opacity: .5; }
+  .menu :global(svg) { color: var(--lamp); flex: none; }
+  .rename-row { display: flex; align-items: center; gap: 8px; padding: 4px 16px 10px; border-bottom: 1px solid var(--line); }
   .drop { position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg); background: var(--overlay); border: 2px dashed var(--lamp); display: grid; place-items: center; pointer-events: none; }
   .drop-inner { display: grid; justify-items: center; gap: 6px; color: var(--lamp); }
   .big { font-size: 22px; }

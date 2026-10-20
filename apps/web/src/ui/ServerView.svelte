@@ -4,6 +4,8 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
+  import NavBar from './NavBar.svelte'
+  import { native } from '../lib/native'
   import ServerChart from './ServerChart.svelte'
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
@@ -61,9 +63,12 @@
   const graphs = $derived(detail?.history.filter((h) => h.key !== 'players' && h.points.length) ?? [])
   const tone = $derived(server ? dotTone(server) : 'down')
   const lag = $derived(server?.stats.find(lagging))
+  const bar = $derived(narrow && !native)
 </script>
 
-<section class="page">
+<!-- `edge`: on a phone the bar reaches up under the status bar (Shell). -->
+<section class="page" class:bar class:edge={bar}>
+  {#if !bar}
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<HomeButton />{/if}
@@ -71,8 +76,12 @@
     <span class="faint" aria-hidden="true">›</span>
     <h1 class="display">{server ? gameLabel(server) : slug}</h1>
   </header>
+  {/if}
 
   <div class="scroll">
+    {#if bar}
+      <NavBar title={server ? gameLabel(server) : slug}>{#snippet leading()}<HomeButton />{/snippet}</NavBar>
+    {/if}
     {#if !server}
       <div class="empty">
         <p class="muted">That server isn't here.</p>
@@ -189,6 +198,9 @@
   .crumb { margin-top: 2px; }
   .scroll { flex: 1; overflow-y: auto; padding: 20px var(--gutter) calc(32px + env(safe-area-inset-bottom, 0px)); }
   .body { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
+  /* The bar sits inside the scroller on a phone, so the page scrolls under it. */
+  .bar .scroll { position: relative; padding: 0 0 calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .bar .body { padding: 8px 16px 0; }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
 
   .hero {

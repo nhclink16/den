@@ -3,11 +3,13 @@
   import HomeButton from './HomeButton.svelte'
   import { instances, store, type Store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
-  import { render } from '../lib/markdown'
-  import { klipyGif } from '../lib/klipy'
+  import { plainMentions } from '../lib/markdown'
+  import { previewText } from '../lib/room-list'
+  import { native } from '../lib/native'
+  import type { Message } from '../lib/types'
+  import NavBar from './NavBar.svelte'
   import { shortTime, dayLabel } from '../lib/time'
   import Icon from './Icon.svelte'
-  import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
   import Mark from './Mark.svelte'
 
@@ -89,9 +91,17 @@
   // The explicit flat acknowledgement: it clears the room AND its conversations,
   // which is what "Mark all read" has always meant here.
   function clearAll() { for (const g of groups) g.s.markAllRead(g.c.id) }
+
+  const bar = $derived(narrow && !native)
+  const when = (iso: string) => (dayLabel(iso) === 'Today' ? shortTime(iso) : dayLabel(iso))
+  const preview = (s: Store, m: Message) => plainMentions(previewText({
+    content: m.content, attachment_types: m.attachments.map((a) => a.content_type), object_kinds: (m.objects ?? []).map((o) => o.kind),
+  }), s.users)
 </script>
 
-<section class="inbox">
+<!-- `edge`: on a phone the bar reaches up under the status bar (Shell). -->
+<section class="inbox" class:edge={bar}>
+  {#if !bar}
   <header class="head">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow}<HomeButton />{/if}
@@ -100,8 +110,16 @@
     <span class="spacer"></span>
     {#if groups.length}<button class="btn quiet" onclick={clearAll}><Icon name="check" /> Mark all read</button>{/if}
   </header>
+  {/if}
 
   <div class="scroll">
+    {#if bar}
+      <NavBar title="Inbox">
+        {#snippet leading()}<HomeButton />{/snippet}
+        {#snippet trailing()}{#if groups.length}<button class="text-btn" onclick={clearAll}>Read All</button>{/if}{/snippet}
+      </NavBar>
+    {/if}
+    <div class="body">
     {#if !groups.length}
       <div class="empty">
         <span class="empty-mark" aria-hidden="true"><Mark size={56} /></span>
@@ -109,32 +127,35 @@
         <div class="muted">Mentions, direct messages, and rooms you follow land here.</div>
       </div>
     {/if}
+    <!-- The iPhone's inset grouped list: each room is a section, each message a two-line row. -->
     {#each groups as g (g.s.origin + g.c.id)}
       {#if instances.all.length > 1}<div class="eyebrow" style="margin:16px 0 6px">{g.s.settings.instance_name}</div>{/if}
-      <div class="group" class:mention={g.mention}>
-        <button class="title" onclick={() => open(g.s, g.c.id)}>
-          {#if g.c.kind === 'dm'}<Icon name="lock" size={14} />{:else}<RoomIcon channel={g.c} size={14} bare />{/if}
-          <span class="display name">{g.s.title(g.c)}</span>
-          <span class="faint">{g.count} new</span>
-          {#if g.mention}<span class="at">Mentions you</span>{/if}
+      <h2 class="list-head">
+        <button class="section" onclick={() => open(g.s, g.c.id)}>
+          <span class="name">{g.s.title(g.c)}</span>
+          <span class="chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         </button>
+        <span class="new">{#if g.mention}<span class="at">Mentions you</span> · {/if}{g.count} new</span>
+      </h2>
+      <div class="slist">
         {#each g.msgs.slice(-4) as m (m.id)}
           <button class="line" data-hover-animates onclick={() => open(g.s, g.c.id)}>
-            <Avatar instance={g.s} userId={m.author_id} size={22} />
-            <span class="who">{g.s.name(m.author_id)}</span>
-            <span class="text">{@html klipyGif(m.content) ? '<i>sent a GIF</i>' : render(m.content, g.s.users) || '<i>sent a file</i>'}</span>
-            <span class="when faint">{dayLabel(m.created_at) === 'Today' ? shortTime(m.created_at) : dayLabel(m.created_at)}</span>
+            <Avatar instance={g.s} userId={m.author_id} size={40} />
+            <span class="txt">
+              <span class="top"><span class="who">{g.s.name(m.author_id)}</span><time class="when">{when(m.created_at)}</time></span>
+              <span class="text">{preview(g.s, m)}</span>
+            </span>
           </button>
         {/each}
-        {#if g.msgs.length > 4}<button class="more faint" onclick={() => open(g.s, g.c.id)}>and {g.msgs.length - 4} earlier</button>{/if}
+        {#if g.msgs.length > 4}<button class="more" onclick={() => open(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each unreadThreads(g.s, g.c.id) as t (t.id)}
           {@const u = g.s.threadUnread(t.id)}
           <button class="line thread" onclick={() => openThread(g.s, g.c.id, t.id)}>
-            <Icon name="reply" size={13} />
-            <span class="who">{t.title}</span>
-            <span class="text faint">{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
-            {#if u.mention}<span class="at">Mentions you</span>{/if}
-            {#if t.resolved_at}<span class="when faint">resolved</span>{/if}
+            <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
+            <span class="txt">
+              <span class="top"><span class="who">{plainMentions(t.title, g.s.users)}</span>{#if t.resolved_at}<span class="when">Resolved</span>{/if}</span>
+              <span class="text">{#if u.mention}<span class="at">Mentions you</span> · {/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
+            </span>
           </button>
         {/each}
         {#if rows[key(g.s, g.c.id)]?.error}
@@ -143,10 +164,11 @@
             <button class="btn quiet" onclick={() => loadRows(g.s, g.c.id, rows[key(g.s, g.c.id)]!.appending)}>Retry</button>
           </div>
         {:else if rows[key(g.s, g.c.id)]?.more}
-          <button class="more faint" onclick={() => loadRows(g.s, g.c.id, true)}>More conversations</button>
+          <button class="more" onclick={() => loadRows(g.s, g.c.id, true)}>More conversations</button>
         {/if}
       </div>
     {/each}
+    </div>
   </div>
 </section>
 
@@ -156,26 +178,32 @@
   .kind { color: var(--ink-3); display: grid; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .spacer { flex: 1; }
-  .scroll { flex: 1; overflow-y: auto; padding: 16px var(--gutter) calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .scroll { flex: 1; overflow-y: auto; position: relative; }
+  .body { max-width: 880px; margin: 0 auto; padding: 0 var(--gutter) calc(24px + env(safe-area-inset-bottom, 0px)); }
+  @media (max-width: 600px) { .body { padding-inline: 16px; } }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
   .empty-mark { color: var(--ink-3); margin-bottom: 10px; opacity: .8; }
   .big { font-size: 26px; }
-  .group { border: 1px solid var(--line); border-radius: var(--r-lg); margin: 0 auto 12px; max-width: 880px; overflow: hidden; background: var(--bg-2); box-shadow: var(--lift); }
-  .group.mention { border-color: var(--lamp-dim); box-shadow: var(--lift), 0 0 0 1px var(--lamp-glow), 0 0 24px -8px var(--lamp); }
-  .title { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; text-align: left; color: var(--ink-2); border-bottom: 1px solid var(--line); }
-  @media (hover: hover) { .title:hover { background: var(--bg-3); } }
-  .title, .line { transition: background-color var(--t-fast); }
-  .title:active, .line:active { background: var(--press); }
-  .name { font-size: 17px; color: var(--ink); flex: 1; }
-  .at { font: 700 var(--fs-xs)/1.5 var(--body); color: var(--bg); background: var(--lamp); padding: 0 7px; border-radius: var(--r-pill, 999px); }
-  .line { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 14px; text-align: left; color: var(--ink-2); }
-  @media (hover: hover) { .line:hover { background: var(--bg-3); } }
-  .who { font-weight: 700; color: var(--ink); flex: none; }
-  .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .text :global(br) { display: none; }
-  .when { flex: none; font-size: var(--fs-xs); }
-  .more { width: 100%; padding: 6px 14px 10px; text-align: left; font-size: var(--fs-sm); }
-  .line.thread { border-top: 1px solid var(--line); }
-  .err { color: var(--danger, var(--lamp)); }
-  .line.thread .who { font-weight: 600; }
+  /* Section header: the room, which opens it, and how much is new. */
+  .list-head { margin-top: 22px; text-transform: none; letter-spacing: 0; font-size: var(--fs-sm); }
+  .section { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 28px; margin: -4px 0; color: var(--ink-2); font-weight: 600; }
+  .section .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .section .chev { display: grid; transform: rotate(-90deg); color: var(--ink-3); }
+  .section:active { opacity: .5; }
+  .new { flex: none; font-weight: 400; color: var(--ink-3); }
+  .at { color: var(--lamp); font-weight: 600; }
+  .line { width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; text-align: left; color: var(--ink); transition: background-color var(--t-fast); }
+  @media (hover: hover) { .line:hover { background-color: var(--hover); } }
+  .line:active { background-color: var(--press); }
+  .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .who { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .when { flex: none; font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .text { color: var(--ink-2); font-size: var(--fs-sm); line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
+  .glyph { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--bg-3); color: var(--lamp); }
+  .more { display: block; width: 100%; min-height: 44px; padding: 8px 16px 8px 68px; text-align: left; color: var(--lamp); font-size: var(--fs-sm); }
+  .more:active { background-color: var(--press); }
+  /* Hairlines start at the text, as on the home list. */
+  .slist > .line + *, .slist > .more + * { background-size: calc(100% - 68px) 1px; background-position: 68px 0; }
+  .err { color: var(--danger, var(--lamp)); flex: 1; }
 </style>

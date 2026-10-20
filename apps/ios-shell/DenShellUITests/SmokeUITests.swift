@@ -97,6 +97,18 @@ final class SmokeUITests: XCTestCase {
         shot("3-plus-sheet")
     }
 
+    /// The home's search field opens Search with its field focused and the keyboard up; results come back.
+    @MainActor func test6Search() throws {
+        let app = try launchSignedIn()
+        try find(app, label: "Search messages").tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "The keyboard didn't come up in Search.")
+        try find(app, label: "Cancel")
+        shot("9-search-open")
+        app.typeText("cabin\n")
+        try find(app, label: "results", .contains, timeout: 10)
+        shot("9-search-results")
+    }
+
     @MainActor func test4Settings() throws {
         let app = try launchSignedIn()
         try find(app, label: "Your profile and settings").tap()
@@ -131,7 +143,8 @@ final class SmokeUITests: XCTestCase {
             shot("6-call-no-media")
             // The error is a toast that also goes by itself; a tap puts it away now.
             failed.tap()
-            XCTAssertTrue(try find(app, label: "Join hangout", timeout: 5).isEnabled, "Join didn't come back.")
+            // The hangout row offers Retry after a failed join.
+            XCTAssertTrue(try find(app, label: "Retry joining hangout", timeout: 5).isEnabled, "Retry didn't come.")
             shot("7-call-after-error")
             return
         }
