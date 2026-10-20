@@ -61,13 +61,14 @@
   const tapped = () => { if (document.documentElement.dataset.input === 'touch') search() }
 
   // New message: everyone you could start a DM with.
-  let composing = $state(false)
+  let composing = $state(false), picks = 0
   const people = $derived(store.people.filter((u) => u.id !== store.me?.id).sort((a, b) => (a.display_name || a.username).localeCompare(b.display_name || b.username)))
   async function message(userId: string) {
     composing = false
     // The concrete server, not the proxy: if someone switches servers meanwhile, this room isn't on the new one.
-    const s = instances.active, me = s.me?.id
-    const here = () => instances.active === s && s.me?.id === me
+    // Only the latest choice opens, and only on the server and account it was made on.
+    const s = instances.active, me = s.me?.id, mine = ++picks
+    const here = () => picks === mine && instances.active === s && s.me?.id === me
     try {
       const c = await s.openDm([userId])
       if (here() && router.route.name === 'home') router.go(`/c/${c.id}`, false, '/')
