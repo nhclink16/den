@@ -133,8 +133,10 @@
     if (opened === node) { opened = undefined; removeEventListener('pointerdown', outside, true) }
     node.classList.add('full'); place(node, -node.offsetWidth)
     await read(); await tick()
-    // Still listed: the read failed, or something newer arrived first. Put it back. A row on its way out is
-    // `inert` (Svelte's outro) and stays out.
+    // A row on its way out is `inert` for its outro. A reply landing meanwhile can bring the same row back, so
+    // look again once the outro would be over.
+    if (node.inert) await new Promise((ok) => setTimeout(ok, 200))
+    // Still listed: the read failed, or something newer arrived. Put it back.
     if (node.isConnected && !node.inert) { node.classList.remove('full'); place(node, 0) }
   }
 
@@ -155,7 +157,7 @@
       if (e.touches.length !== 1) { tracking = false; cancel(); return }
       const t = e.touches[0]!, mx = t.clientX - x, my = t.clientY - y
       if (!sliding) {
-        if (Math.abs(my) >= Math.abs(mx) || (base === 0 && mx > 0)) { if (Math.hypot(mx, my) > 6) tracking = false; return }
+        if (Math.abs(my) >= Math.abs(mx) || (base === 0 && mx > 0)) { if (Math.hypot(mx, my) > 6) tracking = swallow = false; return }
         if (Math.abs(mx) < 10) return
         sliding = true; node.classList.add('dragging')
       }
@@ -177,11 +179,12 @@
     }
     // iOS took the touch away (a call, a system gesture): put the row back where it was.
     const cancel = () => {
+      swallow = false
       if (!sliding) return
       // Back where it was, unless a tap elsewhere closed it meanwhile.
       tracking = sliding = false; node.classList.remove('dragging', 'full'); place(node, opened === node ? -BUTTON : 0)
     }
-    const click = (e: Event) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation(); shut() } }
+    const click = (e: Event) => { if (swallow && !(e.target as Element).closest('.read')) { swallow = false; e.preventDefault(); e.stopPropagation(); shut() } }
     node.addEventListener('touchstart', start, { passive: true })
     node.addEventListener('touchmove', move, { passive: false })
     node.addEventListener('touchend', end); node.addEventListener('touchcancel', cancel)
