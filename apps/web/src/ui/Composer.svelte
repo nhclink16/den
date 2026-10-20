@@ -29,7 +29,7 @@
   import EmojiPicker from './EmojiPicker.svelte'
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
   import { haptic } from '../lib/haptics'
-  import { pickShellPhotos, shellPhotos } from '../lib/shell-media'
+  import { photoStrip, pickShellPhotos, shellPhotos, shellStrip, type StripTray } from '../lib/shell-media'
   import { disclosurePopover } from '../lib/disclosure-popover'
   import { nameInk, personColor } from '../lib/bubbles'
 
@@ -215,9 +215,25 @@
   // the same sign-in lasts (a sign-out turns the drafts' token over at once): a big video can take a while to come in.
   function pickPhotos() {
     if (!shellPhotos()) return photoInput?.click()
+    const { uploads, at, same, warn } = target()
+    void pickShellPhotos((files) => { if (same()) uploads.add(at, files) }, warn)
+  }
+  // Where picked files go: the conversation and sign-in of the moment of the tap.
+  function target() {
     const uploads = store.uploads, drafts = store.drafts, token = drafts.token, at = here
     const same = () => store.uploads === uploads && store.drafts === drafts && drafts.holds(token)
-    void pickShellPhotos((files) => { if (same()) uploads.add(at, files) }, (message) => { if (same()) { haptic('warning'); store.toast = message } })
+    return { uploads, at, same, warn: (message: string) => { if (same()) { haptic('warning'); store.toast = message } } }
+  }
+  // Den Shell's strip of recent photos (shell-media.ts) fills the tray it was opened from, on the same terms.
+  const strip = shellStrip()
+  function stripTray(): StripTray {
+    const { uploads, at, same, warn } = target()
+    return {
+      files: () => uploads.forConversation(at).map((p) => p.file),
+      add: (file) => { if (same()) uploads.add(at, [file]) },
+      remove: (file) => { const p = uploads.forConversation(at).find((p) => p.file === file); if (p && same()) uploads.remove(at, p) },
+      warn,
+    }
   }
   // A staged picture shows itself, so you can tell which one you're about to send.
   function preview(img: HTMLImageElement, file: File) {
@@ -424,6 +440,7 @@
         <summary bind:this={plus} class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
         <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
           {#if menu}
+            {#if strip}{#key conversationKey(here)}<div class="strip" aria-hidden="true" use:photoStrip={stripTray()}></div>{/key}{/if}
             <!-- Round tiles, as in Messages or WhatsApp. Photos and Camera ask iOS for just that. -->
             <div class="menu" role="menu" aria-label="Add to your message">
               <button role="menuitem" onclick={() => fromMenu(pickPhotos)}><span class="tile" aria-hidden="true"><Icon name="image" size={24} /></span>Photos</button>
@@ -502,7 +519,9 @@
      the box grows, its last line's. */
   .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
   .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
-  /* The + sheet: round tiles with their names under them. */
+  /* The + sheet: round tiles with their names under them, under Den Shell's strip of recent photos. The shell draws
+     the strip over this slot; the card is what shows while the sheet moves and the strip steps aside. */
+  .strip { height: 96px; margin: var(--s3) var(--s3) 0; border-radius: var(--r-lg); background: var(--bg-3); }
   .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--s4) 0; padding: var(--s4) var(--s3) var(--s5); }
   .menu button { display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--ink-2); font-size: var(--fs-xs); }
   .tile { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--sel); color: var(--lamp); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }

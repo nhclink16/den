@@ -15,6 +15,11 @@ import WebKit
 // Den is always https. Pieces keep every message small whatever the video's size. Each temporary file goes once its
 // last piece is read, or at once when it's over the upload limit; any left over (a page that reloaded half way) go at
 // the next launch.
+//
+// The strip of recent photos at the top of the + sheet is the same picker, embedded as one row (iOS 17's compact
+// mode). It sits over the web view, where the page says its slot is, and only while the sheet is still: the page hides
+// it while anything moves it (shell-media.ts says why). A tap ticks a photo and hands it over as a pick would; another
+// tap unticks it and the page takes it out of the tray.
 
 private let log = Logger(subsystem: "app.denchat.shell", category: "media")
 
@@ -24,6 +29,11 @@ enum MediaCommand: Equatable {
     case read(id: String, offset: Int)
     /// `from`: what was tapped, in the web view's points, for the iPad's popover.
     case share(url: URL, text: String?, from: CGRect?)
+    /// The strip, in one opening of the + sheet (`session`). `rect`: its slot in the web view's points.
+    /// `selected`: photos to show ticked, by the library's ids.
+    case stripShow(session: Int, rect: CGRect, radius: Double, selected: [String])
+    case stripHide(session: Int)
+    case stripClose(session: Int)
 
     init(_ body: Any) throws {
         guard let body = body as? [String: Any], let type = body["type"] as? String else { throw CallError(message: "Unreadable media message.") }
@@ -48,6 +58,19 @@ enum MediaCommand: Equatable {
                 from = CGRect(x: x, y: y, width: width, height: height)
             }
             self = .share(url: url, text: text?.isEmpty == false ? String(text!.prefix(1000)) : nil, from: from)
+        case "stripShow", "stripHide", "stripClose":
+            guard let session = number(body["session"]), session >= 0, session == session.rounded(), session < 1e15 else {
+                throw CallError(message: "Missing session.")
+            }
+            let id = Int(session)
+            if type == "stripHide" { self = .stripHide(session: id); return }
+            if type == "stripClose" { self = .stripClose(session: id); return }
+            guard let rect = body["rect"] as? [String: Any], let x = number(rect["x"]), let y = number(rect["y"]),
+                  let width = number(rect["width"]), let height = number(rect["height"]), width > 0, height > 0,
+                  max(abs(x), abs(y), width, height) < 1e5, let radius = number(body["radius"]), radius >= 0,
+                  let selected = body["selected"] as? [String] else { throw CallError(message: "Unreadable strip.") }
+            self = .stripShow(session: id, rect: CGRect(x: x, y: y, width: width, height: height), radius: min(radius, height / 2),
+                              selected: Array(selected.prefix(MediaBridge.limit)))
         default: throw CallError(message: "Unknown media message.")
         }
     }
@@ -72,11 +95,33 @@ struct PickedFile: Encodable, Equatable {
     let size: Int
 }
 
+/// What the strip tells the page (shell-media.ts `ShellStripEvent`).
+struct StripEvent: Encodable, Equatable {
+    let type: String
+    var session: Int?
+    var asset: String?
+    var file: PickedFile?
+}
+
+/// The strip in one opening of the + sheet. `ticked`: what's ticked now, each tick with its own id, so a photo
+/// unticked and ticked again while it came in arrives once.
+@MainActor final class Strip {
+    let session: Int
+    let picker: PHPickerViewController
+    var ticked: [String: UUID]
+
+    init(session: Int, picker: PHPickerViewController, ticked: [String]) {
+        self.session = session
+        self.picker = picker
+        self.ticked = Dictionary(ticked.map { ($0, UUID()) }, uniquingKeysWith: { a, _ in a })
+    }
+}
+
 @MainActor final class MediaBridge: NSObject, WKScriptMessageHandlerWithReply, PHPickerViewControllerDelegate {
     /// Bytes per piece: about 2.7 MB of base64 per message.
     nonisolated static let pieceSize = 2 << 20
     /// As many as a message sensibly carries; the server takes any number.
-    static let limit = 10
+    nonisolated static let limit = 10
     /// Den's upload limit, as the page applies it (uploads.svelte.ts). A bigger file isn't kept.
     static let maxSize = 1 << 30
     let den: Origin
@@ -86,12 +131,24 @@ struct PickedFile: Encodable, Equatable {
     private var picking: CheckedContinuation<Picked, Never>?
     /// The picker `picking` waits for.
     private weak var shown: PHPickerViewController?
+    private var strip: Strip?
+    /// Photos still coming in, by strip, so closing one can wait for them.
+    private var stripLoads: [Int: [Task<Void, Never>]] = [:]
+    /// Counts pages: photos coming in for one that has gone aren't wanted.
+    private var page = 0
+    private var keyboardMoving = false
 
     init(den: Origin) {
         self.den = den
         folder = FileManager.default.temporaryDirectory.appending(path: "picked", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: folder)
         super.init()
+        // The keyboard moves the web view's bottom edge and the sheet with it: the strip steps aside until it's done.
+        for (name, moving) in [(UIResponder.keyboardWillChangeFrameNotification, true), (UIResponder.keyboardDidChangeFrameNotification, false)] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.keyboard(moving: moving) }
+            }
+        }
     }
 
     /// Adds `photos`, `photoChunk` and `share` to the `window.denShell` that CallBridge's script made, so install after it.
@@ -105,6 +162,8 @@ struct PickedFile: Encodable, Equatable {
             photos: () => post({ type: 'pick' }).then(r => JSON.parse(r)),
             photoChunk: (id, offset) => post({ type: 'read', id, offset }),
             share: s => post({ type: 'share', url: s.url, text: s.text, from: s.from }).then(() => {}),
+            photoStrip: c => post(c).then(() => {}),
+            onPhotoStrip: null,
           })
         }
         """
@@ -122,7 +181,11 @@ struct PickedFile: Encodable, Equatable {
             case .pick: return (String(data: try JSONEncoder().encode(try await pick()), encoding: .utf8), nil)
             case .read(let id, let offset): return (try await read(id, offset: offset), nil)
             case .share(let url, let text, let from): try share(url, text: text, from: from); return (nil, nil)
+            case .stripShow(let session, let rect, let radius, let selected): try showStrip(session, rect: rect, radius: radius, selected: selected)
+            case .stripHide(let session): if strip?.session == session { strip?.picker.view.isHidden = true }
+            case .stripClose(let session): await closeStrip(session)
             }
+            return (nil, nil)
         } catch {
             return (nil, error.localizedDescription)
         }
@@ -156,6 +219,9 @@ struct PickedFile: Encodable, Equatable {
     }
 
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        if let strip, picker === strip.picker { return ticksChanged(strip, results) }
+        // A strip's picker that has gone already; `dismiss` would reach past it.
+        guard picker.presentingViewController != nil else { return }
         picker.dismiss(animated: true)
         // Only the picker that's being waited for answers.
         if picker === shown { finish(results) }
@@ -197,6 +263,10 @@ struct PickedFile: Encodable, Equatable {
         return PickedFile(id: id, name: name, type: mime, size: size)
     }
 
+    private func forget(_ id: String) {
+        if let url = picked.removeValue(forKey: id) { try? FileManager.default.removeItem(at: url) }
+    }
+
     private func read(_ id: String, offset: Int) async throws -> String {
         guard let url = picked[id] else { throw CallError(message: "That file is gone.") }
         let (piece, last) = try await Task.detached { try Self.piece(of: url, at: offset) }.value
@@ -216,6 +286,108 @@ struct PickedFile: Encodable, Equatable {
         try handle.seek(toOffset: UInt64(offset))
         let data = try handle.read(upToCount: pieceSize) ?? Data()
         return (data.base64EncodedString(), UInt64(offset) + UInt64(data.count) >= size)
+    }
+
+    // MARK: Strip
+
+    private func showStrip(_ session: Int, rect: CGRect, radius: Double, selected: [String]) throws {
+        guard let webView, let host = webView.superview, let parent = webView.window?.rootViewController else {
+            throw CallError(message: "Den can't show your photos right now.")
+        }
+        if strip?.session != session {
+            removeStrip()
+            // A library to say which photo is which (the ids), not to read it: the picker still needs no access.
+            var config = PHPickerConfiguration(photoLibrary: .shared())
+            config.filter = .any(of: [.images, .videos])
+            config.selectionLimit = Self.limit
+            config.selection = .continuous
+            config.mode = .compact
+            config.preferredAssetRepresentationMode = .compatible
+            config.preselectedAssetIdentifiers = selected
+            config.edgesWithoutContentMargins = .all
+            config.disabledCapabilities = [.search, .collectionNavigation, .selectionActions, .stagingArea]
+            let picker = PHPickerViewController(configuration: config)
+            picker.delegate = self
+            picker.view.clipsToBounds = true
+            parent.addChild(picker)
+            host.addSubview(picker.view)
+            picker.didMove(toParent: parent)
+            strip = Strip(session: session, picker: picker, ticked: selected)
+            log.info("strip opened")
+        }
+        guard let strip else { return }
+        // Light or dark, as the page is.
+        var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        if webView.themeColor?.getRed(&r, green: &g, blue: &b, alpha: &a) == true {
+            strip.picker.overrideUserInterfaceStyle = 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5 ? .dark : .light
+        }
+        strip.picker.view.frame = webView.convert(rect, to: host)
+        strip.picker.view.layer.cornerRadius = radius
+        strip.picker.view.isHidden = keyboardMoving
+    }
+
+    /// Off the screen at once. Photos ticked in it still come in.
+    private func removeStrip() {
+        guard let strip else { return }
+        self.strip = nil
+        strip.picker.willMove(toParent: nil)
+        strip.picker.view.removeFromSuperview()
+        strip.picker.removeFromParent()
+    }
+
+    /// Answers once every photo ticked in that strip has come in, so the page knows where they go until then.
+    private func closeStrip(_ session: Int) async {
+        if strip?.session == session { removeStrip() }
+        for load in stripLoads.removeValue(forKey: session) ?? [] { await load.value }
+    }
+
+    /// The page went (a load, a crash): so does the strip, and what was coming in for it.
+    func pageGone() {
+        removeStrip()
+        stripLoads = [:]
+        page += 1
+    }
+
+    private func ticksChanged(_ strip: Strip, _ results: [PHPickerResult]) {
+        let now = results.compactMap(\.assetIdentifier)
+        for asset in strip.ticked.keys.filter({ !now.contains($0) }) {
+            strip.ticked[asset] = nil
+            Task { await send(StripEvent(type: "removed", session: strip.session, asset: asset)) }
+        }
+        for result in results {
+            guard let asset = result.assetIdentifier, strip.ticked[asset] == nil else { continue }
+            let tick = UUID(), page = page, provider = result.itemProvider
+            strip.ticked[asset] = tick
+            let load = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let file = try await keep(provider)
+                    // Unticked while it came in, or the page went: not wanted.
+                    guard strip.ticked[asset] == tick, self.page == page else { return forget(file.id) }
+                    await send(StripEvent(type: "added", session: strip.session, asset: asset, file: file))
+                } catch {
+                    log.error("strip photo not kept: \(error, privacy: .public)")
+                    if strip.ticked[asset] == tick, self.page == page { await send(StripEvent(type: "failed", session: strip.session, asset: asset)) }
+                }
+            }
+            stripLoads[strip.session, default: []].append(load)
+        }
+    }
+
+    private func keyboard(moving: Bool) {
+        keyboardMoving = moving
+        guard let strip else { return }
+        // Where the slot is now is the page's to say.
+        if moving { strip.picker.view.isHidden = true } else { Task { await send(StripEvent(type: "place")) } }
+    }
+
+    private func send(_ event: StripEvent) async {
+        guard let webView, let data = try? JSONEncoder().encode(event), let json = String(data: data, encoding: .utf8) else { return }
+        do {
+            _ = try await webView.callAsyncJavaScript("window.denShell?.onPhotoStrip?.(JSON.parse(s))", arguments: ["s": json], contentWorld: .page)
+        } catch {
+            log.error("strip event not delivered: \(error, privacy: .public)")
+        }
     }
 
     // MARK: Share

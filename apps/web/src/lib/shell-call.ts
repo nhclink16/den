@@ -5,7 +5,7 @@ import type { ConnectionQuality } from 'livekit-client'
 import type { CallParticipant } from './call.svelte'
 import type { PushCommand, PushEvent } from './shell-push.svelte'
 import type { Haptic } from './haptics'
-import type { ShellPick, ShellShare } from './shell-media'
+import type { ShellPick, ShellShare, ShellStripCommand, ShellStripEvent } from './shell-media'
 
 export type ShellPerson = { identity: string; name: string; local: boolean; speaking: boolean; muted: boolean; quality: string; camera: boolean; screen: boolean }
 /** `revision` grows with every snapshot; `micSeq`/`soundSeq` echo the last mute/sound command the shell applied. */
@@ -22,7 +22,7 @@ export type ShellCommand =
   | { type: 'leave' } | { type: 'state' } | { type: 'mute'; muted: boolean; seq: number } | { type: 'sound'; off: boolean; seq: number }
 declare global {
   // `push` and `onPush` came later (shell-push.svelte.ts), then `haptic` (haptics.ts), then `photos`, `photoChunk`
-  // and `share` (shell-media.ts): older shells don't have them.
+  // and `share`, then `photoStrip` and `onPhotoStrip` (shell-media.ts): older shells don't have them.
   interface Window {
     denShell?: {
       call(command: ShellCommand): Promise<ShellUpdate | null>; onCall: ((update: ShellUpdate) => void) | null
@@ -30,6 +30,7 @@ declare global {
       haptic?(kind: Haptic): void
       photos?(): Promise<ShellPick>; photoChunk?(id: string, offset: number): Promise<string>
       share?(data: ShellShare): Promise<void>
+      photoStrip?(command: ShellStripCommand): Promise<void>; onPhotoStrip?: ((event: ShellStripEvent) => void) | null
     }
   }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pickShellPhotos, readPhoto, type ShellPhoto } from '../apps/web/src/lib/shell-media.ts'
+import { openStrip, pickShellPhotos, readPhoto, stripSelected, type ShellPhoto, type ShellStripEvent, type StripTray } from '../apps/web/src/lib/shell-media.ts'
 
 // Den Shell hands a picked photo or video to the page in base64 pieces; the page must put it back together whole,
 // under its own name and type, and one bad file in a pick mustn't stop the rest.
@@ -47,4 +47,39 @@ test('a picker that fails to open says why', async () => {
   const warned: string[] = []
   await pickShellPhotos(() => assert.fail('nothing to add'), (m) => warned.push(m))
   assert.deepEqual(warned, ["Den can't show your photos right now."])
+})
+
+// The + sheet's strip of recent photos: a tick puts the photo in the tray, an untick takes it out (or drops it if it is
+// still on its way), and a new strip ticks the strip's photos that are still in the tray.
+test('the strip fills and empties the tray it was opened from', async () => {
+  let release!: () => void
+  const held = new Promise<void>((r) => (release = r))
+  const slow = async (id: string, offset: number) => { if (id === 'late') await held; return chunk(id, offset) }
+  const shell: { photoChunk: typeof chunk; onPhotoStrip?: ((e: ShellStripEvent) => void) | null } = { photoChunk: slow }
+  ;(globalThis as { window?: unknown }).window = { denShell: shell }
+  const files: File[] = [], warned: string[] = []
+  const tray: StripTray = { files: () => files, add: (f) => files.push(f), remove: (f) => files.splice(files.indexOf(f), 1), warn: (m) => warned.push(m) }
+  const session = openStrip(tray)
+  const settle = () => new Promise((r) => setTimeout(r, 0))
+
+  shell.onPhotoStrip!({ type: 'added', session, asset: 'A', file: photo('lake', Buffer.from('lake')) })
+  shell.onPhotoStrip!({ type: 'added', session, asset: 'B', file: photo('late', Buffer.from('late')) })
+  await settle()
+  assert.deepEqual(files.map((f) => f.name), ['lake.jpeg'])
+  assert.deepEqual(stripSelected(tray), ['A'])
+
+  // Unticked while it was still coming in: it never reaches the tray.
+  shell.onPhotoStrip!({ type: 'removed', session, asset: 'B' })
+  release()
+  await settle()
+  assert.deepEqual(files.map((f) => f.name), ['lake.jpeg'])
+
+  shell.onPhotoStrip!({ type: 'removed', session, asset: 'A' })
+  assert.deepEqual(files, [])
+  shell.onPhotoStrip!({ type: 'failed', session, asset: 'C' })
+  // Another strip's events don't land here.
+  shell.onPhotoStrip!({ type: 'added', session: session + 1, asset: 'D', file: photo('other', Buffer.from('x')) })
+  await settle()
+  assert.deepEqual(files, [])
+  assert.deepEqual(warned, ["That photo couldn't be added."])
 })
