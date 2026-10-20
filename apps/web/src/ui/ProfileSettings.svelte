@@ -36,6 +36,8 @@
   const SWATCHES = [['#e5484d', 'Red'], ['#f76b15', 'Orange'], ['#e2a336', 'Amber'], ['#30a46c', 'Green'], ['#12a594', 'Teal'], ['#0090ff', 'Blue'], ['#6e56cf', 'Violet'], ['#d6409f', 'Pink']] as const
   let displayName = $state(''), bio = $state(''), accent = $state<string | null>(null)
   let emoji = $state(''), statusText = $state(''), clearAfter = $state('never')
+  // When "keep" clears: the time the form was loaded or last saved with, not whatever the server says now.
+  let keepAt = $state<number | null>(null)
   let saving = $state(false), message = $state(''), error = $state('')
   let busyImage = $state<'avatar' | 'banner' | null>(null)
   // Your own bubble, as everyone sees it with colours on.
@@ -45,7 +47,7 @@
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
     emoji = me.status?.emoji ?? ''; statusText = me.status?.text ?? ''
     // A status that already clears later keeps that time unless you pick another.
-    clearAfter = me.status?.expires_at ? 'keep' : 'never'
+    clearAfter = me.status?.expires_at ? 'keep' : 'never'; keepAt = me.status?.expires_at ?? null
     error = ''; base = sent = untracked(() => fields)
   }
   // Load once, and again only if the saved profile changes underneath an untouched
@@ -59,7 +61,7 @@
     if (!loadedFor || who !== account || !untracked(() => touched)) reset()
     loadedFor = key; account = who
   })
-  const keepUntil = $derived(me.status?.expires_at ? new Date(me.status.expires_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
+  const keepUntil = $derived(keepAt ? new Date(keepAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
   const graphemes = (s: string) => [...new Intl.Segmenter().segment(s)].length
   const BIO_MAX = 190, STATUS_MAX = 60
@@ -68,8 +70,7 @@
     if (clearAfter === '30m') return now + 1800
     if (clearAfter === '1h') return now + 3600
     if (clearAfter === '4h') return now + 4 * 3600
-    // The live profile: a save can finish after the page has gone.
-    if (clearAfter === 'keep') return store.me?.status?.expires_at ?? null
+    if (clearAfter === 'keep') return keepAt
     if (clearAfter === 'today') { const d = new Date(); d.setHours(23, 59, 59, 0); return Math.floor(d.getTime() / 1000) }
     return null
   }
@@ -77,7 +78,7 @@
   // The form as it would be saved; as it was when it last matched the server (`base`: what
   // you changed since is "touched"); and as last sent (`sent`). A phone saves whenever the
   // form differs from what was last sent.
-  const fields = $derived(JSON.stringify([displayName.trim(), bio.trim(), accent, emoji.trim(), statusText.trim(), status ? clearAfter : '']))
+  const fields = $derived(JSON.stringify([displayName.trim(), bio.trim(), accent, emoji.trim(), statusText.trim(), status ? (clearAfter === 'keep' ? `keep:${keepAt}` : clearAfter) : '']))
   let base = $state(''), sent = $state('')
   // Mid-save the form also differs from the request out, even if you put it back the way it was.
   const touched = $derived(fields !== base || fields !== sent)
@@ -112,7 +113,10 @@
       })
       // What's saved now: a status that clears later keeps that time unless you pick another.
       const done = JSON.parse(snapshot) as unknown[]
-      if (sentStatus) { done[5] = until ? 'keep' : 'never'; if (clearAfter === sentClear) clearAfter = done[5] as string }
+      if (sentStatus) {
+        done[5] = until ? `keep:${until}` : 'never'
+        if (clearAfter === sentClear) { clearAfter = until ? 'keep' : 'never'; keepAt = until }
+      }
       base = sent = JSON.stringify(done); failed = ''
       message = 'Saved. Everyone sees the new version now.'
     } catch (err) { error = err instanceof Error ? err.message : 'Could not save your profile.'; failed = snapshot; sent = base }

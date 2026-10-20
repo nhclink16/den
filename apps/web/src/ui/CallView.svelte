@@ -24,7 +24,7 @@
     if (now !== wasExpanded) void tick().then(() => {
       if (document.documentElement.dataset.input === 'touch') return
       if (document.activeElement && document.activeElement !== document.body) return
-      dock?.querySelector<HTMLElement>(now ? '.call-head .collapse' : '.expand, .call-pill .open')?.focus()
+      dock?.querySelector<HTMLElement>(now ? '.collapse' : '.expand, .call-pill .open')?.focus()
     })
     wasExpanded = now
   })
