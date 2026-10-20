@@ -24,6 +24,10 @@
   /* Frosted glass for what floats over the call or the chat: the call bar, the pill,
      the names on tiles. Solid enough to read on any camera, share or wallpaper. */
   --glass: color-mix(in srgb, var(--bg-2) 80%, transparent);
+  /* The iPhone's bar material, for the top bar and the message box that content scrolls under: the page's
+     colour at this much, over a blur. Opaque where there's no blur, or less transparency is asked for. */
+  --bar-alpha: 90%;
+  --bar-blur: saturate(1.8) blur(20px);
   /* Call tiles and the hangout card: a step rounder than a panel, square when Sharp. */
   --r-tile: calc(var(--r-lg) * 1.4);
   /* A scrim darkens whatever is behind it, in either appearance. Deriving it from
@@ -56,6 +60,8 @@
 }
 @media (max-width: 600px) { :root { --fs-xs: 13px; --fs-sm: 14px; --fs-body: 16px; --fs-title: 17px; --fs-large: 34px; } }
 @media (pointer: coarse) { :root { --hit: 44px; } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root { --bar-alpha: 100%; } }
+@media (prefers-reduced-transparency: reduce) { :root { --bar-alpha: 100%; } }
 :root[data-avatar-shape='sharp'] { --avatar-r: 14%; }
 :root[data-avatar-shape='soft'] { --avatar-r: 35%; }
 :root[data-avatar-shape='round'] { --avatar-r: 50%; }
@@ -220,8 +226,11 @@ kbd {
    The layer sits behind content and carries its own blur and scrim so text stays readable. */
 :root[data-bg-scope] .bg-host { position: relative; isolation: isolate; }
 /* The layer is scaled past its box to hide the blur's soft edge. Clip it to the region,
-   or a chat-only wallpaper spills over the room list and the people list. `clip` does
-   not create a scroll container, so sticky and scrolling children behave as before. */
+   or a chat-only wallpaper spills over the room list and the people list, and an app-wide
+   one makes the page taller than the screen (anything scrolled into view then nudged the
+   whole app up). `clip` does not create a scroll container, so sticky and scrolling
+   children behave as before. */
+:root[data-bg-scope] .bg-host.scope-app,
 :root[data-bg-scope] .bg-host.scope-sidebar,
 :root[data-bg-scope] .bg-host.scope-chat { overflow: clip; }
 :root[data-bg-scope] .bg-host::before {

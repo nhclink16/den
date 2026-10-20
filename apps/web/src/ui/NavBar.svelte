@@ -47,10 +47,12 @@
     if (!host) return
     top = host.scrollTop
     // Scroll events don't bubble, but they can be caught on the way down: the screen's own scroller, or the
-    // one under the bar (a room's messages). Not a sheet's list.
+    // one under the bar (a room's messages). Not a sheet's list, a text box, anything in the message box (a draft,
+    // the @mention list), or a row that only scrolls sideways.
     const fn = (e: Event) => {
       const t = e.target as Element | Document
-      if (!(t instanceof Element) || t.closest('[popover]') || (t !== host && large)) return
+      if (!(t instanceof Element) || t.closest('[popover], textarea, .composer') || (t !== host && large)) return
+      if (t.scrollHeight <= t.clientHeight) return
       top = t.scrollTop
     }
     host.addEventListener('scroll', fn, { capture: true, passive: true })
@@ -86,8 +88,8 @@
   }
   /* The iPhone's bar material: the page's colour, see-through and blurred, with a hairline under it. */
   .navbar.scrolled {
-    background: color-mix(in srgb, var(--nav-bg, var(--bg)) 90%, transparent);
-    -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
+    background: color-mix(in srgb, var(--nav-bg, var(--bg)) var(--bar-alpha), transparent);
+    -webkit-backdrop-filter: var(--bar-blur); backdrop-filter: var(--bar-blur);
     box-shadow: 0 .5px 0 var(--line);
   }
   .row {

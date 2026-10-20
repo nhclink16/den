@@ -50,6 +50,8 @@
   )
   const rootWrongRoom = $derived(!!cached && (cached.channel_id !== channel.id || !!cached.thread_id))
   let replyTo = $state<Message | null>(null)
+  // As in the room: on a phone the replies run under the reply box.
+  let dockHeight = $state(0), below = $state(false)
   let dropped = $state<File[]>([])
   let listening = $state(false)
   let dragging = $state(0)
@@ -191,7 +193,7 @@
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
 <section
-  class="panel" data-thread-panel bind:this={panel} aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
+  class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -264,9 +266,10 @@
 
   {#if error}<p class="err" role="alert">{error}</p>{/if}
 
+  {#snippet rootMessage(onmediaready?: () => void)}
   <div class="root">
     {#if root}
-      <MessageItem m={root} prefix="t" onreply={(m) => (replyTo = m)} />
+      <MessageItem m={root} prefix="t" onreply={(m) => (replyTo = m)} {onmediaready} />
     {:else if rootError}
       <p class="err" role="alert">
         {rootError}
@@ -276,6 +279,9 @@
       <p class="faint" aria-busy="true">Loading the message this conversation is about…</p>
     {/if}
   </div>
+  {/snippet}
+  <!-- Pinned above the replies; on a phone it scrolls with them, under the bar. -->
+  {#if !bar || !live}{@render rootMessage()}{/if}
 
   {#if windowKey && windowStatus?.error}
     <p class="windowed" role="alert">
@@ -305,20 +311,22 @@
     </p>
   {/if}
   {#if live}
-    <MessageList {channel} {source} onreply={(m) => (replyTo = m)} />
+    <MessageList {channel} {source} onreply={(m) => (replyTo = m)} lead={bar ? rootMessage : undefined} bind:below />
   {:else}
     <div class="empty faint">No replies yet. The first one starts this conversation.</div>
   {/if}
 
-  <div class="typing" aria-live="polite">
-    {#if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
-  </div>
+  <div class="dock" class:over={bar && !!live} class:frost={bar && !!live && below} bind:offsetHeight={dockHeight}>
+    <div class="typing" aria-live="polite">
+      {#if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
+    </div>
 
-  <Composer
-    {channel} conversation={here} bind:replyTo bind:dropped bind:listening
-    locked={!root ? 'This conversation is not available here.'
-      : resolved ? 'This conversation is resolved. Reopen it to add anything new.' : undefined}
-  />
+    <Composer
+      {channel} conversation={here} bind:replyTo bind:dropped bind:listening
+      locked={!root ? 'This conversation is not available here.'
+        : resolved ? 'This conversation is resolved. Reopen it to add anything new.' : undefined}
+    />
+  </div>
   {#if dragging > 0}
     <div class="drop">
       <div class="drop-inner">
@@ -333,6 +341,15 @@
   .panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; border-left: 1px solid var(--line); position: relative; }
   /* On a phone the conversation is the whole screen: no edge to draw. */
   .panel:has(> :global(.navbar)) { border-left: 0; }
+  /* A phone: the root and replies run up under the bar when they come first, and down under the reply box,
+     as in the room (ChannelView sets --nav-h). */
+  .panel > :global(.navbar + .wrap) { margin-top: calc(-1 * var(--nav-h)); --list-top: var(--nav-h); }
+  .dock.over { position: relative; z-index: 3; margin-top: calc(-1 * var(--list-bottom)); transition: background-color var(--t-fast), box-shadow var(--t-fast); }
+  .dock.frost {
+    background: color-mix(in srgb, var(--nav-bg, var(--bg)) var(--bar-alpha), transparent);
+    -webkit-backdrop-filter: var(--bar-blur); backdrop-filter: var(--bar-blur);
+    box-shadow: 0 -.5px 0 var(--line);
+  }
   .menu-btn summary { list-style: none; cursor: pointer; }
   .menu-btn summary::-webkit-details-marker { display: none; }
   .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
@@ -370,6 +387,9 @@
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
   .root { padding-bottom: 4px; }
+  /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
+     reply box under the keyboard. */
+  .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .empty { flex: 1; display: grid; place-items: center; padding: 24px; text-align: center; font-size: var(--fs-sm); }
   .typing { height: 18px; padding: 0 20px; font-size: var(--fs-xs); color: var(--ink-3); }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
