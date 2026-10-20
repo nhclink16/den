@@ -18,8 +18,8 @@ final class TourUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    /// Before signing in: the sign-in page, the invite page, a wrong password. Then the first sign-in and iOS's
-    /// notification question, which only comes once (light only). The signed-out page takes the last account's look,
+    /// Before signing in: the sign-in page, the invite page, a wrong password. Then the first sign-in, Den's question
+    /// about notifications and iOS's prompt after Turn On, which only come once (light only). The signed-out page takes the last account's look,
     /// so the dark half signs Ellis out with Den set to Dark.
     @MainActor func test01SignIn() async throws {
         await themes { theme in
@@ -46,6 +46,11 @@ final class TourUITests: XCTestCase {
             fillSignIn(fresh, user: "ellis", password: password)
             again.tap()
             try find(fresh, label: "Your profile and settings", timeout: 20)
+            let turnOn = element(fresh, label: "Turn On")
+            if turnOn.waitForExistence(timeout: theme == "light" ? 10 : 1) {
+                shot("notification-ask")
+                turnOn.tap()
+            }
             let allow = springboard.alerts.buttons["Allow"]
             if allow.waitForExistence(timeout: theme == "light" ? 10 : 1) {
                 shot("notification-question")
@@ -89,22 +94,24 @@ final class TourUITests: XCTestCase {
         }
     }
 
-    /// A long press on someone's message, the reaction picker, and the + sheet with its emoji and GIF sheets.
+    /// A long press on someone's message (its menu), the full reaction picker from the menu's +, and the + sheet with
+    /// its emoji and GIF sheets.
     @MainActor func test05Menus() async throws {
         await themes { _ in
             let app = try openGeneral()
             let message = try find(app, label: "Leaving 10am from my place", .contains)
             message.press(forDuration: 1)
-            try find(app, label: "Copy text")
+            try find(app, label: "Copy")
+            pause()
             shot("message-menu")
-            try XCTUnwrap(nearest(app, label: "React to this message", above: message), "No reaction button by the message.").tap()
+            try find(app, label: "More reactions").tap()
             pause()
             shot("reaction-picker")
         }
         await themes { _ in
             let app = try openGeneral()
             try find(app, label: "More").tap()
-            try find(app, label: "Photo or file")
+            try find(app, label: "Photos")
             shot("plus-sheet")
             try find(app, label: "Emoji").tap()
             pause()
@@ -128,8 +135,9 @@ final class TourUITests: XCTestCase {
             let reply = try find(app, label: "I need a ride, my car is in the shop")
             shot("thread")
             reply.press(forDuration: 1)
-            try find(app, label: "Copy text")
-            try XCTUnwrap(nearest(app, label: "Reply", above: reply), "No Reply button by the message.").tap()
+            try find(app, label: "Copy")
+            // The menu is a modal dialog over every message's own (invisible) toolbar: tap the Reply a finger can reach.
+            try XCTUnwrap(reachable(app, label: "Reply"), "No Reply in the message's menu.").tap()
             try find(app, label: "Cancel reply")
             putKeyboardAway(app, "thread-reply-bar")
             shot("thread-reply-bar")
@@ -357,6 +365,8 @@ final class TourUITests: XCTestCase {
             comeIn.tap()
         }
         try find(app, label: "Your profile and settings", timeout: 20)
+        let turnOn = element(app, label: "Turn On")
+        if turnOn.waitForExistence(timeout: 2) { turnOn.tap() }
         let allow = springboard.alerts.buttons["Allow"]
         if allow.waitForExistence(timeout: 1) { allow.tap() }
         return app
@@ -403,11 +413,11 @@ final class TourUITests: XCTestCase {
         }
     }
 
-    /// A photo waiting in the composer, the way a person adds one: + → Photo or file → Photo Library → pick one.
+    /// A photo waiting in the composer, the way a person adds one: + → Photos → Photo Library → pick one.
     /// If the simulator's library has nothing to pick, pastes Maya's lake picture from the made-up Den instead.
     @MainActor private func attachPhoto(_ app: XCUIApplication) async throws {
         try find(app, label: "More").tap()
-        try find(app, label: "Photo or file").tap()
+        try find(app, label: "Photos").tap()
         let library = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Photo Library'")).firstMatch
         if library.waitForExistence(timeout: 5) {
             shot("file-menu")
@@ -420,7 +430,7 @@ final class TourUITests: XCTestCase {
                 photo.tap()
                 let add = app.buttons["Add"]
                 if add.waitForExistence(timeout: 3) { add.tap() }
-                if element(app, label: "Remove").waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
+                if element(app, label: "Remove", .prefix).waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
             }
             let cancel = app.buttons["Cancel"]
             if cancel.exists { cancel.tap() }
@@ -437,7 +447,7 @@ final class TourUITests: XCTestCase {
         let paste = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Paste'")).firstMatch
         try wait(for: paste, "Paste")
         paste.tap()
-        try find(app, label: "Remove", timeout: 10)
+        try find(app, label: "Remove", .prefix, timeout: 10)
         putKeyboardAway(app, "room-photo-waiting")
     }
 
@@ -453,12 +463,11 @@ final class TourUITests: XCTestCase {
         pause()
     }
 
-    /// The page's element labelled `label` closest above `target`: the tool bar a long press shows sits just above
-    /// its message, while every other message keeps an invisible one of its own.
-    @MainActor private func nearest(_ app: XCUIApplication, label: String, above target: XCUIElement) -> XCUIElement? {
-        let top = target.frame.minY
-        return app.webViews.firstMatch.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
-            .allElementsBoundByIndex.filter { $0.frame.maxY <= top + 8 }.min { top - $0.frame.maxY < top - $1.frame.maxY }
+    /// The first element labelled `label` that a tap would land on: the long-press menu covers the toolbars every
+    /// message keeps for VoiceOver, which carry the same labels.
+    @MainActor private func reachable(_ app: XCUIApplication, label: String) -> XCUIElement? {
+        app.webViews.firstMatch.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label))
+            .allElementsBoundByIndex.first { $0.isHittable }
     }
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }

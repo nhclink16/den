@@ -45,9 +45,9 @@
   } as const
   const fontRoles: (keyof ThemeFonts)[] = ['display', 'body', 'mono']
   const bubbleHint = $derived({
-    everyone: 'Each person in their own colour. Everyone picks theirs in Profile.',
+    everyone: 'Yours in the accent, and each name in that person\'s colour. Everyone picks theirs in Profile.',
     mine: 'Yours in your colour, everyone else grey.',
-    plain: 'Everyone else grey, yours in the accent.',
+    plain: 'Yours in the accent, everyone else grey.',
   }[appearance.bubble_colors ?? 'everyone'] + (appearance.bubble_shape === 'none' ? ' With no bubbles, the colour goes on names.' : ''))
   const isCustom = (t: Theme) => appearance.custom_themes.some(c => c.id === t.id)
 
