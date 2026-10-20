@@ -120,6 +120,10 @@ html.desktop .shell.no-members .main > .call-view > .call-pill { margin-right: m
    the room header, a drag region, and Electron drags through anything on top that
    doesn't opt out, so its close button would move the window instead of closing. */
 html.desktop .customizer { -webkit-app-region: no-drag; }
+/* A menu or dialog in the top layer covers the page with its ::backdrop, which inherits app-region from
+   where it sits in the DOM: inside a header, that made the whole window a drag region, so no outside click
+   reached the page to close the menu. Everything under a backdrop is covered, so nothing there drags. */
+html.desktop [popover], html.desktop ::backdrop { -webkit-app-region: no-drag; }
 /* The call error drops in over the top edge, a drag region in the desktop app. */
 html.desktop .call-error { -webkit-app-region: no-drag; }
 html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
@@ -152,10 +156,11 @@ a { color: var(--lamp); text-decoration: none; }
 @media (hover: hover) { a:hover { text-decoration: underline; } }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 input, textarea { font: inherit; color: inherit; }
-/* Rings show where keyboard focus is. Touch draws none (main.ts sets data-input, and a Tab from a hardware
-   keyboard clears it): a tapped field shows only its caret, and a view that focuses itself on open shows nothing. */
+/* Rings show where keyboard focus is. Touch and mouse draw none (main.ts sets data-input, and a Tab from a
+   keyboard clears it): a tapped field shows only its caret, and a view that focuses itself on open shows nothing.
+   A clicked text field still shows that it has focus. */
 :where(:root:not([data-input='touch'])) :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
-:root[data-input='touch'] :focus-visible { outline: none !important; }
+:root[data-input='touch'] :focus-visible, :root[data-input='mouse'] :focus-visible:not(:read-write) { outline: none !important; }
 ::selection { background: var(--selection); color: var(--ink); }
 code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
 code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
@@ -337,7 +342,7 @@ kbd {
 @media (hover: hover) { .segments label:hover { color: var(--ink); } }
 .segments label:not(:has(> input:checked, > input:disabled)):active { background: var(--press); }
 .segments label:has(> input:checked) { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px var(--shadow), 0 1px 1px rgb(0 0 0 / .04); }
-:where(:root:not([data-input='touch'])) .segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
+:where(:root:not([data-input])) .segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
 .segments label:has(> input:disabled) { opacity: .5; cursor: default; }
 
 /* Settings lists, like iPhone Settings: rows in a rounded group, a short header
