@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { fontStack, themeFor } from '../lib/theme-runtime'
   import { accentPresets, colorRoles, deriveHalf, resolveAccent } from '../lib/theme-color'
   import { themes, fontFamilies, validateTheme, validName, webFonts } from '../lib/theme.svelte'
@@ -58,13 +58,19 @@
     message = ''
     themes.preview({ ...(JSON.parse(JSON.stringify(active)) as Theme), ...patch })
   }
+  /** Corners, density and fonts. Your own theme saves as you go; a built-in one stays a draft to save as your own. */
+  function shape(patch: Partial<Theme>) {
+    if (editor || themes.draft || !isCustom(active)) return change(patch)
+    message = ''
+    void themes.update({ ...(JSON.parse(JSON.stringify(active)) as Theme), ...patch })
+  }
   function color(role: (typeof colorRoles)[number], value: string) {
     if (!/^#[0-9a-f]{6}$/i.test(value)) return
     const { generated: _drop, ...colors } = active[editingHalf]
     change({ [editingHalf]: { ...colors, [role]: value } })
   }
   function font(role: keyof ThemeFonts, value: string) {
-    if (validName(value)) change({ fonts: { ...active.fonts, [role]: value } })
+    if (validName(value)) shape({ fonts: { ...active.fonts, [role]: value } })
     else themes.error = 'Font names must be 1–40 letters, numbers, spaces, hyphens or underscores.'
   }
   function openEditor(t: Theme) {
@@ -112,6 +118,14 @@
     link.href = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;600`).join('&')}&display=swap`
     document.head.append(link)
     return () => link.remove()
+  })
+
+  // A phone has no app behind the editor, so the whole page shows the half being edited.
+  $effect(() => {
+    if (panel || !editor) return
+    const half = editingHalf
+    untrack(() => themes.showHalf(half))
+    return () => untrack(() => themes.showHalf(null))
   })
 
   // Widening the window swaps this page for the panel over the room; unsaved theme edits go with it.
@@ -173,13 +187,13 @@
     <h3 class="list-head"><span>Editing {active.name}</span><button class="head-btn" onclick={() => { editor = false; themes.reset() }}>Close</button></h3>
     <section class="slist editor" aria-label="Theme editor">
       <div class="editor-side">
-        <p class="hint muted">Every change shows {panel ? 'in the app behind this panel' : 'in the preview above'} as you make it.</p>
+        <p class="hint muted">Every change shows {panel ? 'in the app behind this panel' : 'in the preview at the top'} as you make it.</p>
         <div class="segments" role="group" aria-label="Edit appearance">
           {#each ['light', 'dark'] as half (half)}
             <button aria-pressed={editingHalf === half} onclick={() => (editingHalf = half as Half)}>{half === 'light' ? 'Light' : 'Dark'}</button>
           {/each}
         </div>
-        <div class="editor-preview"><ThemePreview colors={shown(active, editingHalf)} fonts={active.fonts} /></div>
+        {#if panel}<div class="editor-preview"><ThemePreview colors={shown(active, editingHalf)} fonts={active.fonts} /></div>{/if}
         {#if active[editingHalf].generated}
           <p class="hint muted">Generated from the {editingHalf === 'light' ? 'dark' : 'light'} half. Adjust to taste.</p>
         {/if}
@@ -246,7 +260,7 @@
       {#snippet control()}
         <div class="segments" role="group" aria-label="Corner radius">
           {#each ['sharp', 'soft', 'round'] as radius (radius)}
-            <button aria-pressed={active.radius === radius} onclick={() => change({ radius: radius as Theme['radius'] })}>{radius[0]!.toUpperCase() + radius.slice(1)}</button>
+            <button aria-pressed={active.radius === radius} onclick={() => shape({ radius: radius as Theme['radius'] })}>{radius[0]!.toUpperCase() + radius.slice(1)}</button>
           {/each}
         </div>
       {/snippet}
@@ -255,7 +269,7 @@
       {#snippet control()}
         <div class="segments" role="group" aria-label="Density">
           {#each ['compact', 'comfortable'] as density (density)}
-            <button aria-pressed={active.density === density} onclick={() => change({ density: density as Theme['density'] })}>{density[0]!.toUpperCase() + density.slice(1)}</button>
+            <button aria-pressed={active.density === density} onclick={() => shape({ density: density as Theme['density'] })}>{density[0]!.toUpperCase() + density.slice(1)}</button>
           {/each}
         </div>
       {/snippet}
@@ -285,7 +299,7 @@
       {/snippet}
     </SettingRow>
   </div>
-  <p class="list-foot">Corners and density belong to the theme: save it as your own to keep a change. Avatar shape and the online indicator are for this device only.</p>
+  <p class="list-foot">Corners and density are part of the theme. Your own themes save as you go; save a built-in one as your own to keep a change. Avatar shape and the online indicator are for this device only.</p>
   {#if themes.draft && !editor}
     <div class="slist unsaved">
       <SettingRow label="Unsaved theme changes" hint="Keep them as a theme of your own, or put the theme back.">
@@ -339,7 +353,8 @@
         </div>
       {/snippet}
     </SettingRow>
-    <div class="pad"><BubblePreview /></div>
+    <!-- A phone's pinned preview already shows them. -->
+    {#if panel}<div class="pad"><BubblePreview /></div>{/if}
   </div>
   <p class="list-foot">How messages look, on your screens only.</p>
 
@@ -365,7 +380,7 @@
       <code style={`font-family:${fontStack(active.fonts.mono, 'mono')}`}>den send general "on my way"</code>
     </div>
   </div>
-  <p class="list-foot">Part of the theme, like corners and density: save the theme as your own to keep a change.</p>
+  <p class="list-foot">Part of the theme, like corners and density.</p>
 
   <p class="status muted" role="status">{themes.saving ? 'Saving…' : message}</p>
   {#if themes.error}<p class="error" role="alert">{themes.error}</p>{/if}
