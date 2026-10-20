@@ -151,13 +151,15 @@
   let shared = $state('')
   async function shareComputer() {
     const url = `${store.origin || location.origin}/settings/desktop`
-    shared = ''
+    // The link shows straight away, whatever the share sheet or clipboard then does (in Xcode Cloud's simulator,
+    // neither showed anything within 3 s).
+    shared = `On your computer, open ${url.replace(/^https?:\/\//, '')}.`
     if (navigator.share) {
       try { await navigator.share({ title: 'Den for your computer', text: 'Get Den for your computer: sign in, then Settings › Desktop app.', url }); return }
       catch (e) { if ((e as Error).name === 'AbortError') return }
     }
     try { await navigator.clipboard.writeText(url); shared = 'Link copied. Open it on your computer.' }
-    catch { shared = `Open ${url} on your computer.` }
+    catch { /* The link is on screen already. */ }
   }
 
   // Keys and invite links shown once stay across sections, and go when you leave Settings.
