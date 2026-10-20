@@ -138,6 +138,8 @@ final class SmokeUITests: XCTestCase {
         try find(app, label: "Den on your computer").tap()
         let sheet = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'ActivityListView' OR label == 'Copy'")).firstMatch
         try wait(for: sheet, "share sheet", in: app)
+        // It's in the tree as soon as it starts growing in; shoot it once it's up.
+        Thread.sleep(forTimeInterval: 1)
         shot("4-share-sheet")
         keepTree(app, "share-sheet")
     }
