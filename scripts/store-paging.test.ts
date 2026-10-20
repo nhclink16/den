@@ -41,12 +41,14 @@ const cell = (x: unknown) => x
 ;(cell as any).raw = cell
 let api: any
 const sockets: any[] = []
+// Stubs a test swaps for its own: the harness copies `globals` into the class's context.
+const hooks = { carry: async (..._: unknown[]) => {} }
 const globals = {
   ...compile(read('read-state.ts')),
   ...compile(read('message-fetch.ts')),
   $state: cell, apiFor: () => api, PAGE, native: false,
   Uploads: class { clear() {} }, Drafts: class { token = 0; clear() { this.token++ } },
-  cachedAppearance: () => ({}), loadLayout: () => ({}), carryOldAvatarChoices: async () => {},
+  cachedAppearance: () => ({}), loadLayout: () => ({}), carryOldAvatarChoices: (...a: unknown[]) => hooks.carry(...a),
   noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
   themes: { receive: () => true, mark: () => 0 }, localStorage: { setItem() {}, getItem: () => null },
@@ -59,6 +61,8 @@ const classStart = source.indexOf('export class Store {')
 const classEnd = source.indexOf('\nclass Instances {')
 if (classStart < 0 || classEnd < 0) throw new Error('Store class boundary moved; this harness needs updating')
 const { Store } = compile(source.slice(classStart, classEnd), globals)
+// The desktop app: one Store per server, and only one of them showing.
+const { Store: DesktopStore } = compile(source.slice(classStart, classEnd), { ...globals, native: true, instances: { active: null } })
 
 const held = () => {
   let release!: (v: unknown) => void
@@ -726,4 +730,25 @@ test('a synced appearance the theme state sets aside as older is not kept for th
   globals.themes.receive = () => false
   try { s.receiveAppearance({ mode: 'light' }, 0) } finally { globals.themes.receive = receive }
   assert.equal(s.appearance.mode, 'dark')
+})
+
+test("a server that isn't showing keeps a socket copy over an older sync", () => {
+  const s = new DesktopStore('https://b.test')
+  const asked = s.appearanceMark()
+  s.receiveAppearance({ mode: 'light' })
+  assert.equal(s.receiveAppearance({ mode: 'dark' }, asked), false)
+  assert.equal(s.appearance.mode, 'light')
+})
+
+test('the old avatar choice is carried only against a synced copy that was kept', async () => {
+  const s = new Store('https://den.test')
+  let carried = 0
+  const { receive, mark } = globals.themes, carry = hooks.carry
+  globals.themes.receive = () => false
+  globals.themes.mark = () => 0
+  hooks.carry = async () => { carried++ }
+  const lists: Record<string, unknown> = { '/presence': { objects: [] }, '/users/me/spotify': globals.noSpotify(), '/users/me/appearance': { mode: 'dark' } }
+  api = { get: async (path: string) => path in lists ? lists[path] : path.startsWith('/users/me/') || path === '/settings' ? {} : [] }
+  try { await s.resync() } catch { /* only the appearance part matters here */ } finally { Object.assign(globals.themes, { receive, mark }); hooks.carry = carry }
+  assert.equal(carried, 0)
 })

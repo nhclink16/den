@@ -50,9 +50,8 @@ class Themes {
   // save never writes an old copy of another device's change back.
   private queue: Promise<unknown> = Promise.resolve()
   private jobs: { owner: string; patch: Patch }[] = []
-  /** Copies from the socket (and server switches), so a save's reply never replaces a newer one. */
-  private received = 0
-  /** Every copy taken, from anywhere, so a sync asked before one of them never replaces it. */
+  /** Copies taken from the server. Without a revision on each copy, a copy that comes in while
+   *  another is on its way leaves its order unknown, so the later one is set aside (a save asks again). */
   private taken = 0
   get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
   get active() { return this.draft || themeFor(this.appearance, this.half) }
@@ -73,8 +72,7 @@ class Themes {
   /** The server's copy for the account showing now: from the socket or a server switch, or from a
    *  sync with its `mark()`. A sync's copy is older than anything taken since it asked: false, set aside. */
   receive(a: Appearance, asked?: number) {
-    if (asked === undefined) this.received++
-    else if (asked !== this.taken) return false
+    if (asked !== undefined && asked !== this.taken) return false
     this.take(a); this.show()
     return true
   }
@@ -116,11 +114,15 @@ class Themes {
     this.jobs.push(job); this.saving = true; this.show()
     const result = this.queue.catch(() => {}).then(async () => {
       if (this.owner() !== job.owner) return false
-      const asked = this.received
+      const asked = this.taken
       try {
         const saved = await api.put<Appearance>('/users/me/appearance', job.patch)
-        // A copy that came over the socket meanwhile is as new or newer; if older, this save's own copy follows it.
-        if (this.owner() === job.owner && this.received === asked) this.take(saved)
+        if (this.owner() === job.owner && this.taken === asked) this.take(saved)
+        // Another copy came in meanwhile, older or newer: one asked for now is newer than both.
+        else if (this.owner() === job.owner) {
+          const again = this.taken
+          try { this.receive(await api.get<Appearance>('/users/me/appearance'), again) } catch { /* the next sync brings it */ }
+        }
         return true
       } catch (e) {
         if (this.owner() === job.owner) this.error = (e as Error).message

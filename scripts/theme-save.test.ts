@@ -254,3 +254,16 @@ test('a second Undo with nothing left to put back leaves the custom themes alone
   assert.equal(s.state.accent, null)
   assert.deepEqual(s.state.custom_themes.map((t: any) => t.id), ['plum', 'rose'])
 })
+
+test('a newer sync that lands while a save is out is not undone by that save\'s older reply', async () => {
+  const s = server(start), themes = one(s)
+  // The socket is down: only the sync and the reply bring copies.
+  s.hold('after')
+  const saved = themes.accent('green')
+  await tick()
+  const asked = themes.mark()
+  s.other({ mode: 'light' })
+  themes.receive(structuredClone(s.state), asked)
+  s.release(); await saved
+  assert.deepEqual([themes.appearance.mode, themes.appearance.accent], ['light', 'green'])
+})
