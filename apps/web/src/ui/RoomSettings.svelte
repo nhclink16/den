@@ -1,10 +1,8 @@
 <script module lang="ts">
-  import type { Channel as Room } from '../lib/types'
-  // The server takes the whole room, so saves go one at a time, each from the room as the last one left it, and
-  // across visits to the page too: a rename still in flight can't be undone by a category change sent with the old
-  // name. The server's answer stands in until a resync brings the room back, in case that resync fails.
+  // The server takes the whole room, so saves go one at a time (across visits to the page too), and each reads the
+  // room fresh from the server first: a rename still in flight can't be undone by a category change sent with the
+  // old name, whatever the screen's copy says.
   let queue = Promise.resolve()
-  const answered = new Map<string, Room>()
 </script>
 
 <script lang="ts">
@@ -51,9 +49,9 @@
   }
   const later = (work: () => Promise<void>) => (queue = queue.then(() => run(work, 'Saved.')))
   const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => later(async () => {
-    const now = answered.get(c.id) ?? owner.textChannels.find((x) => x.id === c.id) ?? c
-    answered.set(c.id, await owner.api.put<Channel>(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch }))
-    await owner.resync(); answered.delete(c.id)
+    const now = await owner.api.get<Channel>(`/channels/${c.id}`)
+    await owner.api.put(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch })
+    await owner.resync()
   })
   const saveCategory = (c: Category, name: string) => later(async () => {
     const now = owner.categories.find((x) => x.id === c.id) ?? c
