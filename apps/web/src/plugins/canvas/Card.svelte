@@ -14,7 +14,7 @@
 </button>
 <style>
   .canvas-card { display: block; width: 320px; max-width: 100%; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; text-align: left; margin: 6px 0; }
-  .canvas-card:hover { border-color: var(--ink-3); }
+  @media (hover: hover) { .canvas-card:hover { border-color: var(--ink-3); } }
   .preview { display: block; aspect-ratio: 16/9; background: radial-gradient(var(--line) 1px, transparent 1px) 0 0 / 16px 16px var(--bg-3); }
   img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .caption { display: flex; align-items: center; padding: 10px 12px; gap: 10px; }

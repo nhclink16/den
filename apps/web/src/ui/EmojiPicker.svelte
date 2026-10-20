@@ -128,21 +128,22 @@
   .picker { width: min(360px, calc(100vw - 16px)); height: min(420px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .quick { display: flex; justify-content: space-between; padding: 8px 10px 0; }
   .quick button { font-size: 24px; width: 44px; height: 44px; border-radius: var(--r); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }
-  .quick button:hover { background: var(--bg-3); transform: scale(1.12); }
+  @media (hover: hover) { .quick button:hover { background: var(--bg-3); transform: scale(1.12); } }
   .search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 6px; padding: 0 10px; height: 36px; flex: none; border-radius: var(--r); background: var(--bg-3); border: 1px solid var(--line); color: var(--ink-3); transition: border-color var(--t-fast), box-shadow var(--t-fast); }
-  .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  :global(:where(:root:not([data-input='touch']))) .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); }
   .search input::placeholder { color: var(--ink-3); }
   .clear { display: grid; padding: 4px; border-radius: var(--r); color: var(--ink-3); }
-  .clear:hover { color: var(--ink); background: var(--bg-2); }
+  @media (hover: hover) { .clear:hover { color: var(--ink); background: var(--bg-2); } }
   .tabs { display: flex; gap: 2px; padding: 0 8px 6px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; flex: none; }
   .tabs button { flex: 1 0 auto; min-width: 32px; height: 32px; font-size: 17px; border-radius: var(--r); filter: grayscale(.6); opacity: .8; transition: filter var(--t-fast), opacity var(--t-fast), background-color var(--t-fast); }
-  .tabs button:hover { filter: none; opacity: 1; background: var(--bg-3); }
+  @media (hover: hover) { .tabs button:hover { filter: none; opacity: 1; background: var(--bg-3); } }
   .results { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; overscroll-behavior: contain; }
   h4 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 4px 4px; background: var(--bg-2); color: var(--ink-3); font-size: var(--fs-xs); font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); padding-top: 4px; }
   .grid button { height: 38px; font-size: 24px; line-height: 1; border-radius: var(--r); transition: background-color var(--t-fast); }
-  .grid button:hover, .grid button:focus-visible { background: var(--bg-3); }
+  .grid button:focus-visible { background: var(--bg-3); }
+  @media (hover: hover) { .grid button:hover { background: var(--bg-3); } }
   .quick button:active, .tabs button:active, .grid button:active { background: var(--press); }
   .note { margin: 24px 12px; text-align: center; color: var(--ink-2); }
   /* A phone gets a sheet the width of the screen, with thumb-sized targets. */
@@ -153,5 +154,5 @@
     .tabs button { min-width: 36px; height: 44px; }
     .clear { padding: 16px; margin: -4px -14px -4px 0; }
   }
-  @media (prefers-reduced-motion: reduce) { .quick button:hover { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { @media (hover: hover) { .quick button:hover { transform: none; } } }
 </style>

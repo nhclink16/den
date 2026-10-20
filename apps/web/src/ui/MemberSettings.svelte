@@ -97,7 +97,7 @@
 <style>
   .person.busy { opacity: .6; pointer-events: none; }
   .who-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 16px; text-align: start; transition: background-color var(--t-fast); }
-  .who-row:hover { background-color: var(--hover); }
+  @media (hover: hover) { .who-row:hover { background-color: var(--hover); } }
   .who { display: grid; min-width: 0; flex: 1; line-height: 1.3; }
   .who b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who .faint { font-size: var(--fs-xs); }

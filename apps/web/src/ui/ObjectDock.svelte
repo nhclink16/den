@@ -29,7 +29,8 @@
   .object-dock.expanded { flex: 1; min-height: 0; }
   .controls { position: absolute; z-index: 400; top: 8px; right: 8px; display: flex; gap: 4px; border-radius: var(--r-pill, 999px); padding: 4px; background: var(--overlay); }
   .controls button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; }
-  .controls button:hover { background: var(--bg-3); }
+  @media (hover: hover) { .controls button:hover { background: var(--bg-3); } }
   .resize { position: absolute; z-index: 400; bottom: 0; height: 6px; width: 100%; cursor: ns-resize; touch-action: none; background: var(--line); }
-  .resize:hover, .resize:focus-visible { background: var(--ink-3); }
+  .resize:focus-visible { background: var(--ink-3); }
+  @media (hover: hover) { .resize:hover { background: var(--ink-3); } }
 </style>

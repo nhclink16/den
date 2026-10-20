@@ -87,7 +87,8 @@
   .strip { height: 160px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .resize { position: absolute; z-index: 4; bottom: 0; height: 8px; width: 100%; cursor: ns-resize; touch-action: none; }
   .resize::after { content: ''; display: block; width: 36px; height: 4px; margin: 2px auto; border-radius: 2px; background: var(--ink-3); opacity: .5; transition: opacity var(--t-fast); }
-  .resize:hover::after, .resize:focus-visible::after { opacity: 1; }
+  .resize:focus-visible::after { opacity: 1; }
+  @media (hover: hover) { .resize:hover::after { opacity: 1; } }
   .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 56px 14px 16px; overflow-x: auto; scrollbar-width: none; }
   .strip .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }
   .tiles::-webkit-scrollbar { display: none; }

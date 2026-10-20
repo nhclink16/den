@@ -77,7 +77,7 @@
   .tile-controls { position: absolute; z-index: 3; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); }
   .tile-controls:empty { display: none; }
   .stop { padding: 0 10px; min-height: 26px; flex: none; border-radius: var(--r-pill); font: 600 var(--fs-xs) var(--body); color: var(--ink); }
-  .stop:hover { color: var(--ember); }
+  @media (hover: hover) { .stop:hover { color: var(--ember); } }
   .volume-menu { flex: none; }
   .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--lift); }
   .quality-menu { flex: none; }
@@ -86,7 +86,7 @@
   summary::-webkit-details-marker { display: none; }
   .quality-panel { padding: 4px; }
   .quality-menu button { display: block; width: 100%; padding: 8px 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
-  .quality-menu button:hover { background: var(--hover); }
+  @media (hover: hover) { .quality-menu button:hover { background: var(--hover); } }
   /* Muted is the call state people most need to read at a glance. */
   .label .mute { display: grid; flex: none; color: var(--danger); }
   .tile-controls .mute { display: grid; flex: none; padding-inline: 4px; color: var(--danger); }

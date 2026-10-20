@@ -187,7 +187,7 @@
   .head { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .crumb { margin-top: 2px; }
-  .scroll { flex: 1; overflow-y: auto; padding: 20px var(--gutter) 32px; }
+  .scroll { flex: 1; overflow-y: auto; padding: 20px var(--gutter) calc(32px + env(safe-area-inset-bottom, 0px)); }
   .body { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
 

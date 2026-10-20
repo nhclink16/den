@@ -79,23 +79,23 @@
   details { display: flex; }
   summary { list-style: none; cursor: pointer; border-radius: var(--avatar-r, 50%); }
   summary::-webkit-details-marker { display: none; }
-  summary:hover :global(.tile) { color: var(--ink); }
+  @media (hover: hover) { summary:hover :global(.tile) { color: var(--ink); } }
   details[open] > summary :global(.tile) { color: var(--lamp); box-shadow: 0 0 0 2px var(--lamp); }
   [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   .picker { width: min(380px, calc(100vw - 16px)); height: min(440px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 8px; padding: 0 10px; height: 36px; border-radius: var(--r-pill); background: var(--bg-3); border: 1px solid transparent; color: var(--ink-3); }
-  .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  :global(:where(:root:not([data-input='touch']))) .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); }
   .search input::placeholder { color: var(--ink-3); }
   .search input:focus-visible { box-shadow: none; }
   .clear { display: grid; padding: 4px; border-radius: var(--r); color: var(--ink-3); }
-  .clear:hover { color: var(--ink); background: var(--bg-2); }
+  @media (hover: hover) { .clear:hover { color: var(--ink); background: var(--bg-2); } }
   .results { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; overscroll-behavior: contain; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 2px; }
   .cell { display: grid; place-items: center; height: 52px; border-radius: var(--r); }
   .cell :global(.tile) { background: none; color: var(--ink-2); }
-  .cell:hover:not(:disabled) { background: var(--hover); }
-  .cell:hover:not(:disabled) :global(.tile) { color: var(--ink); }
+  @media (hover: hover) { .cell:hover:not(:disabled) { background: var(--hover); } }
+  @media (hover: hover) { .cell:hover:not(:disabled) :global(.tile) { color: var(--ink); } }
   .cell.on { background: var(--sel); }
   .cell.on :global(.tile) { color: var(--lamp); }
   .cell:disabled { cursor: default; }

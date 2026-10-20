@@ -346,7 +346,7 @@
   /* An emoji placeholder looked like a status already set: an empty one is a quiet outline. */
   .emoji.empty { color: var(--ink-3); }
   .unset { position: absolute; top: -6px; right: -6px; display: grid; padding: 3px; border-radius: 50%; background: var(--bg-3); border: 1px solid var(--line-strong); color: var(--ink-2); }
-  .unset:hover { color: var(--ink); }
+  @media (hover: hover) { .unset:hover { color: var(--ink); } }
   /* A corner badge, but a fingertip-sized target. */
   .unset::after { content: ''; position: absolute; inset: -10px; }
   select.field { width: auto; }

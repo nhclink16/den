@@ -149,7 +149,7 @@
   .tabs { display: flex; gap: 2px; background: var(--bg-3); border-radius: var(--r); padding: 2px; }
   .tabs button { padding: 4px 14px; border-radius: calc(var(--r) - 1px); font-size: var(--fs-sm); color: var(--ink-2); }
   .tabs button.active { background: var(--bg-2); color: var(--ink); box-shadow: 0 1px 3px var(--shadow); }
-  .tabs button:not(.active):hover { color: var(--ink); }
+  @media (hover: hover) { .tabs button:not(.active):hover { color: var(--ink); } }
   .grid {
     flex: 1;
     overflow-y: auto;
@@ -171,7 +171,7 @@
     outline: none;
     transition: border-color var(--t-fast);
   }
-  .card:hover { border-color: var(--line-strong); }
+  @media (hover: hover) { .card:hover { border-color: var(--line-strong); } }
   .card.selected { border-color: var(--lamp); box-shadow: 0 0 0 2px var(--lamp-glow); }
   .card:focus-visible { border-color: var(--lamp); box-shadow: 0 0 0 2px var(--lamp-glow); }
   .thumb {

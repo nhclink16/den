@@ -80,11 +80,13 @@
   .tile-actions { position: absolute; z-index: 3; top: 8px; left: 8px; display: flex; gap: 2px; padding: 2px; opacity: 0; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); transition: opacity var(--t-fast); }
   .tile-actions button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink-2); }
   .mobile .tile-actions button { width: 32px; height: 32px; }
-  .tile-actions button:hover { color: var(--ink); }
+  @media (hover: hover) { .tile-actions button:hover { color: var(--ink); } }
   .tile-actions button[aria-pressed="true"] { color: var(--on-lamp); background: var(--lamp); }
-  .layout-tile:hover .tile-actions, .layout-tile:focus-within .tile-actions, .mobile .tile-actions { opacity: 1; }
+  .layout-tile:focus-within .tile-actions, .mobile .tile-actions { opacity: 1; }
+  @media (hover: hover) { .layout-tile:hover .tile-actions { opacity: 1; } }
   .resize { position: absolute; z-index: 3; right: 3px; bottom: 3px; width: 16px; height: 16px; cursor: nwse-resize; opacity: 0; border-right: 3px solid var(--ink-2); border-bottom: 3px solid var(--ink-2); border-radius: 0 0 8px 0; }
-  .layout-tile:hover .resize, .layout-tile:focus-within .resize { opacity: 1; }
+  .layout-tile:focus-within .resize { opacity: 1; }
+  @media (hover: hover) { .layout-tile:hover .resize { opacity: 1; } }
   .placeholder { position: absolute; inset: 0; width: 100%; font: var(--fs-xs) var(--body); color: var(--ink-3); border: 1px dashed var(--line); border-radius: inherit; }
   @media (prefers-reduced-motion: reduce) { .layout-tile { transition: none; } }
 </style>

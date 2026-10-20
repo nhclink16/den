@@ -81,7 +81,7 @@
     border-radius: calc(var(--r) + 1px); border: 1px solid var(--line);
     transition: transform .12s, box-shadow .12s, opacity .15s;
   }
-  .half:hover { transform: translateY(-1px); }
+  @media (hover: hover) { .half:hover { transform: translateY(-1px); } }
   .half:active { transform: scale(.98); }
   .half.dim { opacity: .5; }
   .half.chosen { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; opacity: 1; }
@@ -95,9 +95,10 @@
   .name { font-size: var(--fs-sm); font-weight: 500; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card.active .name { color: var(--ink); font-weight: 700; }
   .tools { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-  .card:hover .tools, .card:focus-within .tools { opacity: 1; }
+  .card:focus-within .tools { opacity: 1; }
+  @media (hover: hover) { .card:hover .tools { opacity: 1; } }
   .tool { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r); color: var(--ink3); }
-  .tool:hover { background: var(--bg3); color: var(--ink); }
+  @media (hover: hover) { .tool:hover { background: var(--bg3); color: var(--ink); } }
   .tool:active { background: var(--press); }
   .tools :global(.btn) { min-height: 26px; padding: 2px 8px; font-size: var(--fs-xs); }
   @media (max-width: 650px) { .tools { opacity: 1; } }

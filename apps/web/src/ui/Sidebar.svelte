@@ -236,7 +236,7 @@
   .brand { display: flex; align-items: center; gap: 4px; padding: 14px 10px 8px 18px; min-height: 58px; }
   .mac .brand { padding-top: 38px; }
   .wordmark { font-size: 24px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wordmark:hover { text-decoration: none; }
+  @media (hover: hover) { .wordmark:hover { text-decoration: none; } }
   .conn { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); margin: 2px 4px 0; flex: none; }
   .conn.off { background: var(--danger); }
   /* A blink that reaches 0.3 opacity reads as broken rendering; and the global
@@ -246,7 +246,7 @@
   }
   @keyframes blink { to { opacity: 0.62; } }
   .icon-btn { position: relative; color: var(--ink-2); }
-  .icon-btn:hover { text-decoration: none; }
+  @media (hover: hover) { .icon-btn:hover { text-decoration: none; } }
   .inbox .count { position: absolute; top: 0; right: -2px; box-shadow: 0 0 0 2px var(--bg-2); }
   .offline {
     margin: 0 10px 6px; padding: 7px 10px; border-radius: var(--r);
@@ -275,7 +275,7 @@
 
   .row { display: flex; align-items: center; gap: 10px; padding: calc(7px * var(--density, 1)) 10px; margin: 1px 0; border-radius: var(--r-lg); color: var(--ink); text-align: left; transition: background-color var(--t-fast); }
   .row.bare { padding-inline: 12px; }
-  .row:hover { background: var(--hover); text-decoration: none; }
+  @media (hover: hover) { .row:hover { background: var(--hover); text-decoration: none; } }
   .row.sel { background: var(--sel); }
   .row.sel :global(.tile:not(.bare)) { background: color-mix(in srgb, var(--lamp) 22%, var(--bg-3)); color: var(--lamp); }
   .mid { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
@@ -299,7 +299,7 @@
 
   .me { display: flex; align-items: center; gap: 6px; padding: 10px 10px 12px 14px; border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
   .me-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; margin: -4px; padding: 4px; border-radius: var(--r); text-align: left; transition: background-color var(--t-fast); }
-  .me-card:hover { background: var(--hover); }
+  @media (hover: hover) { .me-card:hover { background: var(--hover); } }
   .me-card .t { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   .me-card b, .me-card .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .me-card b { font-size: var(--fs-sm); }
@@ -311,7 +311,7 @@
   .me-btn:active { transform: scale(.94); }
   .phone .large { margin: 0; padding: 0 20px 12px; font-size: var(--fs-large); font-weight: 700; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .find { display: flex; align-items: center; gap: 8px; margin: 0 16px 14px; padding: 0 12px; min-height: 40px; border-radius: var(--r-pill); background: var(--bg-3); color: var(--ink-3); border: 1px solid transparent; }
-  .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  :global(:where(:root:not([data-input='touch']))) .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .find input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: 16px; padding: 8px 0; }
   .find input::placeholder { color: var(--ink-3); }
   /* The shell draws the ring; the field inside it draws none. */
@@ -325,7 +325,7 @@
   .phone .row::after { content: ''; position: absolute; left: 72px; right: 0; bottom: 0; height: 1px; background: color-mix(in srgb, var(--line) 70%, transparent); }
   .phone .row.bare::after { left: 16px; }
   .phone .row.last::after { display: none; }
-  .phone .row:hover { background: none; }
+  @media (hover: hover) { .phone .row:hover { background: none; } }
   .phone .row:active { background: var(--press); }
   .phone .nm { font-size: calc(var(--fs-body) + 1px); font-weight: 600; color: var(--ink); }
   .phone .unread .nm { font-weight: 700; }
