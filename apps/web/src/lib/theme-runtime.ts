@@ -51,6 +51,10 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   const bubble = { sharp: [4,2], soft: [10,4], round: [20,6], none: [0,0] }[bubbles] ?? [20,6]
   s.setProperty('--r-bubble', `${bubble[0]}px`); s.setProperty('--r-tight', `${bubble[1]}px`)
   root.dataset.bubbles = bubbles
+  // Pictures follow Corners unless the person picked a shape (app.css), and Avatar draws the online indicator.
+  if (!a?.avatar_shape || a.avatar_shape === 'theme') delete root.dataset.avatarShape
+  else root.dataset.avatarShape = a.avatar_shape
+  root.dataset.presence = a?.presence_style ?? 'dot'
   s.setProperty('--density', t.density === 'compact' ? '0.8' : '1')
   s.setProperty('--leading', t.density === 'compact' ? '1.35' : '1.45')
   s.backgroundColor = colors.bg; s.color = colors.ink; s.colorScheme = half; root.dataset.theme = t.id

@@ -46,7 +46,7 @@ const globals = {
   ...compile(read('message-fetch.ts')),
   $state: cell, apiFor: () => api, PAGE, native: false,
   Uploads: class { clear() {} }, Drafts: class { token = 0; clear() { this.token++ } },
-  cachedAppearance: () => ({}), loadLayout: () => ({}),
+  cachedAppearance: () => ({}), loadLayout: () => ({}), oldAvatarChoices: () => null,
   noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
   themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },

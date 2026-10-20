@@ -112,6 +112,8 @@ class Themes {
   roomIcons(mode: NonNullable<Appearance['room_icons']>) { return this.save({ ...this.appearance, room_icons: mode }, true) }
   /** How messages are drawn, and whose bubbles carry a person's colour. */
   bubbles(patch: Pick<Appearance, 'bubble_shape'> | Pick<Appearance, 'bubble_colors'>) { return this.save({ ...this.appearance, ...patch }, true) }
+  /** How pictures are drawn, and how being online shows on them. */
+  avatars(patch: Pick<Appearance, 'avatar_shape'> | Pick<Appearance, 'presence_style'>) { return this.save({ ...this.appearance, ...patch }, true) }
   contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
   background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
   /** The sidebar's own wallpaper. A main one limited to the sidebar would then show

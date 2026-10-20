@@ -20,19 +20,16 @@ import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
 import { lastOf } from './room-list'
+import { oldAvatarChoices } from './avatar-carry'
 import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, LastMessage, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
 const PREFS_KEY = 'den.layout'
 
-/** How avatars are drawn on this device. `theme` follows the theme's Corners. */
-export type AvatarShape = 'theme' | 'sharp' | 'soft' | 'round'
-/** How being online shows on an avatar. */
-export type PresenceStyle = 'dot' | 'ring' | 'off'
 /** `collapsed` holds the room list's folded groups: category ids, `servers`, `direct`. */
-export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; avatarShape: AvatarShape; presence: PresenceStyle; collapsed: string[] }
+export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; collapsed: string[] }
 
 function loadLayout(): Layout {
-  const fallback: Layout = { sidebar: true, members: true, sounds: false, avatarShape: 'theme', presence: 'dot', collapsed: [] }
+  const fallback: Layout = { sidebar: true, members: true, sounds: false, collapsed: [] }
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
 }
 
@@ -148,6 +145,19 @@ export class Store {
     this.appearance = a
     if (native) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
     if (this.active) themes.receive(a)
+  }
+  /** Avatar shape and the online indicator used to stay on each device, in `den.layout`.
+   *  This device's old choice goes up once, then the local copy goes. */
+  private carryAvatarChoices(a: Appearance) {
+    const patch = this.active ? oldAvatarChoices(this.layout, a) : null
+    if (!patch) return
+    const saved = Object.keys(patch).length ? themes.save({ ...themes.appearance, ...patch }, true) : Promise.resolve(true)
+    void saved.then((ok) => {
+      if (!ok) return
+      const { avatarShape: _, presence: __, ...rest } = this.layout as Layout & Record<string, unknown>
+      this.layout = rest
+      localStorage.setItem(PREFS_KEY, JSON.stringify(rest))
+    })
   }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
@@ -717,6 +727,7 @@ export class Store {
     // logout belongs to the account that asked for it, not to this one.
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
     this.receiveAppearance(appearance)
+    this.carryAvatarChoices(appearance)
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)
