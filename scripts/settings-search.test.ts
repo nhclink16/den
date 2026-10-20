@@ -37,6 +37,9 @@ test('the iPhone app hides computer pages and keeps developer ones behind Develo
   assert.deepEqual(findSettings('shortcuts', phone, false, true), [])
   assert.ok(findSettings('microphone', browser, false).length)
   assert.equal(findSettings('push to talk', phone, false, true)[0]?.entry?.find, 'input-mode')
+  // Profile has no activity row at phone widths, in a browser too.
+  assert.ok(!findSettings('playing', browser, false, false, true).some((h) => h.entry?.find === 'activity'))
+  assert.ok(findSettings('playing', browser, false).some((h) => h.entry?.find === 'activity'))
 })
 
 test('a section by name comes first, then rows whose name starts with the word', () => {

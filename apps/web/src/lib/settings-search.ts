@@ -44,9 +44,9 @@ export function visibleSections(admin: boolean, desktopApp: boolean, phoneApp = 
 /**
  * One row a search can land on: `find` matches the row's `data-find`. `admin` rows show to admins only.
  * `computer` rows aren't in the iPhone app: its calls are native and voice only, so the browser's devices don't reach
- * them, and it can't see what you're playing.
+ * them. `wide` rows only show on a screen wider than a phone (ProfileSettings' 900px).
  */
-export type Entry = { section: SectionId; find: string; label: string; words?: string; admin?: boolean; computer?: boolean }
+export type Entry = { section: SectionId; find: string; label: string; words?: string; admin?: boolean; computer?: boolean; wide?: boolean }
 
 export const ENTRIES: Entry[] = [
   { section: 'profile', find: 'avatar', label: 'Profile picture', words: 'avatar photo picture gif upload' },
@@ -56,7 +56,7 @@ export const ENTRIES: Entry[] = [
   { section: 'profile', find: 'colour', label: 'Profile colour', words: 'color bubble accent' },
   { section: 'profile', find: 'status', label: 'Status', words: 'emoji what you are up to' },
   { section: 'profile', find: 'clear', label: 'Clear status after', words: 'expire status' },
-  { section: 'profile', find: 'activity', label: 'Share what I’m playing', words: 'activity game app playing', computer: true },
+  { section: 'profile', find: 'activity', label: 'Share what I’m playing', words: 'activity game app playing', wide: true },
   { section: 'profile', find: 'music', label: 'Show my music', words: 'spotify listening' },
 
   { section: 'appearance', find: 'mode', label: 'Light, dark or system', words: 'dark mode light mode scheme night' },
@@ -130,7 +130,7 @@ export type Hit = { section: Section; entry?: Entry }
  * What a search for `q` finds among the sections someone can open: sections by
  * name first, then rows whose name starts with a word of the query, then the rest.
  */
-export function findSettings(q: string, sections: Section[], admin: boolean, phoneApp = false, limit = 12): Hit[] {
+export function findSettings(q: string, sections: Section[], admin: boolean, phoneApp = false, phoneWidth = false, limit = 12): Hit[] {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   if (!words.length) return []
   const open = new Map(sections.map((s) => [s.id, s]))
@@ -141,7 +141,7 @@ export function findSettings(q: string, sections: Section[], admin: boolean, pho
   }
   for (const e of ENTRIES) {
     const s = open.get(e.section)
-    if (!s || (e.admin && !admin) || (e.computer && phoneApp)) continue
+    if (!s || (e.admin && !admin) || (e.computer && phoneApp) || (e.wide && phoneWidth)) continue
     const label = e.label.toLowerCase(), text = `${label} ${e.words ?? ''} ${s.label.toLowerCase()}`
     if (!words.every((w) => text.includes(w))) continue
     const start = label.split(/[^a-z0-9#]+/).some((part) => part.startsWith(words[0]!))

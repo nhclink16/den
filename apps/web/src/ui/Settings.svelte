@@ -125,7 +125,8 @@
 
   // --- search ---
   let q = $state('')
-  const hits = $derived(findSettings(q, sections, admin, phoneApp))
+  // The width at which Profile drops its computer-only rows.
+  const hits = $derived(findSettings(q, sections, admin, phoneApp, matchMedia('(max-width: 900px)').matches))
   function pick(h: Hit) {
     q = ''; open(h.section.id, h.entry?.find)
     // A whole section has no row to land on, and the result just went away: focus the page.
