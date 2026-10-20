@@ -397,7 +397,7 @@
   .circle { position: relative; cursor: pointer; }
   .circle.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--c); }
   .circle.custom.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--ink-3); }
-  :global(:where(:root:not([data-input='touch']))) .circle:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 4px; }
+  :global(:where(:root:not([data-input]))) .circle:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 4px; }
   .circle:active { transform: scale(.92); }
   @media (max-width: 650px) { .desk-only { display: none; } }
   .unsaved { margin-top: 12px; box-shadow: inset 0 0 0 1px var(--lamp); }

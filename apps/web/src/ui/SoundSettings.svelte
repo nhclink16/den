@@ -230,12 +230,12 @@
   /* A file input inside a row: the row is the button. */
   .file { position: relative; display: block; min-height: 48px; padding: 12px 16px; color: var(--lamp); font-weight: 600; cursor: pointer; }
   .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
-  :global(:where(:root:not([data-input='touch']))) .file:focus-within { outline: 2px solid var(--lamp); outline-offset: -3px; }
+  :global(:where(:root:not([data-input]))) .file:focus-within { outline: 2px solid var(--lamp); outline-offset: -3px; }
   .file:active { background: var(--press); }
   .sub { display: block; font-size: var(--fs-xs); color: var(--ink-3); }
   .check { display: grid; width: 18px; color: var(--lamp); }
   .choice { position: relative; cursor: pointer; }
-  :global(:where(:root:not([data-input='touch']))) .choice:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
+  :global(:where(:root:not([data-input]))) .choice:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
   .feedback { font-size: var(--fs-sm); color: var(--success); padding: 10px 4px 0; } .error { color: var(--danger); }
   @media (max-width: 650px) { input[type=range] { flex: 1; width: auto; min-width: 120px; } }
   @media (pointer: coarse) { .file { min-height: 52px; padding-block: 14px; } }

@@ -197,7 +197,7 @@
   .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .tile { position: relative; display: block; width: 100%; padding: 0; overflow: hidden; border-radius: calc(var(--r) * .75); background: var(--bg-3) center / cover no-repeat; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast); }
   .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  :global(:where(:root:not([data-input='touch']))) .tile:focus-visible { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; }
+  :global(:where(:root:not([data-input]))) .tile:focus-visible { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; }
   @media (hover: hover) { .tile:hover:not(:disabled) { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; } }
   .tile:focus-visible { outline: none; }
   .tile:disabled:not(.busy) { opacity: .6; }

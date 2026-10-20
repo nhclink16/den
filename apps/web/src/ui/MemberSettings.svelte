@@ -106,7 +106,7 @@
   .chev.up { transform: none; }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 16px 14px 68px; }
   .actions label { cursor: pointer; }
-  .actions label:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  :global(:where(:root:not([data-input]))) .actions label:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
   .rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 0 16px 14px 68px; }
   .rename label { display: grid; gap: 4px; flex: 1 1 160px; }
   .row { display: flex; gap: 6px; }

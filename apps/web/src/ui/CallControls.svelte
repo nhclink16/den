@@ -67,7 +67,13 @@
       </div>
     </details>
   {/if}
-  {#if variant === 'bar'}<details class="overflow options wide"><summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
+  {#if variant === 'bar'}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
+    <details class="overflow options wide" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
+      <summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary>
+      <div popover="auto" use:disclosurePopover><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div>
+    </details>
+  {/if}
   <MusicQueueButton />
   {#if variant === 'bar' && more}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
@@ -161,7 +167,7 @@
   .overflow { position: relative; flex: none; }
   .overflow > summary { list-style: none; }
   .overflow > summary::-webkit-details-marker { display: none; }
-  .options > div { position: absolute; bottom: calc(var(--cb) + 14px); right: 0; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
+  .options > div { position: fixed; inset: auto; margin: 0; z-index: 20; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
   .options > div button { width: max-content; padding: 8px 12px; border-radius: var(--r); font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .options > div button:hover { background: var(--hover); } }
   /* Your shares hide behind a smaller button beside Share. */
