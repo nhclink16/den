@@ -90,12 +90,31 @@ final class SmokeUITests: XCTestCase {
         shot("2-room-keyboard")
     }
 
+    /// Photos opens iOS's photo picker straight away (the shell's, not WebKit's three-way menu); a picked photo comes
+    /// into the page through the shell and lands in the tray, then sends.
     @MainActor func test3PlusSheet() throws {
         let app = try launchSignedIn()
         try find(app, label: "general", .prefix).tap()
         try find(app, label: "More").tap()
         try find(app, label: "Photos")
         shot("3-plus-sheet")
+        try find(app, label: "Photos").tap()
+        // The picker's cells, not the page's pictures behind it.
+        let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
+        let menu = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Photo Library'")).firstMatch
+        try wait(for: photo, "picker photo", in: app, timeout: 15)
+        XCTAssertFalse(menu.exists, "WebKit's Photo Library menu came up instead of the picker.")
+        shot("3-picker")
+        keepTree(app, "picker")
+        photo.tap()
+        let add = app.buttons["Add"]
+        try wait(for: add, "picker Add", in: app)
+        add.tap()
+        try find(app, label: "Remove", .prefix, timeout: 30)
+        shot("3-photo-tray")
+        try find(app, label: "Send").tap()
+        XCTAssertTrue(element(app, label: "Remove", .prefix).waitForNonExistence(timeout: 30), "The photo didn't send.")
+        shot("3-photo-sent")
     }
 
     /// The home's search field opens Search with its field focused and the keyboard up; results come back.
@@ -115,6 +134,14 @@ final class SmokeUITests: XCTestCase {
         try find(app, label: "Your profile and settings").tap()
         try find(app, label: "Appearance")
         shot("4-settings")
+        // "Den on your computer" hands its link to iOS's share sheet, through the shell.
+        try find(app, label: "Den on your computer").tap()
+        let sheet = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'ActivityListView' OR label == 'Copy'")).firstMatch
+        try wait(for: sheet, "share sheet", in: app)
+        // It's in the tree as soon as it starts growing in; shoot it once it's up.
+        Thread.sleep(forTimeInterval: 1)
+        shot("4-share-sheet")
+        keepTree(app, "share-sheet")
     }
 
     /// The call runs in the native engine (debug simulator builds skip CallKit, which the simulator can't hold).
@@ -242,15 +269,20 @@ final class SmokeUITests: XCTestCase {
         return notification
     }
 
-    /// For iOS's own screens. On a miss, keeps a screenshot and what the Home Screen showed.
-    @MainActor private func wait(for element: XCUIElement, _ name: String, timeout: TimeInterval = 10) throws {
+    /// For iOS's own screens. On a miss, keeps a screenshot and what the Home Screen (or `app`) showed.
+    @MainActor private func wait(for element: XCUIElement, _ name: String, in app: XCUIApplication? = nil, timeout: TimeInterval = 10) throws {
         if element.waitForExistence(timeout: timeout) { return }
         shot("missing-\(name)")
-        let tree = XCTAttachment(string: springboard.debugDescription)
-        tree.name = "tree-missing-\(name)"
+        keepTree(app ?? springboard, "missing-\(name)")
+        throw Missing(description: "No \(name) after \(Int(timeout)) s.")
+    }
+
+    /// What was on screen, as the test saw it, for fixing a flow from one run.
+    @MainActor private func keepTree(_ app: XCUIApplication, _ name: String) {
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = "tree-\(name)"
         tree.lifetime = .keepAlways
         add(tree)
-        throw Missing(description: "No \(name) after \(Int(timeout)) s.")
     }
 
     /// Maya posts in a room over the API, the way her own phone would.

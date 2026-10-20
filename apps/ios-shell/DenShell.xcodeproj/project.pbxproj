@@ -12,9 +12,11 @@
 		2FFA02BBBA423F68E06DA453 /* TourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637E201D940AF29246B5B2CF /* TourUITests.swift */; };
 		383B4B0B94797F2BBCDD24D2 /* PushBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A64572FA32191F88AB0E3174 /* PushBridge.swift */; };
 		48AF6E397FAE6E60FFF839A4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 944E927586E73EED81BAAB65 /* PrivacyInfo.xcprivacy */; };
+		7188801367569BAE446BC413 /* MediaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FBCD8C9C4D0C7ACCB071BB2 /* MediaBridge.swift */; };
 		8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */; };
 		904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AFE942C4056FB331CD898A /* CallTestTone.swift */; };
 		BCE4736F8C67C21F3948CDBF /* PushBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 622C3E909B67E09BEB69F7CB /* PushBridgeTests.swift */; };
+		CB031C933FF426598712460A /* MediaBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27256CD979671A918545899B /* MediaBridgeTests.swift */; };
 		D3F65720805BEF40328F712E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05DD3ADC085C441B6F6F23CE /* Assets.xcassets */; };
 		D87F8A83B370BF7820EE3018 /* HapticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A48F2F8995982F10687702 /* HapticsTests.swift */; };
 		E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */; };
@@ -43,6 +45,8 @@
 
 /* Begin PBXFileReference section */
 		05DD3ADC085C441B6F6F23CE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		27256CD979671A918545899B /* MediaBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaBridgeTests.swift; sourceTree = "<group>"; };
+		2FBCD8C9C4D0C7ACCB071BB2 /* MediaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaBridge.swift; sourceTree = "<group>"; };
 		41A48F2F8995982F10687702 /* HapticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsTests.swift; sourceTree = "<group>"; };
 		5039DD1EF1C3D42D13B7555F /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallEngine.swift; sourceTree = "<group>"; };
@@ -86,6 +90,7 @@
 				66B48E12D014890145BF8A95 /* DenShellApp.swift */,
 				5039DD1EF1C3D42D13B7555F /* Haptics.swift */,
 				AA90BB5F9855E4491A3341E2 /* Info.plist */,
+				2FBCD8C9C4D0C7ACCB071BB2 /* MediaBridge.swift */,
 				944E927586E73EED81BAAB65 /* PrivacyInfo.xcprivacy */,
 				A64572FA32191F88AB0E3174 /* PushBridge.swift */,
 			);
@@ -97,6 +102,7 @@
 			children = (
 				9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */,
 				41A48F2F8995982F10687702 /* HapticsTests.swift */,
+				27256CD979671A918545899B /* MediaBridgeTests.swift */,
 				640BB40042AD461BB7D3EAA8 /* OriginTests.swift */,
 				622C3E909B67E09BEB69F7CB /* PushBridgeTests.swift */,
 			);
@@ -270,6 +276,7 @@
 				904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */,
 				EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */,
 				FB8599DA82DAC3572DC4943A /* Haptics.swift in Sources */,
+				7188801367569BAE446BC413 /* MediaBridge.swift in Sources */,
 				383B4B0B94797F2BBCDD24D2 /* PushBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -280,6 +287,7 @@
 			files = (
 				E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */,
 				D87F8A83B370BF7820EE3018 /* HapticsTests.swift in Sources */,
+				CB031C933FF426598712460A /* MediaBridgeTests.swift in Sources */,
 				113799ECDE8C4B8F1F9AEF0C /* OriginTests.swift in Sources */,
 				BCE4736F8C67C21F3948CDBF /* PushBridgeTests.swift in Sources */,
 			);
