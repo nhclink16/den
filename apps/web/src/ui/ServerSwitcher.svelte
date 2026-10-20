@@ -1,17 +1,22 @@
 <script lang="ts">
   import { instances, store } from '../lib/store.svelte'
+  import { disclosurePopover } from '../lib/disclosure-popover'
   import Mark from './Mark.svelte'
+  // In the top layer, so the main pane never draws over it. Escape and an outside click close it there.
   let open = $state(false)
-  let trigger: HTMLButtonElement
+  let trigger: HTMLElement, list: HTMLElement
   function close() { open = false; trigger?.focus() }
+  // Focus that was in the list (or fell to the page) goes back to the name, as it does after a choice.
+  function closed(e: ToggleEvent) {
+    if (e.newState === 'closed' && (list.contains(document.activeElement) || document.activeElement === document.body)) trigger.focus()
+  }
 </script>
-<div class="switcher">
-  <button bind:this={trigger} class="wordmark display" aria-label="Switch server" aria-expanded={open} onclick={() => open = !open}>
+<details class="switcher" bind:open>
+  <summary bind:this={trigger} class="wordmark display" aria-label="Switch server">
     <Mark size={22} /><span>{store.settings.instance_name}</span><span class="chevron" class:attention={instances.attention} aria-label={instances.attention ? 'Unread mentions or DMs on another server' : undefined}>⌄</span>
-  </button>
-  {#if open}
-    <button class="outside" aria-label="Close server switcher" onclick={close}></button>
-    <div class="popover" role="dialog" aria-label="Servers" onkeydown={e => { if (e.key === 'Escape') close() }} tabindex="-1">
+  </summary>
+  <div bind:this={list} class="popover" popover="auto" use:disclosurePopover={'start'} ontoggle={closed} role="dialog" aria-label="Servers">
+    {#if open}
       {#each instances.all as s (s.origin)}
         <div class="server" class:active={s === instances.active}>
           <button class="choose" onclick={() => { instances.select(s); close() }}>
@@ -22,17 +27,17 @@
         </div>
       {/each}
       <button class="add" onclick={() => { close(); instances.add() }}>+ Add a server</button>
-    </div>
-  {/if}
-</div>
+    {/if}
+  </div>
+</details>
 <style>
-  .switcher { position: relative; min-width: 0; flex: 0 1 auto; }
-  .wordmark { display:flex; align-items:center; gap:8px; width:100%; font-size:22px; text-align:left; }
+  .switcher { min-width: 0; flex: 0 1 auto; }
+  .wordmark { display:flex; align-items:center; gap:8px; width:100%; font-size:22px; text-align:left; list-style:none; cursor:pointer; }
+  .wordmark::-webkit-details-marker { display:none; }
   .wordmark > span:first-of-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
   .chevron { position:relative; font-size:18px; }
   .attention::after { content:''; position:absolute; width:6px; height:6px; background:var(--lamp); border-radius:50%; right:-3px; top:1px; }
-  .outside { position:fixed; inset:0; z-index:40; cursor:default; }
-  .popover { position:absolute; z-index:41; top:calc(100% + 12px); left:-8px; width:320px; max-width:calc(100vw - 32px); padding:6px; border:1px solid var(--line); background:var(--bg2); border-radius:var(--r-lg); box-shadow:0 12px 40px var(--scrim); }
+  .popover { position:fixed; inset:auto; margin:0; width:320px; max-width:calc(100vw - 16px); padding:6px; border:1px solid var(--line); background:var(--bg2); color:var(--ink); border-radius:var(--r-lg); box-shadow:0 12px 40px var(--scrim); }
   .server { display:flex; align-items:center; border-radius:var(--r); }
   .server.active { background:var(--bg3); }
   @media (hover: hover) { .server:hover { background:var(--bg3); } }
