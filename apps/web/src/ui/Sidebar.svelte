@@ -308,8 +308,8 @@
   }
   .scroll { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
 
-  /* The hangout: who's in it, and one button. */
-  .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 12px; margin: 4px 4px 6px; padding: 12px 12px 12px 14px; border-radius: var(--r-tile); background: var(--bg-3); }
+  /* The hangout: who's in it, and one button. Same edges, corners and icon column as a room row below it. */
+  .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; padding: 12px 10px; border-radius: var(--r-lg); background: var(--bg-3); }
   .hang .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .hang .nm { font-weight: 700; display: flex; align-items: center; gap: 6px; }
   .hang .who, .hang .jam-line { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -391,7 +391,7 @@
   /* The shell draws the ring; the field inside it draws none. */
   .find input:focus-visible { box-shadow: none; }
   .phone .scroll { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
-  .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; background: var(--bg-2); }
+  .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; border-radius: var(--r-tile); background: var(--bg-2); }
   .phone .hang { --ring: var(--bg-2); }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
