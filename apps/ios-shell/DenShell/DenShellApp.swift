@@ -316,6 +316,11 @@ struct DenWebView: UIViewRepresentable {
         showUnreachable(error.userInfo[NSURLErrorFailingURLErrorKey] as? URL)
     }
 
+    /// A retry that got an answer and then lost the connection: let the next one go.
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+        if webView === self.webView, unreachable.shown { unreachable.trying = false }
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard webView === self.webView, unreachable.shown else { return }
         retryTimer?.invalidate()

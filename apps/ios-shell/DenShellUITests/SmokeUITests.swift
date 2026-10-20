@@ -129,7 +129,8 @@ final class SmokeUITests: XCTestCase {
         if failed.exists {
             XCTAssertTrue(joining, "Join was never disabled while joining.")
             shot("6-call-no-media")
-            try find(app, label: "Dismiss").tap()
+            // The error is a toast that also goes by itself; a tap puts it away now.
+            failed.tap()
             XCTAssertTrue(try find(app, label: "Join hangout", timeout: 5).isEnabled, "Join didn't come back.")
             shot("7-call-after-error")
             return
