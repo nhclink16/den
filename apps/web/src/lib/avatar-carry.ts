@@ -21,3 +21,17 @@ export function oldAvatarChoices(layout: object, a: Choices): Choices | null {
   }
   return patch as Choices
 }
+
+/** Takes this device's old choices out of `den.layout` and says what to save, or null
+ *  when there is nothing to do yet. Taking them before the save means a second sync, or
+ *  another server's Store in the desktop app, can't send them again. `restore` puts
+ *  them back if the save fails. */
+export function takeOldAvatarChoices(storage: Pick<Storage, 'getItem' | 'setItem'>, key: string, a: Choices) {
+  const read = (): Record<string, unknown> => { try { return JSON.parse(storage.getItem(key) || '{}') } catch { return {} } }
+  const layout = read()
+  const patch = oldAvatarChoices(layout, a)
+  if (!patch) return null
+  const { avatarShape, presence, ...rest } = layout
+  storage.setItem(key, JSON.stringify(rest))
+  return { patch, restore: () => storage.setItem(key, JSON.stringify({ avatarShape, presence, ...read() })) }
+}

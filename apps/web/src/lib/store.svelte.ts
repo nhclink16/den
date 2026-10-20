@@ -20,7 +20,7 @@ import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
 import { lastOf } from './room-list'
-import { oldAvatarChoices } from './avatar-carry'
+import { takeOldAvatarChoices } from './avatar-carry'
 import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, LastMessage, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
 const PREFS_KEY = 'den.layout'
@@ -28,9 +28,11 @@ const PREFS_KEY = 'den.layout'
 /** `collapsed` holds the room list's folded groups: category ids, `servers`, `direct`. */
 export type Layout = { sidebar: boolean; members: boolean; sounds: boolean; collapsed: string[] }
 
+const storedLayout = (): Record<string, unknown> => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } catch { return {} } }
 function loadLayout(): Layout {
-  const fallback: Layout = { sidebar: true, members: true, sounds: false, collapsed: [] }
-  try { return { ...fallback, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } } catch { return fallback }
+  // Old avatar choices stay on disk for carryAvatarChoices, never in a Store's copy.
+  const { avatarShape: _, presence: __, ...saved } = storedLayout()
+  return { sidebar: true, members: true, sounds: false, collapsed: [], ...saved }
 }
 
 const PAGE = 50
@@ -149,15 +151,9 @@ export class Store {
   /** Avatar shape and the online indicator used to stay on each device, in `den.layout`.
    *  This device's old choice goes up once, then the local copy goes. */
   private carryAvatarChoices(a: Appearance) {
-    const patch = this.active ? oldAvatarChoices(this.layout, a) : null
-    if (!patch) return
-    const saved = Object.keys(patch).length ? themes.save({ ...themes.appearance, ...patch }, true) : Promise.resolve(true)
-    void saved.then((ok) => {
-      if (!ok) return
-      const { avatarShape: _, presence: __, ...rest } = this.layout as Layout & Record<string, unknown>
-      this.layout = rest
-      localStorage.setItem(PREFS_KEY, JSON.stringify(rest))
-    })
+    const taken = this.active ? takeOldAvatarChoices(localStorage, PREFS_KEY, a) : null
+    if (!taken || !Object.keys(taken.patch).length) return
+    void themes.save({ ...themes.appearance, ...taken.patch }, true).then((ok) => { if (!ok) taken.restore() })
   }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
@@ -620,7 +616,8 @@ export class Store {
 
   saveLayout(patch: Partial<Layout>) {
     this.layout = { ...this.layout, ...patch }
-    localStorage.setItem(PREFS_KEY, JSON.stringify(this.layout))
+    // Over what is on disk, so an old avatar choice not yet carried up stays.
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ ...storedLayout(), ...this.layout }))
   }
   async saveNotif(patch: Partial<NotificationPreferences>) {
     this.notif = await this.api.put<NotificationPreferences>('/users/me/notification-preferences', { ...this.notif, ...patch })
