@@ -2,8 +2,7 @@
   // Admins name the server and look after its rooms. The list comes first, the way iOS lists things: each room
   // and each category opens its own page (`sub`, a room's or category's id) with its name, its place, its icon
   // and a red Delete. New rooms and categories are rows at the top that ask for a name.
-  import { api } from '../lib/api'
-  import { store } from '../lib/store.svelte'
+  import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { placedIn } from '../lib/room-list'
   import type { Category, Channel } from '../lib/types'
@@ -14,6 +13,8 @@
   import FormDialog from './FormDialog.svelte'
 
   let { sub }: { sub?: string } = $props()
+  // Writes go to the server this page opened on, even if a queued one runs after switching servers.
+  const owner = instances.active
   let serverName = $state(''), status = $state(''), error = $state('')
   let newChan = $state(''), newChanCat = $state(''), newCat = $state('')
   let addingRoom = $state(false), addingCat = $state(false), deleting = $state(false)
@@ -29,15 +30,15 @@
     // Every change saves, even back to the name on the server: an earlier one may still be on its way.
     const name = serverName.trim()
     if (!name) return
-    void later(async () => { store.settings = await api.put('/settings', { instance_name: name }) })
+    void later(async () => { owner.settings = await owner.api.put('/settings', { instance_name: name }) })
   }
   async function addChannel() {
-    await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length })
-    newChan = ''; await store.resync()
+    await owner.api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: owner.textChannels.length })
+    newChan = ''; await owner.resync()
   }
   async function addCategory() {
-    await api.post<Category>('/categories', { name: newCat.trim(), position: store.categories.length })
-    newCat = ''; await store.resync()
+    await owner.api.post<Category>('/categories', { name: newCat.trim(), position: owner.categories.length })
+    newCat = ''; await owner.resync()
   }
   // The server takes the whole room, so saves go one at a time, each from the room as the last one left it:
   // a rename still in flight can't be undone by a category change sent with the old name.
@@ -46,19 +47,19 @@
   const answered = new Map<string, Channel>()
   const later = (work: () => Promise<void>) => (queue = queue.then(() => run(work, 'Saved.')))
   const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => later(async () => {
-    const now = answered.get(c.id) ?? store.textChannels.find((x) => x.id === c.id) ?? c
-    answered.set(c.id, await api.put<Channel>(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch }))
-    await store.resync(); answered.delete(c.id)
+    const now = answered.get(c.id) ?? owner.textChannels.find((x) => x.id === c.id) ?? c
+    answered.set(c.id, await owner.api.put<Channel>(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch }))
+    await owner.resync(); answered.delete(c.id)
   })
   const saveCategory = (c: Category, name: string) => later(async () => {
-    const now = store.categories.find((x) => x.id === c.id) ?? c
-    await api.put(`/categories/${c.id}`, { name, position: now.position }); await store.resync()
+    const now = owner.categories.find((x) => x.id === c.id) ?? c
+    await owner.api.put(`/categories/${c.id}`, { name, position: now.position }); await owner.resync()
   })
   /** Off its page and back to the list, then gone. */
   async function remove() {
-    await api.del(room ? `/channels/${room.id}` : `/categories/${category!.id}`)
+    await owner.api.del(room ? `/channels/${room.id}` : `/categories/${category!.id}`)
     if (router.parent === '/settings/rooms') router.back(); else router.go('/settings/rooms', true)
-    await store.resync()
+    await owner.resync()
   }
   const open = (id: string) => router.go(`/settings/rooms/${id}`, false, '/settings/rooms')
 </script>

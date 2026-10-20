@@ -1,3 +1,11 @@
+<script module lang="ts">
+  // Every write copies the preferences it changes, so writes go one at a time, across visits to the page too:
+  // one still in flight can't be undone by the next (a volume, a choice, a new pack).
+  let writes: Promise<unknown> = Promise.resolve()
+  // Read anything from the event before calling in: a queued write runs after the event is over.
+  function queued<T>(fn: () => Promise<T>): Promise<T> { const next = writes.then(fn); writes = next.catch(() => {}); return next }
+</script>
+
 <script lang="ts">
   import { onDestroy } from 'svelte'
   import { store, instances } from '../lib/store.svelte'
@@ -24,11 +32,6 @@
   // The iPhone app has no terminals to ring.
   const events = soundEvents.filter(e => !(shell && e.id === 'terminal_bell'))
   const event = $derived(soundEvents.find(e => e.id === moment))
-  // Every write copies the preferences it changes, so writes go one at a time: one still in flight can't be
-  // undone by the next (a volume, a choice, a new pack).
-  let writes: Promise<unknown> = Promise.resolve()
-  // Read anything from the event before calling in: a queued write runs after the event is over.
-  function queued<T>(fn: () => Promise<T>): Promise<T> { const next = writes.then(fn); writes = next.catch(() => {}); return next }
   const action = (fn: () => Promise<void>) => queued(() => run(fn))
   async function run(fn: () => Promise<void>) {
     busy = true; error = ''; status = ''
@@ -148,7 +151,7 @@
   <h3 class="list-head">Volume</h3>
   <div class="slist">
     <SettingRow label="Volume">
-      {#snippet control()}<input aria-label={`${event.name} volume`} type="range" min="0" max="100" value={prefs.volumes[event.id] ?? 100} disabled={busy || current?.sound.type === 'silent'} onchange={e => { const v = +e.currentTarget.value; void save(p => p.volumes[event.id] = v).then(() => sounds.play(event.id, owner)) }} /><output>{prefs.volumes[event.id] ?? 100}%</output>{/snippet}
+      {#snippet control()}<input aria-label={`${event.name} volume`} type="range" min="0" max="100" value={prefs.volumes[event.id] ?? 100} disabled={busy || current?.sound.type === 'silent'} onchange={e => { const v = +e.currentTarget.value, id = event.id; void save(p => p.volumes[id] = v).then(() => sounds.play(id, owner)) }} /><output>{prefs.volumes[event.id] ?? 100}%</output>{/snippet}
     </SettingRow>
   </div>
 {:else}
