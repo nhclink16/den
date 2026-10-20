@@ -365,7 +365,7 @@
         <!-- Nothing to show: say so plainly, with one way to try again. -->
         <div class="failed" role="alert">
           <Icon name="offline" size={40} />
-          <h2>Can't load {roomName(channel, themes.appearance.room_icons)}</h2>
+          <h2>Can't load {isDm ? `your chat with ${store.title(channel)}` : roomName(channel, themes.appearance.room_icons)}</h2>
           <p>{store.connected ? 'Something went wrong on the way. Try again in a moment.' : "You're offline. Den tries again as soon as you're back."}</p>
           <button class="btn lit" onclick={loadRoom}>Try Again</button>
         </div>
@@ -408,7 +408,7 @@
         <div class="drop">
           <div class="drop-inner">
             <Icon name="clip" size={28} />
-            <span class="display big">Drop it in {roomName(channel, themes.appearance.room_icons)}</span>
+            <span class="display big">{isDm ? `Send it to ${store.title(channel)}` : `Drop it in ${roomName(channel, themes.appearance.room_icons)}`}</span>
             <span class="muted">Anything up to 1 GB. Clips play right in the chat.</span>
           </div>
         </div>
@@ -452,7 +452,7 @@
   .room.stowed { visibility: hidden; position: absolute; inset: 0; }
   .windowed { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px var(--gutter); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); }
   .failed { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px 32px; text-align: center; color: var(--ink-3); }
-  .failed h2 { margin: 8px 0 0; font-size: var(--fs-title); font-weight: 600; color: var(--ink); }
+  .failed h2 { margin: 8px 0 0; font-size: var(--fs-title); font-weight: 600; color: var(--ink); text-wrap: balance; }
   .failed p { margin: 0 0 10px; max-width: 30ch; font-size: var(--fs-sm); color: var(--ink-2); text-wrap: pretty; }
   /* A DM's bar title: the person's face and name, which open their profile. */
   .person { margin: 0; max-width: 100%; font-size: inherit; }
@@ -513,8 +513,8 @@
   .drop {
     position: absolute; inset: 8px; z-index: 5; border-radius: var(--r-lg);
     background: var(--overlay); border: 2px dashed var(--lamp);
-    display: grid; place-items: center; pointer-events: none;
+    display: grid; place-items: center; padding: 16px; pointer-events: none;
   }
-  .drop-inner { display: grid; justify-items: center; gap: 6px; color: var(--lamp); }
-  .big { font-size: 26px; }
+  .drop-inner { display: grid; justify-items: center; gap: 6px; text-align: center; color: var(--lamp); }
+  .big { font-size: 26px; text-wrap: balance; }
 </style>
