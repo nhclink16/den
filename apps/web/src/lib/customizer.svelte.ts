@@ -47,8 +47,13 @@ class Customizer {
     // Opened on another server or account: its snapshot is not this one's to restore.
     if (!s || s.owner !== owner()) return
     themes.reset()
-    const custom = themes.appearance.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
-    void themes.save({ ...copy(s.appearance), custom_themes: copy(custom) })
+    const now = themes.appearance
+    // Only what differs goes back, and the custom themes only when one is put back, so a
+    // change another device makes meanwhile to something else stays.
+    const patch = Object.fromEntries(Object.entries(copy(s.appearance)).filter(([k, v]) => k !== 'custom_themes' && JSON.stringify(v) !== JSON.stringify(now[k as keyof Appearance])))
+    if (now.custom_themes.some(t => this.edited.has(t.id) && s.appearance.custom_themes.some(o => o.id === t.id)))
+      patch.custom_themes = now.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
+    void themes.save(patch)
   }
 }
 export const customizer = new Customizer()

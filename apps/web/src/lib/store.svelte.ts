@@ -143,10 +143,10 @@ export class Store {
   private generation = 0
   get active() { return !native || instances.active === this }
   get attention() { return this.channels.some(c => { const u = this.unread(c.id); return u.mention || (c.kind === 'dm' && u.count > 0) }) }
-  private receiveAppearance(a: Appearance) {
+  private receiveAppearance(a: Appearance, asked?: number) {
     this.appearance = a
     if (native) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
-    if (this.active) themes.receive(a)
+    if (this.active) themes.receive(a, asked)
   }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
@@ -694,6 +694,7 @@ export class Store {
     const threadEpoch = this.threadReads.epoch
     const spotifyAt = this.spotifySeq
     const versionsAt = this.reads.snapshot()
+    const appearanceAt = themes.mark()
     const previewAsked = this.askPreviews()
     const [users, channels, categories, read, notif, presence, calls, settings, appearance, voice, sounds, spotify, servers] = await Promise.all([
       this.api.get<User[]>('/users'),
@@ -716,7 +717,7 @@ export class Store {
     // Everything below mutates this Store. A resync that was in flight across a
     // logout belongs to the account that asked for it, not to this one.
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
-    this.receiveAppearance(appearance)
+    this.receiveAppearance(appearance, appearanceAt)
     if (this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save(patch, true))
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)

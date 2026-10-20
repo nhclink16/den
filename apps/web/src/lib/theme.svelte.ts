@@ -50,8 +50,10 @@ class Themes {
   // save never writes an old copy of another device's change back.
   private queue: Promise<unknown> = Promise.resolve()
   private jobs: { owner: string; patch: Patch }[] = []
-  /** Copies received from the server, so a save's reply never replaces a newer one. */
+  /** Copies from the socket (and server switches), so a save's reply never replaces a newer one. */
   private received = 0
+  /** Save replies applied, so a sync asked before one landed never replaces it. */
+  private replies = 0
   get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
   get active() { return this.draft || themeFor(this.appearance, this.half) }
   /** The theme currently assigned to one appearance, ignoring any live draft. */
@@ -66,8 +68,14 @@ class Themes {
     // GIF wallpapers hold still while the system asks for less motion.
     matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => this.apply())
   }
-  /** The server's copy for the account showing now, from the socket, a sync or a server switch. */
-  receive(a: Appearance) { this.received++; this.stored = copy(a); this.show() }
+  /** Taken before a sync asks for the server's copy, and passed back with it. */
+  mark() { return this.replies }
+  /** The server's copy for the account showing now: from the socket or a server switch, or from a sync with its `mark()`. */
+  receive(a: Appearance, asked?: number) {
+    if (asked === undefined) this.received++
+    else if (asked !== this.replies) return
+    this.stored = copy(a); this.show()
+  }
   private show() {
     const owner = this.owner()
     this.appearance = Object.assign(copy(this.stored), ...this.jobs.filter(j => j.owner === owner).map(j => copy(j.patch)))
@@ -107,7 +115,7 @@ class Themes {
       try {
         const saved = await api.put<Appearance>('/users/me/appearance', job.patch)
         // A copy that came over the socket meanwhile is as new or newer; if older, this save's own copy follows it.
-        if (this.owner() === job.owner && this.received === asked) this.stored = saved
+        if (this.owner() === job.owner && this.received === asked) { this.stored = saved; this.replies++ }
         return true
       } catch (e) {
         if (this.owner() === job.owner) this.error = (e as Error).message

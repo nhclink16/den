@@ -49,7 +49,7 @@ const globals = {
   cachedAppearance: () => ({}), loadLayout: () => ({}), carryOldAvatarChoices: async () => {},
   noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
-  themes: { receive() {} }, localStorage: { setItem() {}, getItem: () => null },
+  themes: { receive() {}, mark: () => 0 }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
   activeListeners: new Set(), setCsrf() {}, pushSignedOut() {},
   WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },

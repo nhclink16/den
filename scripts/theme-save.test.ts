@@ -192,3 +192,36 @@ test('desktop with two servers: a switch drops the queued save, and the new serv
   assert.equal(a.state.accent, 'green')
   assert.deepEqual([themes.appearance.mode, themes.appearance.bubble_shape, themes.appearance.accent, themes.appearance.room_icons], ['dark', 'none', null, undefined])
 })
+
+test('a sync asked before a save landed never hides that save, even with the socket down', async () => {
+  const s = server(start), themes = one(s)
+  // The sync's copy arrives while the save is out: both show, and the reply still counts.
+  s.hold('after')
+  const saved = themes.accent('green')
+  await tick()
+  themes.receive(structuredClone(start), themes.mark())
+  s.release(); await saved
+  assert.equal(themes.appearance.accent, 'green')
+  // The sync's copy arrives after the reply: it is older, so it is set aside.
+  const asked = themes.mark()
+  await themes.accent('blue')
+  themes.receive({ ...structuredClone(start), accent: 'green', mode: 'light' }, asked)
+  assert.deepEqual([themes.appearance.accent, themes.appearance.mode], ['blue', 'system'])
+})
+
+test("Undo leaves the custom themes alone unless it puts one back, so another device's new theme stays", async () => {
+  const s = server(start), themes = one(s)
+  const { customizer } = compile('customizer.svelte.ts', {
+    './theme.svelte': { themes }, './native': { activeOrigin: () => 'https://den.test' }, './store.svelte': { store: { me: null } },
+  }, { $state: (v: unknown) => v })
+  customizer.begin()
+  s.hold('before')
+  const saved = themes.accent('green')
+  await tick()
+  customizer.undo()
+  themes.receive(s.other({ custom_themes: [mine('plum')] }))
+  s.release(); await saved; await tick(); await tick()
+  assert.equal(s.state.accent, null)
+  assert.deepEqual(s.state.custom_themes.map((t: any) => t.id), ['plum'])
+  assert.equal(s.sent.at(-1).custom_themes, undefined)
+})
