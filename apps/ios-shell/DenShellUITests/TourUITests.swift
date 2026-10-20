@@ -6,8 +6,9 @@ import XCTest
 // Den as the UI check (ci_scripts/ci_pre_xcodebuild.sh, ui-check/seed.py), as Ellis, plus Rowan for the admin pages.
 // "Dark" is Den's own Dark setting: Xcode Cloud's iOS 27 simulator ignored `XCUIDevice.appearance` (2026-10-19), so
 // iOS's own parts (keyboard, alerts, status bar) stay light in those shots. The device setting is still flipped, for a
-// simulator that honours it. It only looks: nothing here asserts how a screen should look. A stop it can't reach keeps a `missing-…` screenshot
-// and a `tree-missing-…` dump and the tour moves on to the next theme, so one run always says how far it got.
+// simulator that honours it. It only looks: nothing here asserts how a screen should look. A stop it can't reach
+// keeps a `missing-…` screenshot and a `tree-missing-…` dump and the tour moves on to the next theme, so one run always
+// says how far it got.
 // Shots are named "<stop>-<light|dark>"; a long page scrolled through adds "-p2", "-p3"… to the stop.
 
 final class TourUITests: XCTestCase {
