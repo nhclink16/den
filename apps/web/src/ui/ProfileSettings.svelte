@@ -79,7 +79,8 @@
   // form differs from what was last sent.
   const fields = $derived(JSON.stringify([displayName.trim(), bio.trim(), accent, emoji.trim(), statusText.trim(), status ? clearAfter : '']))
   let base = $state(''), sent = $state('')
-  const touched = $derived(fields !== base)
+  // Mid-save the form also differs from the request out, even if you put it back the way it was.
+  const touched = $derived(fields !== base || fields !== sent)
   const draft = $derived<Partial<User>>({ display_name: displayName.trim() || me.username, bio: bio.trim() || null, accent, status })
   const dirty = $derived(
     displayName.trim() !== me.display_name || (bio.trim() || null) !== (me.bio ?? null) || accent !== (me.accent ?? null)
