@@ -151,12 +151,14 @@
     border-radius: 50% 50% 0 0; background: var(--lamp); filter: blur(14px); opacity: .55;
   }
 
-  /* Filled, borderless fields, as on iPhone. A keyboard still gets app.css's focus ring. */
+  /* Filled, borderless fields, as on iPhone. */
   .fields { display: flex; flex-direction: column; gap: 12px; }
   .door .field {
     min-height: 50px; padding: 12px 16px; font-size: 16px; border: 0; border-radius: 12px;
     background: color-mix(in srgb, var(--ink-3) 14%, transparent);
   }
+  /* With no border, app.css's focus border has nothing to colour: a keyboard gets a solid ring instead (touch none). */
+  .door .field:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
   /* One footer style under a field: grey, tucked up to it, and a tick at the end once the rule is met. */
   .note { margin: -6px 16px 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--ink-3); }
   .tick { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--success); }
