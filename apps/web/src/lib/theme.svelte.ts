@@ -33,15 +33,26 @@ export function validateTheme(value: unknown): Theme {
     || !colors(t.light) || !colors(t.dark) || !keys(t.fonts, ['display','body','mono']) || !Object.values(t.fonts).every(v => typeof v === 'string' && validName(v))) throw Error('Invalid theme. Use six-digit hex colors and names of 1–40 letters, numbers, spaces, hyphens or underscores.')
   return t
 }
+type Patch = Partial<Appearance>
+const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 class Themes {
+  /** What shows: the server's newest copy with this device's saves still on their way on top. */
   appearance = $state<Appearance>(cachedAppearance())
   draft = $state<Theme | null>(null)
   error = $state('')
   saving = $state(false)
+  /** Whose appearance this is: one account on one server. The store fills in the account. */
+  owner = () => activeOrigin()
   private systemLight = $state(matchMedia('(prefers-color-scheme: light)').matches)
   private fontRun = 0
+  private stored = copy(this.appearance)
+  // Each save sends only the fields it changes, and the server keeps the rest, so a
+  // save never writes an old copy of another device's change back.
   private queue: Promise<unknown> = Promise.resolve()
-  private pending = 0
+  private jobs: { owner: string; patch: Patch }[] = []
+  /** Copies taken from the server. Without a revision on each copy, a copy that comes in while
+   *  another is on its way leaves its order unknown, so the later one is set aside (a save asks again). */
+  private taken = 0
   get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
   get active() { return this.draft || themeFor(this.appearance, this.half) }
   /** The theme currently assigned to one appearance, ignoring any live draft. */
@@ -56,10 +67,22 @@ class Themes {
     // GIF wallpapers hold still while the system asks for less motion.
     matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => this.apply())
   }
-  receive(a: Appearance, force = false) {
-    if (this.pending && !force) return
-    this.appearance = a
-    try { localStorage.setItem(appearanceCacheKey(), JSON.stringify(a)) } catch { /* cache is optional */ }
+  /** Taken before a sync asks for the server's copy, and passed back with it. */
+  mark() { return this.taken }
+  /** The server's copy for the account showing now: from the socket or a server switch, or from a
+   *  sync with its `mark()`. A sync's copy is older than anything taken since it asked: false, set aside. */
+  receive(a: Appearance, asked?: number) {
+    if (asked !== undefined && asked !== this.taken) return false
+    this.take(a); this.show()
+    return true
+  }
+  /** The newest copy from the server, for the store to keep when it stops being the one showing. */
+  latest() { return copy(this.stored) }
+  private take(a: Appearance) { this.stored = copy(a); this.taken++ }
+  private show() {
+    const owner = this.owner()
+    this.appearance = Object.assign(copy(this.stored), ...this.jobs.filter(j => j.owner === owner).map(j => copy(j.patch)))
+    try { localStorage.setItem(appearanceCacheKey(), JSON.stringify(this.appearance)) } catch { /* cache is optional */ }
     this.apply()
   }
   apply() { applyTheme(this.active, this.half, this.appearance); void this.loadFonts(this.active.fonts) }
@@ -83,71 +106,82 @@ class Themes {
       for (const [role, family] of Object.entries(fonts)) if (webFonts([family]).length) document.documentElement.style.setProperty(`--${role}`, role === 'mono' ? '"Den Terminal Mono", monospace' : fontStack(systemFont, 'body'))
     } else if (this.error === "Couldn't load that font") this.error = ''
   }
-  save(a: Appearance, keepDraft = false) {
-    const origin = activeOrigin(), api = apiFor(origin)
-    const next = JSON.parse(JSON.stringify(a)) as Appearance
-    this.error = ''; if (!keepDraft) this.draft = null; this.pending++; this.receive(next, true); this.saving = true
+  /** Saves the fields in `patch`, one save at a time. A save waiting its turn is dropped
+   *  if the account or server changed meanwhile, so it never reaches the wrong one. */
+  save(patch: Patch, keepDraft = false) {
+    const job = { owner: this.owner(), patch: copy(patch) }, api = apiFor(activeOrigin())
+    this.error = ''; if (!keepDraft) this.draft = null
+    this.jobs.push(job); this.saving = true; this.show()
     const result = this.queue.catch(() => {}).then(async () => {
+      if (this.owner() !== job.owner) return false
+      const asked = this.taken
       try {
-        const saved = await api.put<Appearance>('/users/me/appearance', next)
-        if (this.pending === 1 && activeOrigin() === origin) this.receive(saved, true)
+        const saved = await api.put<Appearance>('/users/me/appearance', job.patch)
+        if (this.owner() === job.owner && this.taken === asked) this.take(saved)
+        // Another copy came in meanwhile, older or newer: one asked for now is newer than both.
+        else if (this.owner() === job.owner) {
+          const again = this.taken
+          try {
+            const now = await api.get<Appearance>('/users/me/appearance')
+            if (this.owner() === job.owner) this.receive(now, again)
+          } catch { /* the next sync brings it */ }
+        }
         return true
       } catch (e) {
-        if (activeOrigin() === origin) this.error = (e as Error).message
-        if (this.pending === 1 && activeOrigin() === origin) {
-          try { this.receive(await api.get<Appearance>('/users/me/appearance'), true) } catch { /* keep local preview while offline */ }
-        }
+        if (this.owner() === job.owner) this.error = (e as Error).message
         return false
       }
-    }).finally(() => { this.pending--; this.saving = this.pending > 0 })
+    }).finally(() => {
+      this.jobs.splice(this.jobs.indexOf(job), 1); this.saving = this.jobs.length > 0
+      this.show()
+    })
     this.queue = result
     return result
   }
   /** Assign a theme to one appearance. Light and dark are independent. */
   select(t: Theme, half: 'light'|'dark' = this.half) {
-    return this.save({ ...this.appearance, [half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
+    return this.save({ [half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
   }
   /** A preset id, a `#rrggbb`, or null for each theme's own accent. */
-  accent(choice: string | null) { return this.save({ ...this.appearance, accent: choice }, true) }
+  accent(choice: string | null) { return this.save({ accent: choice }, true) }
   /** What sits before a room's name in lists: its icon, a #, or nothing. */
-  roomIcons(mode: NonNullable<Appearance['room_icons']>) { return this.save({ ...this.appearance, room_icons: mode }, true) }
+  roomIcons(mode: NonNullable<Appearance['room_icons']>) { return this.save({ room_icons: mode }, true) }
   /** How messages are drawn, and whose bubbles carry a person's colour. */
-  bubbles(patch: Pick<Appearance, 'bubble_shape'> | Pick<Appearance, 'bubble_colors'>) { return this.save({ ...this.appearance, ...patch }, true) }
+  bubbles(patch: Pick<Appearance, 'bubble_shape'> | Pick<Appearance, 'bubble_colors'>) { return this.save(patch, true) }
   /** How pictures are drawn, and how being online shows on them. */
   avatars(patch: Pick<Appearance, 'avatar_shape'> | Pick<Appearance, 'presence_style'>) {
     for (const field of Object.keys(patch) as (keyof typeof patch)[]) forgetOldAvatarChoice(localStorage, field)
-    return this.save({ ...this.appearance, ...patch }, true)
+    return this.save(patch, true)
   }
-  contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
-  background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
+  contrast(percent: number) { return this.save({ contrast: percent }, true) }
+  background(b: Appearance['background']) { return this.save({ background: b ?? null }, true) }
   /** The sidebar's own wallpaper. A main one limited to the sidebar would then show
    *  nowhere, so it moves back to everywhere else. */
   sidebarBackground(b: Appearance['sidebar_background']) {
     const main = this.appearance.background
-    const background = b && main?.scope === 'sidebar' ? { ...main, scope: 'app' as const } : main ?? null
-    return this.save({ ...this.appearance, background, sidebar_background: b ?? null }, true)
+    const background = b && main?.scope === 'sidebar' ? { background: { ...main, scope: 'app' as const } } : {}
+    return this.save({ ...background, sidebar_background: b ?? null }, true)
   }
-  mode(mode: Appearance['mode']) { return this.save({...this.appearance,mode},true) }
+  mode(mode: Appearance['mode']) { return this.save({ mode }, true) }
   preview(t: Theme) { this.draft = t; this.apply() }
   reset() { this.draft = null; this.apply() }
   async add(t: Theme) {
     const custom = [...this.appearance.custom_themes, validateTheme(t)]
     if (custom.length > 12 || new TextEncoder().encode(JSON.stringify(custom)).length > 16384) throw Error('Use at most 12 custom themes and 16 KiB total.')
-    const saved = await this.save({ ...this.appearance, custom_themes: custom, ...themeSlots(this.appearance, t.id, this.half) })
+    const saved = await this.save({ custom_themes: custom, ...themeSlots(this.appearance, t.id, this.half) })
     if (!saved) throw Error(this.error)
   }
   /** Change one of your own themes in place, so the change reaches your other devices. */
   update(t: Theme) {
     const theme = validateTheme(t)
-    return this.save({ ...this.appearance, custom_themes: this.appearance.custom_themes.map(c => c.id === theme.id ? theme : c) }, true)
+    return this.save({ custom_themes: this.appearance.custom_themes.map(c => c.id === theme.id ? theme : c) }, true)
   }
   async remove(id: string) {
     const a = this.appearance
     await this.save({
-      ...a,
       custom_themes: a.custom_themes.filter(t => t.id !== id),
-      light_theme: a.light_theme === id ? defaultAppearance.light_theme : a.light_theme,
-      dark_theme: a.dark_theme === id ? defaultAppearance.dark_theme : a.dark_theme,
+      ...(a.light_theme === id && { light_theme: defaultAppearance.light_theme }),
+      ...(a.dark_theme === id && { dark_theme: defaultAppearance.dark_theme }),
     })
   }
 }
