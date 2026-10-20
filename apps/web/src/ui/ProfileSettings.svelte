@@ -41,17 +41,12 @@
   // Your own bubble, as everyone sees it with colours on.
   const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', withContrast(themes.active[themes.half], themes.appearance.contrast)))
 
-  // The form as it stands, and as it was when it last matched the server: what you
-  // changed since is "touched". Only a touched form autosaves.
-  const fields = $derived(JSON.stringify([displayName, bio, accent, emoji, statusText, clearAfter]))
-  let base = $state('')
-  const touched = $derived(fields !== base)
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
     emoji = me.status?.emoji ?? ''; statusText = me.status?.text ?? ''
     // A status that already clears later keeps that time unless you pick another.
     clearAfter = me.status?.expires_at ? 'keep' : 'never'
-    error = ''; base = JSON.stringify([displayName, bio, accent, emoji, statusText, clearAfter])
+    error = ''; base = sent = untracked(() => fields)
   }
   // Load once, and again only if the saved profile changes underneath an untouched
   // form: an edit from another device, or a status timing out, must not wipe typing
@@ -73,11 +68,18 @@
     if (clearAfter === '30m') return now + 1800
     if (clearAfter === '1h') return now + 3600
     if (clearAfter === '4h') return now + 4 * 3600
-    if (clearAfter === 'keep') return me.status?.expires_at ?? null
+    // The live profile: a save can finish after the page has gone.
+    if (clearAfter === 'keep') return store.me?.status?.expires_at ?? null
     if (clearAfter === 'today') { const d = new Date(); d.setHours(23, 59, 59, 0); return Math.floor(d.getTime() / 1000) }
     return null
   }
   const status = $derived<UserStatus | null>(emoji.trim() || statusText.trim() ? { emoji: emoji.trim() || null, text: statusText.trim() || null, expires_at: null } : null)
+  // The form as it would be saved; as it was when it last matched the server (`base`: what
+  // you changed since is "touched"); and as last sent (`sent`). A phone saves whenever the
+  // form differs from what was last sent.
+  const fields = $derived(JSON.stringify([displayName.trim(), bio.trim(), accent, emoji.trim(), statusText.trim(), status ? clearAfter : '']))
+  let base = $state(''), sent = $state('')
+  const touched = $derived(fields !== base)
   const draft = $derived<Partial<User>>({ display_name: displayName.trim() || me.username, bio: bio.trim() || null, accent, status })
   const dirty = $derived(
     displayName.trim() !== me.display_name || (bio.trim() || null) !== (me.bio ?? null) || accent !== (me.accent ?? null)
@@ -92,14 +94,15 @@
     : '',
   )
 
-  // A save asked for while one is out runs once that one is back, with the form as it is then.
+  // A save asked for while one is out runs once that one is back, if the form still differs.
   let again = false, failed = ''
   async function save(e?: SubmitEvent) {
     e?.preventDefault()
     if (saving) { again = true; return }
     if (problem || `${store.origin}|${store.me?.id}` !== account) return
     saving = true; error = ''; message = ''
-    const sent = JSON.parse(fields) as unknown[], sentClear = clearAfter, sentStatus = status
+    const snapshot = fields, sentClear = clearAfter, sentStatus = status
+    sent = snapshot
     try {
       const until = sentStatus ? expiry() : null
       await store.saveProfile({
@@ -107,22 +110,24 @@
         status: sentStatus ? { ...sentStatus, expires_at: until } : null,
       })
       // What's saved now: a status that clears later keeps that time unless you pick another.
-      const nowClear = sentStatus ? (until ? 'keep' : 'never') : sentClear
-      if (clearAfter === sentClear) clearAfter = nowClear
-      sent[5] = nowClear; base = JSON.stringify(sent); failed = ''
+      const done = JSON.parse(snapshot) as unknown[]
+      if (sentStatus) { done[5] = until ? 'keep' : 'never'; if (clearAfter === sentClear) clearAfter = done[5] as string }
+      base = sent = JSON.stringify(done); failed = ''
       message = 'Saved. Everyone sees the new version now.'
-    } catch (err) { error = err instanceof Error ? err.message : 'Could not save your profile.'; failed = fields }
+    } catch (err) { error = err instanceof Error ? err.message : 'Could not save your profile.'; failed = snapshot; sent = base }
     finally { saving = false }
-    if (again) { again = false; if (dirty) void save() }
+    if (again) { again = false; if (fields !== sent && fields !== failed) void save() }
   }
   // A phone has no Save button: a change goes out a moment after the last one, and on leaving the page.
   // A change the server turned down waits for the next edit rather than going again and again.
+  const unsent = $derived(phone && fields !== sent && fields !== failed && !problem)
   $effect(() => {
-    if (!phone || !touched || !dirty || problem || saving || fields === failed) return
+    if (!unsent || saving) return
+    void fields
     const timer = setTimeout(() => void save(), 800)
     return () => clearTimeout(timer)
   })
-  $effect(() => () => { if (untracked(() => phone && touched && dirty && !problem && fields !== failed)) void save() })
+  $effect(() => () => { if (untracked(() => unsent)) void save() })
   const bioLeft = $derived(BIO_MAX - [...bio].length)
 
   // --- pictures ---------------------------------------------------------------
