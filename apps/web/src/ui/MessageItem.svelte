@@ -4,17 +4,20 @@
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
   import { render, emojiOnly, plainMentions } from '../lib/markdown'
-  import { shortTime } from '../lib/time'
+  import { dayLabel, shortTime } from '../lib/time'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import Attachment from './Attachment.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
+  import MessageMenu, { type Action } from './MessageMenu.svelte'
+  import { focusComposer } from './Composer.svelte'
+  import { tick } from 'svelte'
   import { profileCard } from '../lib/people.svelte'
   import { klipyGif, snippet } from '../lib/klipy'
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
-  import { bubbleFill, nameInk, personColor, withContrast } from '../lib/bubbles'
+  import { accentBubble, bubbleFill, linkInk, nameInk, personColor, withContrast } from '../lib/bubbles'
   import { haptic } from '../lib/haptics'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
@@ -62,36 +65,46 @@
   const text = $derived(!gif && !!m.content.trim())
   const code = $derived(m.content.includes('```'))
   const pieces = $derived(editing || !!gif || text || !!m.attachments?.length || !!m.reactions?.length)
-  // The bubble's colour, worked out against the theme so text on it stays readable.
-  // With no bubbles, the colour goes on the name instead.
+  // Your own bubbles are the accent; everyone else's share one grey, and their
+  // colour goes on their name, worked out against the theme so it stays readable.
+  const lit = $derived(right && accentBubble(themes.appearance.bubble_colors))
   const fill = $derived.by(() => {
     const half = themes.half, c = themes.active[half], person = personColor(m.author_id, author?.accent)
-    if (feed) return head ? { name: nameInk(themes.appearance.bubble_colors, mine, person, c) } : {}
-    return { bubble: bubbleFill(themes.appearance.bubble_colors, mine, mentionsMe, person, resolveAccent(c, themes.appearance.accent, half), withContrast(c, themes.appearance.contrast)) }
+    const name = head && !right ? nameInk(themes.appearance.bubble_colors, mine, person, c) : undefined
+    if (feed) return { name }
+    const accent = resolveAccent(c, themes.appearance.accent, half)
+    const bubble = bubbleFill(themes.appearance.bubble_colors, mine, mentionsMe, person, accent, withContrast(c, themes.appearance.contrast))
+    return { name, bubble, link: bubble || lit || !text ? undefined : linkInk(accent, c) }
+  })
+  // On a touch screen the time sits in the bubble's corner, since there's no hover to show it.
+  const stamped = $derived.by(() => {
+    if (!text || jumbo || feed) return html
+    const at = (m.edited_at ? 'edited ' : '') + shortTime(m.created_at)
+    const stamp = `<span class="stamp" data-at="${at}" aria-hidden="true">${at}</span>`
+    // Inside the last line of prose, so a short last line keeps it beside the words.
+    return html.endsWith('</span>') ? html.slice(0, -7) + stamp + '</span>' : html + stamp
   })
   // Only messages that land while you watch animate in; history loads still.
   // Read once on purpose: an edit must not replay the arrival.
   // svelte-ignore state_referenced_locally
   const fresh = Date.now() - new Date(m.created_at).getTime() < 8000
 
-  // Touch screens have no hover. A tap on the message, or a long press anywhere on
-  // it, shows its actions (plus Copy, since the text can't be selected there) until
-  // the next tap elsewhere. A scroll is neither: the browser cancels the pointer.
+  // Touch screens have no hover. A long press anywhere on the message opens its
+  // menu (MessageMenu). A scroll is not a press: the browser cancels the pointer.
+  // Keyboards, and VoiceOver's swipes, still reach the toolbar's buttons.
   let held = $state(false)
-  let article = $state<HTMLElement>()
+  let content = $state<HTMLElement>()
   let touch = false
   let press: ReturnType<typeof setTimeout> | undefined
   let pressAt = { x: 0, y: 0 }
   let pressed = false
-  // The emoji picker is a popover inside the message; it handles its own taps.
+  // The menu and the emoji picker sit inside the message; they handle their own taps.
   const own = (e: Event) => !(e.target as Element).closest('dialog, [popover]')
-  // A tap that closes a popup (a profile card) is spent on closing it.
-  let dismissing = false
   function down(e: PointerEvent) {
     touch = e.pointerType === 'touch'
-    if (!touch || !e.isPrimary || !own(e)) return
-    dismissing = !!document.querySelector(':popover-open')
+    // A new touch means the last long press's click, if any, has been and gone.
     pressed = false
+    if (!touch || !e.isPrimary || !own(e) || editing) return
     pressAt = { x: e.clientX, y: e.clientY }
     press = setTimeout(() => { press = undefined; pressed = true; held = true; haptic('medium') }, 450)
   }
@@ -99,19 +112,20 @@
   function lift() { clearTimeout(press); press = undefined }
   // A long press is not also a tap on whatever was under the finger.
   function swallow(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault(); e.stopPropagation() } }
-  function tap(e: MouseEvent) {
-    if (!touch || dismissing || !own(e) || (e.target as Element).closest('a, button, video, audio, textarea, .mention')) return
-    held = !held
-  }
-  $effect(() => {
-    if (!held) return
-    // The bar sits above the message, so on a message at the top edge it would be cut off.
-    article?.querySelector('.tools')?.scrollIntoView({ block: 'nearest' })
-    const away = (e: PointerEvent) => { if (!article?.contains(e.target as Node)) held = false }
-    document.addEventListener('pointerdown', away, true)
-    return () => document.removeEventListener('pointerdown', away, true)
-  })
   function done() { held = false }
+  // In a room, answering a message opens its thread (and, asked for from the
+  // menu, its reply box: opening a thread on its own leaves the keyboard down);
+  // in a thread it quotes it.
+  function replyInThread() {
+    onreply(m)
+    void tick().then(() => requestAnimationFrame(() => focusComposer(document.querySelector('[data-thread-panel]'))))
+  }
+  const actions = $derived<Action[]>([
+    prefix === 't' ? { label: 'Reply', icon: 'reply', run: () => onreply(m) } : { label: 'Reply in Thread', icon: 'thread', run: replyInThread },
+    ...(m.content ? [{ label: 'Copy', icon: 'copy', run: () => void navigator.clipboard?.writeText(m.content) } as const] : []),
+    ...(mine && !gif ? [{ label: 'Edit', icon: 'edit', run: startEdit } as const] : []),
+    ...(canDelete ? [{ label: 'Delete', icon: 'trash', danger: true, run: () => (deleting = true) } as const] : []),
+  ])
 
   function startEdit() { draft = m.content; editing = true }
   async function saveEdit(e: KeyboardEvent) {
@@ -147,12 +161,37 @@
 {#snippet face(size: number)}
   <button class="face" aria-label={`${store.name(m.author_id)}'s profile`} onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}><Avatar userId={m.author_id} {size} /></button>
 {/snippet}
+<!-- What was said: drawn in the message, and again lifted out of it by the long-press menu. -->
+{#snippet said()}
+  {#if gif}
+    <a class="gif" href={gif} target="_blank" rel="noopener noreferrer"><img src={gif} alt="GIF" loading="lazy" onload={onmediaready} /></a>
+  {:else if text}
+    <div class="bubble text" class:jumbo class:code>{@html stamped}{#if m.edited_at}<span class="edited" title={shortTime(m.edited_at)}>edited</span>{/if}</div>
+  {/if}
+  {#if m.attachments?.length}
+    <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} author={store.name(m.author_id)} {onmediaready} />{/each}</div>
+  {/if}
+  {#if m.reactions?.length}
+    <div class="reactions">
+      {#each m.reactions as r (r.emoji)}
+        <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
+          <span>{r.emoji}</span><span class="n">{r.user_ids.length}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+{/snippet}
+{#snippet lifted()}
+  <div class="msg lifted" class:feed class:right class:lit class:tinted={!!fill.bubble} class:me={mentionsMe} class:head class:tail style:--fill={fill.bubble} style:--link={fill.link}>
+    <div class="content">{@render said()}</div>
+  </div>
+{/snippet}
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (touch only; keyboards reach the actions by focus) -->
-<article class="msg" data-hover-animates class:feed class:right class:head class:tail class:me={mentionsMe} class:fresh class:replying={!!parent} class:held id="{prefix}-{m.id}" bind:this={article}
-  style:--fill={fill.bubble} style:--name={fill.name}
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (touch only; keyboards reach the actions by focus) -->
+<article class="msg" data-hover-animates class:feed class:right class:lit class:tinted={!!fill.bubble} class:head class:tail class:me={mentionsMe} class:fresh class:replying={!!parent} class:held id="{prefix}-{m.id}"
+  style:--fill={fill.bubble} style:--name={fill.name} style:--link={fill.link}
   onpointerdown={down} onpointermove={move} onpointerup={lift} onpointercancel={lift}
-  onclickcapture={swallow} onclick={tap} oncontextmenu={(e) => { if (touch && own(e)) e.preventDefault() }}>
+  onclickcapture={swallow} oncontextmenu={(e) => { if (touch && own(e)) e.preventDefault() }}>
   {#if parent && feed}{@render replyRef(parent)}{/if}
   <div class="row">
     {#if !right}
@@ -168,37 +207,22 @@
       <!-- Your own messages show no name; a screen reader still hears who spoke. -->
       {#if head && right}<span class="sr-only">{author?.display_name || author?.username || 'You'}</span>{/if}
       {#if parent && !feed}{@render replyRef(parent)}{/if}
-      <div class="content">
+      <div class="content" bind:this={content}>
         {#if tail && !right && !feed && pieces}<span class="tail-face">{@render face(28)}</span>{/if}
         {#if editing}
           <div class="editing">
             <textarea class="field edit" bind:value={draft} onkeydown={saveEdit} rows="2"></textarea>
             <div class="faint hint">Enter to save · Esc to cancel</div>
           </div>
-        {:else if gif}
-          <a class="gif" href={gif} target="_blank" rel="noopener noreferrer"><img src={gif} alt="GIF" loading="lazy" onload={onmediaready} /></a>
-        {:else if text}
-          <div class="bubble text" class:jumbo class:code>{@html html}{#if m.edited_at}<span class="edited" title={shortTime(m.edited_at)}>edited</span>{/if}</div>
-        {/if}
-        {#if m.attachments?.length}
-          <div class="files">{#each m.attachments as a (a.id)}<Attachment upload={a} author={store.name(m.author_id)} {onmediaready} />{/each}</div>
-        {/if}
-        {#if m.reactions?.length}
-          <div class="reactions">
-            {#each m.reactions as r (r.emoji)}
-              <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
-                <span>{r.emoji}</span>{#if feed || r.user_ids.length > 1}<span class="n">{r.user_ids.length}</span>{/if}
-              </button>
-            {/each}
-          </div>
+        {:else}
+          {@render said()}
         {/if}
         <div class="tools">
           <time class="when" datetime={m.created_at}>{shortTime(m.created_at)}</time>
-          <EmojiPicker label="React to this message" quick={QUICK} align="end" onpick={(e) => { void store.react(m, e); done() }}><span class="tool" aria-hidden="true">😶</span></EmojiPicker>
-          <button title="Reply" aria-label="Reply" onclick={() => { done(); onreply(m) }}><Icon name="reply" /></button>
-          {#if held && m.content}<button title="Copy text" aria-label="Copy text" onclick={() => { void navigator.clipboard?.writeText(m.content); done() }}><Icon name="copy" /></button>{/if}
-          {#if mine}<button title="Edit" aria-label="Edit message" onclick={() => { done(); startEdit() }}><Icon name="edit" /></button>{/if}
-          {#if canDelete}<button bind:this={deleteButton} title="Delete" aria-label="Delete message" class="danger" onclick={() => { done(); deleting = true }}><Icon name="trash" /></button>{/if}
+          <EmojiPicker label="React to this message" quick={QUICK} align="end" onpick={(e) => void store.react(m, e)}><span class="tool" aria-hidden="true">😶</span></EmojiPicker>
+          <button title="Reply" aria-label="Reply" onclick={() => onreply(m)}><Icon name="reply" /></button>
+          {#if mine}<button title="Edit" aria-label="Edit message" onclick={startEdit}><Icon name="edit" /></button>{/if}
+          {#if canDelete}<button bind:this={deleteButton} title="Delete" aria-label="Delete message" class="danger" onclick={() => (deleting = true)}><Icon name="trash" /></button>{/if}
         </div>
       </div>
       {#if m.objects?.length}
@@ -236,6 +260,11 @@
       {/if}
     </div>
   </div>
+  {#if held && content}
+    <MessageMenu from={content} {right} when="{dayLabel(m.created_at)} {shortTime(m.created_at)}" label="{author?.display_name || author?.username || 'Someone'}'s message"
+      quick={QUICK} picked={(m.reactions ?? []).filter((r) => !!store.me && r.user_ids.includes(store.me.id)).map((r) => r.emoji)}
+      {actions} preview={lifted} onreact={(e) => void store.react(m, e)} onclose={done} />
+  {/if}
 </article>
 
 <style>
@@ -249,8 +278,8 @@
   .content { position: relative; align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; }
   .right .content { align-items: flex-end; }
   .meta { display: flex; align-items: baseline; gap: 6px; max-width: 100%; margin: 0 0 3px 12px; font-size: var(--fs-xs); color: var(--ink-2); }
-  /* A very long name stops at one line; the agent badge stays whole. */
-  .author { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A very long name stops at one line; the agent badge stays whole. Their colour is on it. */
+  .author { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--name, inherit); }
   @media (hover: hover) { .author:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; } }
   .author:active { opacity: .6; }
   .bot {
@@ -292,17 +321,35 @@
   .msg:not(.right) .bubble { border-bottom-left-radius: var(--r-tight); }
   .msg.right:not(.head) .bubble { border-top-right-radius: var(--r-tight); }
   .msg.right .bubble { border-bottom-right-radius: var(--r-tight); }
-  /* Inside a coloured bubble, links and names are the text colour, underlined or
-     bold: the accent can't be read on every person's colour. */
-  .bubble :global(a) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-  .bubble :global(.mention) { color: inherit; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  /* Links and names are in the accent on the plain grey. Inside a coloured bubble
+     they are the text colour, underlined or bold: the accent can't be read on it. */
+  .bubble :global(a) { color: var(--link, var(--lamp)); text-decoration: none; }
+  .bubble :global(.mention) { padding: 0; color: var(--link, var(--lamp)); background: none; }
+  .tinted .bubble :global(a), .lit .bubble :global(a) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .tinted .bubble :global(.mention), .lit .bubble :global(.mention) { color: inherit; }
   .bubble :global(code) { background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre code) { background: none; }
   .bubble :global(pre) { max-width: 100%; margin: 6px 0; background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre:first-child) { margin-top: 2px; }
   .bubble :global(pre:last-child) { margin-bottom: 2px; }
-  /* A message that names you is ringed in the accent as well as lit. */
-  .msg.me:not(.feed) .bubble { box-shadow: inset 0 0 0 1.5px var(--lamp); }
+  /* Your own: the accent, with the page colour as text (accents read at 4.5:1 on the page). */
+  .lit .bubble:not(.jumbo) { background: var(--lamp); color: var(--on-lamp); }
+  .lit .bubble :global(:is(code, pre)) { color: inherit; background: color-mix(in srgb, var(--on-lamp) 16%, transparent); }
+  .lit .bubble:not(.jumbo) .edited { color: inherit; }
+  /* The time in the bubble's corner, on touch screens: a see-through copy keeps room
+     for it at the end of the last line (pushing it to a line of its own when full).
+     Not visibility: a visible ::after inside a hidden view would show through. */
+  .bubble :global(.stamp) { display: none; }
+  @media (hover: none) {
+    .bubble :global(.stamp) { display: inline-block; color: transparent; margin-left: 10px; font-size: 11px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .bubble :global(.stamp)::after {
+      content: attr(data-at); position: absolute; right: calc(12px * var(--density) + 1px); bottom: calc(7px * var(--density) + 1px);
+      color: var(--ink-2);
+    }
+    /* The page colour, as the text is: anything paler falls under 4.5:1 on light themes' accents. */
+    .lit .bubble :global(.stamp)::after { color: var(--on-lamp); }
+    .bubble .edited { display: none; }
+  }
   /* A few emoji on their own are a reaction said out loud: big, and no bubble. */
   .bubble.jumbo { background: none; box-shadow: none; padding: 0 2px; font-size: 2.4em; line-height: 1.2; letter-spacing: .04em; }
   .edited { margin-left: 6px; color: var(--ink-2); font-size: var(--fs-xs); white-space: nowrap; }
@@ -317,15 +364,19 @@
   .msg:not(.feed) .files :global(:is(.image, video.media)) { border-radius: var(--r-bubble); }
   .cards { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; }
   .right .cards { align-items: flex-end; }
-  .msg.held .bubble { filter: brightness(.94); }
-  /* Tapbacks hang off the bubble's bottom corner, on the side the bubble starts. */
-  .reactions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 3px; margin: -8px 10px 0; }
+  /* While its menu is open, the message has been lifted out (MessageMenu). */
+  .msg.held > .row .content > :is(.bubble, .gif, .files, .reactions) { opacity: 0; }
+  /* Not the run's spacing: the menu measures the copy's own box. */
+  .msg.lifted, .msg.lifted.head { padding: 0; margin: 0; }
+  .lifted.feed .content { padding: 10px 14px; border-radius: var(--r-lg); background: var(--bg-2); }
+  /* Tapbacks sit just under the bubble, on the side the bubble starts. */
+  .reactions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 4px 0; }
   .right .reactions { justify-content: flex-end; }
-  .rx { position: relative; min-height: 24px; gap: 3px; padding: 1px 7px; background: var(--bg-2); border-color: transparent; font-size: var(--fs-sm);
-    box-shadow: 0 0 0 2px var(--bg), 0 1px 4px var(--shadow); transition: background-color var(--t-fast), transform var(--t) var(--ease-out); }
+  .rx { position: relative; min-height: 26px; gap: 4px; padding: 1px 8px 1px 7px; background: var(--bg-3); border-color: transparent; font-size: var(--fs-sm);
+    transition: background-color var(--t-fast), transform var(--t) var(--ease-out); }
   /* A fingertip-sized target around a small pill. */
   .rx::after { content: ''; position: absolute; inset: -8px -2px; }
-  .rx[aria-pressed=true] { background: var(--sel); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
+  .rx[aria-pressed=true] { background: var(--sel); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
   @media (hover: hover) { .rx:hover { transform: translateY(-1px); } }
   .rx:active { transform: scale(.94); }
   .rx .n { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -357,8 +408,9 @@
   .deleting { margin-top: 6px; }
   .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 
-  /* The actions, and the exact time: on hover with a mouse, on a tap or long
-     press on a touch screen. They float over the top edge where the bubble starts. */
+  /* The actions, and the exact time: on hover with a mouse, or keyboard focus.
+     Touch screens long-press for MessageMenu instead. They float over the top
+     edge where the bubble starts. */
   .tools {
     opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity var(--t-fast), transform var(--t) var(--ease-out);
     position: absolute; bottom: calc(100% - 6px); left: 0; display: flex; align-items: center; gap: 2px; z-index: 2;
@@ -370,7 +422,7 @@
   @media (hover: hover) {
     .msg:hover .tools { opacity: 1; pointer-events: auto; transform: none; }
   }
-  .msg.held .tools, .msg:focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
+  .msg:not(.held):focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
   .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   @media (hover: hover) { .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); } }
   .tools button:active, .tool:active { background: var(--press); }
@@ -408,7 +460,6 @@
     .feed:hover { background: var(--hover); }
     .feed.me:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--lamp) 24%, transparent), color-mix(in srgb, var(--lamp) 8%, transparent) 70%); }
   }
-  .feed.held { background: var(--hover); }
   /* A mention is lit from the left edge and fades out, like light through a doorway. */
   .feed.me { box-shadow: inset 3px 0 0 var(--lamp); background: linear-gradient(90deg, var(--lamp-glow), color-mix(in srgb, var(--lamp) 5%, transparent) 70%); }
 </style>
