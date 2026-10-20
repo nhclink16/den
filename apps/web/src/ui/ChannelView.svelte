@@ -263,6 +263,8 @@
 
   const typing = $derived(store.typingNames(channel.id))
   const isDm = $derived(channel.kind === 'dm')
+  // Nobody to call in a DM with yourself, nor a call there to join.
+  const callable = $derived(isDm && !store.selfDm(channel))
   // An expanded call hides this room completely, so the header names the call.
   const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
   // On a phone the open call and a thread each take the whole screen, the way a
@@ -298,7 +300,7 @@
 {/snippet}
 {#snippet threadLine()}<ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} subtitle />{/snippet}
 {#snippet roomActions()}
-  {#if isDm}<button class="icon-btn" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" size={22} /></button>{/if}
+  {#if callable}<button class="icon-btn" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" size={22} /></button>{/if}
   <a href="/find" class="icon-btn" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find', false, roomUrl) }}><Icon name="search" size={22} /></a>
 {/snippet}
 
@@ -326,7 +328,7 @@
       {/if}
     </div>
     <span class="spacer"></span>
-    {#if isDm && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
+    {#if callable && !callCovers}<button class="btn quiet dm-call" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" /> <span>Call</span></button>{/if}
     <form class="search input-shell" onsubmit={search}><Icon name="search" size={14} /><input bind:value={q} placeholder="Search" aria-label="Search messages" /></form>
     <!-- A phone has no room for a field beside the title: one tap opens Search. -->
     <a href="/find" class="icon-btn find" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find') }}><Icon name="search" size={20} /></a>
@@ -345,7 +347,7 @@
   {#if channel.kind === 'voice'}
     <div class="voice-empty"><div class="voice-music">{#if call.channel?.id !== channel.id}<button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button>{/if}<h2>Bring a song</h2><p>Music plays for everyone in the call.</p><MusicComposer roomId={channel.id} /><p class="jam-hint">{call.channel?.id === channel.id ? 'For a Spotify Jam, open Music in the call controls.' : 'Spotify Jams start from inside the call.'}</p></div></div>
   {:else}
-  {#if isDm && call.channel?.id !== channel.id && call.ids(channel.id).length}
+  {#if callable && call.channel?.id !== channel.id && call.ids(channel.id).length}
     <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
   {/if}
   <div class="content" class:under bind:clientWidth={space}>

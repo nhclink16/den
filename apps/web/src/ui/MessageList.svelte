@@ -280,7 +280,7 @@
   const dm = $derived(channel.kind === 'dm')
   const other = $derived(dm && (channel.member_ids?.length ?? 0) <= 2 ? channel.member_ids?.find((id) => id !== store.me?.id) ?? store.me?.id : undefined)
   // A DM with yourself: notes, not a conversation.
-  const self = $derived(!!other && other === store.me?.id)
+  const self = $derived(store.selfDm(channel))
 </script>
 
 <div class="wrap">

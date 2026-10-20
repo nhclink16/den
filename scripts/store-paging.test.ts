@@ -752,3 +752,18 @@ test('the old avatar choice is carried only against a synced copy that was kept'
   try { await s.resync() } catch { /* only the appearance part matters here */ } finally { Object.assign(globals.themes, { receive, mark }); hooks.carry = carry }
   assert.equal(carried, 0)
 })
+
+test('a DM with yourself is titled with your own name, and only that one', () => {
+  const s = new Store('fixture')
+  s.me = { id: 'me', username: 'ellis', display_name: 'Ellis' }
+  s.users.set('me', s.me)
+  s.users.set('m', { id: 'm', username: 'maya', display_name: 'Maya' })
+  s.users.set('r', { id: 'r', username: 'rowan', display_name: '' })
+  const dm = (member_ids: string[]) => ({ id: 'd', kind: 'dm', name: '', member_ids })
+  assert.equal(s.title(dm(['me'])), 'Ellis (you)')
+  assert.equal(s.selfDm(dm(['me'])), true)
+  assert.equal(s.title(dm(['me', 'm'])), 'Maya')
+  assert.equal(s.selfDm(dm(['me', 'm'])), false)
+  assert.equal(s.title(dm(['me', 'm', 'r'])), 'Maya, rowan')
+  assert.equal(s.selfDm({ id: 'c', kind: 'text', name: 'general', member_ids: [] }), false)
+})

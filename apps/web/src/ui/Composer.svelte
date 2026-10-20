@@ -154,7 +154,7 @@
   // Only a touch screen has a camera to point; elsewhere `capture` is ignored.
   const camera = matchMedia('(pointer: coarse)').matches
 
-  const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message ${roomName(channel, themes.appearance.room_icons)}`)
+  const placeholder = $derived(here.rootId ? 'Reply in thread…' : store.selfDm(channel) ? 'Write a note' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message ${roomName(channel, themes.appearance.room_icons)}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
   const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
   // A picture on its way counts as something to send: Send stays lit, and a tap
