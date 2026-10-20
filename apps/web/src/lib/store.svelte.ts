@@ -231,9 +231,12 @@ export class Store {
   get textChannels() { return this.channels.filter((c) => c.kind !== 'dm').sort((a, b) => a.position - b.position) }
   get dms() { return this.channels.filter((c) => c.kind === 'dm') }
 
+  /** A DM whose only member is you: notes, not a conversation. */
+  selfDm(c: Channel) { return c.kind === 'dm' && !(c.member_ids || []).some((id) => id !== this.me?.id) }
   dmTitle(c: Channel) {
     const others = (c.member_ids || []).filter((id) => id !== this.me?.id)
-    return others.length ? others.map((id) => this.name(id)).join(', ') : 'Just you'
+    // Your own name, the way WhatsApp and Slack title the chat with yourself.
+    return others.length ? others.map((id) => this.name(id)).join(', ') : `${this.me ? this.name(this.me.id) : 'You'} (you)`
   }
   title(c: Channel) { return c.kind === 'dm' ? this.dmTitle(c) : c.name }
 

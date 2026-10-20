@@ -115,7 +115,7 @@
     const typing = store.typingNames(c.id)
     if (typing.length) return { text: typing.length === 1 ? `${typing[0]} is typing…` : 'Several people are typing…', typing: true }
     const last = c.last_message
-    if (!last) return { text: c.kind === 'dm' ? 'Say hello' : 'No messages yet', typing: false }
+    if (!last) return { text: store.selfDm(c) ? 'No notes yet' : c.kind === 'dm' ? 'Say hello' : 'No messages yet', typing: false }
     const pair = c.kind === 'dm' && (c.member_ids || []).length <= 2
     const who = last.author_id === store.me?.id ? 'You: ' : pair ? '' : `${store.name(last.author_id)}: `
     return { text: who + previewText(last), typing: false }
