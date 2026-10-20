@@ -48,6 +48,8 @@
   function toggled(e: ToggleEvent) {
     if (e.newState !== 'closed') return
     const opener = profileCard.anchor
+    // A sheet pulled shut is left below the screen; put it back for the next one.
+    if (node) node.style.translate = node.style.transition = ''
     profileCard.close()
     if (opener?.isConnected && !node?.contains(document.activeElement)) opener.focus({ preventScroll: true })
   }
@@ -57,6 +59,8 @@
     if (!s || !id) return
     profileCard.close()
     const c = await s.openDm([id])
+    // You moved to another server meanwhile: that's where you are now.
+    if (instances.active !== s) return
     router.go(`/c/${c.id}`)
     await tick()
     // A DM route has no thread panel, so its composer is the only one. A touch opens the chat with
@@ -69,6 +73,8 @@
     if (!s || !id) return
     profileCard.close()
     const c = await s.openDm([id])
+    // A call joins the active server: if you moved meanwhile, this DM isn't there.
+    if (instances.active !== s) return
     router.go(`/c/${c.id}`)
     void call.join(c)
   }
