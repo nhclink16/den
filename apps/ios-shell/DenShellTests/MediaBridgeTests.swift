@@ -37,6 +37,8 @@ struct MediaBridgeTests {
         let many = (0 ..< 15).map { "id\($0)" }
         #expect(try MediaCommand(["type": "stripShow", "session": 1, "rect": rect, "radius": 999, "selected": many])
             == .stripShow(session: 1, rect: CGRect(x: 12, y: 540.5, width: 378, height: 96), radius: 48, selected: Array(many.prefix(10))))
+        #expect(try MediaCommand(["type": "stripForget", "id": "A1"]) == .stripForget(id: "A1"))
+        #expect(throws: CallError.self) { try MediaCommand(["type": "stripForget"]) }
         #expect(throws: CallError.self) { try MediaCommand(["type": "stripHide"]) }
         #expect(throws: CallError.self) { try MediaCommand(["type": "stripShow", "session": 1, "rect": ["x": 0, "y": 0, "width": 0, "height": 96], "radius": 0, "selected": []]) }
         #expect(throws: CallError.self) { try MediaCommand(["type": "stripShow", "session": 1, "rect": rect, "radius": 0, "selected": [1]]) }

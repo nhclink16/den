@@ -222,14 +222,16 @@
   function target() {
     const uploads = store.uploads, drafts = store.drafts, token = drafts.token, at = here
     const same = () => store.uploads === uploads && store.drafts === drafts && drafts.holds(token)
-    return { uploads, at, same, warn: (message: string) => { if (same()) { haptic('warning'); store.toast = message } } }
+    // `key`: this conversation in this sign-in (one Drafts per server, whose token turns over at each sign-out).
+    const key = `${store.origin}\n${token}\n${conversationKey(at)}`
+    return { uploads, at, same, key, warn: (message: string) => { if (same()) { haptic('warning'); store.toast = message } } }
   }
   // Den Shell's strip of recent photos (shell-media.ts) fills the tray it was opened from, on the same terms.
   const strip = shellStrip()
   function stripTray(): StripTray {
-    const { uploads, at, same, warn } = target()
+    const { uploads, at, same, key, warn } = target()
     return {
-      key: conversationKey(at),
+      key,
       files: () => uploads.forConversation(at).map((p) => p.file),
       add: (file) => { if (same()) uploads.add(at, [file]) },
       remove: (file) => { const p = uploads.forConversation(at).find((p) => p.file === file); if (p && same()) uploads.remove(at, p) },

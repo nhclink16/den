@@ -87,6 +87,8 @@ type Rect = { x: number; y: number; width: number; height: number }
 export type ShellStripCommand =
   | { type: 'stripShow'; session: number; rect: Rect; radius: number; selected: string[] }
   | { type: 'stripHide' | 'stripClose'; session: number }
+  /** A photo's file the page won't read after all: the shell can drop it now. */
+  | { type: 'stripForget'; id: string }
 /** A photo ticked (`tick` names that one tick), then its file (as a pick's would come) or that iOS wouldn't hand it
  *  over; a photo unticked; or `place`: the shell moved things itself (the keyboard), so the strip waits for where to go
  *  again. */
@@ -97,7 +99,7 @@ export type ShellStripEvent =
   | { type: 'removed'; session: number; asset: string }
   | { type: 'place' }
 
-/** The tray of the conversation the + sheet was opened from. `key` names that conversation. */
+/** The tray of the conversation the + sheet was opened from. `key` names that conversation in that sign-in. */
 export type StripTray = { key: string; files(): File[]; add(file: File): void; remove(file: File): void; warn(message: string): void }
 
 export const shellStrip = () => !!window.denShell?.photoStrip
@@ -118,7 +120,8 @@ export function openStrip(tray: StripTray) {
   shell.onPhotoStrip = (e) => {
     if (e.type === 'place') return place?.()
     const tray = sessions.get(e.session)
-    if (!tray) return
+    const unwanted = () => { if (e.type === 'added') void shell.photoStrip!({ type: 'stripForget', id: e.file.id }).catch(() => {}) }
+    if (!tray) return unwanted()
     const key = `${tray.key}\n${e.asset}`
     if (e.type === 'ticked') return void coming.set(key, e.tick)
     if (e.type === 'removed') {
@@ -128,15 +131,18 @@ export function openStrip(tray: StripTray) {
       return
     }
     // Unticked, or ticked again, since: this copy isn't wanted.
-    if (coming.get(key) !== e.tick) return
+    if (coming.get(key) !== e.tick) return unwanted()
     if (e.type === 'failed') { coming.delete(key); return tray.warn('That photo couldn\'t be added.') }
-    if (e.file.size > MAX) { coming.delete(key); return tray.warn(`${e.file.name} is over the 1 GB limit.`) }
+    if (e.file.size > MAX) { coming.delete(key); unwanted(); return tray.warn(`${e.file.name} is over the 1 GB limit.`) }
     readPhoto(e.file, (id, offset) => shell.photoChunk!(id, offset)).then((file) => {
       if (coming.get(key) !== e.tick) return
       coming.delete(key)
       fromStrip.set(file, e.asset)
       tray.add(file)
-    }, () => { if (coming.get(key) === e.tick) { coming.delete(key); tray.warn(`${e.file.name} couldn't be added.`) } })
+    }, () => {
+      unwanted()
+      if (coming.get(key) === e.tick) { coming.delete(key); tray.warn(`${e.file.name} couldn't be added.`) }
+    })
   }
   return session
 }

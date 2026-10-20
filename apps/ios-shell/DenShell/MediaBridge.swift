@@ -36,6 +36,8 @@ enum MediaCommand: Equatable {
     case stripShow(session: Int, rect: CGRect, radius: Double, selected: [String])
     case stripHide(session: Int)
     case stripClose(session: Int)
+    /// A picked file the page won't read after all.
+    case stripForget(id: String)
 
     init(_ body: Any) throws {
         guard let body = body as? [String: Any], let type = body["type"] as? String else { throw CallError(message: "Unreadable media message.") }
@@ -60,6 +62,9 @@ enum MediaCommand: Equatable {
                 from = CGRect(x: x, y: y, width: width, height: height)
             }
             self = .share(url: url, text: text?.isEmpty == false ? String(text!.prefix(1000)) : nil, from: from)
+        case "stripForget":
+            guard let id = body["id"] as? String, !id.isEmpty else { throw CallError(message: "Missing id.") }
+            self = .stripForget(id: id)
         case "stripShow", "stripHide", "stripClose":
             guard let session = number(body["session"]), session >= 0, session == session.rounded(), session < 1e15 else {
                 throw CallError(message: "Missing session.")
@@ -187,6 +192,7 @@ struct StripEvent: Encodable, Equatable {
             case .stripShow(let session, let rect, let radius, let selected): try showStrip(session, rect: rect, radius: radius, selected: selected)
             case .stripHide(let session): if strip?.session == session { strip?.picker.view.isHidden = true }
             case .stripClose(let session): await closeStrip(session)
+            case .stripForget(let id): forget(id)
             }
             return (nil, nil)
         } catch {
