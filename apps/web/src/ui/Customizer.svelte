@@ -58,13 +58,15 @@
   .icon { padding: 6px; }
   .body { overflow-y: auto; padding: 0 16px; overscroll-behavior: contain; }
   footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+  /* Clear of the notch and the home indicator at any width: the panel sits outside the app's padded frame. */
+  .customizer { padding-right: env(safe-area-inset-right, 0px); }
+  header { padding-top: max(16px, env(safe-area-inset-top, 0px)); }
+  footer { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
 
   /* Phones: the whole screen. A half-height sheet left the theme list too cramped
      to browse, and a swipe meant to close it only scrolled the list. */
   @media (max-width: 650px) {
     .customizer { inset: 0; width: 100%; border-left: 0; box-shadow: none; }
-    header { padding-top: max(16px, env(safe-area-inset-top)); }
-    footer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
     @media (prefers-reduced-motion: no-preference) { .customizer { animation-name: sheet-in; } }
   }
   @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }

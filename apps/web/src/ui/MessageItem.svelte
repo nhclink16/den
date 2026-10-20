@@ -334,7 +334,7 @@
     position: relative; display: flex; text-align: left; align-items: center; gap: 6px; margin: 0 8px 3px; min-width: 0;
     font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap;
   }
-  .reply-ref:hover .who, .reply-ref:hover .snippet { color: var(--ink); }
+  @media (hover: hover) { .reply-ref:hover .who, .reply-ref:hover .snippet { color: var(--ink); } }
   .reply-ref .who { color: var(--ink-2); font-weight: 700; }
   .reply-ref .snippet { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   /* A message's thread: a quiet line under it. The reply text gives way first. */
@@ -348,7 +348,7 @@
   .thread-link .said { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .thread-link .who { color: var(--ink); font-weight: 600; }
   .thread-link.resolved { opacity: .65; }
-  .thread-link.resolved:hover { opacity: 1; }
+  @media (hover: hover) { .thread-link.resolved:hover { opacity: 1; } }
   .thread-link .state { flex: none; color: var(--ink-3); }
   .thread-link .count {
     flex: none; min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000); font-weight: 700; text-align: center;
@@ -372,10 +372,10 @@
   }
   .msg.held .tools, .msg:focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
   .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
-  .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); }
+  @media (hover: hover) { .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); } }
   .tools button:active, .tool:active { background: var(--press); }
   .tool { line-height: 20px; }
-  .tools button.danger:hover { color: var(--ember); }
+  @media (hover: hover) { .tools button.danger:hover { color: var(--ember); } }
 
   /* ---- The plain feed: names and text, no bubbles ---- */
   .feed.head { margin-top: calc(14px * var(--density)); }
@@ -386,7 +386,7 @@
   .feed .content { position: static; }
   .feed .bubble { padding: 0; border-radius: 0; background: none; max-width: 100%; }
   .feed .bubble :global(a) { color: var(--lamp); text-decoration: none; }
-  .feed .bubble :global(a:hover) { text-decoration: underline; }
+  @media (hover: hover) { .feed .bubble :global(a:hover) { text-decoration: underline; } }
   .feed .bubble :global(.mention) { color: var(--lamp); background: var(--mention-bg); }
   .feed .bubble :global(code), .feed .bubble :global(pre) { background: var(--bg-3); border-color: color-mix(in srgb, var(--line) 70%, transparent); }
   .feed .bubble.jumbo { padding: 0; }

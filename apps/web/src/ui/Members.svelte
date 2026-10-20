@@ -76,10 +76,10 @@
     border-radius: var(--r); text-align: left; color: var(--ink);
     transition: background-color var(--t-fast), color var(--t-fast);
   }
-  .person:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  @media (hover: hover) { .person:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); } }
   .person.off { color: var(--ink-2); }
   .person.off :global(.avatar) { opacity: 0.55; filter: saturate(.4); transition: opacity var(--t), filter var(--t); }
-  .person.off:hover :global(.avatar) { opacity: 1; filter: none; }
+  @media (hover: hover) { .person.off:hover :global(.avatar) { opacity: 1; filter: none; } }
   .who { flex: 1; min-width: 0; display: grid; }
   .top { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); }

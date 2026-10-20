@@ -101,7 +101,7 @@
 </main>
 
 <style>
-  .wrap { position: relative; height: 100%; display: grid; place-items: center; padding: 24px; overflow: auto; isolation: isolate; }
+  .wrap { position: relative; height: 100%; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); overflow: auto; isolation: isolate; }
   /* Light spilling out of an open door: a warm pool behind the card, brightest
      where the mark's doorway sits. It switches on as the page loads. */
   .light {

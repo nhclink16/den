@@ -142,6 +142,8 @@
   // The Jump to latest pill follows the same layout changes.
   function reached() {
     if (!landed || !el || source.hidden) return
+    // A view that got shorter (the keyboard came up, the composer grew) stays on the newest message, as iMessage does.
+    if (stickToBottom && !source.target) el.scrollTop = el.scrollHeight
     far = el.scrollHeight - el.scrollTop - el.clientHeight > 400
     if (!stickToBottom && !source.target && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
   }
@@ -266,7 +268,7 @@
     font-size: var(--fs-sm); font-weight: 600; box-shadow: var(--lift);
     transition: background-color var(--t-fast), transform var(--t) var(--ease-out);
   }
-  .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); }
+  @media (hover: hover) { .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); } }
   .latest:active { transform: translateX(-50%) scale(.96); }
   .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--bg); box-shadow: var(--lift), var(--glow); }
   @media (prefers-reduced-motion: no-preference) { .latest { animation: latest-in .2s var(--ease-out); } }

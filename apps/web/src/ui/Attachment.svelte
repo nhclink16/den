@@ -91,7 +91,7 @@
     display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px;
     background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--r); color: var(--ink);
   }
-  .file:hover { text-decoration: none; border-color: var(--ink-3); }
+  @media (hover: hover) { .file:hover { text-decoration: none; border-color: var(--ink-3); } }
   .fname { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* A photo viewer is dark in every theme, like Photos. */
@@ -113,7 +113,7 @@
     display: inline-flex; align-items: center; gap: 6px; min-block-size: 44px; min-inline-size: 44px; justify-content: center; padding: 0 12px;
     border-radius: var(--r); color: #fff; font-size: var(--fs-sm); white-space: nowrap;
   }
-  .act:hover { text-decoration: none; }
+  @media (hover: hover) { .act:hover { text-decoration: none; } }
   @media (hover: hover) { .act:hover { background: rgb(255 255 255 / .12); } }
   .stage {
     flex: 1; min-block-size: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 0 8px max(8px, env(safe-area-inset-bottom));

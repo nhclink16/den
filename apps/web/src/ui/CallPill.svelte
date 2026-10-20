@@ -50,7 +50,7 @@
   .say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .full {
     --ring: var(--bg-3);
-    container: dock / inline-size; flex-wrap: wrap; row-gap: 8px; margin: 6px 8px; padding: 10px;
+    container: dock / inline-size; flex-wrap: wrap; row-gap: 8px; margin: 6px 8px max(6px, env(safe-area-inset-bottom, 0px)); padding: 10px;
     border-radius: calc(var(--r-lg) * 1.4); background: var(--bg-3); backdrop-filter: none; box-shadow: none;
   }
   .full .open { flex: 1 1 0; min-height: 36px; padding-inline-start: 2px; }

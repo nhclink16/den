@@ -34,12 +34,14 @@
   .outside { position:fixed; inset:0; z-index:40; cursor:default; }
   .popover { position:absolute; z-index:41; top:calc(100% + 12px); left:-8px; width:320px; max-width:calc(100vw - 32px); padding:6px; border:1px solid var(--line); background:var(--bg2); border-radius:var(--r-lg); box-shadow:0 12px 40px var(--scrim); }
   .server { display:flex; align-items:center; border-radius:var(--r); }
-  .server:hover, .server.active { background:var(--bg3); }
+  .server.active { background:var(--bg3); }
+  @media (hover: hover) { .server:hover { background:var(--bg3); } }
   .choose { display:flex; flex:1; min-width:0; align-items:center; gap:10px; text-align:left; padding:12px 8px; }
   .identity { display:grid; min-width:0; flex:1; gap:3px; }
   small { font-size: var(--fs-xs); overflow:hidden; text-overflow:ellipsis; color:var(--ink3); }
   .at { color:var(--lamp); }
   .remove { opacity:0; font-size: var(--fs-xs); padding:10px 6px; color:var(--danger); }
-  .server:hover .remove, .server:focus-within .remove { opacity:1; }
+  .server:focus-within .remove { opacity:1; }
+  @media (hover: hover) { .server:hover .remove { opacity:1; } }
   .add { padding:12px; width:100%; text-align:left; border-top:1px solid var(--line); margin-top:6px; color:var(--accent); }
 </style>

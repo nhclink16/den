@@ -57,6 +57,7 @@ struct Origin: Equatable {
 
 @main struct DenShellApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var unreachable = Unreachable()
 
     init() {
         #if DEBUG && targetEnvironment(simulator)
@@ -66,13 +67,18 @@ struct Origin: Equatable {
 
     var body: some Scene {
         WindowGroup {
-            DenWebView().ignoresSafeArea()
+            ZStack {
+                DenWebView(unreachable: unreachable).ignoresSafeArea()
+                if unreachable.shown { UnreachableView(model: unreachable) }
+            }
         }
     }
 }
 
 struct DenWebView: UIViewRepresentable {
-    func makeCoordinator() -> Shell { Shell(den: Origin(startURL)!) }
+    let unreachable: Unreachable
+
+    func makeCoordinator() -> Shell { Shell(den: Origin(startURL)!, unreachable: unreachable) }
 
     func makeUIView(context: Context) -> UIView {
         let config = WKWebViewConfiguration()
@@ -85,6 +91,7 @@ struct DenWebView: UIViewRepresentable {
         PushBridge.shared.install(in: config.userContentController, den: context.coordinator.den)
         context.coordinator.haptics.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
+        context.coordinator.webView = webView
         context.coordinator.calls.webView = webView
         PushBridge.shared.webView = webView
         webView.navigationDelegate = context.coordinator
@@ -96,47 +103,91 @@ struct DenWebView: UIViewRepresentable {
         context.coordinator.watchCalls(webView)
         webView.load(URLRequest(url: startURL))
 
-        // The web app does not pad for the notch or home indicator, so the page stays inside the safe area
-        // and the strips around it take the page's theme color. WebKit handles the keyboard, as in Safari.
+        // Edge to edge, like a native app: the page pads for the notch and the home indicator itself
+        // (`env(safe-area-inset-*)`), so sheets reach the bottom edge and lists scroll under the home indicator.
+        // The keyboard shortens the page instead of sliding it up, as in iMessage: the top bar stays and the
+        // composer sits on the keyboard. The page never scrolls as a whole, so nothing may move it.
         let container = UIView()
         container.addSubview(webView)
         webView.translatesAutoresizingMaskIntoConstraints = false
-        let safe = container.safeAreaLayoutGuide
+        container.keyboardLayoutGuide.usesBottomSafeArea = false
         NSLayoutConstraint.activate([
-            webView.topAnchor.constraint(equalTo: safe.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: safe.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: safe.trailingAnchor),
+            webView.topAnchor.constraint(equalTo: container.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: container.keyboardLayoutGuide.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
         ])
+        let scroll = webView.scrollView
+        scroll.contentInsetAdjustmentBehavior = .never
+        scroll.isScrollEnabled = false
+        scroll.bounces = false
+        context.coordinator.offsetObservation = scroll.observe(\.contentOffset) { scroll, _ in
+            MainActor.assumeIsolated {
+                if scroll.contentOffset != .zero && scroll.zoomScale <= scroll.minimumZoomScale { scroll.contentOffset = .zero }
+            }
+        }
+        hideFormBar(webView)
+        // Painted until the page draws, and kept for the unreachable screen of a later launch.
+        container.backgroundColor = Unreachable.lastThemeColor ?? .systemBackground
         context.coordinator.themeObservation = webView.observe(\.themeColor, options: [.initial]) { [weak container] webView, _ in
-            MainActor.assumeIsolated { container?.backgroundColor = webView.themeColor ?? .systemBackground }
+            MainActor.assumeIsolated {
+                guard let color = webView.themeColor else { return }
+                container?.backgroundColor = color
+                Unreachable.lastThemeColor = color
+            }
         }
         return container
     }
 
     func updateUIView(_ container: UIView, context: Context) {}
+
+    /// Safari's form bar (arrows and a tick above the keyboard) has no switch, and no app has one. The page's
+    /// content view gets a subclass whose `inputAccessoryView` is nil, as Capacitor's keyboard plugin does.
+    private func hideFormBar(_ webView: WKWebView) {
+        guard let content = webView.scrollView.subviews.first(where: { NSStringFromClass(type(of: $0)).hasPrefix("WKContent") }),
+              let base = object_getClass(content) else { return log.error("form bar: no content view") }
+        let name = "DenNoFormBar_" + NSStringFromClass(base)
+        var subclass: AnyClass? = NSClassFromString(name)
+        if subclass == nil, let made = objc_allocateClassPair(base, name, 0) {
+            let nothing: @convention(block) (AnyObject) -> UIView? = { _ in nil }
+            class_addMethod(made, #selector(getter: UIResponder.inputAccessoryView), imp_implementationWithBlock(nothing), "@@:")
+            objc_registerClassPair(made)
+            subclass = made
+        }
+        if let subclass { object_setClass(content, subclass) }
+    }
 }
 
 @MainActor final class Shell: NSObject, WKNavigationDelegate, WKUIDelegate {
     let den: Origin
+    let unreachable: Unreachable
+    weak var webView: WKWebView?
     let engine = CallEngine()
     lazy var calls = CallBridge(den: den, engine: engine)
     lazy var haptics = Haptics(den: den)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
+    var offsetObservation: NSKeyValueObservation?
+    private var retryTimer: Timer?
     private var inCall = false
     private weak var sheet: WKWebView?
 
-    init(den: Origin) {
+    init(den: Origin, unreachable: Unreachable) {
         self.den = den
+        self.unreachable = unreachable
         super.init()
+        unreachable.retry = { [weak self] in self?.retry() }
         // A phone call or Siri switches the session off, and capture can stay on throughout,
         // so switch it back on when the interruption ends or the app comes back.
         for name in [AVAudioSession.interruptionNotification, UIApplication.didBecomeActiveNotification] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let ended = note.name != AVAudioSession.interruptionNotification
                     || note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.ended.rawValue
-                MainActor.assumeIsolated { if ended, self?.inCall == true { self?.applyCallAudio() } }
+                let active = note.name == UIApplication.didBecomeActiveNotification
+                MainActor.assumeIsolated {
+                    if ended, self?.inCall == true { self?.applyCallAudio() }
+                    if active, self?.unreachable.shown == true { self?.retry() }
+                }
             }
         }
     }
@@ -239,9 +290,166 @@ struct DenWebView: UIViewRepresentable {
         sheet = viewer
     }
 
+    // MARK: Unreachable server
+
+    /// A Den that doesn't answer, or answers with a server error, gets the unreachable screen instead of a blank page.
+    func webView(
+        _ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void
+    ) {
+        if webView === self.webView, response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 500 {
+            log.error("den answered \(http.statusCode, privacy: .public)")
+            showUnreachable(http.url)
+            return decisionHandler(.cancel)
+        }
+        decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) {
+        let error = error as NSError
+        // A cancelled load (a newer one replaced it, or the policy above stopped it) isn't a failure.
+        guard webView === self.webView, error.code != NSURLErrorCancelled, error.domain != "WebKitErrorDomain" else {
+            if webView === self.webView { unreachable.trying = false }
+            return
+        }
+        log.error("den unreachable: \(error.localizedDescription, privacy: .public)")
+        showUnreachable(error.userInfo[NSURLErrorFailingURLErrorKey] as? URL)
+    }
+
+    /// A retry that got an answer and then lost the connection: let the next one go.
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+        if webView === self.webView, unreachable.shown { unreachable.trying = false }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard webView === self.webView, unreachable.shown else { return }
+        retryTimer?.invalidate()
+        unreachable.shown = false
+        unreachable.trying = false
+    }
+
+    private func showUnreachable(_ url: URL?) {
+        unreachable.url = url ?? unreachable.url ?? startURL
+        unreachable.trying = false
+        unreachable.shown = true
+        // It keeps trying on its own, so a server that comes back opens by itself.
+        guard retryTimer?.isValid != true else { return }
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retry() }
+        }
+    }
+
+    private func retry() {
+        guard let webView, unreachable.shown, !unreachable.trying else { return }
+        unreachable.trying = true
+        webView.load(URLRequest(url: unreachable.url ?? startURL))
+    }
+
     /// iOS can kill the page's process under memory pressure; reload rather than show a blank screen.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         log.error("web content process terminated, reloading")
         webView.reload()
+    }
+}
+
+// MARK: Unreachable server
+
+/// What the unreachable screen shows. The shell fills it in; the screen only reads it and asks for a retry.
+@MainActor @Observable final class Unreachable {
+    var shown = false
+    var trying = false
+    var url: URL?
+    @ObservationIgnored var retry: (@MainActor () -> Void)?
+
+    /// The server as people know it: its host, and the port when it isn't the usual one.
+    var server: String {
+        let url = url ?? startURL
+        guard let host = url.host() else { return "The server" }
+        return url.port.map { "\(host):\($0)" } ?? host
+    }
+
+    /// The page's last theme colour, so the screen (and the first paint of a launch) wears Den's look, not white.
+    static var lastThemeColor: UIColor? {
+        get {
+            guard let rgba = UserDefaults.standard.array(forKey: "DenThemeColor") as? [Double], rgba.count == 4 else { return nil }
+            return UIColor(red: rgba[0], green: rgba[1], blue: rgba[2], alpha: rgba[3])
+        }
+        set {
+            var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+            guard let newValue, newValue.getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
+            UserDefaults.standard.set([r, g, b, a].map(Double.init), forKey: "DenThemeColor")
+        }
+    }
+}
+
+/// Den couldn't load: the mark, what's wrong, and a way to try again, in the theme Den last wore.
+struct UnreachableView: View {
+    let model: Unreachable
+
+    var body: some View {
+        let background = Unreachable.lastThemeColor ?? .systemBackground
+        var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        let dark = background.resolvedColor(with: .current).getRed(&r, green: &g, blue: &b, alpha: &a) && 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5
+        let ink = dark ? Color(red: 0.93, green: 0.9, blue: 0.85) : Color(red: 0.11, green: 0.1, blue: 0.09)
+        return VStack(spacing: 0) {
+            ZStack {
+                DenMark.letter.fill(ink, style: FillStyle(eoFill: true))
+                DenMark.door.fill(Color(red: 0.91, green: 0.64, blue: 0.29))
+            }
+            .frame(width: 64, height: 64)
+            .accessibilityHidden(true)
+            Text("Can't reach Den")
+                .font(.title2.bold())
+                .foregroundStyle(ink)
+                .padding(.top, 24)
+            Text("\(model.server) isn't answering. Den keeps trying on its own.")
+                .font(.subheadline)
+                .foregroundStyle(ink.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+            Button { model.retry?() } label: {
+                ZStack {
+                    Text("Try Again").opacity(model.trying ? 0 : 1)
+                    if model.trying { ProgressView().tint(Color(background)) }
+                }
+                .font(.body.weight(.semibold))
+                .frame(minWidth: 180, minHeight: 50)
+                .foregroundStyle(Color(background))
+                .background(ink, in: Capsule())
+            }
+            .disabled(model.trying)
+            .accessibilityLabel(model.trying ? "Trying again" : "Try Again")
+            .padding(.top, 32)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(background).ignoresSafeArea())
+        .preferredColorScheme(dark ? .dark : .light)
+    }
+}
+
+/// The Den mark (web: ui/Mark.svelte) in a 64-point box: the letter with its doorway cut out, and the lit door.
+enum DenMark {
+    static let letter = Path { p in
+        p.move(to: CGPoint(x: 44, y: 4))
+        p.addLine(to: CGPoint(x: 56, y: 4))
+        p.addLine(to: CGPoint(x: 56, y: 56))
+        p.addLine(to: CGPoint(x: 30, y: 56))
+        p.addCurve(to: CGPoint(x: 8, y: 36), control1: CGPoint(x: 16, y: 56), control2: CGPoint(x: 8, y: 48))
+        p.addCurve(to: CGPoint(x: 30, y: 14), control1: CGPoint(x: 8, y: 24), control2: CGPoint(x: 17, y: 14))
+        p.addCurve(to: CGPoint(x: 44, y: 19), control1: CGPoint(x: 36, y: 14), control2: CGPoint(x: 40, y: 16))
+        p.closeSubpath()
+        p.addPath(arch(halfWidth: 10))
+    }
+    static let door = arch(halfWidth: 6)
+
+    private static func arch(halfWidth w: CGFloat) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: 32 - w, y: 56))
+            p.addLine(to: CGPoint(x: 32 - w, y: 36))
+            p.addArc(center: CGPoint(x: 32, y: 36), radius: w, startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+            p.addLine(to: CGPoint(x: 32 + w, y: 56))
+            p.closeSubpath()
+        }
     }
 }

@@ -31,6 +31,10 @@
   --shadow-lg: rgba(0, 0, 0, 0.46);
   --hover: color-mix(in srgb, var(--ink) 3%, transparent);
   --press: color-mix(in srgb, var(--ink) 10%, transparent);
+  /* The grey of an off switch or an empty slider track: filled, not outlined. */
+  --fill: color-mix(in srgb, var(--ink-3) 32%, transparent);
+  /* What sits raised on a filled track, like a segmented control's choice. theme-runtime.ts sets it per theme. */
+  --raised: var(--bg);
   /* A chosen thing: a light wash of the accent. */
   --sel: color-mix(in srgb, var(--lamp) 14%, transparent);
   /* The hairline between rows in a settings list. */
@@ -113,6 +117,8 @@ html.desktop .shell.no-members .main > .call-view > .call-pill { margin-right: m
    the room header, a drag region, and Electron drags through anything on top that
    doesn't opt out, so its close button would move the window instead of closing. */
 html.desktop .customizer { -webkit-app-region: no-drag; }
+/* The call error drops in over the top edge, a drag region in the desktop app. */
+html.desktop .call-error { -webkit-app-region: no-drag; }
 html.desktop .customizer > header { padding-right: max(16px, var(--wco-right)); }
 
 /* Signed out there is no header to drag by, so the login page gets a strip across
@@ -143,7 +149,10 @@ a { color: var(--lamp); text-decoration: none; }
 @media (hover: hover) { a:hover { text-decoration: underline; } }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 input, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
+/* Rings show where keyboard focus is. Touch draws none (main.ts sets data-input, and a Tab from a hardware
+   keyboard clears it): a tapped field shows only its caret, and a view that focuses itself on open shows nothing. */
+:where(:root:not([data-input='touch'])) :focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: var(--r); }
+:root[data-input='touch'] :focus-visible { outline: none !important; }
 ::selection { background: var(--selection); color: var(--ink); }
 code, pre, .mono { font-family: var(--mono); font-size: 0.9em; }
 code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
@@ -183,7 +192,10 @@ pre code { background: none; padding: 0; border: 0; }
   background: var(--bg); border: 1px solid var(--line-strong); color: var(--ink);
 }
 .field { transition: border-color var(--t-fast), box-shadow var(--t); }
-.field:focus { outline: none; border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+.field:focus { outline: none; }
+:where(:root:not([data-input='touch'])) .field:focus { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+/* A hint, not a value: clearly dimmer than anything typed, in every theme. */
+::placeholder { color: color-mix(in srgb, var(--ink-3) 70%, transparent); opacity: 1; }
 .muted { color: var(--ink-2); }
 .faint { color: var(--ink-3); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -255,8 +267,8 @@ kbd {
    and put back a border too faint to see. :where() keeps specificity at zero so a
    component can still opt out deliberately. A borderless input inside a shell that
    draws its own ring suppresses this one, so nothing shows two rings. */
-:where(input, textarea, select, .input-shell):focus-visible,
-:where(.input-shell):focus-within {
+:where(:root:not([data-input='touch'])) :where(input, textarea, select, .input-shell):focus-visible,
+:where(:root:not([data-input='touch'])) :where(.input-shell):focus-within {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
@@ -313,15 +325,16 @@ kbd {
 .segments button { min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
 @media (hover: hover) { .segments button:hover { color: var(--ink); } }
 .segments button:not([aria-pressed=true], :disabled):active { background: var(--press); }
-.segments button[aria-pressed=true] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
+/* The choice is a raised thumb, lighter than the track in either appearance, with a shadow and no ring. */
+.segments button[aria-pressed=true] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px var(--shadow), 0 1px 1px rgb(0 0 0 / .04); }
 .segments.small button { min-height: 26px; padding: 2px 10px; font-size: var(--fs-xs); }
 /* The same control from radio buttons: the label is the segment, the radio stays for keyboards and screen readers. */
 .segments label { position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 14px; border-radius: var(--r-pill); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
 .segments label > input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
 @media (hover: hover) { .segments label:hover { color: var(--ink); } }
 .segments label:not(:has(> input:checked, > input:disabled)):active { background: var(--press); }
-.segments label:has(> input:checked) { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px var(--shadow), 0 0 0 1px var(--line-strong); }
-.segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.segments label:has(> input:checked) { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px var(--shadow), 0 1px 1px rgb(0 0 0 / .04); }
+:where(:root:not([data-input='touch'])) .segments label:has(> input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 2px; }
 .segments label:has(> input:disabled) { opacity: .5; cursor: default; }
 
 /* Settings lists, like iPhone Settings: rows in a rounded group, a short header
@@ -344,31 +357,62 @@ kbd {
 .slist > button.action-row:disabled { opacity: .5; cursor: default; }
 /* Buttons inside a row are a size down, so the row stays one line. */
 .slist .btn { min-height: 34px; padding: 5px 14px; font-size: var(--fs-sm); }
-/* On or off: a switch, from a plain checkbox so every handler stays as it was. */
+/* On or off: a switch, from a plain checkbox so every handler stays as it was. Drawn like iPhone's: a filled grey
+   track with no outline when off, the accent when on, and a white knob with a soft shadow in every state and theme. */
 input.toggle {
   appearance: none; flex: none; position: relative; width: 46px; height: 28px; margin: 0; cursor: pointer;
-  border-radius: var(--r-pill); background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-strong);
-  transition: background-color var(--t-fast), box-shadow var(--t-fast);
+  border-radius: var(--r-pill); background: var(--fill); box-shadow: none;
+  transition: background-color var(--t-fast);
 }
 input.toggle::after {
-  content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
-  border-radius: var(--r-pill); background: var(--ink-3); box-shadow: 0 1px 3px rgb(0 0 0 / .25);
-  transition: transform var(--t-fast) var(--ease-out), background-color var(--t-fast);
+  content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px;
+  border-radius: var(--r-pill); background: #fff; box-shadow: 0 2px 6px rgb(0 0 0 / .18), 0 1px 1px rgb(0 0 0 / .1);
+  transition: transform var(--t-fast) var(--ease-out);
 }
-input.toggle:checked { background: var(--lamp); box-shadow: none; }
-input.toggle:checked::after { transform: translateX(18px); background: var(--on-lamp); }
+input.toggle:checked { background: var(--lamp); }
+input.toggle:checked::after { transform: translateX(18px); }
 input.toggle:disabled { opacity: .45; cursor: default; }
+/* In a settings row, a switch that can't change dims the whole row, as in iPhone Settings. */
+.slist > :has(input.toggle:disabled) { opacity: .5; }
+.slist input.toggle:disabled { opacity: 1; }
 /* The shared field focus is a glow this control turns off when checked: use a ring. */
-input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+:where(:root:not([data-input='touch'])) input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 @media (pointer: coarse) {
   input.toggle { width: 51px; height: 31px; }
-  input.toggle::after { width: 25px; height: 25px; }
+  input.toggle::after { width: 27px; height: 27px; }
   input.toggle:checked::after { transform: translateX(20px); }
   .nav-row, .slist > button.action-row { min-height: 52px; }
   .slist .btn { min-height: 40px; }
 }
+/* A slider: a thin grey track, the accent up to the knob, and a round white knob. The fill is the knob's
+   border-image reaching back to the start, clipped by the input, so no script has to track the value. */
+input[type=range] {
+  --knob: 20px;
+  -webkit-appearance: none; appearance: none; height: calc(var(--knob) + 8px); margin: 0; overflow: hidden;
+  background: transparent; cursor: pointer;
+}
+@media (pointer: coarse) { input[type=range] { --knob: 28px; } }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--fill); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: var(--knob); height: var(--knob); margin-top: calc(2px - var(--knob) / 2);
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .2), 0 0 0 .5px rgb(0 0 0 / .06);
+  border-image: linear-gradient(var(--lamp) 0 0) 0 fill / calc(var(--knob) / 2 - 2px) var(--knob) calc(var(--knob) / 2 - 2px) 0 / 0 0 0 100vw;
+}
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--fill); }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--lamp); }
+input[type=range]::-moz-range-thumb { width: var(--knob); height: var(--knob); border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .2); }
+input[type=range]:disabled { opacity: .45; cursor: default; }
+:where(:root:not([data-input='touch'])) input[type=range]:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+/* A choice on a touch screen: the value in grey with a small up-down chevron, no box, like iPhone's menus. */
+@media (pointer: coarse) {
+  select.field {
+    -webkit-appearance: none; appearance: none; width: auto; max-width: 100%; padding: 8px 22px 8px 8px;
+    border-color: transparent; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3'/%3E%3C/svg%3E") no-repeat right 4px center;
+    color: var(--ink-2); text-align: end; text-align-last: end;
+  }
+}
 /* Rows that fill their group draw focus inside, or the group's rounded clip hides it. */
-.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible { outline: 2px solid var(--lamp); outline-offset: -3px; }
+:where(:root:not([data-input='touch'])) :is(.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
 /* Settings search lands here: the row it found glows for a moment. */
 @keyframes found { from { background-color: var(--sel); } }
 .found { animation: found 2.4s ease-out; }
@@ -376,8 +420,10 @@ input.toggle:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px
    floats beside its button on a wide screen and rises from the bottom on a phone.
    `:root` outranks the component's own [popover] rule, which loads later. */
 @media (max-width: 600px) {
-  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: var(--r-lg) var(--r-lg) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   :root .sheet[popover]::backdrop { background: rgb(0 0 0 / .35); }
+  /* The grabber: it says the sheet pulls down to close (disclosure-popover.ts). */
+  :root .sheet[popover]::before { content: ''; display: block; width: 36px; height: 5px; margin: 6px auto 0; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 45%, transparent); }
 }
 @media (pointer: coarse) {
   .segments button, .segments label { min-height: 44px; }

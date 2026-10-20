@@ -235,7 +235,7 @@
   .starter { white-space: nowrap; color: var(--ink-2); }
   .clock { margin-left: auto; padding-left: 10px; white-space: nowrap; font-size: var(--fs-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .hint { white-space: nowrap; border-bottom: 1px dotted currentColor; }
-  .hint:hover { text-decoration: none; }
+  @media (hover: hover) { .hint:hover { text-decoration: none; } }
 
   .who { flex: none; display: grid; justify-items: center; gap: 4px; }
   .faces { display: flex; }
@@ -249,7 +249,7 @@
 
   .actions { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; }
   .open { text-decoration: none; }
-  .open:hover { text-decoration: none; }
+  @media (hover: hover) { .open:hover { text-decoration: none; } }
 
   /* Progress sits on the card's own bottom edge, replacing the hairline there,
      and the playhead carries the glow. */

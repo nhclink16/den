@@ -427,7 +427,8 @@
   .people button { align-items: center; gap: 8px; }
   .people b { font-weight: 600; }
   .handle { color: var(--ink-3); font-size: 13px; }
-  .composer { position: relative; padding: 0 var(--gutter) 14px; }
+  /* Above the home indicator with the keyboard down; on the keyboard (inset 0) with it up. */
+  .composer { position: relative; padding: 0 var(--gutter) max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)); }
   .row { --box-pad: 3px; --box-edge: 1px; display: flex; align-items: flex-end; gap: var(--s2); }
   /* A pill while it is one line, a rounded card once it grows. Sharp corners stay sharp. */
   .box {
@@ -435,7 +436,7 @@
     background: var(--bg); border: var(--box-edge) solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + var(--box-pad) + var(--box-edge)));
     transition: border-color var(--t), box-shadow var(--t);
   }
-  .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  :global(:where(:root:not([data-input='touch']))) .box:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   textarea {
     flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: 0;
     padding: calc((var(--hit) - 1.4em) / 2) var(--s2) calc((var(--hit) - 1.4em) / 2) var(--s3);
@@ -482,7 +483,7 @@
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { display: grid; place-items: center; min-width: 24px; min-height: 24px; border-radius: var(--r-pill); color: var(--ink-3); }
   @media (pointer: coarse) { .x { min-width: 36px; min-height: 36px; margin: -6px; } }
-  .x:hover { color: var(--ink); background: var(--bg-3); }
+  @media (hover: hover) { .x:hover { color: var(--ink); background: var(--bg-3); } }
   .chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 8px 5px 6px;
     background: var(--bg-3); border-radius: var(--r); max-width: 100%;

@@ -22,6 +22,7 @@
   import { notify } from '../lib/notify.svelte'
   import { listenForPush, pushBadge, pushStart } from '../lib/shell-push.svelte'
   import { listenForSelection } from '../lib/haptics'
+  import Icon from './Icon.svelte'
 
   let palette = $state(false)
   // Narrow screens show one thing at a time: the room list is the home screen,
@@ -99,6 +100,12 @@
     else root.dataset.avatarShape = store.layout.avatarShape
     root.dataset.presence = store.layout.presence
   })
+  // A call that couldn't connect says so for a moment over whatever is on screen, then goes, like an iPhone toast.
+  $effect(() => {
+    if (!call.error) return
+    const timer = setTimeout(() => (call.error = ''), 6000)
+    return () => clearTimeout(timer)
+  })
   notify.attach()
 </script>
 
@@ -110,7 +117,6 @@
   {/if}
 
   <main class="main bg-host scope-chat">
-    {#if call.error}<div class="call-status" role="alert"><span>{call.error}</span><button class="btn quiet" onclick={() => (call.error = '')}>Dismiss</button></div>{/if}
     {#if call.blurNotice}<div class="call-status" role="status"><span>{call.blurNotice}</span><button class="btn quiet" onclick={() => (call.blurNotice = '')}>Dismiss</button></div>{/if}
     {#if call.reconnecting}<div class="call-status" role="status">Reconnecting to the call…</div>{/if}
     {#if call.audioBlocked}<div class="call-status" role="status"><span>Your browser blocked the call audio.</span><button class="btn lit" onclick={() => call.startAudio()}>Play call audio</button></div>{/if}
@@ -147,6 +153,7 @@
   {/if}
 </div>
 
+{#if call.error}<div class="call-error" role="alert"><button title="Dismiss" onclick={() => (call.error = '')}><Icon name="phone" />{call.error}</button></div>{/if}
 {#if store.toast}<div class="toast" role="status">{store.toast}<button aria-label="Dismiss notification" onclick={() => store.toast = ''}>×</button></div>{/if}
 
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
@@ -154,15 +161,27 @@
 <Customizer />
 
 <style>
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }
+  .toast { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }
   @media (prefers-reduced-motion: no-preference) { .toast { animation: toast-in .24s var(--ease-out); } }
   @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } }
   .toast button { border-radius: var(--r); color: var(--ink-2); }
-  .toast button:hover { color: var(--ink); background: var(--bg-3); }
+  @media (hover: hover) { .toast button:hover { color: var(--ink); background: var(--bg-3); } }
   .toast button { min-width: 24px; min-height: 24px; }
+  .call-error {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 50%; transform: translateX(-50%); z-index: 50;
+    width: max-content; max-width: calc(100% - 32px);
+    border-radius: var(--r-pill); background: var(--bg-2); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -8px var(--shadow-lg);
+  }
+  .call-error button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: inherit; color: var(--ink); font-size: var(--fs-sm); font-weight: 600; text-align: start; }
+  .call-error :global(svg) { flex: none; color: var(--danger); }
+  @media (prefers-reduced-motion: no-preference) { .call-error { animation: drop-in .32s var(--ease-out); } }
+  @keyframes drop-in { from { opacity: 0; transform: translateX(-50%) translateY(-16px); } }
   .call-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; color: var(--lamp); background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  /* Den Shell draws edge to edge: the app keeps clear of the notch and, in landscape, the sides. The bottom is
+     each screen's own, so its lists can scroll under the home indicator. */
   .shell {
     height: 100%; display: grid;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--members-w);
     grid-template-areas: 'sidebar main members';
   }

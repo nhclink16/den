@@ -221,7 +221,7 @@
     border: 1px solid var(--line); background-size: cover; background-position: center; color: var(--ink3);
   }
   .none .x { background: var(--bg); }
-  .swatch:hover .chip, .swatch:hover .x { border-color: var(--ink3); }
+  @media (hover: hover) { .swatch:hover .chip, .swatch:hover .x { border-color: var(--ink3); } }
   .swatch.chosen .chip, .swatch.chosen .x { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
   .swatch .label { font-size: 12px; color: var(--ink2); }
   .eyebrow { margin: 0 0 8px; }
@@ -232,14 +232,15 @@
   .mine { position: relative; }
   .mine .pick { display: grid; gap: 6px; text-align: start; }
   .mine .chip { background-color: var(--bg3); }
-  .mine:hover .chip { border-color: var(--ink3); }
+  @media (hover: hover) { .mine:hover .chip { border-color: var(--ink3); } }
   .mine.chosen .chip { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
   .remove {
     position: absolute; top: 4px; right: 4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-pill, 999px);
     background: color-mix(in srgb, #000 55%, transparent); color: #fff; font-size: 13px; line-height: 22px;
     opacity: 0; transition: opacity var(--t-fast, .1s);
   }
-  .mine:hover .remove, .mine:focus-within .remove, .remove.confirm { opacity: 1; }
+  .mine:focus-within .remove, .remove.confirm { opacity: 1; }
+  @media (hover: hover) { .mine:hover .remove { opacity: 1; } }
   .remove.confirm { background: var(--danger); font-size: 12px; font-weight: 600; }
   @media (pointer: coarse) { .remove { opacity: 1; } }
   .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }

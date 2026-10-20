@@ -173,18 +173,19 @@
   [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   .picker { width: min(400px, calc(100vw - 16px)); height: min(460px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 8px; padding: 0 10px; height: 36px; border-radius: var(--r); background: var(--bg-3); border: 1px solid var(--line); color: var(--ink-3); transition: border-color var(--t-fast), box-shadow var(--t-fast); }
-  .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  :global(:where(:root:not([data-input='touch']))) .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); }
   .search input::placeholder { color: var(--ink-3); }
   .clear { display: grid; padding: 4px; border-radius: var(--r); color: var(--ink-3); }
-  .clear:hover { color: var(--ink); background: var(--bg-2); }
+  @media (hover: hover) { .clear:hover { color: var(--ink); background: var(--bg-2); } }
   .results { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; overscroll-behavior: contain; }
   .grid { display: flex; gap: 6px; align-items: flex-start; transition: opacity var(--t); }
   .grid.waiting { opacity: .5; }
   .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .tile { position: relative; display: block; width: 100%; padding: 0; overflow: hidden; border-radius: calc(var(--r) * .75); background: var(--bg-3) center / cover no-repeat; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast); }
   .tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .tile:hover:not(:disabled), .tile:focus-visible { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; }
+  :global(:where(:root:not([data-input='touch']))) .tile:focus-visible { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; }
+  @media (hover: hover) { .tile:hover:not(:disabled) { transform: scale(1.02); box-shadow: 0 0 0 2px var(--lamp), var(--glow); z-index: 1; } }
   .tile:focus-visible { outline: none; }
   .tile:disabled:not(.busy) { opacity: .6; }
   .tile.busy::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 45%, transparent); }
@@ -196,5 +197,6 @@
   .powered { color: var(--ink-3); letter-spacing: .02em; }
   .powered b { color: var(--ink-2); font-weight: 700; letter-spacing: .06em; }
   @media (max-width: 600px) { .picker { width: 100%; height: min(520px, 70vh); } }
-  @media (prefers-reduced-motion: reduce) { .tile, .tile:hover:not(:disabled) { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .tile { transform: none; }
+ @media (hover: hover) { .tile:hover:not(:disabled) { transform: none; } } }
 </style>

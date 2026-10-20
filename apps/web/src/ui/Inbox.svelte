@@ -156,7 +156,7 @@
   .kind { color: var(--ink-3); display: grid; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .spacer { flex: 1; }
-  .scroll { flex: 1; overflow-y: auto; padding: 16px var(--gutter); }
+  .scroll { flex: 1; overflow-y: auto; padding: 16px var(--gutter) calc(16px + env(safe-area-inset-bottom, 0px)); }
   .empty { padding: 80px 20px; text-align: center; display: grid; justify-items: center; gap: 6px; }
   .empty-mark { color: var(--ink-3); margin-bottom: 10px; opacity: .8; }
   .big { font-size: 26px; }

@@ -365,7 +365,7 @@
   .save-name { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; padding: 0 16px 14px; }
   .save-name label { display: grid; gap: 6px; font-size: var(--fs-sm); }
   .link { color: var(--ink-2); font-size: var(--fs-sm); text-decoration: underline; text-underline-offset: 3px; }
-  .link:hover { color: var(--ink); }
+  @media (hover: hover) { .link:hover { color: var(--ink); } }
   .hint { font-size: var(--fs-xs); margin: 0; }
 
   .specimen { display: grid; gap: 8px; padding: 16px; background: var(--bg); margin: 0 12px 12px; border-radius: var(--r); }

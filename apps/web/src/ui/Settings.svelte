@@ -350,13 +350,13 @@
   .toc { display: flex; flex-direction: column; gap: 1px; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-2); overflow-y: auto; }
   .toc .item { min-height: 34px; padding: 0 10px; gap: 10px; border-radius: var(--r); color: var(--ink-2); font-size: var(--fs-sm); }
   .toc .item .ic { display: grid; color: var(--ink-3); }
-  .toc .item:hover { color: var(--ink); }
+  @media (hover: hover) { .toc .item:hover { color: var(--ink); } }
   .toc .item[aria-current] { background: var(--sel); color: var(--ink); font-weight: 700; }
   .toc .item[aria-current] .ic { color: var(--lamp); }
   .toc-label { margin: 14px 10px 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .toc .results { background: var(--bg); }
   .find { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; min-height: 36px; margin-bottom: 10px; color: var(--ink-3); background: var(--bg-3); border: 1px solid transparent; border-radius: var(--r-pill); }
-  .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  :global(:where(:root:not([data-input='touch']))) .find:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .find input { flex: 1; min-width: 0; padding: 6px 0; background: none; border: 0; outline: 0; color: var(--ink); font-size: var(--fs-sm); }
   .find input::placeholder { color: var(--ink-3); }
   .clear { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: var(--ink-2); flex: none; }
@@ -396,7 +396,7 @@
   .home .find input { font-size: 16px; }
   .gap { height: 22px; }
   .me { display: block; color: inherit; }
-  .me:hover { text-decoration: none; }
+  @media (hover: hover) { .me:hover { text-decoration: none; } }
   .me .nav-row { gap: 14px; min-height: 80px; padding: 12px 16px; }
   .me b { display: block; font-size: var(--fs-title); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sub { display: block; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

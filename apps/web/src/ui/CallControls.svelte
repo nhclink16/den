@@ -80,8 +80,10 @@
   .controls > button:disabled { opacity: .5; cursor: default; }
   /* Off is a state you need to see at a glance: the button turns solid, like
      FaceTime's, rather than dimming. On (blur, a share) takes the accent. */
-  .controls > button.off, .controls > button.off:hover { background: var(--ink); color: var(--bg); }
-  .controls > button.on, .controls > button.on:hover { background: var(--lamp); color: var(--on-lamp); }
+  .controls > button.off { background: var(--ink); color: var(--bg); }
+  @media (hover: hover) { .controls > button.off:hover { background: var(--ink); color: var(--bg); } }
+  .controls > button.on { background: var(--lamp); color: var(--on-lamp); }
+  @media (hover: hover) { .controls > button.on:hover { background: var(--lamp); color: var(--on-lamp); } }
   /* Leave is red and sits apart from the toggles, so it is never fumbled mid-call. */
   .controls > .leave { margin-inline-start: 10px; background: var(--danger); color: var(--bg); }
   @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
