@@ -11,6 +11,8 @@ const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 class Customizer {
   open = $state(false)
   private start = $state<Snapshot | null>(null)
+  /** Your own themes changed in place since opening (corners, density, fonts). */
+  private edited = new Set<string>()
   /** Where "Settings › Appearance" returns you: the last room or page outside Settings. */
   lastPlace = '/'
 
@@ -27,7 +29,9 @@ class Customizer {
   begin() {
     if (!this.start) this.start = { appearance: copy(themes.appearance), avatarShape: store.layout.avatarShape, presence: store.layout.presence }
   }
-  end() { this.start = null; themes.reset() }
+  end() { this.start = null; this.edited.clear(); themes.reset() }
+  /** Undo puts these themes back, and leaves the rest as they are now (another device may have changed one). */
+  editedTheme(id: string) { if (this.start) this.edited.add(id) }
 
   get changed() {
     const s = this.start
@@ -36,12 +40,12 @@ class Customizer {
   }
 
   /** Back to how it looked on opening. Themes made or imported meanwhile are kept;
-   *  your own themes changed in place (corners, density, fonts) go back too. */
+   *  your own themes changed here in place (corners, density, fonts) go back too. */
   undo() {
     const s = this.start
     if (!s) return
     themes.reset()
-    const custom = themes.appearance.custom_themes.map(t => s.appearance.custom_themes.find(o => o.id === t.id) ?? t)
+    const custom = themes.appearance.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
     void themes.save({ ...copy(s.appearance), custom_themes: copy(custom) })
     store.saveLayout({ avatarShape: s.avatarShape, presence: s.presence })
   }

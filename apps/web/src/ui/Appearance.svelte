@@ -62,6 +62,7 @@
   function shape(patch: Partial<Theme>) {
     if (editor || themes.draft || !isCustom(active)) return change(patch)
     message = ''
+    customizer.editedTheme(active.id)
     void themes.update({ ...(JSON.parse(JSON.stringify(active)) as Theme), ...patch })
   }
   function color(role: (typeof colorRoles)[number], value: string) {
