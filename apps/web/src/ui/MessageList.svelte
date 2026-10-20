@@ -258,7 +258,10 @@
     if (!source.hidden) stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)
     far = fromBottom > 400
     below = fromBottom > 1
-    if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
+    // Older replies arrive under a thread's root, so they're fetched before the root comes into view, while
+    // what they push down is still out of sight above.
+    const ahead = lead ? (el.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0 : 0
+    if (el.scrollTop < 120 + ahead && !source.exhausted && !source.loadingOlder) {
       const before = el.scrollHeight, key = shownKey
       await source.older()
       await tick()

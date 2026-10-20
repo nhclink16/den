@@ -47,10 +47,12 @@
     if (!host) return
     top = host.scrollTop
     // Scroll events don't bubble, but they can be caught on the way down: the screen's own scroller, or the
-    // one under the bar (a room's messages). Not a sheet's list.
+    // one under the bar (a room's messages). Not a sheet's list, a draft in a text box, or a row that only
+    // scrolls sideways (a photo tray).
     const fn = (e: Event) => {
       const t = e.target as Element | Document
       if (!(t instanceof Element) || t.closest('[popover]') || (t !== host && large)) return
+      if (t instanceof HTMLTextAreaElement || t.scrollHeight <= t.clientHeight) return
       top = t.scrollTop
     }
     host.addEventListener('scroll', fn, { capture: true, passive: true })
