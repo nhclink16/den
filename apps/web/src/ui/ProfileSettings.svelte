@@ -50,12 +50,13 @@
   }
   // Load once, and again only if the saved profile changes underneath an untouched
   // form: an edit from another device, or a status timing out, must not wipe typing.
-  let loadedFor = ''
+  // Another server or account is another form: its draft is dropped, never saved there.
+  let loadedFor = '', account = ''
   $effect(() => {
-    const key = JSON.stringify([me.display_name, me.bio, me.accent, me.status])
-    if (key === loadedFor) return
-    if (!loadedFor || !untracked(() => dirty)) reset()
-    loadedFor = key
+    const key = JSON.stringify([me.display_name, me.bio, me.accent, me.status]), who = `${store.origin}|${me.id}`
+    if (key === loadedFor && who === account) return
+    if (!loadedFor || who !== account || !untracked(() => dirty)) reset()
+    loadedFor = key; account = who
   })
   const keepUntil = $derived(me.status?.expires_at ? new Date(me.status.expires_at * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
@@ -87,7 +88,7 @@
 
   async function save(e?: SubmitEvent) {
     e?.preventDefault()
-    if (problem || saving) return
+    if (problem || saving || `${store.origin}|${store.me?.id}` !== account) return
     saving = true; error = ''; message = ''
     try {
       const until = status ? expiry() : null
