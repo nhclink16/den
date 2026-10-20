@@ -37,13 +37,15 @@
   // A rejected first page is shown and retryable; an empty room and a room that
   // failed to load are not the same thing.
   let roomError = $state('')
+  // Only the newest load may report a failure: a reconnect's retry and the resync's reload can overlap.
+  let loads = 0
   function loadRoom() {
+    const mine = ++loads
     roomError = ''
-    void store.loadLatest(channel.id).catch((e) => { roomError = (e as Error).message })
+    void store.loadLatest(channel.id).catch((e) => { if (mine === loads) roomError = (e as Error).message })
   }
   $effect(() => { if (channel.kind !== 'voice' && !store.messages.has(channel.id)) loadRoom() })
-  // Messages already here stay; with none, the room says it couldn't load and tries again once Den is back.
-  const cached = $derived(!!store.messages.get(channel.id)?.length)
+  // Once Den is back, a room that couldn't load tries again.
   let wasConnected = store.connected
   $effect(() => {
     const now = store.connected
@@ -176,6 +178,9 @@
   const roomWindow = $derived(roomKey ? store.windowAt(roomKey) : undefined)
   const roomWindowStatus = $derived(roomKey ? store.windowStatus(roomKey) : undefined)
   const roomWindowed = $derived(!!roomWindow?.length)
+  // Messages already here (the latest, or an older part opened from a link) stay on screen; with none,
+  // the room says it couldn't load.
+  const cached = $derived(!!store.messages.get(channel.id)?.length || roomWindowed)
 
   const roomSource = $derived<Source>({
     list: roomWindowed ? roomWindow! : store.messages.get(channel.id) || [],

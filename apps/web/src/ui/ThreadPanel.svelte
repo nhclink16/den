@@ -127,7 +127,10 @@
   // A phone gets the iPhone bar: "Thread" (or the name someone gave it), the room and count under it, and
   // Rename, Follow and Resolve behind ⋯. The title only repeats the root's first line until it's renamed.
   const bar = $derived(narrow && phone)
-  const named = $derived(!!summary && !!root && summary.title !== (root.content.split('\n').map((l) => l.split(/\s+/).filter(Boolean).join(' ')).find(Boolean) ?? '').slice(0, 80))
+  // (A root with no text takes its title from a card or "Conversation": that's not a name either. An edited
+  // root can't be told from a rename without the server saying so; it shows the old first line.)
+  const firstLine = $derived(root ? (root.content.split('\n').map((l) => l.split(/\s+/).filter(Boolean).join(' ')).find(Boolean) ?? '').slice(0, 80) : '')
+  const named = $derived(!!summary && !!firstLine && summary.title !== firstLine)
   const where = $derived(`${channel.kind === 'text' ? `#${channel.name}` : store.title(channel)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
   const fromMenu = (work: () => void) => { menu = false; work() }

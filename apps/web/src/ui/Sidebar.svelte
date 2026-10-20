@@ -3,10 +3,14 @@
   // where it was, with the room you left in view.
   let savedScroll = 0
   let lastRoom = ''
+  // A join that failed leaves Retry on the hangout row (the toast only says what happened), until the next
+  // try. Kept here so it outlasts a visit to a room while the join was still going.
+  let tried = ''
+  let failed = $state('')
 </script>
 
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   import { call } from '../lib/call.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import CallDock from './CallDock.svelte'
@@ -42,8 +46,11 @@
   // back button returns here instead of stacking another copy.
   const go = (path: string) => (e: MouseEvent) => { e.preventDefault(); router.go(path, false, phone ? '/' : undefined) }
   const status = $derived(liveStatus(store.me?.status))
-  // The home's search field is the way into Search: a tap opens it, focused, where results come as you type.
-  const search = () => router.go('/find', false, '/')
+  // The home's search field is the way into Search: a tap or click opens it, focused, where results come as
+  // you type. Tabbing through doesn't; typing and Enter search from here.
+  let q = $state('')
+  const search = () => router.go(q.trim() ? `/find?q=${encodeURIComponent(q.trim())}` : '/find', false, '/')
+  const tapped = () => { if (document.documentElement.dataset.input === 'touch') search() }
 
   // New message: everyone you could start a DM with.
   let composing = $state(false)
@@ -53,14 +60,15 @@
     try { const c = await store.openDm([userId]); router.go(`/c/${c.id}`, false, '/') } catch (e) { store.toast = (e as Error).message }
   }
 
-  // A join that failed leaves Retry on the hangout row (the toast only says what happened), until the next try.
-  let tried = '', failed = $state('')
   $effect(() => {
     const id = call.joining
     if (id) { tried = id; failed = '' }
     else if (call.channel) tried = ''
-    else if (tried && call.error) { failed = tried; tried = '' }
+    // An attempt that ended without a call while this list was away failed too.
+    else if (tried && (call.error || untrack(() => !mounted))) { failed = tried; tried = '' }
   })
+  let mounted = false
+  onMount(() => { mounted = true })
 
   // The sidebar line is the Jam's only announcement, so keep its track current
   // for people who are not in the call and have no strip polling it.
@@ -194,7 +202,7 @@
           <a href="/inbox" class="icon-btn inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" size={22} />{#if inboxCount}<span class="count">{inboxBadge}</span>{/if}</a>
         {/snippet}
       </NavBar>
-      <form class="find input-shell" role="search" onsubmit={(e) => { e.preventDefault(); search() }}><Icon name="search" size={18} /><input placeholder="Search" aria-label="Search messages" enterkeyhint="search" onfocus={search} /></form>
+      <form class="find input-shell" role="search" onsubmit={(e) => { e.preventDefault(); search() }}><Icon name="search" size={18} /><input bind:value={q} placeholder="Search" aria-label="Search messages" enterkeyhint="search" onfocus={tapped} onclick={search} /></form>
     {/if}
     {#each voice as c (c.id)}
       {@const here = call.origin === store.origin && call.channel?.id === c.id}

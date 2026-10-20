@@ -1,14 +1,15 @@
 <script module lang="ts">
-  // Recent searches, on this device only: a convenience, so a missing or blocked storage just means none.
-  const RECENT = 'den.recentSearches'
-  function readRecent(): string[] {
-    try { const v = JSON.parse(localStorage.getItem(RECENT) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [] } catch { return [] }
+  // Recent searches, on this device and for this account only: a convenience, so a missing or blocked
+  // storage just means none.
+  const key = (who: string) => `den.recentSearches.${who}`
+  function readRecent(who: string): string[] {
+    try { const v = JSON.parse(localStorage.getItem(key(who)) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [] } catch { return [] }
   }
-  function writeRecent(list: string[]) { try { localStorage.setItem(RECENT, JSON.stringify(list)) } catch { /* not kept */ } }
+  function writeRecent(who: string, list: string[]) { try { localStorage.setItem(key(who), JSON.stringify(list)) } catch { /* not kept */ } }
 </script>
 
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
   import { instances, store } from '../lib/store.svelte'
@@ -29,14 +30,21 @@
   let scope = $state(channelId || '')
   let results = $state<Message[] | null>(null)
   let error = $state('')
-  let recent = $state(readRecent())
+  const who = `${store.origin}:${store.me?.id ?? ''}`
+  let recent = $state(readRecent(who))
   let input = $state<HTMLInputElement>()
   const scopeName = $derived(scope ? store.channel(scope) : undefined)
   const bar = $derived(narrow && !native)
   const places = $derived(store.channels.filter((c) => c.kind !== 'voice'))
   const placeName = (c: Channel) => (c.kind === 'dm' ? store.title(c) : `#${c.name}`)
 
-  $effect(() => { text = q; scope = channelId || ''; run(q, channelId) })
+  // The URL is the search. It follows the field, trimmed, so it only overwrites the field when it changed
+  // some other way (Back, a recent search): "hello " mid-word must stay "hello ".
+  $effect(() => {
+    if (untrack(() => text.trim()) !== q) text = q
+    scope = channelId || ''
+    run(q, channelId)
+  })
 
   // Only the newest search may fill the list: an older, slower one must not land on top of it.
   let seq = 0
@@ -58,7 +66,7 @@
   $effect(() => () => clearTimeout(timer))
   function remember(query: string) {
     const t = query.trim()
-    if (t) writeRecent(recent = [t, ...recent.filter((x) => x !== t)].slice(0, 8))
+    if (t) writeRecent(who, recent = [t, ...recent.filter((x) => x !== t)].slice(0, 8))
   }
   function submit(e: SubmitEvent) {
     e.preventDefault()
@@ -96,7 +104,8 @@
 <!-- Not `.search` or `.bar`: app.css quiets the ring of an input inside those shells,
      and the query box here is the field itself. -->
 <section class="search-page" class:bar>
-  <header class="top">
+  <!-- `head`: in the desktop app this row is what drags the window (app.css). -->
+  <header class="head top">
     {#if !narrow && !store.layout.sidebar}<SidebarToggle />{/if}
     {#if narrow && !bar}<HomeButton />{/if}
     <form class="find" role="search" onsubmit={submit}>
@@ -118,7 +127,7 @@
     {#if error}<p class="error">{error}</p>{/if}
     {#if results === null}
       {#if recent.length}
-        <h2 class="head-row"><span>Recent</span><button class="link" onclick={() => writeRecent(recent = [])}>Clear</button></h2>
+        <h2 class="head-row"><span>Recent</span><button class="link" onclick={() => writeRecent(who, recent = [])}>Clear</button></h2>
         <div class="slist">
           {#each recent as r (r)}<button class="nav-row recent" onclick={() => again(r)}><Icon name="search" size={16} /><span class="grow">{r}</span></button>{/each}
         </div>
