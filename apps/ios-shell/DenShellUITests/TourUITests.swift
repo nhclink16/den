@@ -310,9 +310,10 @@ final class TourUITests: XCTestCase {
     }
 
     /// Well inside the web view, for things the page draws. XCUITest's own hit test (isHittable, tap) failed outright
-    /// on a Settings link 25 pt from the bottom edge, and that ends the whole test, so these get tapped by coordinate.
+    /// on a Settings link 2 pt from the bottom edge, and that ends the whole test, so these get tapped by coordinate.
+    /// 44 pt, not more: the list's last row (Agents) can't scroll further than 80 pt from the edge.
     @MainActor private func onScreen(_ element: XCUIElement, _ app: XCUIApplication) -> Bool {
-        element.exists && app.webViews.firstMatch.frame.insetBy(dx: 0, dy: 80)
+        element.exists && app.webViews.firstMatch.frame.insetBy(dx: 0, dy: 44)
             .contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
     }
 
