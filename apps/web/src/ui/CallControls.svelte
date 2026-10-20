@@ -8,6 +8,8 @@
   import { shell } from '../lib/shell-call'
   import Icon from './Icon.svelte'
   import MusicMenu from './MusicMenu.svelte'
+  import { objects } from '../lib/objects.svelte'
+  import { objectKind } from '../plugins'
   // `bar` floats under the open call with every button. On a phone it keeps the
   // ones you reach for (mic, sound, camera, Leave) and the rest go in More. `dock` is the same set,
   // smaller, for the call bar above the sidebar, whose Leave sits on the bar's top
@@ -24,7 +26,9 @@
   const icon = $derived(variant === 'bar' ? 22 : 18)
   // More, on a phone: what didn't fit on the bar.
   const music = $derived(!!call.channel && call.channel.kind !== 'text' && !!call.owner)
-  const videos = $derived(call.participants.reduce((n, p) => n + (p.camera ? 1 : 0) + p.screens.length, 0))
+  // The tiles a phone's call shows (CallGrid): cameras that are on, shares, and an open canvas or terminal.
+  const board = $derived(!!objects.active && (objects.active.kind === 'canvas' || objects.active.kind === 'terminal') && !!objectKind(objects.active.kind)?.tile)
+  const videos = $derived(call.participants.reduce((n, p) => n + (p.camera ? 1 : 0) + p.screens.length, 0) + (board ? 1 : 0))
   const preset = $derived(callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
   const more = $derived(shareAvailable || (call.cameraOn && blurAvailable) || music || videos > 1)
   let moreOpen = $state(false), page = $state<'' | 'music'>('')
