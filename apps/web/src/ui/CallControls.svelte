@@ -7,10 +7,14 @@
   import { disclosurePopover } from '../lib/disclosure-popover'
   import { shell } from '../lib/shell-call'
   import Icon from './Icon.svelte'
-  // `bar` floats under the open call with every button. `dock` is the same set,
+  import MusicMenu from './MusicMenu.svelte'
+  import { objects } from '../lib/objects.svelte'
+  import { objectKind } from '../plugins'
+  // `bar` floats under the open call with every button. On a phone it keeps the
+  // ones you reach for (mic, sound, camera, Leave) and the rest go in More. `dock` is the same set,
   // smaller, for the call bar above the sidebar, whose Leave sits on the bar's top
   // row instead (CallPill). `pill` is what you need while you chat: your mic, your
-  // sound when it's off, and Leave.
+  // sound when it's off.
   let { variant = 'dock' }: { variant?: 'bar' | 'dock' | 'pill' } = $props()
   const pill = $derived(variant === 'pill')
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
@@ -20,6 +24,16 @@
   const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia && !shell
   const shares = $derived(call.participants.find(p => p.local)?.screens || [])
   const icon = $derived(variant === 'bar' ? 22 : 18)
+  // More, on a phone: what didn't fit on the bar.
+  const music = $derived(!!call.channel && call.channel.kind !== 'text' && !!call.owner)
+  // The tiles a phone's call shows (CallGrid): cameras that are on, shares, and an open canvas or terminal.
+  const board = $derived(!!objects.active && (objects.active.kind === 'canvas' || objects.active.kind === 'terminal') && !!objectKind(objects.active.kind)?.tile)
+  const videos = $derived(call.participants.reduce((n, p) => n + (p.camera ? 1 : 0) + p.screens.length, 0) + (board ? 1 : 0))
+  const preset = $derived(callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
+  const more = $derived(shareAvailable || (call.cameraOn && blurAvailable) || music || videos > 1)
+  let moreOpen = $state(false), page = $state<'' | 'music'>('')
+  $effect(() => { if (!moreOpen) page = '' })
+  function done(run: () => unknown) { moreOpen = false; void run() }
 </script>
 
 <div class="controls v-{variant}">
@@ -37,12 +51,12 @@
   {#if !pill}
   <button class:off={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} size={icon} /></button>
   <!-- Den Shell runs calls voice-only for now. -->
-  {#if !shell}<button class:off={!call.cameraOn} aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
-  {#if call.cameraOn && blurAvailable}<button class:on={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
-  {#if shareAvailable}<button class:on={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
+  {#if !shell}<button aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
+  {#if call.cameraOn && blurAvailable}<button class="wide" class:on={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
+  {#if shareAvailable}<button class="wide" class:on={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
   {#if call.screenOn}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
-    <details class="overflow shares" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
+    <details class="overflow shares wide" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
       <summary aria-label="Your shares" title="Your shares"><Icon name="more" size={icon} /></summary>
       <div popover="auto" use:disclosurePopover>
         <!-- Lives in this menu rather than beside it, so a sidebar-wide dock keeps one row. -->
@@ -53,10 +67,36 @@
       </div>
     </details>
   {/if}
-  {#if variant === 'bar'}<details class="overflow options"><summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
+  {#if variant === 'bar'}<details class="overflow options wide"><summary aria-label="Call options" title="Call options"><Icon name="more" size={icon} /></summary><div><button onclick={(e) => { callLayouts.reset(call.channel?.id); e.currentTarget.closest('details')?.removeAttribute('open') }}>Reset layout</button></div></details>{/if}
   <MusicQueueButton />
+  {#if variant === 'bar' && more}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
+    <details class="overflow more" bind:open={moreOpen} onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); moreOpen = false; e.currentTarget.querySelector('summary')?.focus() } }}>
+      <summary aria-label="More call options" title="More"><Icon name="more" size={icon} /></summary>
+      <div class="sheet more-sheet" popover="auto" use:disclosurePopover>
+        {#if page === 'music' && call.channel && call.owner}
+          <button class="sheet-back" onclick={() => (page = '')}><Icon name="back" size={20} />More</button>
+          <MusicMenu roomId={call.channel.id} owner={call.owner} />
+        {:else}
+          {#if shareAvailable || (call.cameraOn && blurAvailable) || music}
+            <div class="slist">
+              {#if shareAvailable}<button class="nav-row" disabled={!!call.joining} onclick={() => done(() => call.toggleScreen())}><Icon name="screen" size={20} /><span class="grow">{call.screenOn ? 'Stop Sharing' : 'Share Screen'}</span></button>{/if}
+              {#if call.cameraOn && blurAvailable}<button class="nav-row" aria-pressed={call.cameraSettings.background !== 'none'} disabled={call.backgroundBusy} onclick={() => done(() => call.toggleBackground())}><Icon name="blur" size={20} /><span class="grow">Blur Background</span>{#if call.cameraSettings.background !== 'none'}<Icon name="check" size={18} />{/if}</button>{/if}
+              {#if music}<button class="nav-row" onclick={() => (page = 'music')}><Icon name="music" size={20} /><span class="grow">Music</span><span class="chev"><Icon name="chevron" size={14} /></span></button>{/if}
+            </div>
+          {/if}
+          {#if videos > 1}
+            <p class="list-head">Layout</p>
+            <div class="segments" role="group" aria-label="Call layout">
+              {#each ['Auto', 'Even', 'Focus'] as const as p (p)}<button aria-pressed={preset === p} onclick={() => done(() => callLayouts.save(p, callLayouts.value.tiles))}>{p}</button>{/each}
+            </div>
+          {/if}
+        {/if}
+      </div>
+    </details>
   {/if}
-  {#if variant !== 'dock'}<button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={icon} /></button>{/if}
+  {/if}
+  {#if variant === 'bar'}<button class="leave" aria-label="Leave call" title="Leave call" onclick={() => call.leave()}><Icon name="leave" size={icon} /></button>{/if}
 </div>
 
 <style>
@@ -65,9 +105,13 @@
   .controls { --cb: 34px; display: flex; align-items: center; gap: 6px; flex: none; }
   .v-bar { --cb: 48px; gap: 10px; }
   .v-pill { --cb: 40px; gap: 8px; }
-  @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .v-bar { --cb: 48px; } }
-  /* A phone's bar fits seven buttons on one row: mic, sound, camera, blur, options, music, Leave. */
-  @media (max-width: 600px) { .v-bar { --cb: 44px; gap: 6px; } .v-bar > .leave { margin-inline-start: 8px; } }
+  @media (pointer: coarse) { .controls { --cb: 44px; gap: 8px; } .v-bar { --cb: 48px; } .v-pill { --cb: 34px; } }
+  /* A phone's bar: mic, sound, camera, More and Leave, big enough for a thumb, like FaceTime's. */
+  @media (max-width: 899px) {
+    .v-bar > .wide, .v-bar > :global(details:not(.overflow)) { display: none; }
+    .v-bar { --cb: 52px; gap: 14px; }
+  }
+  @media (min-width: 900px) { .v-bar > .more { display: none; } }
   /* Only this row's own buttons and disclosures: the Music menu's popover has
      summaries of its own that must keep their text layout. */
   .controls > button, .controls > :global(details > summary) {
@@ -78,15 +122,16 @@
   /* Plain buttons only: a solid state (off, on, held, Leave) keeps its fill under the pointer. */
   @media (hover: hover) { .controls > button:not(.off, .on, .held, .leave):hover:not(:disabled), .controls > :global(details > summary:not(.live):hover) { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
   .controls > button:disabled { opacity: .5; cursor: default; }
-  /* Off is a state you need to see at a glance: the button turns solid, like
-     FaceTime's, rather than dimming. On (blur, a share) takes the accent. */
+  /* Off (your mic, your sound) is a state you need to see at a glance: the button
+     turns solid, like FaceTime's, rather than dimming. On (blur, a share) takes the accent. */
   .controls > button.off { background: var(--ink); color: var(--bg); }
   @media (hover: hover) { .controls > button.off:hover { background: var(--ink); color: var(--bg); } }
   .controls > button.on { background: var(--lamp); color: var(--on-lamp); }
   @media (hover: hover) { .controls > button.on:hover { background: var(--lamp); color: var(--on-lamp); } }
-  /* Leave is red and sits apart from the toggles, so it is never fumbled mid-call. */
-  .controls > .leave { margin-inline-start: 10px; background: var(--danger); color: var(--bg); }
-  @media (hover: hover) { .controls > .leave:hover { background: var(--danger); filter: brightness(1.1); } }
+  /* Leave is the phone's red with a white glyph in every theme, and sits apart
+     from the toggles, so it is never fumbled mid-call. */
+  .controls > .leave { margin-inline-start: 10px; background: var(--hang-up); color: #fff; }
+  @media (hover: hover) { .controls > .leave:hover { background: var(--hang-up); filter: brightness(1.1); } }
   .v-bar > .leave { margin-inline-start: 14px; }
   .v-pill > .leave { margin-inline-start: 0; }
   /* The open call's bar and the sidebar's row stay one row each. In a narrow call
@@ -126,4 +171,17 @@
   @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
+  /* More: a list and the layout switch; a bottom sheet on a phone (app.css). */
+  .more-sheet { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(340px, calc(100vw - 24px)); padding: 8px 12px 12px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .more-sheet .slist { margin-top: 8px; background: var(--bg-3); }
+  .more-sheet .nav-row { font-size: var(--fs-body); }
+  .more-sheet .nav-row :global(svg) { flex: none; color: var(--ink-2); }
+  .more-sheet .list-head { margin-top: 16px; }
+  .more-sheet .segments { display: flex; }
+  .more-sheet .segments button { flex: 1; }
+  /* Music opens inside the sheet: its panels take the sheet's width, and the sheet grows to theirs. */
+  @media (min-width: 601px) { .more-sheet:has(:global(.music-menu)) { width: min(404px, calc(100vw - 24px)); } }
+  .more-sheet :global(:is(.music-panel, .jam-panel)) { width: auto; padding-inline: 0; }
+  .sheet-back { display: inline-flex; align-items: center; min-height: 44px; margin-inline-start: -6px; color: var(--lamp); font-size: var(--fs-body); }
+  @media (max-width: 600px) { .more-sheet { width: 100%; padding-inline: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; } }
 </style>

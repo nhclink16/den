@@ -233,7 +233,7 @@ final class TourUITests: XCTestCase {
             let join = try find(app, label: "Join hangout")
             join.tap()
             let failed = element(app, label: "The call could not connect. Try again.")
-            let joined = element(app, label: "Leave call")
+            let joined = element(app, label: "open the call", .contains)
             let allow = springboard.alerts.buttons["Allow"]
             var joining = false
             let deadline = Date().addingTimeInterval(45)

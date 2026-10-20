@@ -134,6 +134,8 @@ try {
   await shot(a, 'call-grid-desktop')
   await a.setViewportSize({ width: 390, height: 844 }); await shot(a, 'call-grid-mobile')
   await a.getByRole('button', { name: 'Collapse call', exact: true }).click()
+  // A phone's call bar has no Leave: it's in the open call.
+  await a.getByRole('button', { name: /open the call/ }).click()
   await a.getByRole('button', { name: 'Leave call', exact: true }).click()
   await shot(a, 'docked-mobile')
   await a.getByRole('button', { name: 'Expand canvas', exact: true }).click(); await shot(a, 'expanded-mobile')

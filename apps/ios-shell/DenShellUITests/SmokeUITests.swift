@@ -126,9 +126,9 @@ final class SmokeUITests: XCTestCase {
         let app = try launchSignedIn()
         let join = try find(app, label: "Join hangout")
         join.tap()
-        // iOS may ask for the microphone while joining. Once joined, the home shows the call pill (with
-        // Leave) instead of the hangout card.
-        let joined = element(app, label: "Leave call")
+        // iOS may ask for the microphone while joining. Once joined, the home shows the call bar (tap to
+        // open the call) instead of the hangout card.
+        let joined = element(app, label: "open the call", .contains)
         let failed = element(app, label: "The call could not connect. Try again.")
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
         let deadline = Date().addingTimeInterval(45)
@@ -149,7 +149,7 @@ final class SmokeUITests: XCTestCase {
             shot("7-call-after-error")
             return
         }
-        try find(app, label: "Leave call", timeout: 1)
+        try find(app, label: "open the call", .contains, timeout: 1)
         shot("6-call-joined")
         try find(app, label: "open the call", .contains).tap()
         try find(app, label: "Collapse call")

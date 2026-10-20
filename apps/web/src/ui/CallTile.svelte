@@ -34,6 +34,8 @@
     <CallQuality {participant} {track} />
     {#if participant.muted}<span class="mute" data-testid="muted-mic" aria-label="Microphone muted"><Icon name="mic-off" size={14} /></span>{/if}
   </div>
+  <!-- Only when it has something in it: an empty one drew a stray dot of glass in the corner. -->
+  {#if (share && participant.local) || (!participant.local && !shell)}
   <div class="tile-controls">
     {#if share && participant.local}
       <button class="stop" aria-label={`Stop sharing ${share.label}`} title={`Stop sharing ${share.label}`} onclick={() => call.stopScreen(share.name)}>Stop</button>
@@ -51,6 +53,7 @@
       </details>
     {/if}
   </div>
+  {/if}
 </div>
 
 <style>
@@ -75,7 +78,6 @@
   .label > span:not(.talk-bars):first-of-type, .label > span.talk-bars + span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .label small { font-weight: 400; color: var(--ink-2); }
   .tile-controls { position: absolute; z-index: 3; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); }
-  .tile-controls:empty { display: none; }
   .stop { padding: 0 10px; min-height: 26px; flex: none; border-radius: var(--r-pill); font: 600 var(--fs-xs) var(--body); color: var(--ink); }
   @media (hover: hover) { .stop:hover { color: var(--ember); } }
   .volume-menu { flex: none; }

@@ -150,6 +150,8 @@ try {
   await b.getByRole('button', { name: 'Leave call', exact: true }).click()
   await until(async () => await tiles(a).count() === 2 && await remote(a, userB).count() === 0, 'leaving removes the tile')
   await c.getByRole('button', { name: 'Leave call', exact: true }).click()
+  // A phone's call bar has no Leave: it's in the open call.
+  await a.getByRole('button', { name: /open the call/ }).click()
   await a.getByRole('button', { name: 'Leave call', exact: true }).click()
   await until(async () => (await a.evaluate(async () => (await fetch('/calls')).json())).every((r) => r.participant_ids.length === 0), 'empty call snapshot')
   assert.deepEqual(errors, [], 'browser errors')

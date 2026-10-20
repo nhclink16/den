@@ -58,10 +58,11 @@
   <div class="content-home" bind:this={host}></div>
   {#if popped}<button class="placeholder" onclick={() => closePop?.()}>popped out · bring back</button>{/if}
   {#if object?.kind === 'terminal'}<span class="object-label">{object.name}</span>{/if}
-  <div class="tile-actions">
+  <!-- A phone keeps its tiles clear: the layout is chosen from the call's More. -->
+  {#if !mobile}<div class="tile-actions">
     <button title="Pin" aria-label="Pin" aria-pressed={cell.pinned} onclick={onpin}><Icon name="pin" size={14} /></button>
-    {#if !mobile}<button title="Pop out" aria-label="Pop out" onclick={pop}><Icon name="popout" size={14} /></button>{/if}
-  </div>
+    <button title="Pop out" aria-label="Pop out" onclick={pop}><Icon name="popout" size={14} /></button>
+  </div>{/if}
   {#if !mobile && !popped}<button class="resize" title="Resize" aria-label="Resize" onpointerdown={(e) => { e.stopPropagation(); ondrag(e, true) }} onkeydown={(e) => { if (e.key.startsWith('Arrow')) { e.preventDefault(); e.stopPropagation(); onmove(e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0, e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0, true) } }}></button>{/if}
 </div>
 
@@ -79,10 +80,9 @@
   .object-label { position: absolute; top: 8px; left: 76px; max-width: calc(100% - 88px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; background: var(--glass); backdrop-filter: blur(10px); border-radius: var(--r-pill); font-size: var(--fs-xs); }
   .tile-actions { position: absolute; z-index: 3; top: 8px; left: 8px; display: flex; gap: 2px; padding: 2px; opacity: 0; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); transition: opacity var(--t-fast); }
   .tile-actions button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink-2); }
-  .mobile .tile-actions button { width: 32px; height: 32px; }
   @media (hover: hover) { .tile-actions button:hover { color: var(--ink); } }
   .tile-actions button[aria-pressed="true"] { color: var(--on-lamp); background: var(--lamp); }
-  .layout-tile:focus-within .tile-actions, .mobile .tile-actions { opacity: 1; }
+  .layout-tile:focus-within .tile-actions { opacity: 1; }
   @media (hover: hover) { .layout-tile:hover .tile-actions { opacity: 1; } }
   .resize { position: absolute; z-index: 3; right: 3px; bottom: 3px; width: 16px; height: 16px; cursor: nwse-resize; opacity: 0; border-right: 3px solid var(--ink-2); border-bottom: 3px solid var(--ink-2); border-radius: 0 0 8px 0; }
   .layout-tile:focus-within .resize { opacity: 1; }
