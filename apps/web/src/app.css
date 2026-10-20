@@ -274,8 +274,10 @@ kbd {
 /* One focus treatment for every text field. Three of them used to zero the outline
    and put back a border too faint to see. :where() keeps specificity at zero so a
    component can still opt out deliberately. A borderless input inside a shell that
-   draws its own ring suppresses this one, so nothing shows two rings. */
-:where(:root:not([data-input='touch'])) :where(input, textarea, select, .input-shell):focus-visible,
+   draws its own ring suppresses this one, so nothing shows two rings. After a mouse
+   press only fields you type into keep it: a clicked slider or switch stays quiet. */
+:where(:root:not([data-input])) :where(input, textarea, select, .input-shell):focus-visible,
+:where(:root[data-input='mouse']) :where(input:read-write, textarea, .input-shell):focus-visible,
 :where(:root:not([data-input='touch'])) :where(.input-shell):focus-within {
   outline: none;
   border-color: var(--accent);
