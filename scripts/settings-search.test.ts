@@ -24,6 +24,24 @@ test('the desktop app has no "Desktop app" download page', () => {
   assert.deepEqual(findSettings('download', visibleSections(false, true), false), [])
 })
 
+test('the iPhone app hides computer pages and keeps developer ones behind Developer', () => {
+  const phone = visibleSections(false, false, true), browser = visibleSections(false, false)
+  for (const id of ['layout', 'machines', 'desktop']) assert.ok(!phone.some((s) => s.id === id), `${id} hidden in the iPhone app`)
+  // Access, API keys and Agents still open (Developer lists them), and Developer is only in the iPhone app.
+  for (const id of ['access', 'keys', 'agents', 'developer']) assert.ok(phone.some((s) => s.id === id), `${id} opens in the iPhone app`)
+  assert.ok(!browser.some((s) => s.id === 'developer'))
+  assert.ok(browser.some((s) => s.id === 'layout') && browser.some((s) => s.id === 'machines'))
+  // Its calls don't use the browser's devices, so a search doesn't offer them.
+  assert.ok(!findSettings('microphone', phone, false, true).some((h) => h.entry?.computer))
+  assert.ok(findSettings('gain', phone, false, true).every((h) => !h.entry))
+  assert.deepEqual(findSettings('shortcuts', phone, false, true), [])
+  assert.ok(findSettings('microphone', browser, false).length)
+  assert.equal(findSettings('push to talk', phone, false, true)[0]?.entry?.find, 'input-mode')
+  // Profile has no activity row at phone widths, in a browser too.
+  assert.ok(!findSettings('playing', browser, false, false, true).some((h) => h.entry?.find === 'activity'))
+  assert.ok(findSettings('playing', browser, false).some((h) => h.entry?.find === 'activity'))
+})
+
 test('a section by name comes first, then rows whose name starts with the word', () => {
   const sections = visibleSections(true, false)
   const voice = findSettings('voice', sections, true)

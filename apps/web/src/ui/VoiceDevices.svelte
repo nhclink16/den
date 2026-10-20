@@ -1,11 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, type Snippet } from 'svelte'
   import { Track } from 'livekit-client'
   import { store, instances } from '../lib/store.svelte'
   import { call } from '../lib/call.svelte'
   import { CameraBlur, MicrophoneGain, blurCaptureRate, blurSupported, defaultMicrophone, defaultCamera, deviceId, capabilities, startPreviewBlur, supports, cameraConstraints, microphoneConstraints, type CameraBackground, type CameraCapabilities } from '../lib/av'
   import type { CameraSettings, MicrophoneSettings } from '../lib/types'
   import SettingRow from './SettingRow.svelte'
+
+  /** The Talking group, drawn after the permission ask so that ask comes first. */
+  let { talking }: { talking?: Snippet } = $props()
+  // A phone or tablet browser hides a device picker with nothing to pick. (The iPhone app hides this whole page part.)
+  const touch = matchMedia('(pointer: coarse)').matches
 
   let devices = $state<MediaDeviceInfo[]>([])
   let audio = $state.raw<MediaStreamTrack | null>(null)
@@ -48,6 +53,8 @@
   const supportedRates = $derived([24, 30, 60].filter(rate => supports(caps.frameRate, rate)))
   const livePublication = $derived(call.origin === store.origin ? call.participants.find(p => p.local)?.camera : undefined)
   const speakerSupported = 'setSinkId' in HTMLMediaElement.prototype
+  // A picker with nothing to pick (just the default) isn't shown.
+  const listed = (kind: MediaDeviceKind) => devices.filter(d => d.kind === kind && d.deviceId && d.deviceId !== 'default')
   const processing = [ ['echo_cancellation', 'echoCancellation', 'Echo cancellation'], ['noise_suppression', 'noiseSuppression', 'Noise suppression'], ['auto_gain_control', 'autoGainControl', 'Auto gain'] ] as const
   async function enumerate() { if (!disposed) devices = await navigator.mediaDevices.enumerateDevices() }
   function stopAudio() {
@@ -235,17 +242,20 @@
 </script>
 
 {#if !audio || (!camera && !paused)}
+  <!-- The ask comes first: everything below needs it. -->
   <div class="slist allow">
-    <SettingRow label="Microphone and camera" hint="Allow access to test and adjust them here. Only you hear and see the test.">
-      {#snippet control()}<button class="btn lit" disabled={requesting} onclick={allow}>{requesting ? 'Opening devices…' : 'Allow microphone and camera'}</button>{/snippet}
-    </SettingRow>
+    <button class="action-row" disabled={requesting} onclick={allow}>{requesting ? 'Opening devices…' : 'Allow Microphone and Camera'}</button>
   </div>
+  <p class="list-foot">To test and adjust them here. Only you hear and see the test.</p>
 {/if}
+{@render talking?.()}
 <h3 class="list-head">Microphone</h3>
 <section class="slist" aria-label="Microphone controls">
+  {#if listed('audioinput').length > 1 || !touch}
   <SettingRow find="microphone" label="Input device">
     {#snippet control()}<select class="field" aria-label="Microphone" value={call.prefs.microphone} onchange={e => input(e.currentTarget.value)}><option value="">Default microphone</option>{#each devices.filter(d => d.kind === 'audioinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Microphone'}</option>{/each}</select>{/snippet}
   </SettingRow>
+  {/if}
   <SettingRow find="gain" label="Input gain" hint="The bar shows your level after gain. Your test audio stays here." wide>
     {#snippet control()}
       <div class="gain">
@@ -264,25 +274,31 @@
 
 <h3 class="list-head">Camera</h3>
 <section class="slist" aria-label="Camera controls">
+  {#if listed('videoinput').length > 1 || !touch}
   <SettingRow find="camera" label="Video device">
     {#snippet control()}<select class="field" aria-label="Camera" value={call.prefs.camera} onchange={e => call.device('videoinput', e.currentTarget.value)}><option value="">Default camera</option>{#each devices.filter(d => d.kind === 'videoinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Camera'}</option>{/each}</select>{/snippet}
   </SettingRow>
+  {/if}
+  <!-- The preview shows once there is a camera to show, not as an empty box before. -->
+  {#if camera || paused}
   <div class="pad">
     <div class="preview">
-      {#if camera}<video bind:this={video} class:mirror={cam.mirror} autoplay muted playsinline aria-label="Camera preview"></video>{:else}<span class="muted">{paused ? 'Preview paused' : 'Camera preview'}</span>{/if}
+      {#if camera}<video bind:this={video} class:mirror={cam.mirror} autoplay muted playsinline aria-label="Camera preview"></video>{:else}<span class="muted">Preview paused</span>{/if}
     </div>
     <div class="preview-meta"><span class="muted">{#if camera}{actual.width} × {actual.height} · {Math.round(actual.frameRate || 0)} fps{:else}Only you can see this preview{/if}</span><button class="text-link" onclick={() => { paused = !paused; cameraRequested = true }}>{paused ? 'Resume preview' : 'Pause preview'}</button></div>
   </div>
+  {/if}
   <SettingRow find="quality" label="Resolution and frame rate">
     {#snippet control()}
       <select aria-label="Resolution" class="field" value={cam.resolution} disabled={!camera || busy} onchange={e => { const el = e.currentTarget; void changeCamera({ resolution: el.value as CameraSettings['resolution'] }).then(() => { el.value = cam.resolution }) }}><option value="auto">Auto</option>{#if requestedHeight && (!supports(caps.height, requestedHeight) || !supports(caps.width, requestedHeight * 16 / 9))}<option value={cam.resolution} disabled>{cam.resolution} unavailable</option>{/if}{#each [720, 1080] as height}{#if supports(caps.height, height) && supports(caps.width, height * 16 / 9)}<option value={`${height}p`}>{height}p</option>{/if}{/each}</select>
       <select aria-label="Frame rate" class="field" value={cam.frame_rate} disabled={!camera || busy || !supportedRates.length} onchange={e => { const el = e.currentTarget; void changeCamera({ frame_rate: +el.value }).then(() => { el.value = String(cam.frame_rate) }) }}>{#if !supportedRates.includes(cam.frame_rate)}<option value={cam.frame_rate} disabled>{Math.round(actual.frameRate || 0)} fps · device default</option>{/if}{#each supportedRates as rate}<option value={rate}>{rate} fps</option>{/each}</select>
     {/snippet}
   </SettingRow>
-  <SettingRow find="mirror" label="Mirror my preview" hint="Only how you see yourself. Others see you the right way round.">
+  <SettingRow find="mirror" label="Mirror my preview" hint={camera ? 'Only how you see yourself. Others see you the right way round.' : 'Allow the camera above to change this.'}>
     {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Mirror my preview" checked={cam.mirror} disabled={!camera || busy} onchange={e => changeCamera({ mirror: e.currentTarget.checked })} />{/snippet}
   </SettingRow>
-  <SettingRow find="background" label="Background" hint={!blurAvailable ? 'Background blur needs modern frame processing and WebGL2, which this browser does not have.' : call.blurNotice || undefined}>
+  {#if blurAvailable}
+  <SettingRow find="background" label="Background" hint={call.blurNotice || undefined}>
     {#snippet control()}
       <fieldset class="segments" disabled={!camera || busy} aria-label="Camera background">
         {#each [['none', 'None'], ['blur', 'Blur'], ['light_blur', 'Light blur']] as [value, label]}
@@ -291,6 +307,7 @@
       </fieldset>
     {/snippet}
   </SettingRow>
+  {/if}
   {#each ['brightness', 'contrast', 'saturation'] as key}
     {@const prop = key as 'brightness' | 'contrast' | 'saturation'}
     {@const range = caps[prop]}
@@ -303,7 +320,7 @@
 </section>
 {#if error}<p role="alert" class="error">{error}</p>{/if}
 <p role="status" class="hint status">{status}</p>
-{#if speakerSupported}
+{#if speakerSupported && (listed('audiooutput').length > 1 || !touch)}
   <h3 class="list-head">Speaker</h3>
   <div class="slist">
     <SettingRow find="speaker" label="Output device">

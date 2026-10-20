@@ -18,21 +18,29 @@
   }
   const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
   async function copy(id: string, s: string) { await navigator.clipboard.writeText(s); copied = id; setTimeout(() => (copied = null), 1500) }
+  async function share(s: string) {
+    try { await navigator.share({ title: `Join ${store.settings.instance_name}`, url: s }) }
+    catch (e) { if ((e as Error).name !== 'AbortError') error = (e as Error).message }
+  }
+  const canShare = typeof navigator.share === 'function'
+  // Menus of sensible values instead of number boxes.
+  const useChoices = [1, 5, 10, 25, 50]
+  const expiryChoices: [number, string][] = [[1, '1 hour'], [24, '1 day'], [48, '2 days'], [168, '7 days'], [720, '30 days']]
 </script>
 
 <h2 class="display">Invites</h2>
-<p class="muted">An invite link lets someone make an account here. Send it to them directly.</p>
 
 <h3 class="list-head">New invite</h3>
 <form class="slist" onsubmit={makeInvite} data-find="new">
-  <SettingRow label="Uses" hint="How many people can sign up with it.">
-    {#snippet control()}<input class="field num" type="number" min="1" max="50" bind:value={uses} aria-label="Uses" />{/snippet}
+  <SettingRow label="People">
+    {#snippet control()}<select class="field" bind:value={uses} aria-label="How many people can use it">{#each useChoices as n (n)}<option value={n}>{n === 1 ? '1 person' : `Up to ${n}`}</option>{/each}</select>{/snippet}
   </SettingRow>
-  <SettingRow label="Expires in hours" hint="Up to 720, which is 30 days.">
-    {#snippet control()}<input class="field num" type="number" min="1" max="720" bind:value={hours} aria-label="Expires in hours" />{/snippet}
+  <SettingRow label="Expires after">
+    {#snippet control()}<select class="field" bind:value={hours} aria-label="Expires after">{#each expiryChoices as [h, text] (h)}<option value={h}>{text}</option>{/each}</select>{/snippet}
   </SettingRow>
-  <button class="action-row" type="submit">Create invite link</button>
+  <button class="action-row" type="submit">Create Invite Link</button>
 </form>
+<p class="list-foot">The link lets someone make an account here. It shows once, so send it to them straight away.</p>
 {#if error}<p class="error" role="alert">{error}</p>{/if}
 
 {#if shownOnce.invites.length}
@@ -42,16 +50,16 @@
       <div class="invite">
         <div class="text"><code class="link">{inviteLink(inv.code)}</code><span class="hint">{inv.uses_left} {inv.uses_left === 1 ? 'use' : 'uses'} left</span></div>
         <button class="icon-btn" onclick={() => copy(inv.id, inviteLink(inv.code))} aria-label="Copy invite link" title="Copy"><Icon name={copied === inv.id ? 'check' : 'copy'} /></button>
+        {#if canShare}<button class="text-btn" onclick={() => share(inviteLink(inv.code))}>Share</button>{/if}
       </div>
     {/each}
   </div>
   <p class="list-foot">Copy these links now. They won't be shown again after you leave Settings.</p>
-{:else}
-  <p class="list-foot">No invites made on this visit yet. Links show once, right after you make them.</p>
 {/if}
 
 <style>
-  .num { width: 88px; min-width: 0; text-align: end; }
+  .text-btn { min-height: 44px; padding: 0 8px; color: var(--lamp); font-weight: 600; }
+  .icon-btn { color: var(--lamp); }
   .invite { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 8px 8px 16px; }
   .text { flex: 1; min-width: 0; display: grid; gap: 2px; }
   .link { display: block; padding: 0; background: none; border: 0; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: all; }

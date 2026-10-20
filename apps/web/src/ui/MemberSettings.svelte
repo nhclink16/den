@@ -50,7 +50,6 @@
 </script>
 
 <h2 class="display">Members</h2>
-<p class="muted">Fix a name, set someone's picture, or remove someone. Removing signs them out everywhere and stops them logging in; their messages stay.</p>
 <p class="status" class:error={!!error} role="status">{error || note}</p>
 
 <div class="slist" data-find="people">
@@ -87,7 +86,7 @@
     </div>
   {/each}
 </div>
-<p class="list-foot">Tap someone to rename them, set their picture, or remove them.</p>
+<p class="list-foot">Tap someone to rename them, set their picture, or remove them. Removed people can't sign in; their messages stay.</p>
 
 {#if removed.length}
   <h3 class="list-head">Removed</h3>
@@ -98,6 +97,8 @@
   .person.busy { opacity: .6; pointer-events: none; }
   .who-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 16px; text-align: start; transition: background-color var(--t-fast); }
   @media (hover: hover) { .who-row:hover { background-color: var(--hover); } }
+  /* Lit only while a finger is on it. */
+  .who-row:active { background-color: var(--press); }
   .who { display: grid; min-width: 0; flex: 1; line-height: 1.3; }
   .who b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who .faint { font-size: var(--fs-xs); }

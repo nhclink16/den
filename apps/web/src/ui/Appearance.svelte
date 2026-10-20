@@ -23,7 +23,7 @@
   let name = $state('')
   let message = $state('')
   let fileInput: HTMLInputElement
-  let picker: HTMLInputElement
+  let picker = $state<HTMLInputElement>()
 
   const active = $derived(themes.active)
   const appearance = $derived(themes.appearance)
@@ -44,10 +44,11 @@
     danger: ['Danger', 'Errors and destructive actions.'],
   } as const
   const fontRoles: (keyof ThemeFonts)[] = ['display', 'body', 'mono']
+  const bubbleShapes = [['corners', 'Match corners'], ['round', 'Round'], ['soft', 'Soft'], ['sharp', 'Sharp'], ['none', 'No bubbles']] as const
   const bubbleHint = $derived({
-    everyone: 'Yours in the accent, and each name in that person\'s colour. Everyone picks theirs in Profile.',
-    mine: 'Yours in your colour, everyone else grey.',
-    plain: 'Yours in the accent, everyone else grey.',
+    everyone: 'Each name in that person\'s colour, picked in Profile. Yours in the accent.',
+    mine: 'Your bubbles in your own colour. Names grey.',
+    plain: 'Your bubbles in the accent. Names grey.',
   }[appearance.bubble_colors ?? 'everyone'] + (appearance.bubble_shape === 'none' ? ' With no bubbles, the colour goes on names.' : ''))
   const isCustom = (t: Theme) => appearance.custom_themes.some(c => c.id === t.id)
 
@@ -120,12 +121,11 @@
 <div class="appearance" class:panel>
   {#if !panel}
     <h2 class="display">Appearance</h2>
-    <p class="muted lede">Your theme follows you to every device signed in to this server.</p>
     <AppearancePreview />
   {/if}
 
   <div class="slist first">
-    <SettingRow find="mode" label="Light or dark" hint="System follows your device.">
+    <SettingRow find="mode" label="Light or dark" hint={appearance.mode === 'system' ? 'Follows your device.' : undefined}>
       {#snippet control()}
         <div class="segments" role="group" aria-label="Light or dark">
           {#each schemes as [id, label] (id)}
@@ -145,22 +145,29 @@
           lightChosen={appearance.light_theme === t.id}
           darkChosen={appearance.dark_theme === t.id}
           dimmed={appearance.mode === 'system' ? undefined : appearance.mode}
+          only={!panel && appearance.mode !== 'system' ? appearance.mode : undefined}
           accent={appearance.accent}
           onpick={half => { themes.select(t, half); message = '' }}
-          oncustomise={() => openEditor(t)}
+          oncustomise={panel ? () => openEditor(t) : undefined}
           onremove={isCustom(t) ? () => themes.remove(t.id) : undefined}
         />
       {/each}
     </div>
-    <SettingRow find="custom" label="Your own theme" hint="Start from the one you're using, or import a theme file.">
-      {#snippet control()}
-        <button class="btn" onclick={() => openEditor(active)}>Create theme</button>
-        <button class="btn" onclick={() => fileInput.click()}>Import</button>
-        <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept=".json,application/json" aria-label="Import theme file" onchange={importTheme} />
-      {/snippet}
-    </SettingRow>
+    {#if panel}
+      <SettingRow find="custom" label="Your own theme" hint="Start from the one you're using, or import a theme file.">
+        {#snippet control()}
+          <button class="btn" onclick={() => openEditor(active)}>Create theme</button>
+          <button class="btn" onclick={() => fileInput.click()}>Import</button>
+        {/snippet}
+      </SettingRow>
+    {:else}
+      <!-- A phone edits the theme it shows: start from it, or bring one in. -->
+      <button class="action-row" data-find="custom" onclick={() => openEditor(active)}>Edit {active.name} as Your Own</button>
+      <button class="action-row" onclick={() => fileInput.click()}>Import a Theme</button>
+    {/if}
+    <input class="sr-only" tabindex="-1" bind:this={fileInput} type="file" accept=".json,application/json" aria-label="Import theme file" onchange={importTheme} />
   </div>
-  <p class="list-foot">Each theme has a light and a dark half. Pick one theme for light and another for dark; they don't have to match.</p>
+  <p class="list-foot">{!panel && appearance.mode !== 'system' ? `The theme for ${appearance.mode}. With System, each theme has a light and a dark side to pick on its own.` : "Each theme has a light and a dark half. Pick one theme for light and another for dark; they don't have to match."}</p>
 
   {#if editor}
     <h3 class="list-head"><span>Editing {active.name}</span><button class="head-btn" onclick={() => { editor = false; themes.reset() }}>Close</button></h3>
@@ -204,23 +211,38 @@
   {/if}
 
   <h3 class="list-head">Accent</h3>
+  {#if !panel}
+    <!-- A phone: one row of colour circles, the chosen one ringed. -->
+    <div class="slist" data-find="accent">
+      <div class="pad circles" role="radiogroup" aria-label="Accent">
+        <!-- Real radios: arrow keys move between colours, one Tab stop. Custom opens the colour picker instead. -->
+        {#each [[null, "Theme's own"], ...accentPresets.map(p => [p.id, p.name])] as [id, name] (id ?? 'theme')}
+          <label class="circle" class:on={(appearance.accent ?? null) === id} title={name} style:--c={swatch(id)}><input type="radio" class="sr-only" name="accent" aria-label={name} checked={(appearance.accent ?? null) === id} onchange={() => themes.accent(id)} /></label>
+        {/each}
+        <button class="circle custom" class:on={!!custom} aria-pressed={!!custom} aria-label="Custom accent" title="Custom" style:--c={custom ? swatch(custom) : 'conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d)'} onclick={() => picker?.click()}></button>
+        <input type="color" class="sr-only" tabindex="-1" aria-label="Custom accent colour" bind:this={picker} value={custom ?? swatch(null)} onchange={e => themes.accent(e.currentTarget.value)} />
+      </div>
+    </div>
+    <p class="list-foot">{custom ? 'Custom' : appearance.accent ? accentPresets.find(p => p.id === appearance.accent)?.name : "The theme's own"}. Buttons, links, unread counts and mentions, kept readable in light and dark.</p>
+  {:else}
   <div class="slist" data-find="accent">
     <div class="pad accents" role="group" aria-label="Accent">
       <button class="pill" aria-pressed={!appearance.accent} onclick={() => themes.accent(null)}><span class="dot" style:background={swatch(null)}></span>Theme's own</button>
       {#each accentPresets as p (p.id)}
         <button class="pill" aria-pressed={appearance.accent === p.id} onclick={() => themes.accent(p.id)}><span class="dot" style:background={swatch(p.id)}></span>{p.name}</button>
       {/each}
-      <button class="pill" aria-pressed={!!custom} onclick={() => picker.click()}>
+      <button class="pill" aria-pressed={!!custom} onclick={() => picker?.click()}>
         <span class="dot" style:background={custom ? swatch(custom) : 'conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d)'}></span>Custom
       </button>
       <input type="color" class="sr-only" tabindex="-1" aria-label="Custom accent colour" bind:this={picker} value={custom ?? swatch(null)} onchange={e => themes.accent(e.currentTarget.value)} />
     </div>
   </div>
   <p class="list-foot">Buttons, links, unread counts and mentions, in every theme. Den keeps it readable in light and dark.</p>
+  {/if}
 
   <h3 class="list-head">Shape and size</h3>
   <div class="slist">
-    <SettingRow find="shape" label="Corners" hint="How rounded panels, cards and buttons are.">
+    <SettingRow find="shape" label="Corners">
       {#snippet control()}
         <div class="segments" role="group" aria-label="Corner radius">
           {#each ['sharp', 'soft', 'round'] as radius (radius)}
@@ -229,7 +251,7 @@
         </div>
       {/snippet}
     </SettingRow>
-    <SettingRow find="density" label="Density" hint="Comfortable gives messages more room to breathe.">
+    <SettingRow find="density" label="Density">
       {#snippet control()}
         <div class="segments" role="group" aria-label="Density">
           {#each ['compact', 'comfortable'] as density (density)}
@@ -238,22 +260,22 @@
         </div>
       {/snippet}
     </SettingRow>
-    <SettingRow find="contrast" label="Contrast" hint="Raises or softens secondary text and borders.">
+    <SettingRow find="contrast" label="Contrast">
       {#snippet control()}
         <input type="range" min="80" max="120" step="5" value={appearance.contrast ?? 100} oninput={e => themes.contrast(+e.currentTarget.value)} aria-label="Contrast" />
         <output>{appearance.contrast ?? 100}%</output>
       {/snippet}
     </SettingRow>
-    <SettingRow find="avatar-shape" label="Avatar shape" hint="How profile pictures are cut, on this device only.">
+    <SettingRow find="avatar-shape" label="Avatar shape">
       {#snippet control()}
         <div class="segments" role="group" aria-label="Avatar shape">
-          {#each [['theme', 'Match corners'], ['sharp', 'Sharp'], ['soft', 'Soft'], ['round', 'Round']] as [value, name] (value)}
+          {#each [['theme', panel ? 'Match corners' : 'Theme'], ['sharp', 'Sharp'], ['soft', 'Soft'], ['round', 'Round']] as [value, name] (value)}
             <button aria-pressed={store.layout.avatarShape === value} onclick={() => store.saveLayout({ avatarShape: value as AvatarShape })}>{name}</button>
           {/each}
         </div>
       {/snippet}
     </SettingRow>
-    <SettingRow find="presence" label="Online indicator" hint="How people who are here show on their picture, on this device only.">
+    <SettingRow find="presence" label="Online indicator">
       {#snippet control()}
         <div class="segments" role="group" aria-label="Online indicator">
           {#each [['dot', 'Dot'], ['ring', 'Ring'], ['off', 'Off']] as [value, name] (value)}
@@ -263,7 +285,7 @@
       {/snippet}
     </SettingRow>
   </div>
-  <p class="list-foot">Corners, density and fonts belong to the theme. They show straight away, and stay when you save the theme as your own.</p>
+  <p class="list-foot">Corners and density belong to the theme: save it as your own to keep a change. Avatar shape and the online indicator are for this device only.</p>
   {#if themes.draft && !editor}
     <div class="slist unsaved">
       <SettingRow label="Unsaved theme changes" hint="Keep them as a theme of your own, or put the theme back.">
@@ -277,7 +299,7 @@
 
   <h3 class="list-head">Messages</h3>
   <div class="slist">
-    <SettingRow find="room-icons" label="Room icons" hint="What sits before a room's name. Direct messages always show the person.">
+    <SettingRow find="room-icons" label="Room icons">
       {#snippet control()}
         <div class="segments" role="group" aria-label="Room icons">
           {#each [['icons', 'Icons'], ['hash', '# signs'], ['none', 'Nothing']] as const as [mode, label] (mode)}
@@ -286,10 +308,19 @@
         </div>
       {/snippet}
     </SettingRow>
+    {#if !panel}
+      <SettingRow find="bubble-shape" label="Bubble shape">
+        {#snippet control()}
+          <select class="field" aria-label="Bubble shape" value={appearance.bubble_shape ?? 'corners'} onchange={e => themes.bubbles({ bubble_shape: e.currentTarget.value as NonNullable<typeof appearance.bubble_shape> })}>
+            {#each bubbleShapes as [shape, label] (shape)}<option value={shape}>{label}</option>{/each}
+          </select>
+        {/snippet}
+      </SettingRow>
+    {:else}
     <SettingRow find="bubble-shape" label="Bubble shape" hint="Match corners follows Corners above." wide>
       {#snippet control()}
         <div class="accents" role="group" aria-label="Bubble shape">
-          {#each [['corners', 'Match corners'], ['round', 'Round'], ['soft', 'Soft'], ['sharp', 'Sharp'], ['none', 'No bubbles']] as const as [shape, label] (shape)}
+          {#each bubbleShapes as [shape, label] (shape)}
             <button class="pill" aria-pressed={(appearance.bubble_shape ?? 'corners') === shape} onclick={() => themes.bubbles({ bubble_shape: shape })}>
               <span class="shape {shape === 'corners' ? active.radius : shape}" aria-hidden="true"></span>{label}
             </button>
@@ -297,11 +328,13 @@
         </div>
       {/snippet}
     </SettingRow>
-    <SettingRow find="bubble-colours" label="Bubble colours" hint={bubbleHint} wide>
+    {/if}
+    <!-- Since own bubbles took the accent, the choice is where people's colours go: their names, your own bubble, or nowhere. -->
+    <SettingRow find="bubble-colours" label="Colours" hint={bubbleHint}>
       {#snippet control()}
-        <div class="accents" role="group" aria-label="Bubble colours">
-          {#each [['everyone', "Everyone's colours"], ['mine', 'Only mine'], ['plain', 'Plain']] as const as [mode, label] (mode)}
-            <button class="pill" aria-pressed={(appearance.bubble_colors ?? 'everyone') === mode} onclick={() => themes.bubbles({ bubble_colors: mode })}>{label}</button>
+        <div class="segments" role="group" aria-label="Colours">
+          {#each [['everyone', 'Names'], ['mine', 'My colour'], ['plain', 'Plain']] as const as [mode, label] (mode)}
+            <button aria-pressed={(appearance.bubble_colors ?? 'everyone') === mode} onclick={() => themes.bubbles({ bubble_colors: mode })}>{label}</button>
           {/each}
         </div>
       {/snippet}
@@ -315,14 +348,14 @@
   <h3 class="list-head">Fonts</h3>
   <div class="slist" data-find="fonts">
     {#each fontRoles as role (role)}
-      <SettingRow label={role === 'display' ? 'Titles' : role === 'body' ? 'Text' : 'Code'} hint={role === 'display' ? 'Big titles.' : role === 'body' ? 'Messages, times, labels and everything else.' : 'Code and terminals.'}>
+      <SettingRow label={role === 'display' ? 'Titles' : role === 'body' ? 'Text' : 'Code'}>
         {#snippet control()}
           <select class="field" aria-label={`${role} font`} value={active.fonts[role]} onchange={e => font(role, e.currentTarget.value)}>
             {#each [...new Set([...fontFamilies, active.fonts[role]])] as family (family)}
-              <option style={`font-family:${fontStack(family, role)}`} value={family}>{family === 'System' ? 'System (this device’s own)' : family}</option>
+              <option style={`font-family:${fontStack(family, role)}`} value={family}>{family === 'System' ? (panel ? 'System (this device’s own)' : 'System') : family}</option>
             {/each}
           </select>
-          <input class="field custom-font" aria-label={`Use any Google Font for ${role}`} placeholder="Or any Google Font" maxlength="40" onchange={e => font(role, e.currentTarget.value)} />
+          <input class="field custom-font" class:desk-only={!panel} aria-label={`Use any Google Font for ${role}`} placeholder="Or any Google Font" maxlength="40" onchange={e => font(role, e.currentTarget.value)} />
         {/snippet}
       </SettingRow>
     {/each}
@@ -340,10 +373,18 @@
 
 <style>
   .appearance { padding-bottom: 24px; }
-  .lede { margin: 0 0 16px; }
   .first { margin-top: 20px; }
   .panel .first { margin-top: 16px; }
   .pad { padding: 12px 16px; }
+  .circles { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+  /* The chosen colour gets a ring with a gap, like iOS's colour wells. */
+  .circle { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent); }
+  .circle { position: relative; cursor: pointer; }
+  .circle.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--c); }
+  .circle.custom.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--ink-3); }
+  :global(:where(:root:not([data-input='touch']))) .circle:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 4px; }
+  .circle:active { transform: scale(.92); }
+  @media (max-width: 650px) { .desk-only { display: none; } }
   .unsaved { margin-top: 12px; box-shadow: inset 0 0 0 1px var(--lamp); }
   .head-btn { color: var(--lamp); font: 600 var(--fs-sm)/1 var(--body); text-transform: none; letter-spacing: 0; padding: 4px; }
   .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px 12px; padding: 14px 14px 10px; }

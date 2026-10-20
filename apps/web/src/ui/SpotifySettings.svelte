@@ -45,17 +45,12 @@
 </script>
 
 <h2 class="display">Spotify</h2>
-<p class="muted">
-  Anyone can start a Jam by pasting its link into a room; nobody has to connect anything for that.
-  Connecting your account lets a Jam you host show the track you are playing, with its art, on
-  the card at the top of the room. Showing what you listen to the rest of the time is a separate
-  choice below, and it starts off.
-</p>
 
 {#if link === 'unavailable'}
-  <div class="slist gap-top">
-    <SettingRow find="connect" label="Not set up on this Den" hint="This server has no Spotify credentials, so accounts cannot be connected here. Jam cards still work." />
+  <div class="slist gap-top" data-find="connect">
+    <div class="status"><span class="mark" aria-hidden="true"><Icon name="music" size={14} /></span><div class="text"><span>Not set up on this Den</span></div></div>
   </div>
+  <p class="list-foot">Jams still work: paste a Jam link into any room.</p>
 {:else}
   {#if link === 'reauthorize'}
     <div class="slist gap-top notice">
@@ -63,8 +58,7 @@
     </div>
   {/if}
 
-  <h3 class="list-head">Your account</h3>
-  <div class="slist" data-find="connect">
+  <div class="slist gap-top" data-find="connect">
     <div class="status" class:on={link === 'connected'}>
       <span class="mark" aria-hidden="true"><Icon name={link === 'connected' ? 'check' : 'music'} size={14} /></span>
       <div class="text">
@@ -84,6 +78,7 @@
       </SettingRow>
     {/if}
   </div>
+  <p class="list-foot">Connected, a Jam you host shows the track you're playing. Anyone can start a Jam by pasting its link; nobody has to connect.</p>
   {#if link === 'connected' && daysLeft !== null && daysLeft <= 21}
     <p class="list-foot warn">Spotify drops this connection in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}. Reconnect whenever you like; it takes one tap.</p>
   {/if}
@@ -100,11 +95,7 @@
       <li>If you turn on "Show what I'm listening to", the track also shows to everyone on this Den while you're online. Turn it off and it disappears at once.</li>
     </ul>
   </div>
-  <p class="list-foot">
-    Spotify never tells Den who is listening to a Jam, so the faces on a card are Den members who
-    tapped Join and nothing more. This Den's Spotify app is in development mode, which allows five
-    connected accounts across the whole instance: Jam hosts, and anyone who wants to show what they're listening to.
-  </p>
+  <p class="list-foot">Spotify never tells Den who listens to a Jam. This Den's Spotify app allows five connected accounts in all.</p>
 {/if}
 
 {#if error}<p role="alert" class="error">{error}</p>{/if}

@@ -6,11 +6,12 @@
   import { store } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { api } from '../lib/api'
-  import { notify } from '../lib/notify.svelte'
-  import { push, pushSettings, pushStart } from '../lib/shell-push.svelte'
   import { customizer } from '../lib/customizer.svelte'
   import { visibleSections, findSettings, reveal, type Hit, type Section } from '../lib/settings-search'
+  import { soundEvents } from '../lib/sounds'
+  import NavBar, { trouble } from './NavBar.svelte'
   import ProfileSettings from './ProfileSettings.svelte'
+  import NotificationSettings from './NotificationSettings.svelte'
   import MachineSettings from './MachineSettings.svelte'
   import SettingRow from './SettingRow.svelte'
   import SoundSettings from './SoundSettings.svelte'
@@ -23,22 +24,35 @@
   import Appearance from './Appearance.svelte'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
-  import { roomName } from '../lib/room-list'
-  import { themes } from '../lib/theme.svelte'
   import DesktopApp from './DesktopApp.svelte'
   import { isDesktop } from '../lib/desktop'
+  import { native } from '../lib/native'
+  import { shell } from '../lib/shell-call'
 
   /** `narrow`: one thing at a time. The list of sections, or a page pushed in over it, like iPhone Settings. */
   let { section, narrow }: { section?: string; narrow: boolean } = $props()
   const admin = $derived(store.me?.role === 'admin')
+  // Den Shell, the iPhone app: no computer pages, and the developer ones behind one Developer row.
+  const phoneApp = !!shell
+  // A phone's iPhone top bar; the desktop app keeps its own header, which drags the window.
+  const bar = $derived(narrow && !native)
   // Everyday settings first. Machines, access and keys are for people running
   // agents and terminals, so they sit last under Advanced, still one tap away.
-  const sections = $derived(visibleSections(admin, isDesktop()))
+  const sections = $derived(visibleSections(admin, isDesktop(), phoneApp))
   // A wide window always shows a page; a phone shows the list until you pick one.
   const current = $derived(sections.some((s) => s.id === section) ? section! : narrow ? null : 'profile')
-  const title = $derived(sections.find((s) => s.id === current)?.label ?? 'Settings')
-  const groups = $derived((['you', 'app', 'account', 'server', 'advanced'] as const).map((g) => ({ g, list: sections.filter((s) => s.group === g) })).filter((x) => x.list.length))
-  const groupLabel = { you: '', app: '', account: '', server: 'Server', advanced: 'Advanced' } as const
+  // A page inside a page: one sound moment (/settings/sounds/mention).
+  const sub = $derived(router.route.name === 'settings' ? router.route.sub : undefined)
+  const moment = $derived(current === 'sounds' ? soundEvents.find((e) => e.id === sub) : undefined)
+  // ...or one room or category (/settings/rooms/:id).
+  const place = $derived(current === 'rooms' && sub ? (store.textChannels.find((c) => c.id === sub) ?? store.categories.find((c) => c.id === sub)) : undefined)
+  const subTitle = $derived(moment?.name ?? place?.name)
+  const title = $derived(subTitle ?? sections.find((s) => s.id === current)?.label ?? 'Settings')
+  const groups = $derived((['you', 'app', 'account', 'server', phoneApp ? 'developer' : 'advanced'] as const).map((g) => ({ g, list: sections.filter((s) => s.group === g) })).filter((x) => x.list.length))
+  const groupLabel = { you: '', app: '', account: '', server: 'Server', advanced: 'Advanced', developer: '' } as const
+  /** Inside Developer on the iPhone app: Back goes there, not to the list. */
+  const under = $derived(subTitle ? current : phoneApp && sections.find((s) => s.id === current)?.group === 'advanced' ? 'developer' : null)
+  const backLabel = $derived(under ? sections.find((s) => s.id === under)?.label ?? 'Settings' : 'Settings')
 
   // On a computer Appearance isn't a page: it opens over the room you came from,
   // so each change shows where it matters. A phone has no room beside it, so there
@@ -62,15 +76,16 @@
   let pendingOn: string | null = null
   function open(id: string, find?: string) {
     pending = find ?? null; pendingOn = id
-    // Only a page opened from the list goes back to it with Back; one opened from another page swaps in the list.
-    if (id !== section) router.go(`/settings/${id}`, false, narrow && !current ? '/settings' : undefined)
+    // Only a page opened from the list (or Developer) goes back to it with Back; one opened from another page swaps in the list.
+    if (id !== section || sub) router.go(`/settings/${id}`, false, current === 'developer' ? '/settings/developer' : narrow && !current ? '/settings' : undefined)
     // Already showing it (a computer shows Profile at /settings): nothing changes to look again, so look now.
     if (id === current) seek()
   }
   const go = (id: string) => (e: MouseEvent) => { e.preventDefault(); open(id) }
   function toList() {
-    if (router.parent === '/settings') router.back()
-    else router.go('/settings', true)
+    const to = under ? `/settings/${under}` : '/settings'
+    if (router.parent === to) router.back()
+    else router.go(to, true)
   }
   // Land on the row a search found. Some pages load what they show, so look a few times.
   function seek() {
@@ -88,18 +103,21 @@
   }
   $effect(() => { void current; if (pending) seek() })
   // A new page starts at its top.
-  $effect(() => { void current; pane?.scrollTo({ top: 0 }) })
+  $effect(() => { void current; void subTitle; pane?.scrollTo({ top: 0 }) })
   // Pushing a page in moves keyboard focus to its title; coming back puts it on the row you left from.
   let heading = $state<HTMLElement>(), home = $state<HTMLElement>(), last: string | null = null
   $effect(() => {
-    const now = current, from = last
+    const now = current && (subTitle ? `${current}/${sub}` : current), from = last
     last = now
     // Leaving the page a search is still looking on (Back, a link) ends that search.
     if (now !== pendingOn) untrack(() => { pending = null })
     // A search landing focuses the row it found instead.
     if (!narrow || now === from || untrack(() => pending)) return
     void tick().then(() => {
-      if (now) heading?.focus({ preventScroll: true })
+      // Back from a page inside this one (a sound, a room, a developer page): onto the row it was opened from.
+      const child = now && from && (from.startsWith(`${now}/`) || now === 'developer') ? pane?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`) : null
+      if (child) child.focus()
+      else if (now) pageTitle()?.focus({ preventScroll: true })
       // The list starts at its top again, so let the row scroll into view.
       else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus()
     })
@@ -107,16 +125,19 @@
 
   // --- search ---
   let q = $state('')
-  const hits = $derived(findSettings(q, sections, admin))
+  // `narrow` starts where Profile drops its computer-only rows (900px).
+  const hits = $derived(findSettings(q, sections, admin, phoneApp, narrow))
   function pick(h: Hit) {
     q = ''; open(h.section.id, h.entry?.find)
     // A whole section has no row to land on, and the result just went away: focus the page.
     if (!h.entry) void tick().then(focusPage)
   }
+  /** The page's name in the top bar on a phone. */
+  const pageTitle = () => (bar ? pane?.querySelector<HTMLElement>('.navbar h1') : heading)
   /** Keyboard focus to the top of the page: the header title on a phone, the page's own title on a computer. */
   function focusPage() {
     pane?.scrollTo({ top: 0 })
-    const title = narrow ? heading : pane?.querySelector<HTMLElement>('h2')
+    const title = narrow ? pageTitle() : pane?.querySelector<HTMLElement>('h2')
     if (!title) return
     title.tabIndex = -1; title.focus({ preventScroll: true })
   }
@@ -125,21 +146,22 @@
     if (e.key === 'Escape' && q) { e.preventDefault(); q = '' }
   }
 
-  // --- notifications ---
-  // The iPhone app's page has no Notification at all: nothing to unblock there.
-  let perm = $state<NotificationPermission | 'unsupported'>(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
-  async function enable() { await notify.ask(); perm = Notification.permission }
-  // Den Shell asks iOS instead. Coming back from iOS Settings re-checks (Shell.svelte).
-  const phoneHint = $derived(!push.status ? ''
-    : push.status.permission === 'undecided' ? 'Off. Turn them on to hear about mentions and DMs when Den is closed.'
-    : push.status.permission === 'denied' ? 'Off in iOS Settings. Tap Open Settings, then turn on Allow Notifications.'
-    : push.connected ? 'On. Mentions and DMs reach this iPhone when Den is closed.'
-    : 'Allowed, but not connected to Den yet. Den tries again each time you open it.')
-  function toggleSub(id: string) {
-    const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
-    store.saveNotif({ subscribed_channel_ids: [...s] })
-  }
   let pluginErr = $state('')
+
+  // The iPhone app has no desktop download page: it hands the link to a computer instead.
+  let shared = $state('')
+  async function shareComputer() {
+    const url = `${store.origin || location.origin}/settings/desktop`
+    // The link shows straight away, whatever the share sheet or clipboard then does (in Xcode Cloud's simulator,
+    // neither showed anything within 3 s).
+    shared = `On your computer, open ${url.replace(/^https?:\/\//, '')}.`
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Den for your computer', text: 'Get Den for your computer: sign in, then Settings › Desktop app.', url }); return }
+      catch (e) { if ((e as Error).name === 'AbortError') return }
+    }
+    try { await navigator.clipboard.writeText(url); shared = 'Link copied. Open it on your computer.' }
+    catch { /* The link is on screen already. */ }
+  }
 
   // Keys and invite links shown once stay across sections, and go when you leave Settings.
   onDestroy(forgetShownOnce)
@@ -170,10 +192,12 @@
   {/if}
 {/snippet}
 
-<section class="settings" class:drill={narrow} class:list-view={narrow && !current}>
+<!-- `edge`: on a phone the bar reaches up under the status bar (Shell). -->
+<section class="settings" class:drill={narrow} class:list-view={narrow && !current} class:edge={bar}>
+  {#if !bar}
   <header class="head">
     {#if narrow && current}
-      <button class="back" onclick={toList}><Icon name="back" size={22} /><span>Settings</span></button>
+      <button class="back" onclick={toList}><Icon name="back" size={22} /><span>{backLabel}</span></button>
       <h1 class="title" tabindex="-1" bind:this={heading}>{title}</h1>
       {#if current === 'appearance'}
         <button class="undo" disabled={!customizer.changed} onclick={() => customizer.undo()}>Undo</button>
@@ -186,12 +210,16 @@
       <h1 class="display">Settings</h1>
     {/if}
   </header>
+  {/if}
 
   <div class="body">
     {#if narrow && !current}
       <!-- The phone's Settings list: you at the top, then every section. -->
       <div class="home" bind:this={home}>
-        <h1 class="display large">Settings</h1>
+        {#if bar}
+          <NavBar title="Settings" large status={trouble(store.connected)}>{#snippet leading()}<HomeButton />{/snippet}</NavBar>
+        {:else}<h1 class="display large">Settings</h1>{/if}
+        <div class="home-body">
         {@render finder()}
         {#if q.trim()}
           {@render results()}
@@ -209,9 +237,12 @@
             {#if groupLabel[g]}<h2 class="list-head">{groupLabel[g]}</h2>{:else}<div class="gap"></div>{/if}
             <nav class="slist" aria-label={groupLabel[g] || 'Settings'}>
               {#each list as s (s.id)}{@render navItem(s, true)}{/each}
+              {#if g === 'app' && phoneApp}{@render computer()}{/if}
             </nav>
+            {#if g === 'app' && shared}<p class="list-foot" role="status">{shared}</p>{/if}
           {/each}
         {/if}
+        </div>
       </div>
     {:else}
       {#if !narrow}
@@ -223,12 +254,20 @@
             {#each groups as { g, list } (g)}
               {#if groupLabel[g]}<span class="toc-label">{groupLabel[g]}</span>{/if}
               {#each list as s (s.id)}{@render navItem(s, false)}{/each}
+              {#if g === 'app' && phoneApp}{@render computer(false)}{/if}
             {/each}
           {/if}
         </nav>
       {/if}
 
       <div class="pane" bind:this={pane} class:wide-pane={current === 'profile' || current === 'appearance'}>
+        {#if bar}
+          <NavBar {title} status={trouble(store.connected)}>
+            {#snippet leading()}<HomeButton onback={toList} label={backLabel} aria={backLabel} />{/snippet}
+            <!-- Undo shows once there is something to undo. -->
+            {#snippet trailing()}{#if current === 'appearance' && customizer.changed}<button class="text-btn" onclick={() => customizer.undo()}>Undo</button>{/if}{/snippet}
+          </NavBar>
+        {/if}
         <div class="pane-inner">
         {#if current === 'profile'}
           <ProfileSettings />
@@ -237,60 +276,22 @@
         {:else if current === 'machines' || current === 'access'}
           <MachineSettings section={current} />
         {:else if current === 'notifications'}
-          <h2 class="display">Notifications</h2>
-          <p class="muted">Quiet by default. You get told about mentions and direct messages. Follow a room to hear about everything in it.</p>
-          {#if push.available}
-            <div class="slist callout">
-              <SettingRow find="permission" label="Notifications on this iPhone" hint={phoneHint}>
-                {#snippet control()}
-                  {#if push.status?.permission === 'undecided'}<button class="btn lit" onclick={() => pushStart()}>Turn on</button>
-                  {:else if push.status?.permission === 'denied'}<button class="btn" onclick={pushSettings}>Open Settings</button>{/if}
-                {/snippet}
-              </SettingRow>
-            </div>
-          {:else if perm !== 'granted'}
-            <div class="slist callout">
-              <SettingRow find="permission" label={perm === 'unsupported' ? 'Notifications on this device' : 'Desktop notifications'} hint={perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Blocked in your browser settings. Allow them there for this site.' : 'Off. Turn them on to hear about mentions and DMs while Den is in the background.'}>
-                {#snippet control()}{#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}{/snippet}
-              </SettingRow>
-            </div>
-          {/if}
-          <h3 class="list-head">Always</h3>
-          <!-- Notifications already on: a search for them lands here. -->
-          <div class="slist" data-find={perm === 'granted' && !push.available ? 'permission' : undefined}>
-            <SettingRow find="mentions" label="When someone mentions me">
-              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="When someone mentions me" checked={store.notif.mentions} onchange={(e) => store.saveNotif({ mentions: e.currentTarget.checked })} />{/snippet}
-            </SettingRow>
-            <SettingRow find="dms" label="Direct messages">
-              {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Direct messages" checked={store.notif.dms} onchange={(e) => store.saveNotif({ dms: e.currentTarget.checked })} />{/snippet}
-            </SettingRow>
-            <a class="nav-row" href="/settings/sounds" onclick={go('sounds')}><span class="grow">Notification sounds and volume</span><span class="chev"><Icon name="chevron" size={14} /></span></a>
-          </div>
-          <h3 class="list-head">Rooms you follow</h3>
-          <div class="slist" data-find="follow">
-            {#each store.textChannels as c (c.id)}
-              {@const name = roomName(c, themes.appearance.room_icons)}
-              <SettingRow label={name}>
-                {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label={`Follow ${name}`} checked={store.notif.subscribed_channel_ids.includes(c.id)} onchange={() => toggleSub(c.id)} />{/snippet}
-              </SettingRow>
-            {/each}
-          </div>
-          <p class="list-foot">Every message in a followed room notifies you. Follow sparingly.</p>
-
+          <NotificationSettings />
         {:else if current === 'sounds'}
-          <SoundSettings />
+          {@render crumb()}
+          <SoundSettings moment={moment?.id} />
         {:else if current === 'voice'}
           <VoiceSettings />
         {:else if current === 'spotify'}
           <SpotifySettings />
         {:else if current === 'plugins'}
-          <h2 class="display">Plugins</h2>
-          <p class="muted">Extras for everyone on this server.</p>
+          <h2 class="display">Extras</h2>
           <div class="slist gap-top">
-            <SettingRow find="canvas" label="Canvas" hint="A shared drawing board anyone in a room can open. Uses tldraw.">
+            <SettingRow find="canvas" label="Canvas" hint="A shared drawing board anyone in a room can open.">
               {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Canvas" checked={store.settings.canvas_enabled} onchange={async (e) => { try { store.settings = await api.put('/settings', { canvas_enabled: e.currentTarget.checked }); pluginErr = '' } catch (err) { pluginErr = (err as Error).message } }} />{/snippet}
             </SettingRow>
           </div>
+          <p class="list-foot">For everyone on this server.</p>
           {#if pluginErr}<p role="alert" class="error">{pluginErr}</p>{/if}
         {:else if current === 'layout'}
           <h2 class="display">Layout</h2>
@@ -303,7 +304,7 @@
               {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Show people" checked={store.layout.members} onchange={(e) => store.saveLayout({ members: e.currentTarget.checked })} />{/snippet}
             </SettingRow>
           </div>
-          <p class="list-foot" data-find="shortcuts">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty message box.{#if narrow} On a phone the room list is your home screen, so these apply on wider screens.{/if}</p>
+          <p class="list-foot" data-find="shortcuts">Jump anywhere with <kbd>Ctrl+K</kbd>. Edit your last message with <kbd>↑</kbd> in an empty message box.{#if narrow}{' '}On a phone the room list is your home screen, so these apply on wider screens.{/if}</p>
 
         {:else if current === 'keys' || current === 'agents'}
           <KeySettings section={current} />
@@ -312,9 +313,16 @@
         {:else if current === 'invites'}
           <InviteSettings />
         {:else if current === 'rooms'}
-          <RoomSettings />
+          {@render crumb()}
+          <RoomSettings {sub} />
         {:else if current === 'desktop'}
           <DesktopApp />
+        {:else if current === 'developer'}
+          <h2 class="display">Developer</h2>
+          <nav class="slist gap-top" aria-label="Developer">
+            {#each sections.filter((s) => s.group === 'advanced') as s (s.id)}{@render navItem(s, true)}{/each}
+          </nav>
+          <p class="list-foot">Keys for scripts and the <code>den</code> CLI, agents that talk in Den, and who can use your terminals.</p>
         {:else if current === 'account'}
           <h2 class="display">Account</h2>
           <div class="slist gap-top">
@@ -330,6 +338,18 @@
     {/if}
   </div>
 </section>
+
+{#snippet crumb()}
+  {#if subTitle && !narrow}<button class="crumb" onclick={toList}><Icon name="back" size={16} />{backLabel}</button>{/if}
+{/snippet}
+
+{#snippet computer(tile = true)}
+  <button class="nav-row" class:item={!tile} onclick={shareComputer}>
+    <span class:tile class="ic"><Icon name="monitor" size={tile ? 17 : 16} /></span>
+    <span class="grow">Den on your computer</span>
+    {#if tile}<span class="chev"><Icon name="chevron" size={14} /></span>{/if}
+  </button>
+{/snippet}
 
 {#snippet navItem(s: Section, tile: boolean)}
   <a class="nav-row" class:item={!tile} href="/settings/{s.id}" aria-current={current === s.id ? 'page' : undefined} onclick={go(s.id)}>
@@ -374,9 +394,10 @@
   .wide-pane .pane-inner { max-width: 940px; }
   .pane-inner > :global(p.muted) { margin: 0; max-width: 62ch; }
   .gap-top { margin-top: 20px; }
-  .callout { margin-top: 18px; }
   .val { color: var(--ink-3); font-size: var(--fs-sm); }
   .error { color: var(--danger); }
+  /* The way back from a sound's own page where there is no top bar to carry it. */
+  .crumb { display: inline-flex; align-items: center; gap: 2px; margin: 0 0 8px -4px; color: var(--lamp); font-size: var(--fs-sm); }
 
   /* Phones and narrow windows: the list, or one page pushed in with a back chevron. */
   .drill .body { grid-template-columns: minmax(0, 1fr); }
@@ -387,11 +408,13 @@
   .drill .title { position: absolute; left: 50%; transform: translateX(-50%); max-width: calc(100% - 220px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); font-weight: 700; }
   .undo { min-width: 64px; min-height: var(--hit); padding: 0 6px; color: var(--lamp); font-weight: 600; text-align: end; }
   .undo:disabled { color: var(--ink-3); opacity: .6; cursor: default; }
-  .drill .pane { --pane-end: max(32px, env(safe-area-inset-bottom)); padding: 4px 16px var(--pane-end); }
+  .drill .pane { --pane-end: max(32px, env(safe-area-inset-bottom)); padding: 0 0 var(--pane-end); }
+  .drill .pane-inner { padding: 4px 16px 0; }
   /* The header carries the page's name on a phone. Only page titles: a profile card has its own h2. */
   .drill .pane-inner > :global(h2.display), .drill .pane-inner > :global(.appearance > h2.display) { display: none; }
-  .home { overflow-y: auto; padding: 0 16px max(32px, env(safe-area-inset-bottom)); }
-  .large { margin: 0 4px 12px; font-size: var(--fs-large); font-weight: 700; line-height: 1.1; }
+  .home { overflow-y: auto; }
+  .home-body { padding: 0 16px max(32px, env(safe-area-inset-bottom)); }
+  .large { margin: 0 20px 12px; font-size: var(--fs-large); font-weight: 700; line-height: 1.1; }
   .home .find { min-height: 40px; margin-bottom: 18px; }
   .home .find input { font-size: 16px; }
   .gap { height: 22px; }
@@ -402,5 +425,6 @@
   .sub { display: block; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: calc(var(--r) + 2px); background: color-mix(in srgb, var(--lamp) 16%, var(--bg-3)); color: var(--lamp); }
   .home .slist .nav-row { min-height: 52px; }
+  .edge .home .find { margin-top: 2px; }
   .home .slist > .nav-row + .nav-row { background-position: 58px 0; background-size: calc(100% - 58px) 1px; }
 </style>

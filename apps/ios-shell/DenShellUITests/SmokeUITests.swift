@@ -19,7 +19,7 @@ final class SmokeUITests: XCTestCase {
         let app = try launchSignedIn(notificationPrompt: true)
         try find(app, label: "Your profile and settings").tap()
         try find(app, label: "Notifications").tap()
-        try find(app, label: "On. ", .prefix, timeout: 15)
+        try find(app, label: "Notifications on this iPhone, On", timeout: 15)
         shot("0-notifications-on")
 
         XCUIDevice.shared.press(.home)
