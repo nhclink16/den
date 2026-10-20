@@ -30,6 +30,7 @@
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
   import { haptic } from '../lib/haptics'
   import { disclosurePopover } from '../lib/disclosure-popover'
+  import { nameInk, personColor } from '../lib/bubbles'
 
   // `conversation` defaults to the room, so every existing caller keeps its
   // current behaviour untouched while a thread composer can pass its own root.
@@ -97,6 +98,8 @@
     store.drafts.setReplyTo(here, null)
     replyTo = null
   }
+  // The reply strip names the person in their colour, as their name is above their bubbles.
+  const replyInk = $derived(replyTo ? nameInk('everyone', false, personColor(replyTo.author_id, store.user(replyTo.author_id)?.accent), themes.active[themes.half]) : undefined)
   const pending = $derived(store.uploads.forConversation(here))
   let busy = $state(false)
   let error = $state('')
@@ -146,10 +149,23 @@
 
   let ta: HTMLTextAreaElement
   let fileInput: HTMLInputElement
+  let photoInput = $state<HTMLInputElement>(), cameraInput = $state<HTMLInputElement>()
+  // Only a touch screen has a camera to point; elsewhere `capture` is ignored.
+  const camera = matchMedia('(pointer: coarse)').matches
 
   const placeholder = $derived(here.rootId ? 'Reply in thread…' : channel.kind === 'dm' ? `Message ${store.title(channel)}` : `Message ${roomName(channel, themes.appearance.room_icons)}`)
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
   const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
+  // A picture on its way counts as something to send: Send stays lit, and a tap
+  // while it uploads sends once it's up (in the same conversation, if nothing failed).
+  const staged = $derived(sendable || (!locked && uploading))
+  let queued = $state<string | null>(null)
+  $effect(() => {
+    if (!queued || uploading) return
+    const key = queued
+    queued = null
+    if (key === conversationKey(here) && !pending.some((p) => p.error)) untrack(() => void submit())
+  })
 
   // A phone gets the Quiet box: a round + holds files, GIFs, emoji and dictation,
   // so the text gets the width, and the mic turns into Send once there is something
@@ -165,7 +181,7 @@
   let canDictate = $state(false)
   let dictation = $state<ReturnType<typeof DictationButton>>()
   // The mic stays while it is listening, so it can always be stopped.
-  const showMic = $derived(canDictate && (!phone || !sendable || listening))
+  const showMic = $derived(canDictate && (!phone || !staged || listening))
   const showSend = $derived(!phone || !showMic)
   function fromMenu(run: () => void) { menu = false; run() }
   // A picker opened from the menu hands focus back to its own button when it
@@ -276,6 +292,7 @@
     const send = store.send
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
+    if (uploading && !busy && !locked) { queued = conversationKey(here); return }
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
     if (!plan || uploading || busy || locked) return
     // Placement is captured with everything else. The ROOT places a first reply
@@ -364,10 +381,10 @@
     </div>
   {/if}
   {#if replyTo}
-    <div class="reply-bar">
+    <div class="reply-bar" style:--who={replyInk}>
       <Icon name="reply" size={13} />
-      <span>Replying to <b>{store.name(replyTo.author_id)}</b></span>
-      <span class="snippet faint">{snippet(replyTo.content).slice(0, 80)}</span>
+      <span class="to"><span class="lead">Replying to </span><b>{store.name(replyTo.author_id)}</b></span>
+      <span class="snippet faint">{snippet(replyTo.content).slice(0, 80) || 'a file'}</span>
       <button class="x" onclick={cancelReply} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
     </div>
   {/if}
@@ -376,8 +393,10 @@
     <div class="pending">
       {#each pending as p (p.id)}
         {@const pct = p.progress.total ? Math.round((p.progress.sent / p.progress.total) * 100) : 0}
-        <div class="chip" class:err={!!p.error} class:done={!!p.done}>
-          {#if p.file.type.startsWith('image/')}<img class="thumb" alt="" use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
+        {@const image = p.file.type.startsWith('image/')}
+        <!-- On a phone a picture is a big thumbnail with its progress on it, and no name. -->
+        <div class="chip" class:image class:err={!!p.error} class:done={!!p.done}>
+          {#if image}<img class="thumb" alt="" use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{#if !p.done && !p.error}<span class="ring over" style="--p:{pct}"></span>{/if}{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
           <span class="fname">{p.file.name}</span>
           <span class="faint">{p.error || (p.done ? bytes(p.file.size) : `${pct}%`)}</span>
           <button class="x" onclick={() => removePending(p)} aria-label="Remove"><Icon name="x" size={13} /></button>
@@ -392,11 +411,14 @@
         <summary bind:this={plus} class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
         <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
           {#if menu}
+            <!-- Round tiles, as in Messages or WhatsApp. Photos and Camera ask iOS for just that. -->
             <div class="menu" role="menu" aria-label="Add to your message">
-              <button role="menuitem" onclick={() => fromMenu(() => fileInput.click())}><Icon name="image" size={20} />Photo or file</button>
-              <button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => (gifOpen = true))}><span class="badge">GIF</span>GIF</button>
-              <button role="menuitem" onclick={() => fromMenu(() => (emojiOpen = true))}><Icon name="smile" size={20} />Emoji</button>
-              {#if canDictate}<button role="menuitem" onclick={() => fromMenu(() => void dictation?.toggle())}><Icon name="mic" size={20} />Dictate</button>{/if}
+              <button role="menuitem" onclick={() => fromMenu(() => photoInput?.click())}><span class="tile" aria-hidden="true"><Icon name="image" size={24} /></span>Photos</button>
+              {#if camera}<button role="menuitem" onclick={() => fromMenu(() => cameraInput?.click())}><span class="tile" aria-hidden="true"><Icon name="camera" size={24} /></span>Camera</button>{/if}
+              <button role="menuitem" onclick={() => fromMenu(() => fileInput.click())}><span class="tile" aria-hidden="true"><Icon name="file" size={24} /></span>File</button>
+              <button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => (gifOpen = true))}><span class="tile" aria-hidden="true"><span class="badge">GIF</span></span>GIF</button>
+              <button role="menuitem" onclick={() => fromMenu(() => (emojiOpen = true))}><span class="tile" aria-hidden="true"><Icon name="smile" size={24} /></span>Emoji</button>
+              {#if canDictate}<button role="menuitem" onclick={() => fromMenu(() => void dictation?.toggle())}><span class="tile" aria-hidden="true"><Icon name="mic" size={24} /></span>Dictate</button>{/if}
             </div>
           {/if}
         </div>
@@ -404,6 +426,10 @@
     {/if}
     <div class="box" class:uploading>
       <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
+      {#if phone}
+        <input class="sr-only" type="file" multiple accept="image/*,video/*" bind:this={photoInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" aria-hidden="true" />
+        <input class="sr-only" type="file" accept="image/*" capture="environment" bind:this={cameraInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" aria-hidden="true" />
+      {/if}
       <!-- On a phone these three live in the + menu. The pickers stay mounted, with
            their own buttons hidden, so the menu can open them. -->
       <button class="attach icon-btn" class:hidden={phone} title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
@@ -411,7 +437,7 @@
       <span class="picker" class:tucked={phone}><EmojiPicker label="Add an emoji" onpick={insertEmoji} bind:open={emojiOpen}><span class="icon-btn"><Icon name="smile" size={18} /></span></EmojiPicker></span>
       <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
       <DictationButton bind:this={dictation} channelId={channel.id} textarea={() => ta} text={() => text} bind:listening bind:available={canDictate} hidden={!showMic} update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
-      {#if showSend}<button class="sendbtn icon-btn" class:ready={sendable} onclick={submit} disabled={!!locked || uploading || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="up" size={18} /></button>{/if}
+      {#if showSend}<button class="sendbtn icon-btn" class:ready={staged} onclick={submit} disabled={!!locked || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="up" size={18} /></button>{/if}
     </div>
   </div>
 </div>
@@ -442,8 +468,8 @@
     padding: calc((var(--hit) - 1.4em) / 2) var(--s2) calc((var(--hit) - 1.4em) / 2) var(--s3);
     max-height: 220px; line-height: 1.4; color: var(--ink);
   }
-  /* A long room name must not wrap the placeholder onto a hidden second line. */
-  textarea::placeholder { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* A long room name must not wrap the placeholder onto a hidden second line. Its colour is app.css's. */
+  textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .picker { display: contents; }
   .hidden { display: none; }
   /* Only the picker's own button goes: a popover inside a hidden box can't show. */
@@ -463,23 +489,19 @@
      the box grows, its last line's. */
   .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
   .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
-  .menu { display: grid; padding: var(--s3) var(--s3) var(--s4); gap: 0; }
-  .menu button { display: flex; align-items: center; gap: var(--s3); min-height: 52px; padding: 0 var(--s4); background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }
-  .menu button:first-child { border-radius: var(--r-lg) var(--r-lg) 0 0; }
-  .menu button:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); border-bottom: 0; }
-  .menu button:only-child { border-radius: var(--r-lg); }
-  .menu button:active { background: var(--press); }
+  /* The + sheet: round tiles with their names under them. */
+  .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--s4) 0; padding: var(--s4) var(--s3) var(--s5); }
+  .menu button { display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--ink-2); font-size: var(--fs-xs); }
+  .tile { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--sel); color: var(--lamp); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }
+  .menu button:active .tile { transform: scale(.92); background: color-mix(in srgb, var(--lamp) 24%, transparent); }
   .menu button:disabled { opacity: .5; }
-  .menu :global(svg), .menu .badge { color: var(--lamp); flex: none; }
-  .menu .badge { width: 20px; text-align: center; padding: 3px 0 2.5px; }
+  .menu .badge { font-size: 11px; padding: 3px 4px 2.5px; }
   .reply-bar, .pending {
     --tab-inset: 8px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0 var(--tab-inset);
     background: var(--bg-2); border: 1px solid var(--line); border-bottom: 0;
     border-radius: var(--r-lg) var(--r-lg) 0 0; font-size: 13px;
   }
   .pending { flex-wrap: wrap; gap: 6px; }
-  /* On a phone the + comes first: the tab sits on the box, not over the +. */
-  .phone > :is(.reply-bar, .pending) { margin-inline-start: calc(var(--hit) + var(--s2) + var(--tab-inset)); }
   .snippet { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { display: grid; place-items: center; min-width: 24px; min-height: 24px; border-radius: var(--r-pill); color: var(--ink-3); }
   @media (pointer: coarse) { .x { min-width: 36px; min-height: 36px; margin: -6px; } }
@@ -498,4 +520,42 @@
   .thumb { width: 32px; height: 32px; margin: -3px 0; flex: none; object-fit: cover; border-radius: calc(var(--r) * .75); }
   .chip:not(.done) .thumb { opacity: .6; }
   .fname { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ring.over { display: none; }
+
+  /* ---- A phone: a slim field with a hairline, a plain +, Send and the mic inside ---- */
+  .phone .row { --hit: 30px; --box-pad: 2px; }
+  .phone .box { border-color: var(--line); }
+  .phone .plus { background: none; color: var(--ink-2); }
+  .phone .plus :global(svg) { width: 26px; height: 26px; }
+  /* Fingertip-sized targets around the smaller buttons. */
+  .phone :is(.plus, .box :global(.icon-btn)) { position: relative; }
+  .phone :is(.plus, .box :global(.icon-btn))::before { content: ''; position: absolute; inset: -7px; }
+  /* Replying: a full-width strip over the row, the person's name in their colour. */
+  .phone > .reply-bar {
+    display: grid; grid-template: 'to x' auto 'quote x' auto / minmax(0, 1fr) auto; gap: 1px 8px; margin: 0 0 8px; padding: 6px 8px 6px 13px;
+    border: 0; border-radius: max(10px, var(--r)); background: var(--bg-2); box-shadow: inset 3px 0 0 var(--who, var(--lamp)); font-size: var(--fs-sm);
+  }
+  .phone > .reply-bar > :global(svg) { display: none; }
+  .phone .reply-bar .to { grid-area: to; color: var(--who, var(--lamp)); font-weight: 600; }
+  .phone .reply-bar .to b { font-weight: inherit; }
+  .phone .reply-bar .lead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .phone .reply-bar .snippet { grid-area: quote; color: var(--ink-2); }
+  .phone .reply-bar .x { grid-area: x; align-self: center; margin: 0; }
+  /* Waiting pictures: big rounded thumbnails with a remove badge and their progress. */
+  .phone > .pending { flex-wrap: nowrap; gap: 10px; margin: 0 0 8px; padding: 7px 7px 0 0; overflow-x: auto; scrollbar-width: none; background: none; border: 0; border-radius: 0; }
+  .phone .chip { position: relative; flex: none; width: 84px; height: 84px; padding: 0; justify-content: center; border-radius: 14px; }
+  .phone .chip .thumb { width: 100%; height: 100%; margin: 0; border-radius: inherit; }
+  .phone .chip.image :is(.fname, .faint) { display: none; }
+  .phone .chip:not(.image) { flex-direction: column; gap: 4px; padding: 8px; font-size: 12px; }
+  .phone .chip:not(.image) .fname { max-width: 100%; }
+  .phone .chip.image.err .faint {
+    display: block; position: absolute; inset: auto 0 0; padding: 2px 6px; border-radius: 0 0 14px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: rgb(0 0 0 / .65); color: #fff; font-size: 11px;
+  }
+  .phone .ring.over { display: block; position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; }
+  .phone .chip .x {
+    position: absolute; top: -7px; right: -7px; min-width: 24px; min-height: 24px; margin: 0;
+    background: color-mix(in srgb, var(--ink) 75%, transparent); color: var(--bg); box-shadow: 0 0 0 2px var(--bg);
+  }
+  .phone .chip .x::before { content: ''; position: absolute; inset: -8px; }
 </style>

@@ -105,27 +105,40 @@
     } finally { picking = null }
   }
   const still = (g: Gif) => g.file.sm?.jpg ?? g.file.xs?.jpg
+  // A phone shows what's trending first; the keyboard comes up when someone taps the box.
+  function focusOnDesktop(node: HTMLInputElement) {
+    if (!matchMedia('(pointer: coarse)').matches) requestAnimationFrame(() => node.focus())
+  }
 </script>
 
+{#snippet empty(title: string, line: string)}
+  <div class="empty">
+    <span class="mark" aria-hidden="true"><span class="badge">GIF</span></span>
+    <p class="title">{title}</p>
+    <p class="line">{line}</p>
+  </div>
+{/snippet}
+
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
-<details bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
+<details bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape' && open) { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
   <summary class:disabled title={label} aria-label={label}>{@render children()}</summary>
   <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
     {#if open}
       <div class="picker">
-        <label class="search">
-          <Icon name="search" size={14} />
-          <!-- svelte-ignore a11y_autofocus (opening the picker is asking to search) -->
-          <input bind:value={q} placeholder="Search KLIPY" aria-label="Search KLIPY" autofocus spellcheck="false" />
-          {#if q}<button class="clear" onclick={() => (q = '')} aria-label="Clear search"><Icon name="x" size={12} /></button>{/if}
-        </label>
+        {#if !missing}
+          <label class="search">
+            <Icon name="search" size={17} />
+            <input bind:value={q} placeholder="Search GIFs" aria-label="Search GIFs" spellcheck="false" use:focusOnDesktop />
+            {#if q}<button class="clear" onclick={() => (q = '')} aria-label="Clear search"><Icon name="x" size={12} /></button>{/if}
+          </label>
+        {/if}
         <div class="results" bind:this={scroller}>
           {#if missing}
-            <p class="note">GIF search isn't set up on this server yet.</p>
+            {@render empty('GIFs aren’t set up', 'Whoever runs this Den can add a KLIPY key to turn them on.')}
           {:else if !gifs.length && error}
-            <p class="note">{error}</p>
+            {@render empty('GIFs didn’t load', error)}
           {:else if !gifs.length && !loading}
-            <p class="note">No GIFs for “{q.trim()}”. Try another word.</p>
+            {@render empty('No GIFs found', `Nothing for “${q.trim()}”. Try another word.`)}
           {:else}
             <div class="grid" class:waiting={loading && page === 0}>
               {#each columns as column, c (c)}
@@ -154,7 +167,7 @@
           {/if}
           <div class="sentinel" bind:this={sentinel}></div>
         </div>
-        <div class="foot">
+        <div class="foot" class:hidden={missing}>
           <span class="faint">{q.trim() ? 'Results' : 'Trending'}</span>
           <span class="powered">Powered by <b>KLIPY</b></span>
         </div>
@@ -172,10 +185,10 @@
   summary.disabled { pointer-events: none; opacity: .5; }
   [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   .picker { width: min(400px, calc(100vw - 16px)); height: min(460px, calc(100vh - 120px)); display: flex; flex-direction: column; }
-  .search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 8px; padding: 0 10px; height: 36px; border-radius: var(--r); background: var(--bg-3); border: 1px solid var(--line); color: var(--ink-3); transition: border-color var(--t-fast), box-shadow var(--t-fast); }
-  :global(:where(:root:not([data-input='touch']))) .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }
+  /* An iOS search field: filled, no outline, the placeholder in app.css's colour. */
+  .search { display: flex; align-items: center; gap: 6px; margin: 10px 10px 8px; padding: 0 8px; height: 36px; flex: none; border-radius: max(10px, var(--r)); background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-3); transition: box-shadow var(--t-fast); }
+  :global(:where(:root:not([data-input='touch']))) .search:focus-within { box-shadow: 0 0 0 2px var(--lamp-glow); }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink); }
-  .search input::placeholder { color: var(--ink-3); }
   .clear { display: grid; padding: 4px; border-radius: var(--r); color: var(--ink-3); }
   @media (hover: hover) { .clear:hover { color: var(--ink); background: var(--bg-2); } }
   .results { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; overscroll-behavior: contain; }
@@ -192,6 +205,14 @@
   .spin { position: absolute; z-index: 1; top: 50%; left: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2px solid var(--ink); border-right-color: transparent; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(1turn); } }
   .note { margin: 28px 12px; text-align: center; color: var(--ink-2); }
+  /* Nothing to show: a mark, a title and one line, in the middle. */
+  .empty { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px 28px; text-align: center; }
+  .empty .mark { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 6px; border-radius: 50%; background: var(--bg-3); color: var(--ink-3); }
+  .empty .badge { font: 800 12px/1 var(--body); letter-spacing: .04em; padding: 4px 5px 3.5px; border: 2px solid currentColor; border-radius: 5px; }
+  .empty p { margin: 0; }
+  .empty .title { font-size: var(--fs-body); font-weight: 600; color: var(--ink); }
+  .empty .line { max-width: 30ch; font-size: var(--fs-sm); color: var(--ink-2); text-wrap: pretty; }
+  .foot.hidden { display: none; }
   .sentinel { height: 1px; }
   .foot { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-top: 1px solid var(--line); font-size: 11px; }
   .powered { color: var(--ink-3); letter-spacing: .02em; }
