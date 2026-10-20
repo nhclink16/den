@@ -178,7 +178,6 @@
   {#if !phone}
     <div class="brand">
       {#if native}<ServerSwitcher />{:else}<a href="/" class="display wordmark" onclick={go('/')} title={store.settings.instance_name}>{store.settings.instance_name}</a>{/if}
-      <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
       <span class="spacer"></span>
       <a href="/find" class="icon-btn" class:on={router.route.name === 'search'} title="Search" aria-label="Search" onclick={go('/find')}><Icon name="search" /></a>
       <a href="/inbox" class="icon-btn inbox" class:on={router.route.name === 'inbox'} aria-current={router.route.name === 'inbox' ? 'page' : undefined} title="Inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" />{#if inboxCount}<span class="count">{inboxBadge}</span>{/if}</a>
@@ -299,14 +298,6 @@
   .mac .brand { padding-top: 38px; }
   .wordmark { font-size: 24px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (hover: hover) { .wordmark:hover { text-decoration: none; } }
-  .conn { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); margin: 2px 4px 0; flex: none; }
-  .conn.off { background: var(--danger); }
-  /* A blink that reaches 0.3 opacity reads as broken rendering; and the global
-     reduced-motion reset only shortens the duration, so guard the rule itself. */
-  @media (prefers-reduced-motion: no-preference) {
-    .conn.off { animation: blink 1.4s infinite alternate; }
-  }
-  @keyframes blink { to { opacity: 0.62; } }
   .icon-btn { position: relative; color: var(--ink-2); }
   @media (hover: hover) { .icon-btn:hover { text-decoration: none; } }
   .inbox .count { position: absolute; top: 0; right: -2px; box-shadow: 0 0 0 2px var(--bg-2); }
