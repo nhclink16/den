@@ -20,7 +20,7 @@ import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
 import { lastOf } from './room-list'
-import { takeOldAvatarChoices } from './avatar-carry'
+import { carryOldAvatarChoices } from './avatar-carry'
 import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, LastMessage, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
 const PREFS_KEY = 'den.layout'
@@ -147,13 +147,6 @@ export class Store {
     this.appearance = a
     if (native) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
     if (this.active) themes.receive(a)
-  }
-  /** Avatar shape and the online indicator used to stay on each device, in `den.layout`.
-   *  This device's old choice goes up once, then the local copy goes. */
-  private carryAvatarChoices(a: Appearance) {
-    const taken = this.active ? takeOldAvatarChoices(localStorage, PREFS_KEY, a) : null
-    if (!taken || !Object.keys(taken.patch).length) return
-    void themes.save({ ...themes.appearance, ...taken.patch }, true).then((ok) => { if (!ok) taken.restore() })
   }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
@@ -724,7 +717,7 @@ export class Store {
     // logout belongs to the account that asked for it, not to this one.
     if (epoch !== this.reads.epoch || threadEpoch !== this.threadReads.epoch) { this.listDone(); return }
     this.receiveAppearance(appearance)
-    this.carryAvatarChoices(appearance)
+    if (this.active) void carryOldAvatarChoices(localStorage, appearance, (patch) => themes.save({ ...themes.appearance, ...patch }, true))
     this.sounds = sounds
     if (spotifyAt === this.spotifySeq) this.receiveSpotify(spotify)
     this.receiveVoice(voice)

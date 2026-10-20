@@ -3,6 +3,7 @@ import { activeOrigin } from './native'
 import type { Appearance, Theme, ThemeFonts } from './types'
 import { themeFor, appearanceHalf, applyTheme, appearanceCacheKey, builtinThemes, cachedAppearance, defaultAppearance, fontStack, systemFont } from './theme-runtime'
 import { deriveHalf, colorRoles } from './theme-color'
+import { forgetOldAvatarChoice } from './avatar-carry'
 export { builtinThemes }
 export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces', 'Commit Mono'])].sort()
 /** The families that come from Google Fonts: not the device's own, not the bundled mono. */
@@ -113,7 +114,10 @@ class Themes {
   /** How messages are drawn, and whose bubbles carry a person's colour. */
   bubbles(patch: Pick<Appearance, 'bubble_shape'> | Pick<Appearance, 'bubble_colors'>) { return this.save({ ...this.appearance, ...patch }, true) }
   /** How pictures are drawn, and how being online shows on them. */
-  avatars(patch: Pick<Appearance, 'avatar_shape'> | Pick<Appearance, 'presence_style'>) { return this.save({ ...this.appearance, ...patch }, true) }
+  avatars(patch: Pick<Appearance, 'avatar_shape'> | Pick<Appearance, 'presence_style'>) {
+    for (const field of Object.keys(patch) as (keyof typeof patch)[]) forgetOldAvatarChoice(localStorage, field)
+    return this.save({ ...this.appearance, ...patch }, true)
+  }
   contrast(percent: number) { return this.save({ ...this.appearance, contrast: percent }, true) }
   background(b: Appearance['background']) { return this.save({ ...this.appearance, background: b ?? null }, true) }
   /** The sidebar's own wallpaper. A main one limited to the sidebar would then show
