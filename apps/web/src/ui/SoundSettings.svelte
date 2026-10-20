@@ -108,20 +108,22 @@
   async function savePack() {
     // Everything else waits, even if the dialog is cancelled mid-save: another save would drop the new pack.
     busy = true
-    try { await queued(mine(writePack)) } finally { busy = false }
+    const named = name.trim()
+    try { await queued(mine(() => writePack(named))) } finally { busy = false }
   }
-  async function writePack() {
+  async function writePack(named: string) {
     const p: SoundPreferences = JSON.parse(JSON.stringify(owner.sounds!.preferences))
     if (p.custom_packs.length >= 12) throw Error('You have 12 packs. Remove one first.')
-    const pack: SoundPack = { id: crypto.randomUUID(), name: name.trim(), sounds: { ...(p.pack_id === 'den' ? Object.fromEntries(soundEvents.map(e => [e.id, { type: 'builtin' as const, name: e.id }])) : p.custom_packs.find(v => v.id === p.pack_id)?.sounds), ...p.overrides } }
+    const pack: SoundPack = { id: crypto.randomUUID(), name: named, sounds: { ...(p.pack_id === 'den' ? Object.fromEntries(soundEvents.map(e => [e.id, { type: 'builtin' as const, name: e.id }])) : p.custom_packs.find(v => v.id === p.pack_id)?.sounds), ...p.overrides } }
     p.custom_packs.push(pack); p.pack_id = pack.id; p.overrides = {}
     await owner.saveSounds(p)
     status = `Saved as ${pack.name}.`
   }
-  async function serverPack() {
+  /** `id`: the pack showing when the button was tapped. */
+  async function serverPack(id: string | null) {
     await action(async () => {
       const p = owner.sounds!.preferences
-      const pack = p.custom_packs.find(pack => pack.id === p.pack_id)
+      const pack = p.custom_packs.find(pack => pack.id === id)
       if (!pack) throw Error('Save and select a pack first.')
       owner.sounds = await owner.api.put<SoundState>('/settings/sounds', pack)
       status = 'Server pack saved. Each member keeps their own choices.'
@@ -198,7 +200,7 @@
     <div class="slist" data-find="server-pack">
       <SettingRow label={value.server_pack.name} hint="What new members hear. Their own choices always win.">
         {#snippet control()}
-          <button class="btn" disabled={busy || !prefs.pack_id || prefs.pack_id === 'den'} onclick={serverPack}>Use selected pack</button>
+          <button class="btn" disabled={busy || !prefs.pack_id || prefs.pack_id === 'den'} onclick={() => serverPack(prefs.pack_id)}>Use selected pack</button>
           <button class="btn quiet" disabled={busy} onclick={() => action(async () => { owner.sounds = await owner.api.put('/settings/sounds', { id: 'den', name: 'Den', sounds: {} }); status = 'Server uses Den sounds.' })}>Reset to Den</button>
         {/snippet}
       </SettingRow>
