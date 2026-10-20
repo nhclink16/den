@@ -1,10 +1,11 @@
 #!/bin/sh
 set -eu
-# Xcode Cloud runs this before each xcodebuild step. Only the "UI check" workflow's test step does anything:
-# it starts a made-up Den on this machine for DenShellUITests, which the simulator reaches on localhost.
+# Xcode Cloud runs this before each xcodebuild step. Only the test step of the "UI check" and "Visual tour" workflows
+# does anything: it starts a made-up Den on this machine for DenShellUITests, which the simulator reaches on localhost.
 # The test machine gets only ci_scripts, not the repo, so everything comes from the branch's UI check build
 # (.github/workflows/ui-check.yml): den-server, this commit's web app, LiveKit and a seeded database.
-[ "${CI_WORKFLOW:-}" = 'UI check' ] && [ "${CI_XCODEBUILD_ACTION:-}" = test-without-building ] || exit 0
+case ${CI_WORKFLOW:-} in 'UI check' | 'Visual tour') ;; *) exit 0 ;; esac
+[ "${CI_XCODEBUILD_ACTION:-}" = test-without-building ] || exit 0
 commit=${CI_PULL_REQUEST_SOURCE_COMMIT:-$CI_COMMIT}
 dir=${TMPDIR:-/tmp}/den-ui-check
 rm -rf "$dir" && mkdir -p "$dir" && cd "$dir"

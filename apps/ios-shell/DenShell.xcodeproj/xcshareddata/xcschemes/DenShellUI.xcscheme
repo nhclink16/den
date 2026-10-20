@@ -34,6 +34,9 @@
             default = "YES"
             reference = "container:DenShellUI.xctestplan">
          </TestPlanReference>
+         <TestPlanReference
+            reference = "container:DenShellTour.xctestplan">
+         </TestPlanReference>
       </TestPlans>
       <MacroExpansion>
          <BuildableReference

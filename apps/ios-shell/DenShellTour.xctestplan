@@ -1,0 +1,27 @@
+{
+  "configurations" : [
+    {
+      "id" : "8E3C1A44-2F6B-4D0E-9B57-3C9A1D7E5F20",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "diagnosticCollectionPolicy" : "Never"
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "TourUITests"
+      ],
+      "target" : {
+        "containerPath" : "container:DenShell.xcodeproj",
+        "identifier" : "B6267FF7D146310BE81E01EC",
+        "name" : "DenShellUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
