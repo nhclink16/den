@@ -8,6 +8,12 @@ export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.va
 /** The families that come from Google Fonts: not the device's own, not the bundled mono. */
 export const webFonts = (families: string[]) => [...new Set(families)].filter(f => f !== systemFont && f !== 'IBM Plex Mono')
 export const validName = (v: string) => [...v].length >= 1 && [...v].length <= 40 && !!v.trim() && /^[\p{L}\p{N} _-]+$/u.test(v)
+/** Where a new theme goes. One theme for both light and dark is replaced on both,
+ *  or a device on the other half keeps showing the old one; a split choice keeps its other half. */
+export function themeSlots(a: Pick<Appearance, 'light_theme' | 'dark_theme'>, id: string, half: 'light'|'dark') {
+  if (a.light_theme === a.dark_theme) return { light_theme: id, dark_theme: id }
+  return half === 'light' ? { light_theme: id } : { dark_theme: id }
+}
 export function validateTheme(value: unknown): Theme {
   if (!value || typeof value !== 'object') throw Error('Invalid theme.')
   const t = structuredClone(value) as Theme & { appearance?: 'light'|'dark'; colors?: Theme['light'] }
@@ -39,7 +45,10 @@ class Themes {
   get active() { return this.draft || themeFor(this.appearance, this.half) }
   /** The theme currently assigned to one appearance, ignoring any live draft. */
   chosen(half: 'light'|'dark') { return themeFor(this.appearance, half) }
-  get half() { return appearanceHalf(this.appearance, this.systemLight) }
+  get half() { return this.editingHalf ?? appearanceHalf(this.appearance, this.systemLight) }
+  /** The phone's theme editor shows the half it edits on the whole page, as there is no app behind it. */
+  private editingHalf = $state<'light'|'dark'|null>(null)
+  showHalf(half: 'light'|'dark'|null) { if (half !== this.editingHalf) { this.editingHalf = half; this.apply() } }
   constructor() {
     this.apply()
     matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => { this.systemLight = e.matches; this.apply() })
@@ -118,8 +127,13 @@ class Themes {
   async add(t: Theme) {
     const custom = [...this.appearance.custom_themes, validateTheme(t)]
     if (custom.length > 12 || new TextEncoder().encode(JSON.stringify(custom)).length > 16384) throw Error('Use at most 12 custom themes and 16 KiB total.')
-    const saved = await this.save({ ...this.appearance, custom_themes: custom, [this.half === 'light' ? 'light_theme' : 'dark_theme']: t.id })
+    const saved = await this.save({ ...this.appearance, custom_themes: custom, ...themeSlots(this.appearance, t.id, this.half) })
     if (!saved) throw Error(this.error)
+  }
+  /** Change one of your own themes in place, so the change reaches your other devices. */
+  update(t: Theme) {
+    const theme = validateTheme(t)
+    return this.save({ ...this.appearance, custom_themes: this.appearance.custom_themes.map(c => c.id === theme.id ? theme : c) }, true)
   }
   async remove(id: string) {
     const a = this.appearance

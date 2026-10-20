@@ -35,12 +35,14 @@ class Customizer {
     return JSON.stringify(s.appearance) !== JSON.stringify(themes.appearance) || s.avatarShape !== store.layout.avatarShape || s.presence !== store.layout.presence
   }
 
-  /** Back to how it looked on opening. Themes made or imported meanwhile are kept. */
+  /** Back to how it looked on opening. Themes made or imported meanwhile are kept;
+   *  your own themes changed in place (corners, density, fonts) go back too. */
   undo() {
     const s = this.start
     if (!s) return
     themes.reset()
-    void themes.save({ ...copy(s.appearance), custom_themes: themes.appearance.custom_themes })
+    const custom = themes.appearance.custom_themes.map(t => s.appearance.custom_themes.find(o => o.id === t.id) ?? t)
+    void themes.save({ ...copy(s.appearance), custom_themes: copy(custom) })
     store.saveLayout({ avatarShape: s.avatarShape, presence: s.presence })
   }
 }
