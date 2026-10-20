@@ -70,7 +70,6 @@
 
 <main class="wrap">
   <div class="titlebar-drag" aria-hidden="true"></div>
-  <div class="light" aria-hidden="true"></div>
   <form class="door" onsubmit={submit}>
     <header class="head">
       <span class="mark" bind:this={mark}><Mark size={64} /></span>
@@ -123,33 +122,19 @@
     position: relative; height: 100%; overflow: auto; isolation: isolate; display: flex; flex-direction: column;
     padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
   }
-  /* Light spilling out of an open door: a warm pool, brightest where the mark's
-     doorway sits. It switches on as the page loads. */
-  .light {
-    position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background:
-      radial-gradient(ellipse 34% 42% at 50% var(--pool-y), var(--pool), transparent 70%),
-      radial-gradient(ellipse 80% 70% at 50% calc(var(--pool-y) + 10%), color-mix(in srgb, var(--pool) 35%, transparent), transparent 75%);
-    --pool-y: 30%;
-  }
   .door { width: min(380px, 100%); margin: auto; display: flex; flex-direction: column; }
   /* On a phone: the mark and greeting in the upper third, the button near the bottom, where a thumb is. */
   @media (max-width: 599px) {
     .door { flex: 1 0 auto; margin: 0 auto; }
     .head { padding-top: 6vh; }
     .actions { margin-top: auto; }
-    .light { --pool-y: 18%; }
   }
 
   .head { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 32px; }
   h1 { font-size: 34px; line-height: 1.1; margin: 16px 0 0; overflow-wrap: anywhere; }
   .head p { margin: 6px 0 0; font-size: 17px; }
   .server { margin-top: 8px; font-size: var(--fs-sm); white-space: normal; }
-  .mark { position: relative; display: grid; color: var(--ink); }
-  .mark::before {
-    content: ''; position: absolute; left: 30%; right: 30%; top: 40%; bottom: -10%; z-index: -1;
-    border-radius: 50% 50% 0 0; background: var(--lamp); filter: blur(14px); opacity: .55;
-  }
+  .mark { display: grid; color: var(--ink); }
 
   /* Filled, borderless fields, as on iPhone. */
   .fields { display: flex; flex-direction: column; gap: 12px; }
@@ -173,10 +158,7 @@
   .btn:disabled { cursor: default; }
 
   @media (prefers-reduced-motion: no-preference) {
-    .light { animation: lamp-on 1.1s .15s var(--ease-out) both; }
-    .mark::before { animation: lamp-on .9s .1s var(--ease-out) both; }
     .door > :not(.head), .head > :not(.mark) { animation: rise .5s .15s var(--ease-out) both; }
   }
-  @keyframes lamp-on { 0% { opacity: 0; } 35% { opacity: .45; } 45% { opacity: .2; } 100% { } }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 </style>

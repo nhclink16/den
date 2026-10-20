@@ -90,6 +90,7 @@ html.desktop .members .roster > .head { -webkit-app-region: drag; }
 /* Every interactive element inside a drag region must opt out. */
 html.desktop .sidebar > .side > .brand a,
 html.desktop .sidebar > .side > .brand button,
+html.desktop .sidebar > .side > .brand summary,
 html.desktop .sidebar > .side > .brand input,
 html.desktop .sidebar > .side > .brand select,
 html.desktop .main > section > header.head a,

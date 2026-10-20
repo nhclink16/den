@@ -413,7 +413,7 @@ struct UnreachableView: View {
         let ink = dark ? Color(red: 0.93, green: 0.9, blue: 0.85) : Color(red: 0.11, green: 0.1, blue: 0.09)
         return VStack(spacing: 0) {
             ZStack {
-                DenMark.letter.fill(ink, style: FillStyle(eoFill: true))
+                DenMark.letter.fill(ink)
                 DenMark.door.fill(Color(red: 0.91, green: 0.64, blue: 0.29))
             }
             .frame(width: 64, height: 64)
@@ -448,28 +448,26 @@ struct UnreachableView: View {
     }
 }
 
-/// The Den mark (web: ui/Mark.svelte) in a 64-point box: the letter with its doorway cut out, and the lit door.
+/// The Den mark (web: ui/Mark.svelte) in a 64-point box: the letter, its outline running round the doorway, and the lit door.
 enum DenMark {
     static let letter = Path { p in
         p.move(to: CGPoint(x: 44, y: 4))
         p.addLine(to: CGPoint(x: 56, y: 4))
         p.addLine(to: CGPoint(x: 56, y: 56))
-        p.addLine(to: CGPoint(x: 30, y: 56))
-        p.addCurve(to: CGPoint(x: 8, y: 36), control1: CGPoint(x: 16, y: 56), control2: CGPoint(x: 8, y: 48))
+        p.addLine(to: CGPoint(x: 42, y: 56))
+        p.addLine(to: CGPoint(x: 42, y: 36))
+        p.addArc(center: CGPoint(x: 32, y: 36), radius: 10, startAngle: .degrees(360), endAngle: .degrees(180), clockwise: true)
+        p.addLine(to: CGPoint(x: 22, y: 54.98))
+        p.addCurve(to: CGPoint(x: 8, y: 36), control1: CGPoint(x: 13, y: 52.47), control2: CGPoint(x: 8, y: 45.48))
         p.addCurve(to: CGPoint(x: 30, y: 14), control1: CGPoint(x: 8, y: 24), control2: CGPoint(x: 17, y: 14))
         p.addCurve(to: CGPoint(x: 44, y: 19), control1: CGPoint(x: 36, y: 14), control2: CGPoint(x: 40, y: 16))
         p.closeSubpath()
-        p.addPath(arch(halfWidth: 10))
     }
-    static let door = arch(halfWidth: 6)
-
-    private static func arch(halfWidth w: CGFloat) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: 32 - w, y: 56))
-            p.addLine(to: CGPoint(x: 32 - w, y: 36))
-            p.addArc(center: CGPoint(x: 32, y: 36), radius: w, startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
-            p.addLine(to: CGPoint(x: 32 + w, y: 56))
-            p.closeSubpath()
-        }
+    static let door = Path { p in
+        p.move(to: CGPoint(x: 26, y: 56))
+        p.addLine(to: CGPoint(x: 26, y: 36))
+        p.addArc(center: CGPoint(x: 32, y: 36), radius: 6, startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+        p.addLine(to: CGPoint(x: 38, y: 56))
+        p.closeSubpath()
     }
 }

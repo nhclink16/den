@@ -127,7 +127,7 @@ try {
     socket.onclose = () => { store.connected = false; store.ws = null }
     socket.close()
   })
-  await hostPage.getByLabel(/Offline, reconnecting/).waitFor()
+  await hostPage.getByRole('status').filter({ hasText: /You're offline/ }).waitFor()
   await api('POST', `/rooms/${textRoom.id}/jam`, { url: 'https://spotify.link/reconnect-smoke' }, guest.token)
   await hostPage.evaluate(async () => {
     const { store } = await import('/src/lib/store.svelte.ts')

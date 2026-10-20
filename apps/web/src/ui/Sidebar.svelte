@@ -178,7 +178,6 @@
   {#if !phone}
     <div class="brand">
       {#if native}<ServerSwitcher />{:else}<a href="/" class="display wordmark" onclick={go('/')} title={store.settings.instance_name}>{store.settings.instance_name}</a>{/if}
-      <span class="conn" class:off={!store.connected} role="img" aria-label={store.connected ? 'Connected' : 'Offline, reconnecting'} title={store.connected ? 'Connected' : 'Reconnecting'}></span>
       <span class="spacer"></span>
       <a href="/find" class="icon-btn" class:on={router.route.name === 'search'} title="Search" aria-label="Search" onclick={go('/find')}><Icon name="search" /></a>
       <a href="/inbox" class="icon-btn inbox" class:on={router.route.name === 'inbox'} aria-current={router.route.name === 'inbox' ? 'page' : undefined} title="Inbox" aria-label={inboxCount ? `Inbox, ${inboxCount} unread` : 'Inbox'} onclick={go('/inbox')}><Icon name="inbox" />{#if inboxCount}<span class="count">{inboxBadge}</span>{/if}</a>
@@ -299,26 +298,18 @@
   .mac .brand { padding-top: 38px; }
   .wordmark { font-size: 24px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (hover: hover) { .wordmark:hover { text-decoration: none; } }
-  .conn { width: 7px; height: 7px; border-radius: 50%; background: var(--moss); margin: 2px 4px 0; flex: none; }
-  .conn.off { background: var(--danger); }
-  /* A blink that reaches 0.3 opacity reads as broken rendering; and the global
-     reduced-motion reset only shortens the duration, so guard the rule itself. */
-  @media (prefers-reduced-motion: no-preference) {
-    .conn.off { animation: blink 1.4s infinite alternate; }
-  }
-  @keyframes blink { to { opacity: 0.62; } }
   .icon-btn { position: relative; color: var(--ink-2); }
   @media (hover: hover) { .icon-btn:hover { text-decoration: none; } }
   .inbox .count { position: absolute; top: 0; right: -2px; box-shadow: 0 0 0 2px var(--bg-2); }
   .offline {
-    margin: 0 10px 6px; padding: 7px 10px; border-radius: var(--r);
+    margin: 0 8px 6px; padding: 7px 10px; border-radius: var(--r);
     background: color-mix(in srgb, var(--danger) 16%, transparent);
     color: var(--ink); font-size: var(--fs-xs); line-height: 1.35;
   }
   .scroll { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
 
-  /* The hangout: who's in it, and one button. */
-  .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 12px; margin: 4px 4px 6px; padding: 12px 12px 12px 14px; border-radius: var(--r-tile); background: var(--bg-3); }
+  /* The hangout: who's in it, and one button. Same edges, corners and icon column as a room row below it. */
+  .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; padding: 12px 10px; border-radius: var(--r-lg); background: var(--bg-3); }
   .hang .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .hang .nm { font-weight: 700; display: flex; align-items: center; gap: 6px; }
   .hang .who, .hang .jam-line { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -400,7 +391,7 @@
   /* The shell draws the ring; the field inside it draws none. */
   .find input:focus-visible { box-shadow: none; }
   .phone .scroll { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
-  .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; background: var(--bg-2); }
+  .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; border-radius: var(--r-tile); background: var(--bg-2); }
   .phone .hang { --ring: var(--bg-2); }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
