@@ -31,6 +31,8 @@
 
   let { channel, narrow }: { channel: Channel; narrow: boolean } = $props()
   let replyTo = $state<Message | null>(null)
+  // The message box's height, and whether messages are out of sight under it: on a phone the list runs under it.
+  let dockHeight = $state(0), below = $state(false)
   let dragging = $state(0)
   let dropped = $state<File[]>([])
 
@@ -273,6 +275,9 @@
   const nav = $derived(narrow && !native)
   // The person on the other end of a two-person DM, whose face and profile the bar offers.
   const other = $derived(isDm && (channel.member_ids || []).length <= 2 ? (channel.member_ids || []).find((id) => id !== store.me?.id) : undefined)
+  // The messages, with nothing above them in the room: no error in their place, no note about an older part.
+  const listed = $derived(!(roomError && !cached))
+  const under = $derived(nav && listed && !roomKey)
   const showThreads = $derived(channel.kind === 'text' && !callCovers && (store.threadsIn(channel.id, false).length || threadsFailed))
 
   function onDrop(e: DragEvent) {
@@ -343,11 +348,11 @@
   {#if isDm && call.channel?.id !== channel.id && call.ids(channel.id).length}
     <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
   {/if}
-  <div class="content" bind:clientWidth={space}>
+  <div class="content" class:under bind:clientWidth={space}>
     <!-- Files belong to the pane they were dropped on. The room owns this one;
          the panel owns its own, and a stowed room is not a drop target. -->
     <div
-      class="room" class:stowed inert={stowed || undefined}
+      class="room" class:stowed inert={stowed || undefined} style:--list-bottom={nav ? `${dockHeight}px` : undefined}
       role="group" aria-label={`Main conversation in ${store.title(channel)}`}
       ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
       ondragleave={() => dragging--}
@@ -388,13 +393,15 @@
           <button class="btn quiet" onclick={() => router.go(roomUrl, true)}>Jump to newest</button>
         </p>
       {/if}
-      {#if !(roomError && !cached)}<MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} />{/if}
+      {#if listed}<MessageList {channel} source={roomSource} onreply={(m) => open(m.id, m.thread?.id, m.id)} bind:below />{/if}
 
-      <div class="typing" aria-live="polite">
-        {#if listening}<span>listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
+      <div class="dock" class:over={nav && listed} class:frost={nav && listed && below} bind:offsetHeight={dockHeight}>
+        <div class="typing" aria-live="polite">
+          {#if listening}<span>listening</span>{:else if typing.length}<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><b>{typing.join(', ')}</b> {typing.length === 1 ? 'is' : 'are'} typing{/if}
+        </div>
+
+        <Composer {channel} bind:replyTo bind:dropped bind:listening />
       </div>
-
-      <Composer {channel} bind:replyTo bind:dropped bind:listening />
       {#if dragging > 0}
         <div class="drop">
           <div class="drop-inner">
@@ -454,7 +461,18 @@
   .panel-missing .row { display: flex; gap: 8px; }
   .object-slot { display: contents; }
   .object-slot.hidden { display: none; }
-  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  /* --nav-h is the NavBar's height: its 44pt row, under the status bar when it's first on screen. */
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; --nav-h: calc(var(--nav-inset, 0px) + 44px); }
+  /* A phone: the messages run up under the bar when they're the first thing below it (no call, note or error
+     between), and down under the message box, the iPhone way. MessageList pads itself by both. */
+  .view > :global(.navbar + .content.under) { margin-top: calc(-1 * var(--nav-h)); --list-top: var(--nav-h); }
+  .dock.over { position: relative; z-index: 3; margin-top: calc(-1 * var(--list-bottom)); transition: background-color var(--t-fast), box-shadow var(--t-fast); }
+  /* The same material as the bar, once there's something under it. */
+  .dock.frost {
+    background: color-mix(in srgb, var(--nav-bg, var(--bg)) var(--bar-alpha), transparent);
+    -webkit-backdrop-filter: var(--bar-blur); backdrop-filter: var(--bar-blur);
+    box-shadow: 0 -.5px 0 var(--line);
+  }
   .head {
     display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px;
     border-bottom: 1px solid var(--line);

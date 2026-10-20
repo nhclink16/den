@@ -31,7 +31,7 @@
 </script>
 
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { tick, type Snippet } from 'svelte'
   import { store, instances } from '../lib/store.svelte'
   import type { Channel, Message } from '../lib/types'
   import { dayLabel, shortTime } from '../lib/time'
@@ -45,8 +45,18 @@
   import { profileCard } from '../lib/people.svelte'
   import { atBottom, landing } from '../lib/landing'
 
-  let { channel, source, onreply }: { channel: Channel; source: Source; onreply: (m: Message) => void } = $props()
+  // On a phone the list runs under the top bar and the message box, which pad it by their heights through
+  // `--list-top` and `--list-bottom`. `below` says whether anything is out of sight under the message box,
+  // so it can frost. `lead` scrolls above the first message (a thread's root, on a phone).
+  let { channel, source, onreply, lead, below = $bindable(false) }: {
+    channel: Channel; source: Source; onreply: (m: Message) => void; lead?: Snippet; below?: boolean
+  } = $props()
   let el: HTMLDivElement
+  // How much of the list the bars cover, top and bottom: the scroll padding, which is just the bars.
+  function covered() {
+    const css = getComputedStyle(el)
+    return { top: parseFloat(css.scrollPaddingTop) || 0, bottom: parseFloat(css.scrollPaddingBottom) || 0 }
+  }
   const list = $derived(source.list)
   const prefix = $derived(source.prefix ?? 'm')
   // Where "new" starts: the read marker as it was when this conversation opened.
@@ -89,7 +99,8 @@
   // read from there; `reached` decides once it is shown.
   function land() {
     const line = openedAt ? el.querySelector<HTMLElement>(':scope > .new') : null
-    const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop : undefined
+    // Measured from where the list shows, below the bar.
+    const at = line ? line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - covered().top : undefined
     const { top, bottom } = landing(at, el.scrollHeight, el.clientHeight)
     el.scrollTop = top
     stickToBottom = bottom && !source.hidden
@@ -141,16 +152,21 @@
   // tail on screen, has reached it though nothing scrolled to say so: a bigger
   // window, or a panel closing beside it.
   // The Jump to latest pill follows the same layout changes.
+  // What's measured is the part between the bars, so the message box growing over the list counts the same as
+  // the list getting shorter. A hidden view keeps the height it was last seen at, to come back to the same place.
   let lastHeight = 0
   function reached() {
-    if (!el) return
-    const lost = lastHeight ? lastHeight - el.clientHeight : 0
-    lastHeight = el.clientHeight
-    if (!landed || source.hidden) return
+    if (!el || source.hidden) return
+    const bars = covered()
+    const seen = el.clientHeight - bars.top - bars.bottom
+    const lost = lastHeight ? lastHeight - seen : 0
+    lastHeight = seen
+    if (!landed) return
     // A view that got shorter (the keyboard came up, the composer grew) stays on the newest message, as iMessage does.
     if (stickToBottom && !source.target) el.scrollTop = el.scrollHeight
     // Anywhere else its bottom edge stays put, so what you were reading just above the composer stays in view.
     else if (lost) el.scrollTop += lost
+    below = el.scrollHeight - el.scrollTop - el.clientHeight > 1
     far = el.scrollHeight - el.scrollTop - el.clientHeight > 400
     if (!stickToBottom && !source.target && atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)) stickToBottom = true
   }
@@ -219,7 +235,7 @@
   // Only for the reader's own scrolling (and its glide), not the keyboard nudging the list.
   let swiped = 0
   function showDay() {
-    const top = el.getBoundingClientRect().top
+    const top = el.getBoundingClientRect().top + covered().top
     let label = ''
     for (const t of el.querySelectorAll<HTMLElement>(':scope > .time')) {
       if (t.getBoundingClientRect().top > top) break
@@ -239,6 +255,7 @@
     // A hidden view scrolls only programmatically, at a width nobody sees.
     stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight) && !source.hidden
     far = fromBottom > 400
+    below = fromBottom > 1
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
       const before = el.scrollHeight, key = shownKey
       await source.older()
@@ -254,12 +271,15 @@
   // A DM with one person opens on their picture rather than an icon.
   const dm = $derived(channel.kind === 'dm')
   const other = $derived(dm && (channel.member_ids?.length ?? 0) <= 2 ? channel.member_ids?.find((id) => id !== store.me?.id) ?? store.me?.id : undefined)
+  // A DM with yourself: notes, not a conversation.
+  const self = $derived(!!other && other === store.me?.id)
 </script>
 
 <div class="wrap">
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
 <div class="list" class:thread={prefix === 't'} bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => { touched = true; swiped = Date.now() }} ontouchstart={() => (touched = true)} ontouchmove={() => (swiped = Date.now())} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
+  {@render lead?.()}
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <!-- Where a conversation begins. An empty one shows it in the middle of the screen. -->
@@ -267,7 +287,7 @@
       {#if other}<span class="start-face" aria-hidden="true"><Avatar userId={other} size={72} presence={false} /></span>
       {:else}<div class="start-mark" aria-hidden="true"><RoomIcon {channel} size={28} bare /></div>{/if}
       <div class="display start-title">{dm ? store.title(channel) : `Welcome to ${roomName(channel, themes.appearance.room_icons)}`}</div>
-      <div class="muted">{list.length ? 'This is where it started.' : dm ? `Say hello. Only ${other ? 'the two of you' : 'the people here'} can see this.` : 'Nobody has said anything yet. Say the first thing.'}</div>
+      <div class="muted">{list.length ? 'This is where it started.' : !dm ? 'Nobody has said anything yet. Say the first thing.' : self ? 'Notes to yourself. Only you can see this.' : `Say hello. Only ${other ? 'the two of you' : 'the people here'} can see this.`}</div>
     </div>
   {:else if source.loadingOlder}
     <div class="faint center">Loading older messages</div>
@@ -297,7 +317,7 @@
 <style>
   .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
   .latest {
-    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 3;
+    position: absolute; bottom: calc(10px + var(--list-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 3;
     display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 14px;
     border-radius: var(--r-pill, 999px); border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--ink);
     font-size: var(--fs-sm); font-weight: 600; box-shadow: var(--lift);
@@ -311,7 +331,7 @@
   .latest .count { display: none; }
   /* A phone: a round chevron in the corner, clear of the words, with how many are new. */
   @media (max-width: 600px) {
-    .latest, .latest.lit { left: auto; right: 12px; bottom: 12px; transform: none; width: 40px; height: 40px; padding: 0; justify-content: center;
+    .latest, .latest.lit { left: auto; right: 12px; bottom: calc(12px + var(--list-bottom, 0px)); transform: none; width: 40px; height: 40px; padding: 0; justify-content: center;
       border: 0; border-radius: 50%; background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
     .latest :global(svg) { width: 20px; height: 20px; }
     .latest .words { display: none; }
@@ -324,7 +344,7 @@
   }
   /* The day you're reading, floating at the top while you scroll, on touch screens. */
   .day {
-    position: absolute; top: 8px; left: 50%; z-index: 3; transform: translateX(-50%); padding: 3px 10px; border-radius: var(--r-pill, 999px);
+    position: absolute; top: calc(8px + var(--list-top, 0px)); left: 50%; z-index: 3; transform: translateX(-50%); padding: 3px 10px; border-radius: var(--r-pill, 999px);
     background: var(--glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 0 0 .5px var(--line);
     font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); pointer-events: none; opacity: 0; transition: opacity .3s;
   }
@@ -332,7 +352,12 @@
   @media (hover: hover) { .day { display: none; } }
   /* A short conversation sits down by the composer, where the next line will appear,
      not at the top of an empty page. */
-  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 8px; overscroll-behavior: contain; display: flex; flex-direction: column; }
+  .list {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column;
+    padding: calc(12px + var(--list-top, 0px)) 0 calc(8px + var(--list-bottom, 0px));
+    /* A message brought into view lands between the bars, not under them. */
+    scroll-padding-block: var(--list-top, 0px) var(--list-bottom, 0px);
+  }
   .list > :global(*) { flex: none; }
   .list > :global(:first-child) { margin-top: auto; }
   /* A thread reads on from its first message, pinned above, so its replies start

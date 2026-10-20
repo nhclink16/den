@@ -86,8 +86,8 @@
   }
   /* The iPhone's bar material: the page's colour, see-through and blurred, with a hairline under it. */
   .navbar.scrolled {
-    background: color-mix(in srgb, var(--nav-bg, var(--bg)) 90%, transparent);
-    -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
+    background: color-mix(in srgb, var(--nav-bg, var(--bg)) var(--bar-alpha), transparent);
+    -webkit-backdrop-filter: var(--bar-blur); backdrop-filter: var(--bar-blur);
     box-shadow: 0 .5px 0 var(--line);
   }
   .row {
