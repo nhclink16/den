@@ -70,6 +70,8 @@
   // New message: everyone you could start a DM with.
   let composing = $state(false)
   const people = $derived(store.people.filter((u) => u.id !== store.me?.id).sort((a, b) => (a.display_name || a.username).localeCompare(b.display_name || b.username)))
+  // Leaving the list cancels a choice still on its way: coming back later shouldn't jump into it.
+  $effect(() => () => { picks++ })
   async function message(userId: string) {
     composing = false
     // The concrete server, not the proxy: if someone switches servers meanwhile, this room isn't on the new one.
