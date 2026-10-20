@@ -175,6 +175,9 @@
   .more-sheet .list-head { margin-top: 16px; }
   .more-sheet .segments { display: flex; }
   .more-sheet .segments button { flex: 1; }
+  /* Music opens inside the sheet: its panels take the sheet's width, and the sheet grows to theirs. */
+  @media (min-width: 601px) { .more-sheet:has(:global(.music-menu)) { width: min(404px, calc(100vw - 24px)); } }
+  .more-sheet :global(:is(.music-panel, .jam-panel)) { width: auto; padding-inline: 0; }
   .sheet-back { display: inline-flex; align-items: center; min-height: 44px; margin-inline-start: -6px; color: var(--lamp); font-size: var(--fs-body); }
   @media (max-width: 600px) { .more-sheet { width: 100%; padding-inline: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; } }
 </style>
