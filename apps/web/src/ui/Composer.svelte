@@ -212,11 +212,11 @@
 
   function add(files: File[]) { store.uploads.add(here, files); ta?.focus() }
   // Den Shell has iOS's photo picker; elsewhere the <input>. Files land where Photos was tapped, and only while
-  // the same person is signed in to the same server: a big video can take a while to come in.
+  // the same sign-in lasts (a sign-out turns the drafts' token over at once): a big video can take a while to come in.
   function pickPhotos() {
     if (!shellPhotos()) return photoInput?.click()
-    const uploads = store.uploads, at = here, who = `${store.origin}|${store.me?.id}`
-    const same = () => store.uploads === uploads && `${store.origin}|${store.me?.id}` === who
+    const uploads = store.uploads, drafts = store.drafts, token = drafts.token, at = here
+    const same = () => store.uploads === uploads && store.drafts === drafts && drafts.holds(token)
     void pickShellPhotos((files) => { if (same()) uploads.add(at, files) }, (message) => { if (same()) { haptic('warning'); store.toast = message } })
   }
   // A staged picture shows itself, so you can tell which one you're about to send.
