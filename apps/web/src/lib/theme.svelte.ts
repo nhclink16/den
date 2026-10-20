@@ -121,7 +121,10 @@ class Themes {
         // Another copy came in meanwhile, older or newer: one asked for now is newer than both.
         else if (this.owner() === job.owner) {
           const again = this.taken
-          try { this.receive(await api.get<Appearance>('/users/me/appearance'), again) } catch { /* the next sync brings it */ }
+          try {
+            const now = await api.get<Appearance>('/users/me/appearance')
+            if (this.owner() === job.owner) this.receive(now, again)
+          } catch { /* the next sync brings it */ }
         }
         return true
       } catch (e) {

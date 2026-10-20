@@ -44,7 +44,7 @@ function server(initial: Record<string, unknown>) {
         if (when === 'after') await wait()
         return reply
       },
-      get: async () => structuredClone(state),
+      get: async () => { if (hold === 'before') { hold = null; await wait() } return structuredClone(state) },
     },
   }
 }
@@ -266,4 +266,23 @@ test('a newer sync that lands while a save is out is not undone by that save\'s 
   themes.receive(structuredClone(s.state), asked)
   s.release(); await saved
   assert.deepEqual([themes.appearance.mode, themes.appearance.accent], ['light', 'green'])
+})
+
+test("a save that asks again for the server's copy doesn't bring it to an account signed in meanwhile", async () => {
+  const s = server(start), themes = one(s)
+  let me = 'ann'
+  themes.owner = () => `https://den.test|${me}`
+  s.hold('after')
+  const saved = themes.accent('green')
+  await tick()
+  themes.receive(s.other({ mode: 'light' }))
+  // The reply comes after that copy, so the save asks again; that answer is slow.
+  s.hold('before'); s.release()
+  for (let i = 0; i < 5; i++) await tick()
+  me = 'bea'
+  const bea = { ...start, mode: 'dark', accent: 'blue' }
+  const asked = themes.mark()
+  s.release(); await saved
+  assert.equal(themes.receive(bea, asked), true)
+  assert.deepEqual([themes.appearance.mode, themes.appearance.accent], ['dark', 'blue'])
 })
