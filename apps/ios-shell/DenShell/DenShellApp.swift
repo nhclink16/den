@@ -368,9 +368,15 @@ struct DenWebView: UIViewRepresentable {
         webView.load(URLRequest(url: unreachable.url ?? startURL))
     }
 
+    /// A new page in place of Den's: nothing native the old one put on screen may stay.
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if webView === self.webView { media.pageGone() }
+    }
+
     /// iOS can kill the page's process under memory pressure; reload rather than show a blank screen.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         log.error("web content process terminated, reloading")
+        if webView === self.webView { media.pageGone() }
         webView.reload()
     }
 }

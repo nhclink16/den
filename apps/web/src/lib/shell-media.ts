@@ -69,3 +69,143 @@ export async function shareLink(data: { title?: string; text?: string; url: stri
 }
 
 export const canShareLink = () => !!window.denShell?.share || typeof navigator.share === 'function'
+
+// ---- The strip of recent photos at the top of the + sheet (Den Shell only) ----
+// It is iOS's own picker, embedded as one row: it runs outside the app, so it needs no access to the library. Being a
+// native view, it sits over the page, so it must never be seen anywhere but its slot in the sheet. The page tells the
+// shell where the slot is only once the sheet has been still for two frames, and hides the strip the moment anything
+// moves it (a pull, the sheet closing, the window changing size). Following a pull frame by frame over the bridge would
+// lag the sheet and spill over what's around it; a strip that steps aside while the sheet moves can't. The slot keeps
+// a plain card of the same size meanwhile, so nothing jumps.
+//
+// Picking: a tap ticks a photo and puts it in the tray, the same as Photos; another tap unticks it and takes it out.
+// The strip is new every time the sheet opens, with ticks on the photos it gave that are still in the tray, so after a
+// send (the tray empties) it starts clean.
+
+type Rect = { x: number; y: number; width: number; height: number }
+/** `session` is one opening of the strip. `selected`: the photos (by the library's ids) to show ticked. */
+export type ShellStripCommand =
+  | { type: 'stripShow'; session: number; rect: Rect; radius: number; selected: string[] }
+  | { type: 'stripHide' | 'stripClose'; session: number }
+  /** A photo's file the page won't read after all: the shell can drop it now. */
+  | { type: 'stripForget'; id: string }
+/** A photo ticked (`tick` names that one tick), then its file (as a pick's would come) or that iOS wouldn't hand it
+ *  over; a photo unticked; or `place`: the shell moved things itself (the keyboard), so the strip waits for where to go
+ *  again. */
+export type ShellStripEvent =
+  | { type: 'ticked'; session: number; asset: string; tick: string }
+  | { type: 'added'; session: number; asset: string; tick: string; file: ShellPhoto }
+  | { type: 'failed'; session: number; asset: string; tick: string }
+  | { type: 'removed'; session: number; asset: string }
+  | { type: 'place' }
+
+/** The tray of the conversation the + sheet was opened from. `key` names that conversation in that sign-in. */
+export type StripTray = { key: string; files(): File[]; add(file: File): void; remove(file: File): void; warn(message: string): void }
+
+export const shellStrip = () => !!window.denShell?.photoStrip
+
+/** Which strip photo a tray file came from. */
+const fromStrip = new WeakMap<File, string>()
+/** Each strip's tray, kept until the shell says its last photo has come in. */
+const sessions = new Map<number, StripTray>()
+/** Photos on their way, by conversation and photo, with the tick that sent them. Shared by every strip of a conversation:
+ *  the sheet can close and open again before a photo arrives, and only its latest tick may land. */
+const coming = new Map<string, string>()
+let session = 0, place: (() => void) | null = null
+
+/** Starts a strip for `tray`: its events go there from now on. */
+export function openStrip(tray: StripTray) {
+  const shell = window.denShell!
+  sessions.set(++session, tray)
+  shell.onPhotoStrip = (e) => {
+    if (e.type === 'place') return place?.()
+    const tray = sessions.get(e.session)
+    const unwanted = () => { if (e.type === 'added') void shell.photoStrip!({ type: 'stripForget', id: e.file.id }).catch(() => {}) }
+    if (!tray) return unwanted()
+    const key = `${tray.key}\n${e.asset}`
+    if (e.type === 'ticked') return void coming.set(key, e.tick)
+    if (e.type === 'removed') {
+      coming.delete(key)
+      const file = tray.files().find((f) => fromStrip.get(f) === e.asset)
+      if (file) tray.remove(file)
+      return
+    }
+    // Unticked, or ticked again, since: this copy isn't wanted.
+    if (coming.get(key) !== e.tick) return unwanted()
+    if (e.type === 'failed') { coming.delete(key); return tray.warn('That photo couldn\'t be added.') }
+    if (e.file.size > MAX) { coming.delete(key); unwanted(); return tray.warn(`${e.file.name} is over the 1 GB limit.`) }
+    readPhoto(e.file, (id, offset) => shell.photoChunk!(id, offset)).then((file) => {
+      if (coming.get(key) !== e.tick) return
+      coming.delete(key)
+      fromStrip.set(file, e.asset)
+      tray.add(file)
+    }, () => {
+      unwanted()
+      if (coming.get(key) === e.tick) { coming.delete(key); tray.warn(`${e.file.name} couldn't be added.`) }
+    })
+  }
+  return session
+}
+
+/** The ticks a new strip shows: its photos in the tray or still on their way there. */
+export function stripSelected(tray: StripTray) {
+  const prefix = `${tray.key}\n`
+  return [...tray.files().flatMap((f) => fromStrip.get(f) ?? []), ...[...coming.keys()].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length))]
+}
+
+/** The strip's slot in the + sheet (`node`, inside the sheet's popover). */
+export function photoStrip(node: HTMLElement, tray: StripTray) {
+  const shell = window.denShell!, id = openStrip(tray)
+  const sheet = node.closest<HTMLElement>('[popover]')!
+  const send = (command: ShellStripCommand) => shell.photoStrip!(command).catch(() => {})
+  let shown = false, frame = 0, pulled = sheet.style.translate
+  const hide = () => {
+    cancelAnimationFrame(frame)
+    if (shown) void send({ type: 'stripHide', session: id })
+    shown = false
+  }
+  // Hidden at once; shown again where the slot is once it has stayed put for two frames, with the sheet open and
+  // not pulled. Not while the page is zoomed: its pixels aren't the screen's points then. The zoom changing calls
+  // this again.
+  const zoom = window.visualViewport
+  const moved = () => {
+    hide()
+    if (zoom && Math.abs(zoom.scale - 1) > 0.01) return
+    let last = ''
+    const settle = () => {
+      const r = node.getBoundingClientRect(), now = [r.x, r.y, r.width, r.height].join()
+      if (now !== last || !sheet.matches(':popover-open') || sheet.style.translate) { last = now; frame = requestAnimationFrame(settle); return }
+      shown = true
+      const radius = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
+      void send({ type: 'stripShow', session: id, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, radius, selected: stripSelected(tray) })
+    }
+    frame = requestAnimationFrame(settle)
+  }
+  // pullDown (disclosure-popover.ts) moves the sheet with `translate`. Other style changes (its left and top) don't
+  // move a sheet.
+  const styled = new MutationObserver(() => { if (sheet.style.translate !== pulled) { pulled = sheet.style.translate; moved() } })
+  styled.observe(sheet, { attributes: true, attributeFilter: ['style'] })
+  // The slot's own size, and the sheet's: it sits on the bottom edge, so growing (Dictate coming back) moves the slot up.
+  const resized = new ResizeObserver(moved)
+  resized.observe(node)
+  resized.observe(sheet)
+  // Before the sheet goes from the screen, not after: the strip mustn't outlast it by a frame.
+  const closing = (e: Event) => { if ((e as ToggleEvent).newState === 'closed') hide() }
+  sheet.addEventListener('beforetoggle', closing)
+  addEventListener('resize', moved)
+  zoom?.addEventListener('resize', moved); zoom?.addEventListener('scroll', moved)
+  place = moved
+  moved()
+  return {
+    destroy() {
+      hide()
+      styled.disconnect(); resized.disconnect()
+      sheet.removeEventListener('beforetoggle', closing)
+      removeEventListener('resize', moved)
+      zoom?.removeEventListener('resize', moved); zoom?.removeEventListener('scroll', moved)
+      if (place === moved) place = null
+      // The shell answers once every photo ticked in this strip has come in.
+      void send({ type: 'stripClose', session: id }).then(() => sessions.delete(id))
+    },
+  }
+}

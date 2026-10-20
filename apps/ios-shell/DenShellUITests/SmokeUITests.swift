@@ -117,6 +117,62 @@ final class SmokeUITests: XCTestCase {
         shot("3-photo-sent")
     }
 
+    /// The + sheet's strip of recent photos (iOS's picker, embedded): a tap puts the photo in the tray, and the strip
+    /// goes with the sheet, both when a pull springs back and when it closes it. After the send a new strip has nothing
+    /// ticked, and no strip is left over once the sheet is gone.
+    @MainActor func test3PhotoStrip() throws {
+        let app = try launchSignedIn()
+        try find(app, label: "general", .prefix).tap()
+        try find(app, label: "More").tap()
+        let tile = try find(app, label: "Photos")
+        let photo = stripPhoto(app)
+        try wait(for: photo, "strip photo", in: app, timeout: 15)
+        pause()
+        // The first strip ever shows iOS's own note over it ("Private Access to Photos"), once.
+        let ok = app.buttons["OK"]
+        if ok.exists {
+            shot("3-strip-notice")
+            ok.tap()
+            pause()
+        }
+        shot("3-strip")
+        keepTree(app, "strip")
+        photo.tap()
+        // In the tray behind the sheet, which stays open for more.
+        try find(app, label: "Remove", .prefix, timeout: 30)
+        pause()
+        shot("3-strip-ticked")
+
+        let grip = tile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        // Slow, and held before letting go, so it isn't a flick: the sheet springs back.
+        grip.press(forDuration: 0.05, thenDragTo: grip.withOffset(CGVector(dx: 0, dy: 40)), withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(tile.exists, "A short pull closed the sheet.")
+        XCTAssertTrue(photo.waitForExistence(timeout: 3), "The strip didn't come back after a short pull.")
+        shot("3-strip-pulled-back")
+        grip.press(forDuration: 0.05, thenDragTo: grip.withOffset(CGVector(dx: 0, dy: 320)))
+        XCTAssertTrue(tile.waitForNonExistence(timeout: 3), "Pulling the + sheet down didn't close it.")
+        XCTAssertFalse(photo.exists, "The strip stayed after the sheet went.")
+        shot("3-strip-tray")
+
+        try find(app, label: "Send").tap()
+        XCTAssertTrue(element(app, label: "Remove", .prefix).waitForNonExistence(timeout: 30), "The photo didn't send.")
+        try find(app, label: "More").tap()
+        try wait(for: photo, "strip photo after send", in: app, timeout: 15)
+        XCTAssertFalse(app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo' AND selected == true")).firstMatch.exists,
+                       "A photo was still ticked after the send.")
+        pause()
+        shot("3-strip-after-send")
+        grip.press(forDuration: 0.05, thenDragTo: grip.withOffset(CGVector(dx: 0, dy: 320)))
+        XCTAssertTrue(tile.waitForNonExistence(timeout: 3), "Pulling the + sheet down didn't close it.")
+
+        try find(app, label: "Rooms", .prefix).tap()
+        try find(app, label: "plans", .prefix).tap()
+        try find(app, label: "Message plans")
+        pause()
+        XCTAssertFalse(photo.exists, "A strip was left over in another room.")
+        shot("3-strip-other-room")
+    }
+
     /// The home's search field opens Search with its field focused and the keyboard up; results come back.
     @MainActor func test6Search() throws {
         let app = try launchSignedIn()
@@ -251,6 +307,15 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor private var springboard: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.springboard") }
+
+    /// A photo in the + sheet's strip: the picker's cells, not the page's pictures (those are named after their files).
+    @MainActor private func stripPhoto(_ app: XCUIApplication) -> XCUIElement {
+        app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
+    }
+
+    @MainActor private func pause(_ seconds: TimeInterval = 1) {
+        _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: seconds)
+    }
 
     /// Waits for Den's notification on the Home Screen and taps it; iOS must then bring Den to the front.
     @MainActor private func tapBanner(containing text: String, shot name: String, app: XCUIApplication) throws {

@@ -112,7 +112,18 @@ final class TourUITests: XCTestCase {
             let app = try openGeneral()
             try find(app, label: "More").tap()
             try find(app, label: "Photos")
+            // Den Shell's strip of recent photos along the top: shot once it has drawn, then with one ticked.
+            let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
+            if photo.waitForExistence(timeout: 10) { pause() }
+            // iOS's one-time note over the first strip ("Private Access to Photos").
+            if app.buttons["OK"].exists { shot("plus-sheet-strip-notice"); app.buttons["OK"].tap(); pause() }
             shot("plus-sheet")
+            if photo.exists {
+                photo.tap()
+                _ = element(app, label: "Remove", .prefix).waitForExistence(timeout: 20)
+                pause()
+                shot("plus-sheet-strip-ticked")
+            }
             try find(app, label: "Emoji").tap()
             pause()
             shot("emoji-sheet")
