@@ -433,7 +433,7 @@
   .actions { margin-top: 22px; }
   label.btn { cursor: pointer; }
   label.btn.busy { opacity: .6; pointer-events: none; }
-  label.btn:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  :global(:where(:root:not([data-input]))) label.btn:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
   .counted { position: relative; width: 100%; }
   .counted textarea { width: 100%; }
   .counted textarea { resize: vertical; min-height: 72px; padding-bottom: 22px; }
@@ -445,7 +445,7 @@
   .dot.big { width: 28px; height: 28px; cursor: pointer; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent); }
   .dot.big[aria-pressed=true], .dot.custom.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--lamp); }
   .dot.custom:not(.on) { background: conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d); }
-  .dot.custom:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  :global(:where(:root:not([data-input]))) .dot.custom:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
   @media (pointer: coarse) { .dot.big { width: 36px; height: 36px; } }
   .sample { justify-self: start; max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-bottom-right-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
   .small { font-size: var(--fs-sm); }
