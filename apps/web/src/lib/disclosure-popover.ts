@@ -26,8 +26,8 @@ export function disclosurePopover(node: HTMLElement, align: 'start' | 'end' = 'e
 
 // A sheet along the bottom of a phone (app.css `.sheet`) follows a finger pulling it down and closes past a
 // third of its height, or on a flick. Not while a list inside it is scrolled down: that pull scrolls the list.
-// Pushed up, it gives a little and springs back.
-function pullDown(node: HTMLElement) {
+// Pushed up, it gives a little and springs back. The profile sheet uses it too (ProfilePopover).
+export function pullDown(node: HTMLElement) {
   let x = 0, y = 0, dy = 0, at = 0, speed = 0, tracking = false, pulling = false
   const scrolled = (target: EventTarget | null) => {
     for (let el = target as Element | null; el && el !== node; el = el.parentElement) if (el.scrollTop > 0) return true
