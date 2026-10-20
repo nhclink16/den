@@ -16,13 +16,15 @@
   const strip = $derived(!call.expanded && !narrow)
   // Opening or closing the call swaps the button you pressed for another view. When
   // that drops keyboard focus, hand it to the matching control: Back once open,
-  // the opener once closed.
+  // the opener once closed. Not on a touch screen: there's no keyboard focus to keep,
+  // and opening a view shouldn't light up a button in it.
   let wasExpanded = call.expanded
   $effect(() => {
     const now = call.expanded
     if (now !== wasExpanded) void tick().then(() => {
+      if (document.documentElement.dataset.input === 'touch') return
       if (document.activeElement && document.activeElement !== document.body) return
-      dock?.querySelector<HTMLElement>(now ? '.call-head .collapse' : '.expand, .call-pill .open')?.focus()
+      dock?.querySelector<HTMLElement>(now ? '.collapse' : '.expand, .call-pill .open')?.focus()
     })
     wasExpanded = now
   })
@@ -103,5 +105,5 @@
   @media (max-width: 600px) { .toolbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
   .device-note { position: absolute; left: 12px; top: 4px; z-index: 5; margin: 0; padding: 4px 10px; max-width: calc(100% - 56px); border-radius: var(--r-pill); background: var(--glass); backdrop-filter: blur(10px); font-size: var(--fs-xs); color: var(--ink-2); }
   .expanded .device-note { top: auto; bottom: 100px; left: 50%; transform: translateX(-50%); }
-  .docked .device-note { position: static; margin: 0 16px 6px; }
+  .docked .device-note { position: static; margin: 6px 16px; }
 </style>

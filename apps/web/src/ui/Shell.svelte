@@ -23,6 +23,7 @@
   import { listenForPush, pushBadge, pushStart } from '../lib/shell-push.svelte'
   import { listenForSelection } from '../lib/haptics'
   import Icon from './Icon.svelte'
+  import PushAsk from './PushAsk.svelte'
 
   let palette = $state(false)
   // Narrow screens show one thing at a time: the room list is the home screen,
@@ -84,8 +85,8 @@
   // Den Shell's notifications: registered for whoever just signed in, and again each time Den comes back.
   $effect(() => untrack(() => {
     const stop = listenForPush()
-    void pushStart()
-    const back = () => { if (document.visibilityState === 'visible') void pushStart() }
+    void pushStart({ askFirst: true })
+    const back = () => { if (document.visibilityState === 'visible') void pushStart({ askFirst: true }) }
     document.addEventListener('visibilitychange', back)
     return () => { stop(); document.removeEventListener('visibilitychange', back) }
   }))
@@ -159,6 +160,7 @@
 {#if palette}<Palette onclose={() => (palette = false)} />{/if}
 <ProfilePopover />
 <Customizer />
+<PushAsk />
 
 <style>
   .toast { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 24px); padding: 9px 10px 9px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); display: flex; align-items: center; gap: 12px; box-shadow: 0 14px 40px -10px var(--shadow-lg); }

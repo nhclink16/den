@@ -42,6 +42,8 @@
   .quality i { width: 3px; border-radius: 1px; background: var(--ink-3); opacity: .25; }
   .quality .lit { background: var(--ink-2); opacity: 1; }
   .quality.poor .lit { background: var(--ember); }
+  /* A phone shows the bars only when they're bad news. */
+  @media (max-width: 899px) { .quality:not(.poor), .sent { display: none; } }
   .sent { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font: var(--fs-xs) var(--body); color: var(--ink-2); }
   .limited { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 </style>

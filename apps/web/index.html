@@ -12,6 +12,11 @@
     <title>Den</title>
   </head>
   <body>
+    <!-- The Den mark in the middle of the screen while the app's script loads, where Den Shell's launch screen
+         draws it. The app's own boot screen (App.svelte) draws the same mark in the same spot, then removes this. -->
+    <div id="boot" style="position: fixed; inset: 0; display: grid; place-items: center; color: var(--ink)" aria-hidden="true">
+      <svg width="64" height="64" viewBox="0 0 64 64"><path fill="currentColor" fill-rule="evenodd" d="M44 4h12v52H30C16 56 8 48 8 36s9-22 22-22c6 0 10 2 14 5V4ZM22 56V36a10 10 0 0 1 20 0v20H22Z" /><path style="fill: var(--accent)" d="M26 56V36a6 6 0 0 1 12 0v20H26Z" /></svg>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

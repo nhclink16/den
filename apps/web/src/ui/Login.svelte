@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import { native } from '../lib/native'
+  import { haptic } from '../lib/haptics'
   import Mark from './Mark.svelte'
+  import Icon from './Icon.svelte'
 
   // Kept as one string so the attribute below and the check beside it cannot drift.
   // Mirrors `username()` in crates/den-server/src/auth.rs.
@@ -19,11 +22,23 @@
   let invite = $state(new URLSearchParams(location.search).get('invite') || '')
   let error = $state('')
   let busy = $state(false)
+  let forgot = $state(false)
+  let mark: HTMLElement
+  let fields: HTMLElement
 
   $effect(() => { if (invite) mode = 'register' })
 
   const usernameOk = $derived(USERNAME_RE.test(username.trim()))
   const passwordOk = $derived(password.length >= 12)
+
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  // The mark rises from the middle of the screen, where the boot screen (and Den Shell's launch screen) drew it.
+  onMount(() => {
+    if (still()) return
+    const r = mark.getBoundingClientRect()
+    mark.animate([{ transform: `translateY(${innerHeight / 2 - (r.top + r.height / 2)}px)` }, { transform: 'none' }], { duration: 550, easing: 'cubic-bezier(.2, .8, .2, 1)' })
+  })
 
   async function submit(e: SubmitEvent) {
     e.preventDefault()
@@ -37,115 +52,131 @@
       // The server returns one 401 string for a dozen unrelated cases. On the login
       // form there is only one thing it can mean, so say that instead.
       const e = err as { status?: number; message?: string }
-      error = e.status === 401
-        ? "That username and password don't match. Check for typos, or ask an admin to reset your password."
-        : e.message || 'Something went wrong. Try again.'
+      error = e.status === 401 && mode === 'login' ? 'Wrong username or password.' : e.message || 'Something went wrong. Try again.'
+      haptic('warning')
+      // A script animation, so it never touches the fields' entrance animation.
+      if (!still()) fields.animate([{ transform: 'none' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(3px)' }, { transform: 'none' }], 400)
     } finally {
       busy = false
     }
+  }
+
+  function switchMode() {
+    mode = mode === 'login' ? 'register' : 'login'
+    error = ''
+    forgot = false
   }
 </script>
 
 <main class="wrap">
   <div class="titlebar-drag" aria-hidden="true"></div>
   <div class="light" aria-hidden="true"></div>
-  <form class="card" onsubmit={submit}>
-    <h1 class="display"><span class="mark"><Mark size={44} /></span><span>{store.settings.instance_name}</span></h1>
-    {#if native}<button type="button" class="btn quiet" onclick={() => instances.add()}>{store.origin} · Change server</button>{/if}
-    <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
+  <form class="door" onsubmit={submit}>
+    <header class="head">
+      <span class="mark" bind:this={mark}><Mark size={64} /></span>
+      <h1 class="display">{store.settings.instance_name}</h1>
+      <p class="muted">{mode === 'login' ? 'Welcome back.' : 'Someone saved you a seat.'}</p>
+      {#if native}<button type="button" class="btn quiet server" onclick={() => instances.add()}>{store.origin} · Change server</button>{/if}
+    </header>
 
-    {#if mode === 'register'}
-      <label>
-        <span class="eyebrow">Display name</span>
-        <input class="field" bind:value={displayName} autocomplete="nickname" autocapitalize="words" maxlength="100" placeholder={username.trim() || 'Andy'} aria-describedby="hint-display" />
-      </label>
-      <p class="hint" id="hint-display">What everyone sees. Spaces, emoji, any language. Change it whenever.</p>
+    <!-- Placeholders name the fields; aria-label keeps the name once something is typed. -->
+    <div class="fields" bind:this={fields}>
+      {#if mode === 'register'}
+        <input class="field" bind:value={displayName} aria-label="Display name" placeholder="Display name" autocomplete="nickname" autocapitalize="words" maxlength="100" aria-describedby="hint-display" />
+        <p class="note" id="hint-display">What everyone sees. Spaces, emoji, any language. Change it whenever.</p>
+      {/if}
+
+      <input class="field" bind:value={username} aria-label="Username" placeholder="Username" autocomplete="username" autocapitalize="off" spellcheck="false" required minlength="3" maxlength="32" pattern={USERNAME_PATTERN} title="3-32 letters, digits, dots, hyphens or underscores, starting and ending with a letter or digit" aria-describedby={mode === 'register' ? 'hint-username' : undefined} />
+      {#if mode === 'register'}
+        <!-- A rule stays put once met and gains a tick at its end, so nothing moves while you type. -->
+        <p class="note" id="hint-username">3 to 32 letters, digits, dots, hyphens or underscores. Capitals are fine.{#if usernameOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
+      {/if}
+
+      <input class="field" type="password" bind:value={password} aria-label="Password" placeholder="Password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} aria-describedby={mode === 'register' ? 'hint-password' : undefined} />
+      {#if mode === 'register'}
+        <p class="note" id="hint-password">At least 12 characters. A sentence works.{#if passwordOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</p>
+
+        <input class="field mono" bind:value={invite} aria-label="Invite code" placeholder="Invite code" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+      {/if}
+    </div>
+
+    {#if error}<p class="error" role="alert"><Icon name="alert" size={14} /><span>{error}</span></p>{/if}
+    {#if mode === 'login'}
+      <button type="button" class="forgot" aria-expanded={forgot} onclick={() => (forgot = !forgot)}>Forgot password?</button>
+      {#if forgot}<p class="note">Den has no email to send a reset to. Ask an admin: they can set you a new password.</p>{/if}
     {/if}
 
-    <label>
-      <span class="eyebrow">Username</span>
-      <input class="field" bind:value={username} autocomplete="username" autocapitalize="off" spellcheck="false" required minlength="3" maxlength="32" pattern={USERNAME_PATTERN} title="3-32 letters, digits, dots, hyphens or underscores, starting and ending with a letter or digit" aria-describedby={mode === 'register' ? 'hint-username' : undefined} />
-    </label>
-    {#if mode === 'register'}
-      <p class="hint" class:done={usernameOk} id="hint-username">
-        <span class="tick" aria-hidden="true">{usernameOk ? '✓' : '·'}</span>
-        3 to 32 letters, digits, dots, hyphens or underscores. Capitals are fine.
-      </p>
-    {/if}
-
-    <label>
-      <span class="eyebrow">Password</span>
-      <input class="field" type="password" bind:value={password} autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength={mode === 'register' ? 12 : 1} aria-describedby={mode === 'register' ? 'hint-password' : undefined} />
-    </label>
-    {#if mode === 'register'}
-      <p class="hint" class:done={passwordOk} id="hint-password">
-        <span class="tick" aria-hidden="true">{passwordOk ? '✓' : '·'}</span>
-        At least 12 characters. A sentence works.
-      </p>
-
-      <label>
-        <span class="eyebrow">Invite code</span>
-        <input class="field mono" bind:value={invite} autocomplete="off" spellcheck="false" required />
-      </label>
-    {/if}
-
-    <p class="error" role="alert">{error}</p>
-
-    <button class="btn lit" type="submit" disabled={busy}>{busy ? (mode === 'login' ? 'Coming in…' : 'Joining…') : mode === 'login' ? 'Come in' : 'Join'}</button>
-    <button class="btn quiet" type="button" onclick={() => { mode = mode === 'login' ? 'register' : 'login'; error = '' }}>
-      {mode === 'login' ? 'Have an invite?' : 'Already a member? Log in'}
-    </button>
-    <!-- Only useful with the desktop app installed, so it comes after the form. -->
-    {#if !native && invite && mode === 'register'}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Have the desktop app? Open in Den</a>{/if}
+    <div class="actions">
+      <button class="btn lit" type="submit" disabled={busy}>{busy ? (mode === 'login' ? 'Coming in…' : 'Joining…') : mode === 'login' ? 'Come in' : 'Join'}</button>
+      <button class="btn quiet" type="button" onclick={switchMode}>
+        {mode === 'login' ? 'Have an invite?' : 'Already a member? Log in'}
+      </button>
+      <!-- Only useful with the desktop app installed, so it comes after the form. -->
+      {#if !native && invite && mode === 'register'}<a class="btn quiet" href={`den://join?url=${encodeURIComponent(location.origin)}&invite=${encodeURIComponent(invite)}`}>Have the desktop app? Open in Den</a>{/if}
+    </div>
   </form>
 </main>
 
 <style>
-  .wrap { position: relative; height: 100%; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); overflow: auto; isolation: isolate; }
-  /* Light spilling out of an open door: a warm pool behind the card, brightest
-     where the mark's doorway sits. It switches on as the page loads. */
+  /* No card: the page is the door. Each screen pads its own bottom (Den Shell draws edge to edge). */
+  .wrap {
+    position: relative; height: 100%; overflow: auto; isolation: isolate; display: flex; flex-direction: column;
+    padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  }
+  /* Light spilling out of an open door: a warm pool, brightest where the mark's
+     doorway sits. It switches on as the page loads. */
   .light {
     position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background:
-      radial-gradient(ellipse 34% 42% at 50% 30%, var(--pool), transparent 70%),
-      radial-gradient(ellipse 80% 70% at 50% 40%, color-mix(in srgb, var(--pool) 35%, transparent), transparent 75%);
+      radial-gradient(ellipse 34% 42% at 50% var(--pool-y), var(--pool), transparent 70%),
+      radial-gradient(ellipse 80% 70% at 50% calc(var(--pool-y) + 10%), color-mix(in srgb, var(--pool) 35%, transparent), transparent 75%);
+    --pool-y: 30%;
   }
-  .card {
-    width: min(380px, 100%); display: flex; flex-direction: column; gap: 14px;
-    padding: 32px 30px 26px; background: color-mix(in srgb, var(--bg-2) 92%, transparent);
-    border: 1px solid var(--line); border-top-color: color-mix(in srgb, var(--lamp) 35%, var(--line)); border-radius: var(--r-lg);
-    box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent) inset, 0 30px 70px -24px var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--bg) 40%, transparent);
-    backdrop-filter: blur(6px);
+  .door { width: min(380px, 100%); margin: auto; display: flex; flex-direction: column; }
+  /* On a phone: the mark and greeting in the upper third, the button near the bottom, where a thumb is. */
+  @media (max-width: 599px) {
+    .door { flex: 1 0 auto; margin: 0 auto; }
+    .head { padding-top: 6vh; }
+    .actions { margin-top: auto; }
+    .light { --pool-y: 18%; }
   }
-  h1 { font-size: 40px; margin: 0; line-height: 1; display: flex; align-items: center; gap: 12px; }
-  .mark { position: relative; display: grid; }
+
+  .head { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 32px; }
+  h1 { font-size: 34px; line-height: 1.1; margin: 16px 0 0; overflow-wrap: anywhere; }
+  .head p { margin: 6px 0 0; font-size: 17px; }
+  .server { margin-top: 8px; font-size: var(--fs-sm); white-space: normal; }
+  .mark { position: relative; display: grid; color: var(--ink); }
   .mark::before {
     content: ''; position: absolute; left: 30%; right: 30%; top: 40%; bottom: -10%; z-index: -1;
     border-radius: 50% 50% 0 0; background: var(--lamp); filter: blur(14px); opacity: .55;
   }
+
+  /* Filled, borderless fields, as on iPhone. */
+  .fields { display: flex; flex-direction: column; gap: 12px; }
+  .door .field {
+    min-height: 50px; padding: 12px 16px; font-size: 16px; border: 0; border-radius: 12px;
+    background: color-mix(in srgb, var(--ink-3) 14%, transparent);
+  }
+  /* With no border, app.css's focus border has nothing to colour: a keyboard gets a solid ring instead (touch none). */
+  .door .field:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
+  /* One footer style under a field: grey, tucked up to it, and a tick at the end once the rule is met. */
+  .note { margin: -6px 16px 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--ink-3); }
+  .tick { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--success); }
+  .error { display: flex; gap: 6px; align-items: baseline; margin: 12px 16px 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--danger); }
+  .error :global(svg) { flex-shrink: 0; align-self: center; }
+  .forgot { align-self: flex-start; margin: 10px 16px 0; padding: 4px 0; font-size: var(--fs-sm); color: var(--lamp); }
+  .forgot + .note { margin-top: 2px; }
+
+  .actions { display: flex; flex-direction: column; gap: 6px; padding-top: 32px; }
+  .btn { justify-content: center; }
+  .btn.lit { min-height: 50px; font-size: 17px; }
+  .btn:disabled { cursor: default; }
+
   @media (prefers-reduced-motion: no-preference) {
     .light { animation: lamp-on 1.1s .15s var(--ease-out) both; }
     .mark::before { animation: lamp-on .9s .1s var(--ease-out) both; }
-    .card { animation: rise .5s var(--ease-out) both; }
+    .door > :not(.head), .head > :not(.mark) { animation: rise .5s .15s var(--ease-out) both; }
   }
   @keyframes lamp-on { 0% { opacity: 0; } 35% { opacity: .45; } 45% { opacity: .2; } 100% { } }
-  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99); } }
-  .btn.lit { min-height: 44px; }
-  .btn:disabled { cursor: default; }
-  h1 span { min-width: 0; overflow-wrap: anywhere; }
-  h1 :global(svg) { flex-shrink: 0; }
-  h1 + p { margin: -6px 0 6px; }
-  label { display: flex; flex-direction: column; gap: 6px; }
-  /* Stated before you type, not after a rejected submit. Satisfied rules recede
-     rather than vanish, so the form does not reflow while you are filling it in. */
-  .hint {
-    font-size: var(--fs-sm); line-height: 1.4; margin: -8px 0 0;
-    color: var(--ink-2); display: flex; gap: 6px; align-items: baseline;
-    transition: color .12s;
-  }
-  .hint.done { color: var(--ink-3); }
-  .tick { font-variant-numeric: tabular-nums; width: 1em; flex-shrink: 0; text-align: center; }
-  .hint.done .tick { color: var(--accent); }
-  .error { color: var(--danger); margin: 0; font-size: var(--fs-sm); min-height: 1.4em; line-height: 1.4; }
-  .btn { justify-content: center; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 </style>

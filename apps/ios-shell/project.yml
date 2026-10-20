@@ -43,7 +43,11 @@ targets:
         CFBundleDisplayName: Den
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        UILaunchScreen: {}
+        # The Den mark on Neutral's background (Assets.xcassets), where the web app's boot screen draws it too, so
+        # nothing jumps when the page takes over. A launch screen can't run code: it follows the iPhone's appearance.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchMark
         # Same answer as the old app's TestFlight builds, so cloud builds don't wait on a compliance question.
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSceneManifest:
