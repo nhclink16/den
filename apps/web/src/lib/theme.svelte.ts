@@ -52,8 +52,8 @@ class Themes {
   private jobs: { owner: string; patch: Patch }[] = []
   /** Copies from the socket (and server switches), so a save's reply never replaces a newer one. */
   private received = 0
-  /** Save replies applied, so a sync asked before one landed never replaces it. */
-  private replies = 0
+  /** Every copy taken, from anywhere, so a sync asked before one of them never replaces it. */
+  private taken = 0
   get all() { return [...builtinThemes, ...this.appearance.custom_themes] }
   get active() { return this.draft || themeFor(this.appearance, this.half) }
   /** The theme currently assigned to one appearance, ignoring any live draft. */
@@ -69,13 +69,18 @@ class Themes {
     matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => this.apply())
   }
   /** Taken before a sync asks for the server's copy, and passed back with it. */
-  mark() { return this.replies }
-  /** The server's copy for the account showing now: from the socket or a server switch, or from a sync with its `mark()`. */
+  mark() { return this.taken }
+  /** The server's copy for the account showing now: from the socket or a server switch, or from a
+   *  sync with its `mark()`. A sync's copy is older than anything taken since it asked: false, set aside. */
   receive(a: Appearance, asked?: number) {
     if (asked === undefined) this.received++
-    else if (asked !== this.replies) return
-    this.stored = copy(a); this.show()
+    else if (asked !== this.taken) return false
+    this.take(a); this.show()
+    return true
   }
+  /** The newest copy from the server, for the store to keep when it stops being the one showing. */
+  latest() { return copy(this.stored) }
+  private take(a: Appearance) { this.stored = copy(a); this.taken++ }
   private show() {
     const owner = this.owner()
     this.appearance = Object.assign(copy(this.stored), ...this.jobs.filter(j => j.owner === owner).map(j => copy(j.patch)))
@@ -115,7 +120,7 @@ class Themes {
       try {
         const saved = await api.put<Appearance>('/users/me/appearance', job.patch)
         // A copy that came over the socket meanwhile is as new or newer; if older, this save's own copy follows it.
-        if (this.owner() === job.owner && this.received === asked) { this.stored = saved; this.replies++ }
+        if (this.owner() === job.owner && this.received === asked) this.take(saved)
         return true
       } catch (e) {
         if (this.owner() === job.owner) this.error = (e as Error).message

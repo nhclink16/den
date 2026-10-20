@@ -143,10 +143,11 @@ export class Store {
   private generation = 0
   get active() { return !native || instances.active === this }
   get attention() { return this.channels.some(c => { const u = this.unread(c.id); return u.mention || (c.kind === 'dm' && u.count > 0) }) }
+  /** The showing server's copy is kept by `themes` (with the cache); a switch away copies it back here. */
   private receiveAppearance(a: Appearance, asked?: number) {
+    if (this.active && !themes.receive(a, asked)) return
     this.appearance = a
-    if (native) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
-    if (this.active) themes.receive(a, asked)
+    if (native && !this.active) localStorage.setItem(`den.appearance:${this.origin}`, JSON.stringify(a))
   }
   settings = $state<Settings>({ canvas_enabled: true, instance_name: 'Den' })
   private listeners = new Set<(event: Event) => void>()
@@ -1468,6 +1469,7 @@ class Instances {
   }
   select(s: Store) {
     objects.active = null; objects.expanded = false; objects.presence = {}
+    this.active.appearance = themes.latest()
     this.active = s; setOrigin(s.origin)
     themes.draft = null; themes.receive(s.appearance); call.snapshot(s.calls)
     window.dispatchEvent(new CustomEvent('den-instance'))

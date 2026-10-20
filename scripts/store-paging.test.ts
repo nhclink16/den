@@ -49,7 +49,7 @@ const globals = {
   cachedAppearance: () => ({}), loadLayout: () => ({}), carryOldAvatarChoices: async () => {},
   noSpotify: () => ({ connection: 'unavailable', account_name: null, connected_at: null, expires_at: null }),
   call: { snapshot() {}, applyAV() {}, leave: async () => {} }, objects: {},
-  themes: { receive() {}, mark: () => 0 }, localStorage: { setItem() {}, getItem: () => null },
+  themes: { receive: () => true, mark: () => 0 }, localStorage: { setItem() {}, getItem: () => null },
   appendNew: (a: string[], b: string[]) => [...new Set([...a, ...b])], byActivity: (a: unknown) => a,
   activeListeners: new Set(), setCsrf() {}, pushSignedOut() {},
   WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
@@ -717,4 +717,13 @@ test('a DM opened by the previous account cannot land in the next account', asyn
   await assert.rejects(opening)
   assert.equal(s.channels.some((c: any) => c.id === 'dm-a-b'), false, "the previous account's DM joined the next account's rooms")
   assert.equal(s.messages.has('dm-a-b'), false)
+})
+
+test('a synced appearance the theme state sets aside as older is not kept for the next server switch', () => {
+  const s = new Store('https://den.test')
+  s.appearance = { mode: 'dark' }
+  const receive = globals.themes.receive
+  globals.themes.receive = () => false
+  try { s.receiveAppearance({ mode: 'light' }, 0) } finally { globals.themes.receive = receive }
+  assert.equal(s.appearance.mode, 'dark')
 })

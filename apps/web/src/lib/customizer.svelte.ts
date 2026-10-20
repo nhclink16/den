@@ -2,7 +2,7 @@
 // app, so every change shows where it matters instead of in a settings page. Changes save as
 // they happen; "Undo changes" returns to how things looked when it opened.
 import { themes } from './theme.svelte'
-import type { Appearance } from './types'
+import type { Appearance, Theme } from './types'
 
 type Snapshot = { owner: string; appearance: Appearance }
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
@@ -51,8 +51,8 @@ class Customizer {
     // Only what differs goes back, and the custom themes only when one is put back, so a
     // change another device makes meanwhile to something else stays.
     const patch = Object.fromEntries(Object.entries(copy(s.appearance)).filter(([k, v]) => k !== 'custom_themes' && JSON.stringify(v) !== JSON.stringify(now[k as keyof Appearance])))
-    if (now.custom_themes.some(t => this.edited.has(t.id) && s.appearance.custom_themes.some(o => o.id === t.id)))
-      patch.custom_themes = now.custom_themes.map(t => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t)
+    const back = (t: Theme) => (this.edited.has(t.id) && s.appearance.custom_themes.find(o => o.id === t.id)) || t
+    if (now.custom_themes.some(t => JSON.stringify(back(t)) !== JSON.stringify(t))) patch.custom_themes = now.custom_themes.map(back)
     void themes.save(patch)
   }
 }

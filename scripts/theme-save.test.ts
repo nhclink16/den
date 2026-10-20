@@ -225,3 +225,32 @@ test("Undo leaves the custom themes alone unless it puts one back, so another de
   assert.deepEqual(s.state.custom_themes.map((t: any) => t.id), ['plum'])
   assert.equal(s.sent.at(-1).custom_themes, undefined)
 })
+
+test("a sync asked before a save doesn't win when the save's socket copy beat its reply", async () => {
+  const s = server(start), themes = one(s)
+  const asked = themes.mark()
+  s.hold('after')
+  const saved = themes.accent('green')
+  await tick()
+  themes.receive(structuredClone(s.state))
+  s.release(); await saved
+  themes.receive(structuredClone(start), asked)
+  assert.equal(themes.appearance.accent, 'green')
+})
+
+test('a second Undo with nothing left to put back leaves the custom themes alone', async () => {
+  const s = server({ ...start, custom_themes: [mine('plum')] }), themes = setup({ ...start, custom_themes: [mine('plum')] }, false, { 'https://den.test': s }).themes
+  const { customizer } = compile('customizer.svelte.ts', {
+    './theme.svelte': { themes }, './native': { activeOrigin: () => 'https://den.test' }, './store.svelte': { store: { me: null } },
+  }, { $state: (v: unknown) => v })
+  customizer.begin()
+  await themes.update(mine('plum', 'sharp')); customizer.editedTheme('plum')
+  customizer.undo(); await tick(); await tick()
+  assert.equal(s.state.custom_themes[0].radius, 'soft')
+  await themes.accent('green')
+  // The phone adds a theme; its copy hasn't arrived here yet.
+  s.other({ custom_themes: [mine('plum'), mine('rose')] })
+  customizer.undo(); await tick(); await tick()
+  assert.equal(s.state.accent, null)
+  assert.deepEqual(s.state.custom_themes.map((t: any) => t.id), ['plum', 'rose'])
+})
