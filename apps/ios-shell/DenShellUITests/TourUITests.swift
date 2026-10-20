@@ -234,7 +234,7 @@ final class TourUITests: XCTestCase {
                 try settingsPages(app, ["Access", "API keys", "Agents"], back: "Developer", home: "API keys")
                 try tapBack(app, "Settings", home: "Appearance")
             }
-            // Last: it may leave iOS's share sheet up, and the next run starts the app again.
+            // Last: it leaves iOS's share sheet up (the shell's), and the next run starts the app again.
             let computer = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == 'Den on your computer'")).firstMatch
             if computer.exists {
                 try scrollAndTap(computer, "Den on your computer", app)
@@ -440,28 +440,26 @@ final class TourUITests: XCTestCase {
         try find(app, label: home)
     }
 
-    /// A photo waiting in the composer, the way a person adds one: + → Photos → Photo Library → pick one.
+    /// A photo waiting in the composer, the way a person adds one: + → Photos → pick one in iOS's picker, which the
+    /// shell opens straight away (a shell without it shows WebKit's Photo Library menu first).
     /// If the simulator's library has nothing to pick, pastes Maya's lake picture from the made-up Den instead.
     @MainActor private func attachPhoto(_ app: XCUIApplication) async throws {
         try find(app, label: "More").tap()
         try find(app, label: "Photos").tap()
         let library = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Photo Library'")).firstMatch
-        if library.waitForExistence(timeout: 5) {
-            shot("file-menu")
-            library.tap()
-            pause(3)
-            shot("photo-picker")
-            // The picker's cells, not the page's pictures behind it.
-            let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
-            if photo.waitForExistence(timeout: 5) {
-                photo.tap()
-                let add = app.buttons["Add"]
-                if add.waitForExistence(timeout: 3) { add.tap() }
-                if element(app, label: "Remove", .prefix).waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
-            }
-            let cancel = app.buttons["Cancel"]
-            if cancel.exists { cancel.tap() }
+        if library.waitForExistence(timeout: 2) { shot("file-menu"); library.tap() }
+        pause(3)
+        shot("photo-picker")
+        // The picker's cells, not the page's pictures behind it.
+        let photo = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo'")).firstMatch
+        if photo.waitForExistence(timeout: 5) {
+            photo.tap()
+            let add = app.buttons["Add"]
+            if add.waitForExistence(timeout: 3) { add.tap() }
+            if element(app, label: "Remove", .prefix).waitForExistence(timeout: 20) { return putKeyboardAway(app, "room-photo-waiting") }
         }
+        let cancel = app.buttons["Cancel"]
+        if cancel.exists { cancel.tap() }
         let token = try await token("maya")
         let plans = try await roomId("plans", token: token)
         let messages = try await api("GET", "/channels/\(plans)/messages?limit=20", token: token) as? [[String: Any]] ?? []

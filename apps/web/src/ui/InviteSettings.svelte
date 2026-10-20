@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte'
   import SettingRow from './SettingRow.svelte'
   import { settingsVisit, shownOnce } from '../lib/settings-secrets.svelte'
+  import { canShareLink, shareLink } from '../lib/shell-media'
 
   let uses = $state(1), hours = $state(48)
   let copied = $state<string | null>(null), error = $state('')
@@ -18,11 +19,11 @@
   }
   const inviteLink = (code: string) => `${store.origin || location.origin}/login?invite=${encodeURIComponent(code)}`
   async function copy(id: string, s: string) { await navigator.clipboard.writeText(s); copied = id; setTimeout(() => (copied = null), 1500) }
-  async function share(s: string) {
-    try { await navigator.share({ title: `Join ${store.settings.instance_name}`, url: s }) }
+  async function share(s: string, from: EventTarget | null) {
+    try { await shareLink({ title: `Join ${store.settings.instance_name}`, url: s }, from as Element) }
     catch (e) { if ((e as Error).name !== 'AbortError') error = (e as Error).message }
   }
-  const canShare = typeof navigator.share === 'function'
+  const canShare = canShareLink()
   // Menus of sensible values instead of number boxes.
   const useChoices = [1, 5, 10, 25, 50]
   const expiryChoices: [number, string][] = [[1, '1 hour'], [24, '1 day'], [48, '2 days'], [168, '7 days'], [720, '30 days']]
@@ -50,7 +51,7 @@
       <div class="invite">
         <div class="text"><code class="link">{inviteLink(inv.code)}</code><span class="hint">{inv.uses_left} {inv.uses_left === 1 ? 'use' : 'uses'} left</span></div>
         <button class="icon-btn" onclick={() => copy(inv.id, inviteLink(inv.code))} aria-label="Copy invite link" title="Copy"><Icon name={copied === inv.id ? 'check' : 'copy'} /></button>
-        {#if canShare}<button class="text-btn" onclick={() => share(inviteLink(inv.code))}>Share</button>{/if}
+        {#if canShare}<button class="text-btn" onclick={(e) => share(inviteLink(inv.code), e.currentTarget)}>Share</button>{/if}
       </div>
     {/each}
   </div>

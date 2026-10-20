@@ -43,57 +43,25 @@ pub(crate) async fn put_appearance(
     ApiJson(raw): ApiJson<serde_json::Value>,
 ) -> Result<Response> {
     // Same answer the JSON extractor gives a body that does not fit the type.
-    let mut v: Appearance = serde_json::from_value(raw.clone()).map_err(|_| {
+    let invalid = || {
         Error(
             StatusCode::UNPROCESSABLE_ENTITY,
             "invalid_request",
             "Invalid JSON request".into(),
         )
-    })?;
-    v.validate().map_err(Error::bad)?;
+    };
+    let serde_json::Value::Object(fields) = raw else {
+        return Err(invalid());
+    };
     let _guard = s.writes.lock().await;
-    // Clients that predate the sidebar wallpaper send the whole object without it.
-    // Absent means "leave it"; only an explicit null clears it.
-    // The accent came later still, and the native iOS app drops fields it
-    // does not know when it saves.
-    // Room icons came with the room list redesign, under the same rule, and the
-    // bubble settings with the chat redesign. Avatar shape and the online
-    // indicator were kept on each device before they synced.
-    if [
-        "sidebar_background",
-        "accent",
-        "room_icons",
-        "bubble_shape",
-        "bubble_colors",
-        "avatar_shape",
-        "presence_style",
-    ]
-    .iter()
-    .any(|k| raw.get(k).is_none())
-    {
-        let stored = load(&s, &a.user.id).await?;
-        if raw.get("sidebar_background").is_none() {
-            v.sidebar_background = stored.sidebar_background;
-        }
-        if raw.get("accent").is_none() {
-            v.accent = stored.accent;
-        }
-        if raw.get("room_icons").is_none() {
-            v.room_icons = stored.room_icons;
-        }
-        if raw.get("bubble_shape").is_none() {
-            v.bubble_shape = stored.bubble_shape;
-        }
-        if raw.get("bubble_colors").is_none() {
-            v.bubble_colors = stored.bubble_colors;
-        }
-        if raw.get("avatar_shape").is_none() {
-            v.avatar_shape = stored.avatar_shape;
-        }
-        if raw.get("presence_style").is_none() {
-            v.presence_style = stored.presence_style;
-        }
-    }
+    // A save changes the fields it names and keeps the rest, read under the lock.
+    // Two devices saving at once then never write back each other's older copy,
+    // and older clients that send the whole object without a newer field (the
+    // native iOS app drops fields it does not know) keep that field too.
+    let mut merged = serde_json::to_value(load(&s, &a.user.id).await?).map_err(|_| invalid())?;
+    merged.as_object_mut().unwrap().extend(fields);
+    let mut v: Appearance = serde_json::from_value(merged).map_err(|_| invalid())?;
+    v.validate().map_err(Error::bad)?;
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;
     save(&s, &a.user.id, &v).await?;
     Ok(response(v, missing))
