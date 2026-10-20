@@ -90,9 +90,11 @@ struct DenWebView: UIViewRepresentable {
         context.coordinator.calls.install(in: config.userContentController)
         PushBridge.shared.install(in: config.userContentController, den: context.coordinator.den)
         context.coordinator.haptics.install(in: config.userContentController)
+        context.coordinator.media.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
         context.coordinator.webView = webView
         context.coordinator.calls.webView = webView
+        context.coordinator.media.webView = webView
         PushBridge.shared.webView = webView
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -185,6 +187,7 @@ struct DenWebView: UIViewRepresentable {
     let engine = CallEngine()
     lazy var calls = CallBridge(den: den, engine: engine)
     lazy var haptics = Haptics(den: den)
+    lazy var media = MediaBridge(den: den)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     var offsetObservation: NSKeyValueObservation?

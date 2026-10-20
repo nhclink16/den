@@ -29,6 +29,7 @@
   import EmojiPicker from './EmojiPicker.svelte'
   import { messageUrl, snippet, type Gif } from '../lib/klipy'
   import { haptic } from '../lib/haptics'
+  import { pickShellPhotos, shellPhotos } from '../lib/shell-media'
   import { disclosurePopover } from '../lib/disclosure-popover'
   import { nameInk, personColor } from '../lib/bubbles'
 
@@ -210,6 +211,13 @@
   })
 
   function add(files: File[]) { store.uploads.add(here, files); ta?.focus() }
+  // Den Shell has iOS's photo picker; elsewhere the <input>. Files land where Photos was tapped, on that account,
+  // even if they take a while to come in.
+  function pickPhotos() {
+    if (!shellPhotos()) return photoInput?.click()
+    const uploads = store.uploads, at = here
+    void pickShellPhotos((files) => uploads.add(at, files), (message) => { haptic('warning'); store.toast = message })
+  }
   // A staged picture shows itself, so you can tell which one you're about to send.
   function preview(img: HTMLImageElement, file: File) {
     const url = URL.createObjectURL(file)
@@ -417,7 +425,7 @@
           {#if menu}
             <!-- Round tiles, as in Messages or WhatsApp. Photos and Camera ask iOS for just that. -->
             <div class="menu" role="menu" aria-label="Add to your message">
-              <button role="menuitem" onclick={() => fromMenu(() => photoInput?.click())}><span class="tile" aria-hidden="true"><Icon name="image" size={24} /></span>Photos</button>
+              <button role="menuitem" onclick={() => fromMenu(pickPhotos)}><span class="tile" aria-hidden="true"><Icon name="image" size={24} /></span>Photos</button>
               {#if camera}<button role="menuitem" onclick={() => fromMenu(() => cameraInput?.click())}><span class="tile" aria-hidden="true"><Icon name="camera" size={24} /></span>Camera</button>{/if}
               <button role="menuitem" onclick={() => fromMenu(() => fileInput.click())}><span class="tile" aria-hidden="true"><Icon name="file" size={24} /></span>File</button>
               <button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => (gifOpen = true))}><span class="tile" aria-hidden="true"><span class="badge">GIF</span></span>GIF</button>

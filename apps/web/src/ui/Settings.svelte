@@ -28,6 +28,7 @@
   import { isDesktop } from '../lib/desktop'
   import { native } from '../lib/native'
   import { shell } from '../lib/shell-call'
+  import { shareLink } from '../lib/shell-media'
 
   /** `narrow`: one thing at a time. The list of sections, or a page pushed in over it, like iPhone Settings. */
   let { section, narrow }: { section?: string; narrow: boolean } = $props()
@@ -150,15 +151,12 @@
 
   // The iPhone app has no desktop download page: it hands the link to a computer instead.
   let shared = $state('')
-  async function shareComputer() {
+  async function shareComputer(e: MouseEvent) {
     const url = `${store.origin || location.origin}/settings/desktop`
-    // The link shows straight away, whatever the share sheet or clipboard then does (in Xcode Cloud's simulator,
-    // neither showed anything within 3 s).
+    // The link shows straight away, whatever the share sheet or clipboard then does.
     shared = `On your computer, open ${url.replace(/^https?:\/\//, '')}.`
-    if (navigator.share) {
-      try { await navigator.share({ title: 'Den for your computer', text: 'Get Den for your computer: sign in, then Settings › Desktop app.', url }); return }
-      catch (e) { if ((e as Error).name === 'AbortError') return }
-    }
+    try { if (await shareLink({ title: 'Den for your computer', text: 'Get Den for your computer: sign in, then Settings › Desktop app.', url }, e.currentTarget as Element)) return }
+    catch (e) { if ((e as Error).name === 'AbortError') return }
     try { await navigator.clipboard.writeText(url); shared = 'Link copied. Open it on your computer.' }
     catch { /* The link is on screen already. */ }
   }
