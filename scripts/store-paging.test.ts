@@ -704,3 +704,17 @@ test('two icon saves in a row with the socket down end on the second', async () 
   replies[1]!.release({ ...room, icon: 'skull' }); await second
   assert.equal(s.channels[0].icon, 'skull', 'the first reply made the second look overtaken')
 })
+
+test('a DM opened by the previous account cannot land in the next account', async () => {
+  const pending = held()
+  api = { get: async () => [], post: (p: string) => (p === '/dms' ? pending.promise : Promise.resolve(null)) }
+  const s = new Store('fixture')
+  s.me = { id: 'a' }
+  const opening = s.openDm(['b'])
+  await s.logout()
+  s.me = { id: 'z' }
+  pending.release({ id: 'dm-a-b', kind: 'dm', member_ids: ['a', 'b'] })
+  await assert.rejects(opening)
+  assert.equal(s.channels.some((c: any) => c.id === 'dm-a-b'), false, "the previous account's DM joined the next account's rooms")
+  assert.equal(s.messages.has('dm-a-b'), false)
+})

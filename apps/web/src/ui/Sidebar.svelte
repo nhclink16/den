@@ -66,11 +66,12 @@
   async function message(userId: string) {
     composing = false
     // The concrete server, not the proxy: if someone switches servers meanwhile, this room isn't on the new one.
-    const s = instances.active
+    const s = instances.active, me = s.me?.id
+    const here = () => instances.active === s && s.me?.id === me
     try {
       const c = await s.openDm([userId])
-      if (instances.active === s && router.route.name === 'home') router.go(`/c/${c.id}`, false, '/')
-    } catch (e) { s.toast = (e as Error).message }
+      if (here() && router.route.name === 'home') router.go(`/c/${c.id}`, false, '/')
+    } catch (e) { if (here()) s.toast = (e as Error).message }
   }
 
   const failed = $derived(join.failed)

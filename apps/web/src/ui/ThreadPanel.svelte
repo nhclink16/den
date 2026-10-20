@@ -129,10 +129,10 @@
   const bar = $derived(narrow && phone)
   // The automatic title is the server's (threads.rs title_from): the root's first line, else its card's name,
   // else "Conversation", at most 80 characters. An edited root can't be told from a rename without the server
-  // saying so; it shows the old first line.
+  // saying so, so it shows "Thread" rather than its old first line (the name still shows in the room's list).
   const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
   const auto = $derived(root ? [...(root.content.split('\n').map(squash).find(Boolean) || squash(root.objects?.[0]?.name ?? '') || 'Conversation')].slice(0, 80).join('') : '')
-  const named = $derived(!!summary && !!root && summary.title !== auto)
+  const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
   const where = $derived(`${channel.kind === 'text' ? `#${channel.name}` : store.title(channel)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
   const fromMenu = (work: () => void) => { menu = false; work() }
