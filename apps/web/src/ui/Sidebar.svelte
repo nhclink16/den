@@ -1,19 +1,24 @@
 <script module lang="ts">
   import { call } from '../lib/call.svelte'
+  import { store, instances } from '../lib/store.svelte'
   // The phone list unmounts while a room is open. Coming back should find it
   // where it was, with the room you left in view.
   let savedScroll = 0
   let lastRoom = ''
   // A join that failed leaves Retry on the hangout row (the toast only says what happened), until the next
-  // try. Watched for the life of the app, so a join that ends while a room is open is still known on return.
+  // try. Watched for the life of the app, so a join that ends while a room is open is still known on return,
+  // and kept with the account it happened to.
   let tried = ''
-  const join = $state({ failed: '' })
+  const join = $state({ failed: '', who: '' })
+  const account = () => `${store.origin}:${store.me?.id ?? ''}`
+  // New message: only the latest choice opens, whichever visit to the list made it.
+  let picks = 0
   $effect.root(() => {
     $effect(() => {
       const id = call.joining
       if (id) { tried = id; join.failed = '' }
       else if (call.channel) tried = ''
-      else if (tried && call.error) { join.failed = tried; tried = '' }
+      else if (tried && call.error) { join.failed = tried; join.who = account(); tried = '' }
     })
   })
 </script>
@@ -23,7 +28,6 @@
   import SidebarToggle from './SidebarToggle.svelte'
   import CallDock from './CallDock.svelte'
   import CallFaces from './CallFaces.svelte'
-  import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
@@ -61,7 +65,7 @@
   const tapped = () => { if (document.documentElement.dataset.input === 'touch') search() }
 
   // New message: everyone you could start a DM with.
-  let composing = $state(false), picks = 0
+  let composing = $state(false)
   const people = $derived(store.people.filter((u) => u.id !== store.me?.id).sort((a, b) => (a.display_name || a.username).localeCompare(b.display_name || b.username)))
   async function message(userId: string) {
     composing = false
@@ -75,7 +79,7 @@
     } catch (e) { if (here()) s.toast = (e as Error).message }
   }
 
-  const failed = $derived(join.failed)
+  const failed = $derived(join.who === account() ? join.failed : '')
 
   // The sidebar line is the Jam's only announcement, so keep its track current
   // for people who are not in the call and have no strip polling it.
