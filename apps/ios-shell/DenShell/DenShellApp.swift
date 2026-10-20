@@ -139,23 +139,24 @@ struct DenWebView: UIViewRepresentable {
             mark.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             mark.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
-        // Painted until the page draws, and kept for the unreachable screen of a later launch. The mark takes the
-        // light or dark ink that reads on it.
-        let wear = { (container: UIView, color: UIColor?) in
-            container.backgroundColor = color ?? UIColor(named: "LaunchBackground")
-            var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
-            guard let color, color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
-            mark.overrideUserInterfaceStyle = 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5 ? .dark : .light
-        }
-        wear(container, Unreachable.lastThemeColor)
-        context.coordinator.themeObservation = webView.observe(\.themeColor, options: [.initial]) { [weak container] webView, _ in
+        // Painted until the page draws, and kept for the unreachable screen of a later launch.
+        Self.wear(Unreachable.lastThemeColor, container: container, mark: mark)
+        context.coordinator.themeObservation = webView.observe(\.themeColor, options: [.initial]) { [weak container, weak mark] webView, _ in
             MainActor.assumeIsolated {
-                guard let color = webView.themeColor, let container else { return }
-                wear(container, color)
+                guard let color = webView.themeColor, let container, let mark else { return }
+                Self.wear(color, container: container, mark: mark)
                 Unreachable.lastThemeColor = color
             }
         }
         return container
+    }
+
+    /// The page's colour behind it, and the mark in the light or dark ink that reads on that colour.
+    private static func wear(_ color: UIColor?, container: UIView, mark: UIImageView) {
+        container.backgroundColor = color ?? UIColor(named: "LaunchBackground")
+        var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        guard let color, color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
+        mark.overrideUserInterfaceStyle = 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5 ? .dark : .light
     }
 
     func updateUIView(_ container: UIView, context: Context) {}
