@@ -246,7 +246,7 @@
     {:else}
       <div class="title">
         <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
-        <span class="sub">in {roomName(channel, themes.appearance.room_icons)}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
+        <span class="sub">{channel.kind === 'dm' ? `with ${store.title(channel)}` : `in ${roomName(channel, themes.appearance.room_icons)}`}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
       </div>
     {/if}
     {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
