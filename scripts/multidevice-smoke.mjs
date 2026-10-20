@@ -113,6 +113,8 @@ try {
   await observer.screenshot({ path: `${scratch}/shots/multidevice-desktop.png` })
   await phone.setViewportSize({ width: 390, height: 844 })
   await phone.screenshot({ path: `${scratch}/shots/multidevice-phone.png` })
+  // A phone's call bar has no Leave: it's in the open call.
+  if (!await phone.getByRole('button', { name: 'Leave call', exact: true }).count()) await phone.getByRole('button', { name: /open the call/ }).click()
   await phone.getByRole('button', { name: 'Leave call', exact: true }).click()
   await until(async () => tiles(desktop).count().then((n) => n === 3), 'leaving phone leaves desktop and tablet connected')
   assert.equal(await screens(observer).count(), 2)

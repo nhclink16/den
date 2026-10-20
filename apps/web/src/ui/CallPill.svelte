@@ -1,7 +1,7 @@
 <script lang="ts">
-  // The call, small, while you chat: who's in, who's talking, your mic and Leave.
-  // Tap it to open the call. `full` is the call bar above the sidebar: the same
-  // pill with Leave beside it and every other call button on a row under it.
+  // The call, small, while you chat: a slim bar under a phone's top bar with who's in,
+  // who's talking and your mic. Tap it to open the call. `full` is the call bar above
+  // the sidebar: the same with Leave beside it and every other call button on a row under it.
   import { call } from '../lib/call.svelte'
   import { native } from '../lib/native'
   import { callFaces, callLine } from '../lib/room-list'
@@ -13,9 +13,9 @@
   const line = $derived(callLine(call.participants, call.reconnecting))
 </script>
 
-<div class="call-pill" class:full role="group" aria-label="Current call" data-testid={full ? 'call-dock' : 'call-pill'}>
+<div class="call-pill" class:full class:slim={!full} role="group" aria-label="Current call" data-testid={full ? 'call-dock' : 'call-pill'}>
   <button class="open" title={call.expanded ? 'Back to the chat' : 'Open the call'} onclick={() => (call.expanded = !call.expanded)}>
-    <CallFaces {faces} size={full ? 26 : 28} instance={call.owner ?? undefined} />
+    <CallFaces {faces} size={full ? 26 : 22} instance={call.owner ?? undefined} />
     <span class="tx">
       <b>{call.title}{#if native}<small> · {call.instanceName}</small>{/if}</b>
       <span class="line" class:talking={!!line.talking && !call.reconnecting}>
@@ -57,7 +57,7 @@
   .full b { font-size: var(--fs-sm); }
   .full .line { font-size: var(--fs-xs); }
   /* Red and apart from the toggles, like the open call's. */
-  .leave { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-pill); color: var(--bg); background: var(--danger); transition: filter var(--t-fast); }
+  .leave { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-pill); color: #fff; background: var(--hang-up); transition: filter var(--t-fast); }
   @media (hover: hover) { .leave:hover { filter: brightness(1.1); } }
   @media (pointer: coarse) { .leave { width: 44px; height: 44px; } }
   /* Too narrow for one row (the sidebar): who's in and Leave on top, the toggles
@@ -65,4 +65,18 @@
   @container dock (max-width: 520px) { .full :global(.controls) { flex-basis: 100%; justify-content: space-between; gap: 4px; } }
   /* Wide (the bottom of the window with the sidebar hidden): one row, Leave last. */
   @container dock (min-width: 521px) { .full .open { flex-basis: 160px; } .leave { order: 1; margin-inline-start: 4px; } }
+  /* A phone: one 44pt strip across the screen, tinted with the live green, like an iPhone's call bar.
+     Joining or leaving moves the screen by this strip only. */
+  .slim {
+    --strip: color-mix(in srgb, var(--moss) 14%, var(--bg)); --ring: var(--strip);
+    margin: 0; gap: 8px; min-height: 44px; padding: 0 8px 0 16px; border-radius: 0;
+    background: var(--strip); backdrop-filter: none; box-shadow: inset 0 -.5px 0 var(--line);
+  }
+  .slim .open { flex: 1 1 0; min-height: 44px; gap: 8px; border-radius: 0; }
+  .slim .tx { flex-direction: row; align-items: baseline; gap: 5px; }
+  .slim b { flex: none; max-width: 60%; font-size: 15px; font-weight: 600; }
+  .slim .line { font-size: 15px; color: var(--ink-2); }
+  .slim .line::before { content: '·'; }
+  .slim .line.talking { color: var(--ink); }
+  .slim .line :global(.talk-bars i) { background: var(--moss); }
 </style>

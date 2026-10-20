@@ -18,6 +18,8 @@
      symmetric, so bg is the readable ink; a fixed black failed every light theme. */
   --on-lamp: var(--bg);
   --moss: var(--success); --ember: var(--danger);
+  /* Hang up: the phone's own red under a white glyph, the same in every theme (the theme's danger is pale in Dark). */
+  --hang-up: #ff3b30;
   --overlay: color-mix(in srgb, var(--bg) 90%, transparent);
   /* Frosted glass for what floats over the call or the chat: the call bar, the pill,
      the names on tiles. Solid enough to read on any camera, share or wallpaper. */
