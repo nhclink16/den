@@ -94,7 +94,7 @@ final class SmokeUITests: XCTestCase {
         let app = try launchSignedIn()
         try find(app, label: "general", .prefix).tap()
         try find(app, label: "More").tap()
-        try find(app, label: "Photo or file")
+        try find(app, label: "Photos")
         shot("3-plus-sheet")
     }
 
@@ -168,7 +168,7 @@ final class SmokeUITests: XCTestCase {
         let app = try launchSignedIn()
         try find(app, label: "general", .prefix).tap()
         try find(app, label: "More").tap()
-        let photo = try find(app, label: "Photo or file")
+        let photo = try find(app, label: "Photos")
         let grip = photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         grip.press(forDuration: 0.05, thenDragTo: grip.withOffset(CGVector(dx: 0, dy: 320)))
         XCTAssertTrue(photo.waitForNonExistence(timeout: 3), "Pulling the + sheet down didn't close it.")

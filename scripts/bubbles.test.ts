@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { bubbleFill, nameInk, personColor, places, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
+import { accentBubble, bubbleFill, linkInk, nameInk, personColor, places, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
 import { accentPresets, contrast, deriveHalf, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
 
 const themes = JSON.parse(readFileSync(new URL('../crates/den-core/src/themes.json', import.meta.url), 'utf8'))
@@ -101,16 +101,31 @@ test('each colour mode paints the right bubbles', () => {
   const accent = resolveAccent(c, accentPresets[0]!.id, 'light')
   const person = '#d17465'
   const fill = (mode: 'everyone' | 'mine' | 'plain', mine: boolean, mentions = false) => bubbleFill(mode, mine, mentions, person, accent, c)
-  assert.equal(fill('everyone', false), tint(person, c))
-  assert.equal(fill('everyone', true), tint(person, c))
+  // Everyone else shares the grey (their colour is on their name); yours is solid accent.
+  for (const mode of ['everyone', 'plain'] as const) {
+    assert.equal(fill(mode, false), undefined)
+    assert.equal(fill(mode, true), undefined)
+    assert.ok(accentBubble(mode))
+  }
+  // "Only mine" keeps your own colour on your bubbles.
   assert.equal(fill('mine', false), undefined)
   assert.equal(fill('mine', true), tint(person, c))
-  assert.equal(fill('plain', false), undefined)
-  assert.equal(fill('plain', true), tint(accent, c))
+  assert.ok(!accentBubble('mine'))
   // A message that names you is lit in the accent in every mode, so it still stands out.
   for (const mode of ['everyone', 'mine', 'plain'] as const) assert.equal(fill(mode, false, true), tint(accent, c))
   // An older appearance without the field reads as everyone's colours.
-  assert.equal(bubbleFill(undefined, false, false, person, accent, c), tint(person, c))
+  assert.equal(bubbleFill(undefined, false, false, person, accent, c), undefined)
+  assert.ok(accentBubble(undefined))
+})
+
+test('text on your own accent bubble reads at 4.5:1 in every built-in theme, both halves, with every accent', () => {
+  // The bubble is the accent and its text the page colour (--on-lamp), as for every accent fill.
+  for (const t of themes) for (const h of halves) for (const choice of [null, ...accentPresets.map((p) => p.id)]) {
+    const c = t[h], accent = resolveAccent(c, choice, h)
+    assert.ok(contrast(c.bg, accent) >= 4.5, `${t.id} ${h} ${choice ?? 'theme'}: ${contrast(c.bg, accent).toFixed(2)}`)
+    // Links and mentions on everyone else's grey bubble.
+    assert.ok(contrast(linkInk(accent, c), c.bg3) >= 4.5, `link ${t.id} ${h} ${choice ?? 'theme'}`)
+  }
 })
 
 test("a chosen profile colour is used as is; without one it follows the picture's hue", () => {

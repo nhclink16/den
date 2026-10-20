@@ -87,11 +87,16 @@ export function withContrast<C extends Pick<ThemeColors, 'bg' | 'ink' | 'ink2'>>
   return { ...c, ink2: srgbMix(c.ink2, toward, d) }
 }
 
+/** Your own bubbles are solid accent with the page colour as their text, as
+ *  Messages does, unless you picked "Only mine" to wear your own colour. */
+export const accentBubble = (mode: BubbleColors | undefined) => mode !== 'mine'
+
 const cache = new Map<string, string>()
-/** One bubble's fill, or undefined for the plain grey one. `mentionsMe` wins:
- *  a message that names you is lit in the accent whatever the mode. */
+/** One bubble's tint, or undefined for the plain grey one (and for your own
+ *  solid accent one, see `accentBubble`). Everyone else shares the grey; their
+ *  colour goes on their name. A message that names you is lit in the accent. */
 export function bubbleFill(mode: BubbleColors | undefined, mine: boolean, mentionsMe: boolean, person: string, accent: string, c: ThemeColors): string | undefined {
-  const color = mentionsMe || (mine && mode === 'plain') ? accent : mode === 'plain' || (mode === 'mine' && !mine) ? undefined : person
+  const color = mine ? (accentBubble(mode) ? undefined : person) : mentionsMe ? accent : undefined
   if (!color) return undefined
   const key = `${color}${c.bg}${c.bg3}${c.ink}${c.ink2}`
   let fill = cache.get(key)
@@ -103,8 +108,20 @@ export function bubbleFill(mode: BubbleColors | undefined, mine: boolean, mentio
   return fill
 }
 
-/** A name's colour in the plain feed, where there are no bubbles to colour:
- *  the person's colour, moved until it reads on the page. Undefined for plain text. */
+/** Links and mentions on the plain grey bubble: the accent, moved until it reads
+ *  on the grey (a theme's own accent is only promised against the page). */
+export function linkInk(accent: string, c: Pick<ThemeColors, 'bg3'>): string {
+  const key = `link${accent}${c.bg3}`
+  let ink = cache.get(key)
+  if (!ink) {
+    if (cache.size > 500) cache.clear()
+    cache.set(key, (ink = readable(accent, [c.bg3])))
+  }
+  return ink
+}
+
+/** A name's colour above their bubbles, or in the plain feed: the person's
+ *  colour, moved until it reads on the page. Undefined for plain text. */
 export function nameInk(mode: BubbleColors | undefined, mine: boolean, person: string, c: ThemeColors): string | undefined {
   if (mode === 'plain' || (mode === 'mine' && !mine)) return undefined
   const key = `name${person}${c.bg}${c.bg2}`
