@@ -128,6 +128,13 @@ final class SmokeUITests: XCTestCase {
         let photo = stripPhoto(app)
         try wait(for: photo, "strip photo", in: app, timeout: 15)
         pause()
+        // The first strip ever shows iOS's own note over it ("Private Access to Photos"), once.
+        let ok = app.buttons["OK"]
+        if ok.exists {
+            shot("3-strip-notice")
+            ok.tap()
+            pause()
+        }
         shot("3-strip")
         keepTree(app, "strip")
         photo.tap()
