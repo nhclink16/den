@@ -77,7 +77,7 @@
   function open(id: string, find?: string) {
     pending = find ?? null; pendingOn = id
     // Only a page opened from the list (or Developer) goes back to it with Back; one opened from another page swaps in the list.
-    if (id !== section) router.go(`/settings/${id}`, false, current === 'developer' ? '/settings/developer' : narrow && !current ? '/settings' : undefined)
+    if (id !== section || sub) router.go(`/settings/${id}`, false, current === 'developer' ? '/settings/developer' : narrow && !current ? '/settings' : undefined)
     // Already showing it (a computer shows Profile at /settings): nothing changes to look again, so look now.
     if (id === current) seek()
   }
@@ -114,7 +114,10 @@
     // A search landing focuses the row it found instead.
     if (!narrow || now === from || untrack(() => pending)) return
     void tick().then(() => {
-      if (now) pageTitle()?.focus({ preventScroll: true })
+      // Back from a page inside this one (a sound, a room, a developer page): onto the row it was opened from.
+      const child = now && from && (from.startsWith(`${now}/`) || now === 'developer') ? pane?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`) : null
+      if (child) child.focus()
+      else if (now) pageTitle()?.focus({ preventScroll: true })
       // The list starts at its top again, so let the row scroll into view.
       else if (from) home?.querySelector<HTMLElement>(`a[href="/settings/${from}"]`)?.focus()
     })

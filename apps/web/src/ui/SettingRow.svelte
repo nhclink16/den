@@ -32,8 +32,8 @@
   @media (pointer: coarse) { .row { min-height: 52px; } }
   @media (max-width: 650px) {
     /* A switch, a menu or a value edited in place never drops under its name: the name wraps instead, and a long value shortens. */
-    .row:has(> .control > :global(:is(input.toggle, select.field, input.value-field))) { flex-wrap: nowrap; }
-    .row:has(> .control > :global(:is(input.toggle, select.field, input.value-field))) .text { flex: 1 1 auto; }
+    .row:has(> .control > :global(:is(input.toggle, select.field, input.value-field, .val))) { flex-wrap: nowrap; }
+    .row:has(> .control > :global(:is(input.toggle, select.field, input.value-field, .val))) .text { flex: 1 1 auto; }
     .control:has(> :global(select.field)) { max-width: 60%; }
     .control > :global(select.field) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     /* A slider takes its own line under its name, full width. */

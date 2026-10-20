@@ -38,9 +38,13 @@
     await api.post<Category>('/categories', { name: newCat.trim(), position: store.categories.length })
     newCat = ''; await store.resync()
   }
-  const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => run(async () => {
-    await api.put(`/channels/${c.id}`, { name: c.name, category_id: c.category_id ?? null, position: c.position, ...patch }); await store.resync()
-  }, 'Saved.')
+  // The server takes the whole room, so saves go one at a time, each from the room as the last one left it:
+  // a rename still in flight can't be undone by a category change sent with the old name.
+  let queue = Promise.resolve()
+  const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => (queue = queue.then(() => run(async () => {
+    const now = store.textChannels.find((x) => x.id === c.id) ?? c
+    await api.put(`/channels/${c.id}`, { name: now.name, category_id: now.category_id ?? null, position: now.position, ...patch }); await store.resync()
+  }, 'Saved.')))
   const saveCategory = (c: Category, name: string) => run(async () => { await api.put(`/categories/${c.id}`, { name, position: c.position }); await store.resync() }, 'Saved.')
   /** Off its page and back to the list, then gone. */
   async function remove() {

@@ -92,6 +92,11 @@
     try { await sounds.test(owner, () => {}) } catch (e) { error = (e as Error).message } finally { testing = false }
   }
   async function savePack() {
+    // Everything else waits, even if the dialog is cancelled mid-save: another save would drop the new pack.
+    busy = true
+    try { await writePack() } finally { busy = false }
+  }
+  async function writePack() {
     const p: SoundPreferences = JSON.parse(JSON.stringify(owner.sounds!.preferences))
     if (p.custom_packs.length >= 12) throw Error('You have 12 packs. Remove one first.')
     const pack: SoundPack = { id: crypto.randomUUID(), name: name.trim(), sounds: { ...(p.pack_id === 'den' ? Object.fromEntries(soundEvents.map(e => [e.id, { type: 'builtin' as const, name: e.id }])) : p.custom_packs.find(v => v.id === p.pack_id)?.sounds), ...p.overrides } }

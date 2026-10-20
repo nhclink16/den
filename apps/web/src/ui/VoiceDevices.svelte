@@ -9,7 +9,7 @@
 
   /** The Talking group, drawn after the permission ask so that ask comes first. */
   let { talking }: { talking?: Snippet } = $props()
-  // A phone has no use for the computer's tuning: gain, processing, resolution and frame rate.
+  // A phone or tablet browser hides a device picker with nothing to pick. (The iPhone app hides this whole page part.)
   const touch = matchMedia('(pointer: coarse)').matches
 
   let devices = $state<MediaDeviceInfo[]>([])
@@ -249,7 +249,6 @@
   <p class="list-foot">To test and adjust them here. Only you hear and see the test.</p>
 {/if}
 {@render talking?.()}
-{#if listed('audioinput').length > 1 || !touch}
 <h3 class="list-head">Microphone</h3>
 <section class="slist" aria-label="Microphone controls">
   {#if listed('audioinput').length > 1 || !touch}
@@ -257,7 +256,6 @@
     {#snippet control()}<select class="field" aria-label="Microphone" value={call.prefs.microphone} onchange={e => input(e.currentTarget.value)}><option value="">Default microphone</option>{#each devices.filter(d => d.kind === 'audioinput' && d.deviceId) as d}<option value={d.deviceId}>{d.label || 'Microphone'}</option>{/each}</select>{/snippet}
   </SettingRow>
   {/if}
-  {#if !touch}
   <SettingRow find="gain" label="Input gain" hint="The bar shows your level after gain. Your test audio stays here." wide>
     {#snippet control()}
       <div class="gain">
@@ -272,9 +270,7 @@
       {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label={label} checked={available?.includes(true) && available?.includes(false) ? mic[key] : Boolean(audio?.getSettings()[capability] ?? mic[key])} disabled={!audio || busy || !available?.includes(true) || !available?.includes(false)} onchange={e => { const el = e.currentTarget; void changeMic({ [key]: el.checked }).then(() => { el.checked = mic[key] }) }} />{/snippet}
     </SettingRow>
   {/each}
-  {/if}
 </section>
-{/if}
 
 <h3 class="list-head">Camera</h3>
 <section class="slist" aria-label="Camera controls">
@@ -289,17 +285,15 @@
     <div class="preview">
       {#if camera}<video bind:this={video} class:mirror={cam.mirror} autoplay muted playsinline aria-label="Camera preview"></video>{:else}<span class="muted">Preview paused</span>{/if}
     </div>
-    <div class="preview-meta"><span class="muted">{#if camera && !touch}{actual.width} × {actual.height} · {Math.round(actual.frameRate || 0)} fps{:else}Only you can see this preview{/if}</span><button class="text-link" onclick={() => { paused = !paused; cameraRequested = true }}>{paused ? 'Resume preview' : 'Pause preview'}</button></div>
+    <div class="preview-meta"><span class="muted">{#if camera}{actual.width} × {actual.height} · {Math.round(actual.frameRate || 0)} fps{:else}Only you can see this preview{/if}</span><button class="text-link" onclick={() => { paused = !paused; cameraRequested = true }}>{paused ? 'Resume preview' : 'Pause preview'}</button></div>
   </div>
   {/if}
-  {#if !touch}
   <SettingRow find="quality" label="Resolution and frame rate">
     {#snippet control()}
       <select aria-label="Resolution" class="field" value={cam.resolution} disabled={!camera || busy} onchange={e => { const el = e.currentTarget; void changeCamera({ resolution: el.value as CameraSettings['resolution'] }).then(() => { el.value = cam.resolution }) }}><option value="auto">Auto</option>{#if requestedHeight && (!supports(caps.height, requestedHeight) || !supports(caps.width, requestedHeight * 16 / 9))}<option value={cam.resolution} disabled>{cam.resolution} unavailable</option>{/if}{#each [720, 1080] as height}{#if supports(caps.height, height) && supports(caps.width, height * 16 / 9)}<option value={`${height}p`}>{height}p</option>{/if}{/each}</select>
       <select aria-label="Frame rate" class="field" value={cam.frame_rate} disabled={!camera || busy || !supportedRates.length} onchange={e => { const el = e.currentTarget; void changeCamera({ frame_rate: +el.value }).then(() => { el.value = String(cam.frame_rate) }) }}>{#if !supportedRates.includes(cam.frame_rate)}<option value={cam.frame_rate} disabled>{Math.round(actual.frameRate || 0)} fps · device default</option>{/if}{#each supportedRates as rate}<option value={rate}>{rate} fps</option>{/each}</select>
     {/snippet}
   </SettingRow>
-  {/if}
   <SettingRow find="mirror" label="Mirror my preview" hint={camera ? 'Only how you see yourself. Others see you the right way round.' : 'Allow the camera above to change this.'}>
     {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Mirror my preview" checked={cam.mirror} disabled={!camera || busy} onchange={e => changeCamera({ mirror: e.currentTarget.checked })} />{/snippet}
   </SettingRow>
