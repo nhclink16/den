@@ -165,9 +165,12 @@ export function photoStrip(node: HTMLElement, tray: StripTray) {
     shown = false
   }
   // Hidden at once; shown again where the slot is once it has stayed put for two frames, with the sheet open and
-  // not pulled.
+  // not pulled. Not while the page is zoomed: its pixels aren't the screen's points then. The zoom changing calls
+  // this again.
+  const zoom = window.visualViewport
   const moved = () => {
     hide()
+    if (zoom && Math.abs(zoom.scale - 1) > 0.01) return
     let last = ''
     const settle = () => {
       const r = node.getBoundingClientRect(), now = [r.x, r.y, r.width, r.height].join()
@@ -190,6 +193,7 @@ export function photoStrip(node: HTMLElement, tray: StripTray) {
   const closing = (e: Event) => { if ((e as ToggleEvent).newState === 'closed') hide() }
   sheet.addEventListener('beforetoggle', closing)
   addEventListener('resize', moved)
+  zoom?.addEventListener('resize', moved); zoom?.addEventListener('scroll', moved)
   place = moved
   moved()
   return {
@@ -198,6 +202,7 @@ export function photoStrip(node: HTMLElement, tray: StripTray) {
       styled.disconnect(); resized.disconnect()
       sheet.removeEventListener('beforetoggle', closing)
       removeEventListener('resize', moved)
+      zoom?.removeEventListener('resize', moved); zoom?.removeEventListener('scroll', moved)
       if (place === moved) place = null
       // The shell answers once every photo ticked in this strip has come in.
       void send({ type: 'stripClose', session: id }).then(() => sessions.delete(id))
