@@ -38,7 +38,6 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   s.setProperty('--shadow-lg', pale ? 'rgba(40, 30, 10, .2)' : 'rgba(0, 0, 0, .46)')
   // A segmented control's choice sits raised on its track: lighter than the track in either appearance.
   s.setProperty('--raised', pale ? `color-mix(in srgb, ${colors.bg} 40%, #fff)` : `color-mix(in srgb, ${colors.ink} 20%, ${colors.bg3})`)
-  s.setProperty('--pool', pale ? `color-mix(in srgb, ${colors.accent} 14%, #fff)` : `color-mix(in srgb, ${colors.accent} 22%, transparent)`)
   s.setProperty('--selection', 'var(--accent-dim)'); s.setProperty('--mention-bg', 'var(--accent-glow)')
   for (const [key,value] of Object.entries(t.fonts)) s.setProperty(`--${key}`, fontStack(value, key as keyof Theme['fonts']))
   const radii = { sharp: [2,6], soft: [6,12], round: [10,18] }[t.radius]
