@@ -117,9 +117,19 @@
     addEventListener('pointerdown', outside, true)
   }
   $effect(() => shut)
+  // The swipe in progress gives way to a second finger anywhere on the page: touches belong to the element they
+  // started on, so the swiped row alone never hears about one that lands elsewhere.
+  let abort: (() => void) | undefined
+  $effect(() => {
+    const second = (e: TouchEvent) => { if (e.touches.length > 1) abort?.() }
+    addEventListener('touchstart', second, { capture: true, passive: true })
+    return () => removeEventListener('touchstart', second, { capture: true })
+  })
 
   // The row goes all the way out while the read is sent; it leaves the list when the read lands.
   async function commit(node: HTMLElement, read: () => Promise<unknown>) {
+    // On its way out of the list (Svelte's outro makes it inert): the row is gone, so is its read.
+    if (node.inert) return
     if (opened === node) { opened = undefined; removeEventListener('pointerdown', outside, true) }
     node.classList.add('full'); place(node, -node.offsetWidth)
     await read(); await tick()
@@ -137,6 +147,7 @@
       x = t.clientX; y = t.clientY; dx = base = opened === node ? -BUTTON : 0
       // A tap on an open row closes it, as in Mail, instead of opening the conversation.
       swallow = base < 0 && !(e.target as Element).closest('.read')
+      if (tracking) abort = () => { tracking = false; cancel() }
     }
     const move = (e: TouchEvent) => {
       if (!tracking) return
@@ -157,7 +168,7 @@
     }
     const end = (e: TouchEvent) => {
       if (!sliding) return
-      if (e.touches.length) { cancel(); return }
+      if (e.touches.length || node.inert) { cancel(); return }
       tracking = sliding = swallow = false; node.classList.remove('dragging')
       if (node.classList.contains('full')) void commit(node, read)
       else if (dx < -BUTTON / 2) open(node)
@@ -167,7 +178,8 @@
     // iOS took the touch away (a call, a system gesture): put the row back where it was.
     const cancel = () => {
       if (!sliding) return
-      tracking = sliding = false; node.classList.remove('dragging', 'full'); place(node, base)
+      // Back where it was, unless a tap elsewhere closed it meanwhile.
+      tracking = sliding = false; node.classList.remove('dragging', 'full'); place(node, opened === node ? -BUTTON : 0)
     }
     const click = (e: Event) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation(); shut() } }
     node.addEventListener('touchstart', start, { passive: true })
