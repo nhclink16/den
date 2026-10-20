@@ -71,7 +71,9 @@ page = f'''<!doctype html>
   .missing th {{ color: var(--warn); }}
 </style>
 <h1>Den visual tour</h1>
-<p>{shots} screenshots. Light on the left, dark on the right. Made-up people and messages only. Click a picture for full size.</p>
+<p>{shots} screenshots. Light on the left, dark on the right. Made-up people and messages only. Click a picture for full size.
+In the native shots, Dark is Den's own Dark setting: Xcode Cloud's simulator ignores the system's dark mode, so the keyboard, iOS alerts and the
+status bar stay light there. "-p2", "-p3"… are the same page scrolled on.</p>
 <table>
 <tr><th>Stop</th><th>Light</th><th>Dark</th></tr>
 {chr(10).join(body)}

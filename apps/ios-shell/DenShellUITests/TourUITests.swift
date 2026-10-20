@@ -4,7 +4,9 @@ import XCTest
 // A visual tour of Den Shell for Xcode Cloud's "Visual tour" workflow (`scripts/xcloud.sh tour`): every screen a
 // person can reach, in light and in dark, saved as named screenshots for reviewers. It runs against the same made-up
 // Den as the UI check (ci_scripts/ci_pre_xcodebuild.sh, ui-check/seed.py), as Ellis, plus Rowan for the admin pages.
-// It only looks: nothing here asserts how a screen should look. A stop it can't reach keeps a `missing-…` screenshot
+// "Dark" is Den's own Dark setting: Xcode Cloud's iOS 27 simulator ignored `XCUIDevice.appearance` (2026-10-19), so
+// iOS's own parts (keyboard, alerts, status bar) stay light in those shots. The device setting is still flipped, for a
+// simulator that honours it. It only looks: nothing here asserts how a screen should look. A stop it can't reach keeps a `missing-…` screenshot
 // and a `tree-missing-…` dump and the tour moves on to the next theme, so one run always says how far it got.
 // Shots are named "<stop>-<light|dark>"; a long page scrolled through adds "-p2", "-p3"… to the stop.
 
@@ -16,10 +18,17 @@ final class TourUITests: XCTestCase {
     }
 
     /// Before signing in: the sign-in page, the invite page, a wrong password. Then the first sign-in and iOS's
-    /// notification question, which only comes once (light only).
+    /// notification question, which only comes once (light only). The signed-out page takes the last account's look,
+    /// so the dark half signs Ellis out with Den set to Dark.
     @MainActor func test01SignIn() async throws {
-        await themes { _ in
-            let app = launch()
+        await themes { theme in
+            let app: XCUIApplication
+            if theme == "light" {
+                app = launch()
+            } else {
+                app = try launchSignedIn()
+                try signOut(app)
+            }
             let comeIn = try find(app, label: "Come in", timeout: 30)
             shot("sign-in")
             try find(app, label: "Have an invite?").tap()
@@ -30,16 +39,14 @@ final class TourUITests: XCTestCase {
             comeIn.tap()
             pause(2)
             shot("sign-in-wrong-password")
-        }
-        let app = launch()
-        try find(app, label: "Come in", timeout: 30)
-        fillSignIn(app, user: "ellis", password: password)
-        try find(app, label: "Come in").tap()
-        try find(app, label: "Your profile and settings", timeout: 20)
-        let allow = springboard.alerts.buttons["Allow"]
-        if allow.waitForExistence(timeout: 10) {
-            shot("notification-question")
-            allow.tap()
+            fillSignIn(app, user: "ellis", password: password)
+            comeIn.tap()
+            try find(app, label: "Your profile and settings", timeout: 20)
+            let allow = springboard.alerts.buttons["Allow"]
+            if allow.waitForExistence(timeout: theme == "light" ? 10 : 1) {
+                shot("notification-question")
+                allow.tap()
+            }
         }
     }
 
@@ -102,7 +109,8 @@ final class TourUITests: XCTestCase {
         await themes { _ in
             let app = try openGeneral()
             try find(app, label: "More").tap()
-            try find(app, label: "GIF").tap()
+            // The menu item reads "GIF GIF": its badge, then its name.
+            try find(app, label: "GIF", .prefix).tap()
             pause()
             shot("gif-sheet")
         }
@@ -234,7 +242,7 @@ final class TourUITests: XCTestCase {
         fillSignIn(app, user: "rowan", password: password)
         try find(app, label: "Come in").tap()
         try find(app, label: "Your profile and settings", timeout: 20)
-        await themes { _ in
+        await themes(as: "rowan") { _ in
             let app = try launchSignedIn(as: "rowan")
             try find(app, label: "Your profile and settings").tap()
             try find(app, label: "Members")
@@ -249,16 +257,45 @@ final class TourUITests: XCTestCase {
 
     private let password = "correct horse battery"
 
-    /// Runs `body` once in light and once in dark (the simulator's own setting; Den follows the system), each on a
-    /// fresh launch. A stop that fails is recorded and the next theme still runs.
-    @MainActor private func themes(_ body: (String) async throws -> Void) async {
+    /// Runs `body` once in light and once in dark, each on a fresh launch: Den's own setting for `user`, and the
+    /// simulator's. A stop that fails is recorded and the next theme still runs. Den goes back to following the system.
+    @MainActor private func themes(as user: String = "ellis", _ body: (String) async throws -> Void) async {
         for (name, look) in [("light", XCUIDevice.Appearance.light), ("dark", .dark)] {
             theme = name
             XCUIDevice.shared.appearance = look
-            do { try await body(name) } catch { XCTFail("\(name): \(error)") }
+            do {
+                try await setMode(name, for: user)
+                try await body(name)
+            } catch { XCTFail("\(name): \(error)") }
         }
         theme = "light"
         XCUIDevice.shared.appearance = .light
+        do { try await setMode("system", for: user) } catch { XCTFail("system: \(error)") }
+    }
+
+    /// Den's "Light or dark" setting, over the API as the page saves it. An open page follows at once.
+    @MainActor private func setMode(_ mode: String, for user: String) async throws {
+        let token = try await token(user)
+        guard var appearance = try await api("GET", "/users/me/appearance", token: token) as? [String: Any] else {
+            throw Missing(description: "No appearance for \(user).")
+        }
+        appearance["mode"] = mode
+        _ = try await api("PUT", "/users/me/appearance", appearance, token: token)
+    }
+
+    /// One API sign-in per person for the whole run: Den allows 10 sign-ins a minute, the app's own included.
+    @MainActor private static var tokens: [String: String] = [:]
+
+    @MainActor private func token(_ user: String) async throws -> String {
+        if let token = Self.tokens[user] { return token }
+        let token = try await signIn(user)
+        Self.tokens[user] = token
+        return token
+    }
+
+    /// On screen, for things the page draws: XCUITest's own hit test failed outright on a link in Settings.
+    @MainActor private func onScreen(_ element: XCUIElement, _ app: XCUIApplication) -> Bool {
+        element.exists && app.windows.firstMatch.frame.contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
     }
 
     @MainActor private func launch(url: String = "http://localhost:7000") -> XCUIApplication {
@@ -309,7 +346,7 @@ final class TourUITests: XCTestCase {
         try find(app, label: "Your profile and settings").tap()
         try find(app, label: "Account").tap()
         let logOut = try find(app, label: "Log out")
-        for _ in 0..<6 where !logOut.isHittable { app.webViews.firstMatch.swipeUp(velocity: .slow) }
+        for _ in 0..<6 where !onScreen(logOut, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
         logOut.tap()
         try find(app, label: "Come in", timeout: 15)
     }
@@ -318,7 +355,7 @@ final class TourUITests: XCTestCase {
     @MainActor private func settingsPages(_ app: XCUIApplication, _ pages: [String]) throws {
         for page in pages {
             let row = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == %@", page)).firstMatch
-            for _ in 0..<6 where !row.isHittable { app.webViews.firstMatch.swipeUp(velocity: .slow) }
+            for _ in 0..<6 where !onScreen(row, app) { app.webViews.firstMatch.swipeUp(velocity: .slow) }
             guard row.exists else { continue }
             row.tap()
             pause()
@@ -347,12 +384,12 @@ final class TourUITests: XCTestCase {
                 photo.tap()
                 let add = app.buttons["Add"]
                 if add.waitForExistence(timeout: 3) { add.tap() }
-                if element(app, label: "Remove").waitForExistence(timeout: 10) { return }
+                if element(app, label: "Remove").waitForExistence(timeout: 10) { return try putKeyboardAway(app) }
             }
             let cancel = app.buttons["Cancel"]
             if cancel.exists { cancel.tap() }
         }
-        let token = try await signIn("maya")
+        let token = try await token("maya")
         let plans = try await roomId("plans", token: token)
         let messages = try await api("GET", "/channels/\(plans)/messages?limit=20", token: token) as? [[String: Any]] ?? []
         let upload = try XCTUnwrap(messages.compactMap { ($0["attachments"] as? [[String: Any]])?.first?["id"] as? String }.first)
@@ -365,6 +402,18 @@ final class TourUITests: XCTestCase {
         try wait(for: paste, "Paste")
         paste.tap()
         try find(app, label: "Remove", timeout: 10)
+        try putKeyboardAway(app)
+    }
+
+    /// The composer keeps focus after a photo is added, and the keyboard covers it: shoot that, then lower it.
+    @MainActor private func putKeyboardAway(_ app: XCUIApplication) throws {
+        pause()
+        let tip = app.buttons["Continue"]
+        if tip.exists { shot("keyboard-tip"); tip.tap() }
+        shot("room-photo-waiting-keyboard")
+        let done = app.buttons["Done"]
+        if done.exists { done.tap() } else { app.webViews.firstMatch.swipeDown(velocity: .slow) }
+        pause()
     }
 
     /// The page's element labelled `label` closest above `target`: the tool bar a long press shows sits just above
@@ -393,15 +442,23 @@ final class TourUITests: XCTestCase {
         pause()
         shot(stop)
         let web = app.webViews.firstMatch
-        var last = web.screenshot().pngRepresentation
+        var last = content(web)
         for part in 2...pages {
             if up { web.swipeUp(velocity: .slow) } else { web.swipeDown(velocity: .slow) }
-            pause()
-            let now = web.screenshot().pngRepresentation
+            pause(1.5)
+            let now = content(web)
             if now == last { break }
             last = now
             shot("\(stop)-p\(part)")
         }
+    }
+
+    /// The page as drawn, minus the right edge where the scroll bar flashes after every swipe, even one that didn't move.
+    @MainActor private func content(_ web: XCUIElement) -> Data? {
+        let image = web.screenshot().image
+        guard let cg = image.cgImage else { return nil }
+        let edge = Int(16 * image.scale)
+        return cg.cropping(to: CGRect(x: 0, y: 0, width: cg.width - edge, height: cg.height)).flatMap { UIImage(cgImage: $0).pngData() }
     }
 
     // The rest matches SmokeUITests: the page's elements by accessible label, and Maya's side over the API.
