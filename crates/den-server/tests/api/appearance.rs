@@ -265,12 +265,16 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     assert_eq!(old["room_icons"], "icons");
     assert_eq!(old["bubble_shape"], "corners");
     assert_eq!(old["bubble_colors"], "everyone");
+    assert_eq!(old["avatar_shape"], "theme");
+    assert_eq!(old["presence_style"], "dot");
 
     let mut body = old.clone();
     body["accent"] = json!("green");
     body["room_icons"] = json!("hash");
     body["bubble_shape"] = json!("none");
     body["bubble_colors"] = json!("plain");
+    body["avatar_shape"] = json!("round");
+    body["presence_style"] = json!("ring");
     assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 200);
     // An app that predates the accent saves without it: the choice stays.
     let mut older = body.clone();
@@ -278,6 +282,8 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
     older.as_object_mut().unwrap().remove("room_icons");
     older.as_object_mut().unwrap().remove("bubble_shape");
     older.as_object_mut().unwrap().remove("bubble_colors");
+    older.as_object_mut().unwrap().remove("avatar_shape");
+    older.as_object_mut().unwrap().remove("presence_style");
     older["mode"] = json!("light");
     assert_eq!(put(chose.token.clone(), older).await.status(), 200);
     let kept = get(chose.token.clone()).await;
@@ -287,32 +293,42 @@ async fn neutral_is_only_the_default_and_the_accent_survives_older_clients() {
             kept["mode"].clone(),
             kept["room_icons"].clone(),
             kept["bubble_shape"].clone(),
-            kept["bubble_colors"].clone()
+            kept["bubble_colors"].clone(),
+            kept["avatar_shape"].clone(),
+            kept["presence_style"].clone()
         ),
         (
             json!("green"),
             json!("light"),
             json!("hash"),
             json!("none"),
-            json!("plain")
+            json!("plain"),
+            json!("round"),
+            json!("ring")
         )
     );
     // A newer app that sends them changes them.
     body["bubble_shape"] = json!("sharp");
     body["bubble_colors"] = json!("mine");
+    body["avatar_shape"] = json!("theme");
+    body["presence_style"] = json!("off");
     assert_eq!(put(chose.token.clone(), body.clone()).await.status(), 200);
     let changed = get(chose.token.clone()).await;
     assert_eq!(
         (
             changed["bubble_shape"].clone(),
-            changed["bubble_colors"].clone()
+            changed["bubble_colors"].clone(),
+            changed["avatar_shape"].clone(),
+            changed["presence_style"].clone()
         ),
-        (json!("sharp"), json!("mine"))
+        (json!("sharp"), json!("mine"), json!("theme"), json!("off"))
     );
     for (field, junk) in [
         ("room_icons", "squares"),
         ("bubble_shape", "blob"),
         ("bubble_colors", "rainbow"),
+        ("avatar_shape", "hexagon"),
+        ("presence_style", "glow"),
     ] {
         let mut bad = body.clone();
         bad[field] = json!(junk);

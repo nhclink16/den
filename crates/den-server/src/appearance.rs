@@ -57,13 +57,16 @@ pub(crate) async fn put_appearance(
     // The accent came later still, and the native iOS app drops fields it
     // does not know when it saves.
     // Room icons came with the room list redesign, under the same rule, and the
-    // bubble settings with the chat redesign.
+    // bubble settings with the chat redesign. Avatar shape and the online
+    // indicator were kept on each device before they synced.
     if [
         "sidebar_background",
         "accent",
         "room_icons",
         "bubble_shape",
         "bubble_colors",
+        "avatar_shape",
+        "presence_style",
     ]
     .iter()
     .any(|k| raw.get(k).is_none())
@@ -83,6 +86,12 @@ pub(crate) async fn put_appearance(
         }
         if raw.get("bubble_colors").is_none() {
             v.bubble_colors = stored.bubble_colors;
+        }
+        if raw.get("avatar_shape").is_none() {
+            v.avatar_shape = stored.avatar_shape;
+        }
+        if raw.get("presence_style").is_none() {
+            v.presence_style = stored.presence_style;
         }
     }
     let missing = backgrounds::resolve(&s, &a.user.id, &mut v).await?;

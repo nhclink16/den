@@ -3,14 +3,13 @@
   import { fontStack, themeFor } from '../lib/theme-runtime'
   import { accentPresets, colorRoles, deriveHalf, resolveAccent } from '../lib/theme-color'
   import { themes, fontFamilies, validateTheme, validName, webFonts } from '../lib/theme.svelte'
-  import type { Theme, ThemeFonts } from '../lib/types'
+  import type { AvatarShape, PresenceStyle, Theme, ThemeFonts } from '../lib/types'
   import ThemePreview from './ThemePreview.svelte'
   import ThemeCard from './ThemeCard.svelte'
   import BackgroundSettings from './BackgroundSettings.svelte'
   import SettingRow from './SettingRow.svelte'
   import BubblePreview from './BubblePreview.svelte'
   import AppearancePreview from './AppearancePreview.svelte'
-  import { store, type AvatarShape, type PresenceStyle } from '../lib/store.svelte'
   import { customizer } from '../lib/customizer.svelte'
 
   /** `panel`: shown in the live customizer over the app. Otherwise it is the phone's Appearance page, with its own preview. */
@@ -285,7 +284,7 @@
       {#snippet control()}
         <div class="segments" role="group" aria-label="Avatar shape">
           {#each [['theme', panel ? 'Match corners' : 'Theme'], ['sharp', 'Sharp'], ['soft', 'Soft'], ['round', 'Round']] as [value, name] (value)}
-            <button aria-pressed={store.layout.avatarShape === value} onclick={() => store.saveLayout({ avatarShape: value as AvatarShape })}>{name}</button>
+            <button aria-pressed={(appearance.avatar_shape ?? 'theme') === value} onclick={() => themes.avatars({ avatar_shape: value as AvatarShape })}>{name}</button>
           {/each}
         </div>
       {/snippet}
@@ -294,13 +293,13 @@
       {#snippet control()}
         <div class="segments" role="group" aria-label="Online indicator">
           {#each [['dot', 'Dot'], ['ring', 'Ring'], ['off', 'Off']] as [value, name] (value)}
-            <button aria-pressed={store.layout.presence === value} onclick={() => store.saveLayout({ presence: value as PresenceStyle })}>{name}</button>
+            <button aria-pressed={(appearance.presence_style ?? 'dot') === value} onclick={() => themes.avatars({ presence_style: value as PresenceStyle })}>{name}</button>
           {/each}
         </div>
       {/snippet}
     </SettingRow>
   </div>
-  <p class="list-foot">Corners and density are part of the theme. Your own themes save as you go; save a built-in one as your own to keep a change. Avatar shape and the online indicator are for this device only.</p>
+  <p class="list-foot">Corners and density are part of the theme. Your own themes save as you go; save a built-in one as your own to keep a change. Avatar shape and the online indicator save as you go, whatever the theme.</p>
   {#if themes.draft && !editor}
     <div class="slist unsaved">
       <SettingRow label="Unsaved theme changes" hint="Keep them as a theme of your own, or put the theme back.">

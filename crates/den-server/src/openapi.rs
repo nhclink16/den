@@ -273,6 +273,8 @@ use utoipa::OpenApi;
         RoomIcons,
         BubbleShape,
         BubbleColors,
+        AvatarShape,
+        PresenceStyle,
         CreateDm,
         CreateMessage,
         EditMessage,

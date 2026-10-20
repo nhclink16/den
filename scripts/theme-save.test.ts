@@ -36,7 +36,7 @@ function setup(start: Record<string, unknown>, systemLight = false) {
   const api = { put: async (_path: string, body: unknown) => { sent.push(body); return body }, get: async () => sent.at(-1) }
   const { themes } = compile('theme.svelte.ts', {
     './api': { apiFor: () => api }, './native': { activeOrigin: () => 'https://den.test' },
-    './theme-runtime': runtime, './theme-color': color,
+    './theme-runtime': runtime, './theme-color': color, './avatar-carry': { forgetOldAvatarChoice() {} },
   }, {
     $state: (v: unknown) => v,
     matchMedia: () => ({ matches: systemLight, addEventListener() {} }),

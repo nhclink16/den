@@ -94,13 +94,6 @@
   $effect(listenForSelection)
   // Den Shell keeps a call running through a page reload; show it again once the rooms have loaded.
   $effect(() => { if (store.channels.length) untrack(() => void call.resumeShell()) })
-  // Per-device avatar preferences, read by Avatar through root attributes.
-  $effect(() => {
-    const root = document.documentElement
-    if (store.layout.avatarShape === 'theme') delete root.dataset.avatarShape
-    else root.dataset.avatarShape = store.layout.avatarShape
-    root.dataset.presence = store.layout.presence
-  })
   // A call that couldn't connect says so for a moment over whatever is on screen, then goes, like an iPhone toast.
   $effect(() => {
     if (!call.error) return

@@ -101,6 +101,34 @@ pub struct Appearance {
     /// Same rule as `bubble_shape` when absent.
     #[serde(default)]
     pub bubble_colors: BubbleColors,
+    /// How pictures are drawn. Same rule as `bubble_shape` when absent: older
+    /// apps kept this on each device and save without it.
+    #[serde(default)]
+    pub avatar_shape: AvatarShape,
+    /// How being online shows on a picture. Same rule as `avatar_shape`.
+    #[serde(default)]
+    pub presence_style: PresenceStyle,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AvatarShape {
+    /// Follows the theme's Corners.
+    #[default]
+    Theme,
+    Sharp,
+    Soft,
+    Round,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PresenceStyle {
+    /// A dot on the corner of the picture.
+    #[default]
+    Dot,
+    /// A ring around the picture.
+    Ring,
+    /// Nothing shows.
+    Off,
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -150,6 +178,8 @@ impl Default for Appearance {
             room_icons: RoomIcons::Icons,
             bubble_shape: BubbleShape::Corners,
             bubble_colors: BubbleColors::Everyone,
+            avatar_shape: AvatarShape::Theme,
+            presence_style: PresenceStyle::Dot,
         }
     }
 }

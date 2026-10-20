@@ -2035,6 +2035,11 @@ export interface components {
              *     the field on save keeps the stored one.
              */
             accent?: string | null;
+            /**
+             * @description How pictures are drawn. Same rule as `bubble_shape` when absent: older
+             *     apps kept this on each device and save without it.
+             */
+            avatar_shape?: components["schemas"]["AvatarShape"];
             background?: {
                 /** Format: int32 */
                 blur: number;
@@ -2065,6 +2070,8 @@ export interface components {
             dark_theme: string;
             light_theme: string;
             mode: components["schemas"]["AppearanceMode"];
+            /** @description How being online shows on a picture. Same rule as `avatar_shape`. */
+            presence_style?: components["schemas"]["PresenceStyle"];
             /**
              * @description What sits before a room's name in lists. Like `accent`, a client that
              *     omits the field on save keeps the stored one.
@@ -2084,6 +2091,8 @@ export interface components {
         };
         /** @enum {string} */
         AppearanceMode: "light" | "dark" | "system";
+        /** @enum {string} */
+        AvatarShape: "theme" | "sharp" | "soft" | "round";
         Background: {
             /** Format: int32 */
             blur: number;
@@ -3016,6 +3025,8 @@ export interface components {
             objects: components["schemas"]["ObjectPresence"][];
             online_user_ids: components["schemas"]["String"][];
         };
+        /** @enum {string} */
+        PresenceStyle: "dot" | "ring" | "off";
         ProfilePatch: {
             accent?: string | null;
             bio?: string | null;
