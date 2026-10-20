@@ -302,7 +302,7 @@
   @media (hover: hover) { .icon-btn:hover { text-decoration: none; } }
   .inbox .count { position: absolute; top: 0; right: -2px; box-shadow: 0 0 0 2px var(--bg-2); }
   .offline {
-    margin: 0 10px 6px; padding: 7px 10px; border-radius: var(--r);
+    margin: 0 8px 6px; padding: 7px 10px; border-radius: var(--r);
     background: color-mix(in srgb, var(--danger) 16%, transparent);
     color: var(--ink); font-size: var(--fs-xs); line-height: 1.35;
   }
