@@ -12,7 +12,7 @@ export type Route =
   | { name: 'login' }
   | { name: 'channel'; id: string; thread?: string; message?: string; reply?: string }
   | { name: 'inbox' }
-  | { name: 'settings'; section?: string }
+  | { name: 'settings'; section?: string; sub?: string }
   | { name: 'spotify-callback'; code: string; state: string; error: string }
   | { name: 'search'; q: string; channel?: string }
   | { name: 'server'; slug: string }
@@ -23,7 +23,10 @@ export function parse(path: string, search = ''): Route {
   const query = new URLSearchParams(search)
   if (p === '/login') return { name: 'login' }
   if (p === '/inbox') return { name: 'inbox' }
-  if (p.startsWith('/settings')) return { name: 'settings', section: p.split('/')[2] }
+  if (p.startsWith('/settings')) {
+    const [, , section, sub] = p.split('/')
+    return sub ? { name: 'settings', section, sub } : { name: 'settings', section }
+  }
   if (p === '/spotify/callback') {
     return {
       name: 'spotify-callback',

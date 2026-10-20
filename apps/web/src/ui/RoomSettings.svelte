@@ -1,116 +1,152 @@
 <script lang="ts">
-  // Admins name the server and look after its rooms: add, group, give an icon, delete.
+  // Admins name the server and look after its rooms. The list comes first, the way iOS lists things: each room
+  // and each category opens its own page (`sub`, a room's or category's id) with its name, its place, its icon
+  // and a red Delete. New rooms and categories are rows at the top that ask for a name.
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
-  import { themes } from '../lib/theme.svelte'
-  import { placedIn, roomName } from '../lib/room-list'
+  import { router } from '../lib/router.svelte'
+  import { placedIn } from '../lib/room-list'
   import type { Category, Channel } from '../lib/types'
   import IconPicker from './IconPicker.svelte'
-  import InlineConfirm from './InlineConfirm.svelte'
+  import RoomIcon from './RoomIcon.svelte'
+  import Icon from './Icon.svelte'
   import SettingRow from './SettingRow.svelte'
+  import FormDialog from './FormDialog.svelte'
 
-  let serverName = $state(''), nameBusy = $state(false), nameStatus = $state('')
-  let newCat = $state(''), newChan = $state(''), newChanCat = $state(''), error = $state('')
+  let { sub }: { sub?: string } = $props()
+  let serverName = $state(''), status = $state(''), error = $state('')
+  let newChan = $state(''), newChanCat = $state(''), newCat = $state('')
+  let addingRoom = $state(false), addingCat = $state(false), deleting = $state(false)
   $effect(() => { serverName = store.settings.instance_name })
-  async function saveName(e: SubmitEvent) {
-    e.preventDefault(); nameBusy = true; nameStatus = ''; error = ''
-    try {
-      store.settings = await api.put('/settings', { instance_name: serverName.trim() })
-      nameStatus = 'Server name saved.'
-    } catch (err) { error = (err as Error).message }
-    finally { nameBusy = false }
+  const room = $derived(sub ? store.textChannels.find((c) => c.id === sub) : undefined)
+  const category = $derived(sub && !room ? store.categories.find((c) => c.id === sub) : undefined)
+
+  async function run(work: () => Promise<void>, done = '') {
+    error = ''; status = ''
+    try { await work(); status = done } catch (err) { error = (err as Error).message }
   }
-  async function addCategory(e: SubmitEvent) {
-    e.preventDefault(); error = ''
-    try { await api.post<Category>('/categories', { name: newCat.trim(), position: store.categories.length }); newCat = ''; await store.resync() } catch (err) { error = (err as Error).message }
+  function saveName() {
+    const name = serverName.trim()
+    if (!name || name === store.settings.instance_name) return
+    void run(async () => { store.settings = await api.put('/settings', { instance_name: name }) }, 'Server name saved.')
   }
-  async function addChannel(e: SubmitEvent) {
-    e.preventDefault(); error = ''
-    try { await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length }); newChan = ''; await store.resync() } catch (err) { error = (err as Error).message }
+  async function addChannel() {
+    await api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: store.textChannels.length })
+    newChan = ''; await store.resync()
   }
-  async function delChannel(c: Channel) { await api.del(`/channels/${c.id}`); await store.resync() }
-  async function delCategory(c: Category) { await api.del(`/categories/${c.id}`); await store.resync() }
-  const name = (c: Channel) => roomName(c, themes.appearance.room_icons)
+  async function addCategory() {
+    await api.post<Category>('/categories', { name: newCat.trim(), position: store.categories.length })
+    newCat = ''; await store.resync()
+  }
+  const saveRoom = (c: Channel, patch: Partial<Pick<Channel, 'name' | 'category_id'>>) => run(async () => {
+    await api.put(`/channels/${c.id}`, { name: c.name, category_id: c.category_id ?? null, position: c.position, ...patch }); await store.resync()
+  }, 'Saved.')
+  const saveCategory = (c: Category, name: string) => run(async () => { await api.put(`/categories/${c.id}`, { name, position: c.position }); await store.resync() }, 'Saved.')
+  /** Off its page and back to the list, then gone. */
+  async function remove() {
+    await api.del(room ? `/channels/${room.id}` : `/categories/${category!.id}`)
+    if (router.parent === '/settings/rooms') router.back(); else router.go('/settings/rooms', true)
+    await store.resync()
+  }
+  const open = (id: string) => router.go(`/settings/rooms/${id}`, false, '/settings/rooms')
 </script>
 
-<h2 class="display">Rooms</h2>
-<p class="muted">Name the server, add rooms and categories, and give each room an icon.</p>
-
-<h3 class="list-head">Server</h3>
-<form class="slist" onsubmit={saveName}>
-  <SettingRow find="server-name" label="Server name" hint="1–40 characters. Shown to members and on the login screen." wide>
-    {#snippet control()}
-      <div class="inline">
-        <input id="server-name" class="field" bind:value={serverName} required aria-label="Server name" />
-        <button class="btn" type="submit" disabled={nameBusy || !serverName.trim() || Array.from(serverName.trim()).length > 40}>Save name</button>
-      </div>
-    {/snippet}
-  </SettingRow>
-</form>
-<p class="list-foot" role="status">{nameStatus}</p>
-
-<h3 class="list-head">Add</h3>
-<div class="slist">
-  <form onsubmit={addChannel}>
-    <SettingRow find="add-room" label="New room" hint="Lowercase letters, numbers, - and _." wide>
+{#if room}
+  <h2 class="display">{room.name}</h2>
+  <div class="slist gap-top">
+    <SettingRow label="Name">
+      {#snippet control()}<input class="field plain value-field" aria-label="Room name" value={room.name} pattern={'[a-z0-9_-]{1,40}'} autocapitalize="off" autocomplete="off" enterkeyhint="done"
+        onchange={(e) => { const v = e.currentTarget.value.trim().toLowerCase(); if (v && v !== room.name) void saveRoom(room, { name: v }) }} />{/snippet}
+    </SettingRow>
+    <SettingRow label="Category">
       {#snippet control()}
-        <div class="inline">
-          <input class="field" bind:value={newChan} placeholder="new-room" aria-label="New room name" pattern={'[a-z0-9_-]{1,40}'} required />
-          <select class="field" bind:value={newChanCat} aria-label="Category for the new room">
-            <option value="">No category</option>
-            {#each store.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
-          </select>
-          <button class="btn lit" type="submit">Add room</button>
-        </div>
+        <select class="field" aria-label="Category" value={placedIn(room, store.categories) ?? ''} onchange={(e) => saveRoom(room, { category_id: e.currentTarget.value || null })}>
+          <option value="">None</option>
+          {#each store.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+        </select>
       {/snippet}
     </SettingRow>
-  </form>
-  <form onsubmit={addCategory}>
-    <SettingRow find="add-category" label="New category" hint="Groups rooms together in the room list." wide>
-      {#snippet control()}
-        <div class="inline">
-          <input class="field" bind:value={newCat} placeholder="Games" aria-label="New category name" required />
-          <button class="btn" type="submit">Add category</button>
-        </div>
-      {/snippet}
+    <SettingRow label="Icon">{#snippet control()}<IconPicker channel={room} />{/snippet}</SettingRow>
+  </div>
+  <p class="list-foot">Lowercase letters, numbers, - and _. Everyone sees the icon, unless they chose # signs or nothing in Appearance.</p>
+  <div class="slist gap-top"><button class="action-row danger" onclick={() => (deleting = true)}>Delete Room</button></div>
+  <FormDialog bind:open={deleting} title={`Delete ${room.name}?`} action="Delete" danger onsubmit={remove}>
+    <p>Every message in it goes too. This can't be undone.</p>
+  </FormDialog>
+{:else if category}
+  <h2 class="display">{category.name}</h2>
+  <div class="slist gap-top">
+    <SettingRow label="Name">
+      {#snippet control()}<input class="field plain value-field" aria-label="Category name" value={category.name} maxlength="40" autocomplete="off" enterkeyhint="done"
+        onchange={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== category.name) void saveCategory(category, v) }} />{/snippet}
     </SettingRow>
-  </form>
-</div>
+  </div>
+  <div class="slist gap-top"><button class="action-row danger" onclick={() => (deleting = true)}>Delete Category</button></div>
+  <p class="list-foot">Its rooms stay, without a category.</p>
+  <FormDialog bind:open={deleting} title={`Delete ${category.name}?`} action="Delete" danger onsubmit={remove}>
+    <p>Its rooms stay, without a category.</p>
+  </FormDialog>
+{:else}
+  <h2 class="display">Rooms</h2>
+  <div class="slist gap-top">
+    <SettingRow find="server-name" label="Server name">
+      {#snippet control()}<input id="server-name" class="field plain value-field" aria-label="Server name" bind:value={serverName} maxlength="40" autocomplete="off" enterkeyhint="done" onchange={saveName} />{/snippet}
+    </SettingRow>
+  </div>
+  <p class="list-foot">Shown to members and on the sign-in screen.</p>
+  <div class="slist gap-top">
+    <button class="action-row add" data-find="add-room" onclick={() => { newChan = ''; newChanCat = ''; addingRoom = true }}><Icon name="plus" size={15} /> New Room</button>
+    <button class="action-row add" data-find="add-category" onclick={() => { newCat = ''; addingCat = true }}><Icon name="plus" size={15} /> New Category</button>
+  </div>
+
+  <div data-find="rooms">
+    {#each [null, ...store.categories] as cat (cat?.id ?? 'none')}
+      {@const chans = store.textChannels.filter((c) => placedIn(c, store.categories) === (cat?.id || null))}
+      {#if cat || chans.length}
+        <h3 class="list-head">
+          {#if cat}<a class="section" href="/settings/rooms/{cat.id}" onclick={(e) => { e.preventDefault(); open(cat.id) }}><span>{cat.name}</span><Icon name="chevron" size={12} /></a>
+          {:else}No category{/if}
+        </h3>
+        {#if chans.length}
+          <nav class="slist" aria-label={cat ? cat.name : 'No category'}>
+            {#each chans as c (c.id)}
+              <a class="nav-row room" href="/settings/rooms/{c.id}" onclick={(e) => { e.preventDefault(); open(c.id) }}>
+                <RoomIcon channel={c} size={30} />
+                <span class="grow">{c.name}</span>
+                <span class="chev"><Icon name="chevron" size={14} /></span>
+              </a>
+            {/each}
+          </nav>
+        {:else}<p class="list-foot">No rooms in this category.</p>{/if}
+      {/if}
+    {/each}
+  </div>
+
+  <FormDialog bind:open={addingRoom} title="New Room" action="Add" disabled={!/^[a-z0-9_-]{1,40}$/.test(newChan.trim().toLowerCase())} onsubmit={addChannel}>
+    <input class="field" bind:value={newChan} placeholder="new-room" aria-label="Room name" autocapitalize="off" autocomplete="off" />
+    <select class="field boxed" bind:value={newChanCat} aria-label="Category for the new room">
+      <option value="">No category</option>
+      {#each store.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+    </select>
+    <p>Lowercase letters, numbers, - and _.</p>
+  </FormDialog>
+  <FormDialog bind:open={addingCat} title="New Category" action="Add" disabled={!newCat.trim()} onsubmit={addCategory}>
+    <input class="field" bind:value={newCat} placeholder="Games" aria-label="Category name" autocomplete="off" />
+  </FormDialog>
+{/if}
 {#if error}<p class="error" role="alert">{error}</p>{/if}
-
-<div data-find="rooms">
-  {#each [null, ...store.categories] as cat (cat?.id ?? 'none')}
-    {@const chans = store.textChannels.filter((c) => placedIn(c, store.categories) === (cat?.id || null))}
-    {#if cat || chans.length}
-      <h3 class="list-head">
-        <span>{cat ? cat.name : 'No category'}</span>
-        {#if cat}<span class="cat-action"><InlineConfirm action="Delete category" sentence={`Delete the "${cat.name}" category? Its rooms stay, uncategorised.`} confirm={() => delCategory(cat)} /></span>{/if}
-      </h3>
-      {#if chans.length}
-        <div class="slist">
-          {#each chans as c (c.id)}
-            <div class="room">
-              <IconPicker channel={c} />
-              <span class="name">{name(c)}</span>
-              <InlineConfirm action="Delete" sentence={`Delete ${name(c)} and every message in it?`} confirm={() => delChannel(c)} />
-            </div>
-          {/each}
-        </div>
-      {:else}<p class="list-foot">No rooms in this category.</p>{/if}
-    {/if}
-  {/each}
-</div>
-<p class="list-foot">Tap a room's icon to choose another. Everyone sees it, unless they picked # signs or nothing in Appearance.</p>
+<p class="list-foot" role="status">{status}</p>
 
 <style>
-  .inline { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-  .inline .field { flex: 1 1 160px; width: auto; min-width: 0; }
-  select.field { appearance: auto; }
-  .room { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 56px; padding: 6px 12px; }
-  .room > :global(.confirmation) { margin-inline-start: auto; }
-  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* The category's delete sits on its header line, in normal case. */
-  .cat-action { text-transform: none; letter-spacing: 0; font-weight: 400; }
-  .cat-action :global(.btn) { min-height: 28px; padding: 2px 8px; font-size: var(--fs-xs); }
+  .gap-top { margin-top: 18px; }
+  /* A name edited in place: no box, the value in grey on the right, like iOS's text rows. */
+  .plain { width: 12em; max-width: 100%; padding: 6px 0; border-color: transparent; background: none; text-align: end; color: var(--ink-2); }
+  .plain:focus { color: var(--ink); }
+  button.action-row.add { display: flex; align-items: center; gap: 6px; }
+  .room { gap: 12px; }
+  .slist > .room + .room { background-position: 58px 0; background-size: calc(100% - 58px) 1px; }
+  .section { display: inline-flex; align-items: center; gap: 4px; color: inherit; }
+  .section :global(svg) { transform: rotate(-90deg); }
+  .boxed { appearance: auto; }
   .error { color: var(--danger); }
 </style>

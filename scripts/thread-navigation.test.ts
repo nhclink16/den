@@ -101,6 +101,7 @@ test('routes that are not conversations are unchanged', () => {
   assert.deepEqual(parse('/inbox'), { name: 'inbox' })
   assert.deepEqual(parse('/find', '?q=deploy&in=AAA'), { name: 'search', q: 'deploy', channel: 'AAA' })
   assert.deepEqual(parse('/settings/account'), { name: 'settings', section: 'account' })
+  assert.deepEqual(parse('/settings/sounds/mention'), { name: 'settings', section: 'sounds', sub: 'mention' })
   assert.deepEqual(parse('/c/AAA/t/TTT/extra'), { name: 'home' }, 'a malformed thread URL is not a channel')
 })
 

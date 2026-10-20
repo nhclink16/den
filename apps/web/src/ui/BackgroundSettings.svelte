@@ -7,6 +7,7 @@
   import { activeOrigin } from '../lib/native'
   import type { AppearanceBackground, BackgroundBuiltin, BackgroundImage } from '../lib/types'
   import SettingRow from './SettingRow.svelte'
+  import Icon from './Icon.svelte'
   import GifPicker from './GifPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
 
@@ -106,7 +107,7 @@
 <section class="bgsec">
   <h3 class="list-head">Wallpaper</h3>
   <div class="slist" data-find="wallpaper">
-  <SettingRow label="Which wallpaper" hint={target === 'main' ? (sidebarOwn ? 'Behind the conversation. The sidebar has its own.' : 'Behind the room. Pick one for the sidebar too if you want two.') : 'Just the sidebar. None uses the main wallpaper there.'}>
+  <SettingRow label="Which wallpaper" hint={target === 'main' ? (sidebarOwn ? 'Behind the conversation. The room list has its own.' : 'Behind everything, or pick one for the room list too.') : 'Behind the room list. None uses the main one there.'}>
     {#snippet control()}
       <div class="segments" role="group" aria-label="Which wallpaper to edit">
         <button aria-pressed={target === 'main'} onclick={() => (target = 'main')}>Main</button>
@@ -138,14 +139,14 @@
   <div class="swatches">
     <button class="swatch add" onclick={() => fileInput.click()} disabled={busy}>
       <span class="chip">
-        {#if busy}<span class="spin" aria-hidden="true"></span>{:else}<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 3.2v9.6M3.2 8h9.6" /></svg>{/if}
+        {#if busy}<span class="spin" aria-hidden="true"></span>{:else}<Icon name="image" size={20} />{/if}
       </span>
-      <span class="label">{busy ? 'Uploading…' : 'Upload'}</span>
+      <span class="label">{busy ? 'Uploading…' : 'Photo'}</span>
     </button>
     <GifPicker label="Choose a GIF wallpaper" onpick={useGif} disabled={busy}>
       <span class="swatch add">
         <span class="chip"><span class="gif-mark">GIF</span></span>
-        <span class="label">Search GIFs</span>
+        <span class="label">GIF</span>
       </span>
     </GifPicker>
     {#each uploads as image (image.id)}
@@ -162,18 +163,18 @@
   </div>
   </div>
   </div>
-  <p class="list-foot">Presets are painted from your theme, so they change with it. Big photos are shrunk to 4K before they upload. Your last 24 pictures stay here. GIFs keep their animation, and stay still if your device asks for less motion.</p>
+  <p class="list-foot">Presets follow your theme. Your last 24 pictures stay here. GIFs stay still when your device asks for less motion.</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#if bg}
     <div class="slist sliders">
-      <SettingRow label="Blur" hint="Softens the image so text stays legible.">
+      <SettingRow label="Blur">
         {#snippet control()}
           <input type="range" min="0" max="40" value={bg.blur} oninput={e => set({ blur: +e.currentTarget.value })} aria-label="Background blur" />
           <output>{bg.blur}px</output>
         {/snippet}
       </SettingRow>
-      <SettingRow label="Dim" hint="Darkens or lightens the image behind your text.">
+      <SettingRow label="Dim">
         {#snippet control()}
           <input type="range" min="0" max="80" value={bg.dim} oninput={e => set({ dim: +e.currentTarget.value })} aria-label="Background dim" />
           <output>{bg.dim}%</output>
@@ -225,10 +226,11 @@
   .swatch.chosen .chip, .swatch.chosen .x { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
   .swatch .label { font-size: 12px; color: var(--ink2); }
   .eyebrow { margin: 0 0 8px; }
-  .add .chip { border-style: dashed; background: var(--bg); color: var(--ink2); }
+  /* Adding a picture is a solid tile, like the Photos button of a picker. */
+  .add .chip { border-color: transparent; background: var(--bg-3); color: var(--lamp); }
   .add:disabled { cursor: progress; }
   .swatches > :global(details) > :global(summary) { display: grid; width: 100%; }
-  .gif-mark { font-weight: 800; font-size: 11px; line-height: 1; letter-spacing: .06em; padding: 3px 4px 2px; border: 1.5px solid currentColor; border-radius: 4px; }
+  .gif-mark { font-weight: 800; font-size: 15px; line-height: 1; letter-spacing: .04em; }
   .mine { position: relative; }
   .mine .pick { display: grid; gap: 6px; text-align: start; }
   .mine .chip { background-color: var(--bg3); }

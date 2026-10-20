@@ -6,7 +6,7 @@
   import ThemePreview from './ThemePreview.svelte'
   import InlineConfirm from './InlineConfirm.svelte'
 
-  let { theme, lightChosen, darkChosen, dimmed, accent, onpick, oncustomise, onremove }: {
+  let { theme, lightChosen, darkChosen, dimmed, only, accent, onpick, oncustomise, onremove }: {
     theme: Theme
     /** The chosen accent, so the card shows the theme as it would look. */
     accent?: string | null
@@ -14,12 +14,14 @@
     darkChosen: boolean
     /** 'light' or 'dark' when the mode is fixed, so the other half reads as inactive. */
     dimmed?: 'light' | 'dark'
+    /** Shows just this half, bigger, with a check when chosen: a phone in a fixed mode has no use for the other. */
+    only?: 'light' | 'dark'
     onpick: (half: 'light' | 'dark') => void
     oncustomise?: () => void
     onremove?: () => void
   } = $props()
 
-  const halves = ['light', 'dark'] as const
+  const halves = $derived(only ? [only] : (['light', 'dark'] as const))
   const chosen = (half: 'light' | 'dark') => (half === 'light' ? lightChosen : darkChosen)
   // Clicking the name or the card's edges picks the theme for the appearance on
   // screen now. The two previews stay the precise, keyboard-reachable choice.
@@ -30,7 +32,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (the preview buttons are the keyboard path) -->
-<div class="card" class:active={lightChosen || darkChosen} onclick={pickCard}>
+<div class="card" class:active={only ? chosen(only) : lightChosen || darkChosen} class:single={!!only} onclick={pickCard}>
   <div class="previews">
     {#each halves as half (half)}
       <button
@@ -44,7 +46,9 @@
       >
         <ThemePreview colors={{ ...theme[half], accent: resolveAccent(theme[half], accent, half) }} fonts={theme.fonts} />
         <span class="badge" aria-hidden="true">
-          {#if half === 'light'}
+          {#if only}
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.4 3 3 6-6.6" /></svg>
+          {:else if half === 'light'}
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
               <circle cx="8" cy="8" r="3.1" /><path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.3 3.3l1.1 1.1M11.6 11.6l1.1 1.1M3.3 12.7l1.1-1.1M11.6 4.4l1.1-1.1" />
             </svg>
@@ -76,6 +80,9 @@
   /* Sits in a settings list: no box of its own, just the two halves and a name. */
   .card { cursor: pointer; min-width: 0; }
   .previews { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .single .previews { grid-template-columns: 1fr; }
+  .single .half { aspect-ratio: 4 / 3; }
+  .single .badge { width: 22px; height: 22px; right: 6px; bottom: 6px; }
   .half {
     position: relative; aspect-ratio: 8 / 5; overflow: hidden; padding: 0;
     border-radius: calc(var(--r) + 1px); border: 1px solid var(--line);

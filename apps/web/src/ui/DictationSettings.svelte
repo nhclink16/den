@@ -13,9 +13,6 @@
 </script>
 <h3 class="list-head">Dictation</h3>
 <div class="slist" data-find="dictation">
-  <SettingRow label="Language" hint="The on-device voice model supports English.">
-    {#snippet control()}<select class="field" aria-label="Dictation language"><option value="en">English</option></select>{/snippet}
-  </SettingRow>
   <SettingRow label="Punctuation" hint="Adds full stops and commas as you speak.">
     {#snippet control()}<input class="toggle" type="checkbox" role="switch" aria-label="Punctuation" bind:checked={punctuation} onchange={() => localStorage.setItem('den.dictation.punctuation', String(punctuation))} />{/snippet}
   </SettingRow>
@@ -23,8 +20,8 @@
     {#snippet control()}{#if downloaded}<button class="btn quiet" disabled={removing} onclick={remove}>Remove</button>{/if}{/snippet}
   </SettingRow>
 </div>
+<p class="list-foot">English, recognised on this device.</p>
 {#if error}<p role="alert" class="error">{error}</p>{/if}
 <style>
-  select.field { width: auto; }
   .error { color: var(--danger); font-size: var(--fs-sm); }
 </style>

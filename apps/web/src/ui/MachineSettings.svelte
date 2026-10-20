@@ -2,6 +2,7 @@
   import InlineConfirm from './InlineConfirm.svelte'
   import SettingRow from './SettingRow.svelte'
   import { onMount } from 'svelte'
+  import Icon from './Icon.svelte'
   import { api } from '../lib/api'
   import { store } from '../lib/store.svelte'
   import type { Host, HostEnrollment, Grant, AccessLog, TerminalRecording } from '../lib/types'
@@ -47,9 +48,8 @@
 {#if section === 'machines'}
   {@const owned = machines.filter(h => h.owner_id === store.me?.id)}
   <h2 class="display">Machines</h2>
-  <p class="muted">Open a terminal on a machine you connect to {store.settings.instance_name}.</p>
-  <h3 class="list-head">Machines</h3>
-  <div class="slist">
+  <div class="slist gap-top">
+    <button class="action-row add" data-find="add" disabled={busy} onclick={add}><Icon name="plus" size={15} /> Add a Machine</button>
     {#each machines as h (h.id)}
       <div class="machine">
         <span class="dot" class:online={h.online} aria-hidden="true"></span>
@@ -57,9 +57,8 @@
         <InlineConfirm action="Remove" sentence={`Remove ${h.name}? Its terminals end and it must be enrolled again.`} disabled={busy} confirm={() => remove(h)} />
       </div>
     {/each}
-    <button class="action-row" data-find="add" disabled={busy} onclick={add}>Add a machine</button>
   </div>
-  {#if !machines.length}<p class="list-foot">Add a machine to open your first terminal.</p>{/if}
+  <p class="list-foot">Open a terminal on a machine you connect to {store.settings.instance_name}.</p>
   {#if enrollment}
     <h3 class="list-head">Add a machine</h3>
     <div class="slist">
@@ -82,14 +81,21 @@
         </SettingRow>
       {/each}
     </div>
-    <p class="list-foot">Recording is off by default. It saves terminal output for replay in the ended card, in this server's uploads folder. The terminal toggle remembers your choice per machine. Turning it off discards the current session's recording; existing recordings stay available.</p>
+    <p class="list-foot">Off by default. Saves terminal output for replay, in this server's uploads. Turning it off discards the current session's recording.</p>
   {/if}
 {:else}
   <h2 class="display">Access</h2>
-  <p class="muted">Who can see and use terminals on your machines. Access is asked for and granted per machine.</p>
   {@const standing = grants.filter(g => g.expires_at == null)}
-  <h3 class="list-head">Standing grants</h3>
+  {#if !standing.length && !log.length}
+    <!-- Nothing yet: one centred line instead of two empty sections. -->
+    <div class="empty" data-find="grants">
+      <span class="mark" aria-hidden="true"><Icon name="shield" size={28} /></span>
+      <b>Nobody has access</b>
+      <span>People ask to use a terminal on your machines, and you approve it here.</span>
+    </div>
+  {/if}
   {#if standing.length}
+  <h3 class="list-head">Standing grants</h3>
     <div class="slist" data-find="grants">
       {#each standing as g (g.id)}
         <SettingRow label={`${user(g.grantee_id)} · ${machine(g.host_id)}`} hint={g.capability === 'terminal_control' ? 'Terminal control' : 'Terminal view'}>
@@ -97,13 +103,13 @@
         </SettingRow>
       {/each}
     </div>
-  {:else}<p class="list-foot" data-find="grants">Nobody has standing access. People ask each time, and you approve it here.</p>{/if}
-  <h3 class="list-head">Recent access</h3>
+  {/if}
   {#if log.length}
+  <h3 class="list-head">Recent access</h3>
     <div class="slist" data-find="log">
       {#each log as entry}<SettingRow label={`${user(entry.actor_id)} · ${entry.action.replaceAll('_', ' ')} · ${machine(entry.host_id)}`} hint={new Date(entry.created_at * 1000).toLocaleString()} />{/each}
     </div>
-  {:else}<p class="list-foot" data-find="log">Requests, decisions, and terminal activity appear here.</p>{/if}
+  {/if}
 {/if}
 {#if error}<p role="alert" class="error">{error}</p>{/if}
 <style>
@@ -117,4 +123,9 @@
   .pad p { margin: 0; font-size: var(--fs-sm); }
   pre { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--fs-xs)/1.7 var(--mono); margin: 10px 0 0; user-select: all; }
   .error { color: var(--danger); }
+  .gap-top { margin-top: 18px; }
+  button.action-row.add { display: flex; align-items: center; gap: 6px; }
+  .empty { display: grid; justify-items: center; gap: 6px; margin: 48px auto 0; max-width: 300px; text-align: center; color: var(--ink-2); font-size: var(--fs-sm); }
+  .empty b { color: var(--ink); font-size: 17px; }
+  .mark { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 6px; border-radius: 50%; background: var(--bg-3); color: var(--ink-3); }
 </style>

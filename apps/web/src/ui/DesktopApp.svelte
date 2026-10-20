@@ -40,7 +40,6 @@
 </script>
 
 <h2 class="display">Desktop app</h2>
-<p class="muted">The desktop app adds push to talk that works while Den is in the background, screen share with system sound on Windows, and showing what you're playing. It signs in to the same server.</p>
 
 {#if failed}
   <div class="slist gap-top" data-find="download">
@@ -68,6 +67,7 @@
     <a class="nav-row" href={RELEASES} target="_blank" rel="noreferrer"><span class="grow">Release notes</span><span class="val">GitHub</span></a>
   </div>
 {/if}
+<p class="list-foot">Push to talk while Den is in the background, screen share with system sound on Windows, and showing what you're playing.</p>
 
 <style>
   .gap-top { margin-top: 18px; }
