@@ -1,17 +1,25 @@
 <script module lang="ts">
+  import { call } from '../lib/call.svelte'
   // The phone list unmounts while a room is open. Coming back should find it
   // where it was, with the room you left in view.
   let savedScroll = 0
   let lastRoom = ''
   // A join that failed leaves Retry on the hangout row (the toast only says what happened), until the next
-  // try. Kept here so it outlasts a visit to a room while the join was still going.
+  // try. Watched for the life of the app, so a join that ends while a room is open is still known on return.
   let tried = ''
-  let failed = $state('')
+  const join = $state({ failed: '' })
+  $effect.root(() => {
+    $effect(() => {
+      const id = call.joining
+      if (id) { tried = id; join.failed = '' }
+      else if (call.channel) tried = ''
+      else if (tried && call.error) { join.failed = tried; tried = '' }
+    })
+  })
 </script>
 
 <script lang="ts">
-  import { onMount, tick, untrack } from 'svelte'
-  import { call } from '../lib/call.svelte'
+  import { onMount, tick } from 'svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import CallDock from './CallDock.svelte'
   import CallFaces from './CallFaces.svelte'
@@ -57,18 +65,15 @@
   const people = $derived(store.people.filter((u) => u.id !== store.me?.id).sort((a, b) => (a.display_name || a.username).localeCompare(b.display_name || b.username)))
   async function message(userId: string) {
     composing = false
-    try { const c = await store.openDm([userId]); router.go(`/c/${c.id}`, false, '/') } catch (e) { store.toast = (e as Error).message }
+    // The concrete server, not the proxy: if someone switches servers meanwhile, this room isn't on the new one.
+    const s = instances.active
+    try {
+      const c = await s.openDm([userId])
+      if (instances.active === s && router.route.name === 'home') router.go(`/c/${c.id}`, false, '/')
+    } catch (e) { s.toast = (e as Error).message }
   }
 
-  $effect(() => {
-    const id = call.joining
-    if (id) { tried = id; failed = '' }
-    else if (call.channel) tried = ''
-    // An attempt that ended without a call while this list was away failed too.
-    else if (tried && (call.error || untrack(() => !mounted))) { failed = tried; tried = '' }
-  })
-  let mounted = false
-  onMount(() => { mounted = true })
+  const failed = $derived(join.failed)
 
   // The sidebar line is the Jam's only announcement, so keep its track current
   // for people who are not in the call and have no strip polling it.

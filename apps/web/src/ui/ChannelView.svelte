@@ -294,7 +294,7 @@
 {#snippet threadLine()}<ThreadStrip {channel} selected={openThread} onopen={(id, root) => open(root, id)} subtitle />{/snippet}
 {#snippet roomActions()}
   {#if isDm}<button class="icon-btn" onclick={() => call.join(channel)} aria-label="Call"><Icon name="phone" size={22} /></button>{/if}
-  <a href="/find" class="icon-btn" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find') }}><Icon name="search" size={22} /></a>
+  <a href="/find" class="icon-btn" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find', false, roomUrl) }}><Icon name="search" size={22} /></a>
 {/snippet}
 
 <!-- `edge`: the bar is the first thing on a phone screen, so it reaches up under the status bar (Shell). -->

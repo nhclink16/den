@@ -78,9 +78,10 @@
   function pick(id: string) { scope = id; clearTimeout(timer); router.go(target(), true) }
   function again(query: string) { text = query; remember(query); router.go(target(), true) }
   function clear() { text = ''; clearTimeout(timer); router.go(target(), true); input?.focus() }
-  // Cancel goes back where Search was opened from: the list, or the room.
+  // Cancel goes back where Search was opened from (the list, or a room), or to the list when it was opened
+  // any other way.
   function cancel() {
-    if (history.state && history.length > 1) router.back()
+    if (router.parent) router.back()
     else router.go('/', true)
   }
   // The same resolver notifications and root badges use: a result that is a
