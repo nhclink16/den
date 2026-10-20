@@ -79,7 +79,7 @@ function applyContrast(c: ThemeColors, percent: number) {
 export function applyFavicon(c: ThemeColors) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">`
     + `<rect width="64" height="64" rx="14" fill="${c.bg}"/>`
-    + `<path fill="${c.ink}" fill-rule="evenodd" d="M44 4h12v52H30C16 56 8 48 8 36s9-22 22-22c6 0 10 2 14 5V4ZM22 56V36a10 10 0 0 1 20 0v20H22Z"/>`
+    + `<path fill="${c.ink}" d="M44 4h12v52H42V36a10 10 0 0 0-20 0v18.98C13 52.47 8 45.48 8 36c0-12 9-22 22-22c6 0 10 2 14 5V4Z"/>`
     + `<path fill="${c.accent}" d="M26 56V36a6 6 0 0 1 12 0v20H26Z"/></svg>`
   let link = document.querySelector<HTMLLinkElement>('link#den-favicon')
   if (!link) {
