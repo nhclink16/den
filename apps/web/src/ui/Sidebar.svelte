@@ -9,7 +9,7 @@
   // A join that failed leaves Retry on the hangout row (the toast only says what happened), until the next
   // try. Watched for the life of the app, so a join that ends while a room is open is still known on return,
   // and kept with the account it happened to.
-  let tried = '', owner = ''
+  let tried = '', owner = '', was = ''
   const join = $state({ failed: '', who: '' })
   const account = () => `${store.origin}:${store.me?.id ?? ''}`
   // New message: only the latest choice opens, whichever visit to the list made it.
@@ -17,10 +17,11 @@
   $effect.root(() => {
     $effect(() => {
       const id = call.joining
-      // Whose attempt it is, once, when it starts: switching servers meanwhile doesn't change that.
-      if (id) { if (tried !== id) { tried = id; owner = untrack(account) } join.failed = '' }
+      // Each start of joining is a new attempt, owned by the server and account the call says it's for.
+      if (id && id !== was) { tried = id; owner = untrack(() => `${call.origin}:${call.owner?.me?.id ?? ''}`); join.failed = '' }
       else if (call.channel) tried = ''
-      else if (tried && call.error) { join.failed = tried; join.who = owner; tried = '' }
+      else if (!id && tried && call.error) { join.failed = tried; join.who = owner; tried = '' }
+      was = id ?? ''
     })
   })
 </script>
