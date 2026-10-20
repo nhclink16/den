@@ -49,11 +49,17 @@
     return pack ? pack.sounds[event] : { type: 'builtin', name: event }
   }
   const packName = $derived(!value || !prefs ? '' : prefs.pack_id === 'den' ? 'Den' : prefs.custom_packs.find(p => p.id === prefs.pack_id)?.name ?? value.server_pack.name)
-  /** Choosing a sound plays it, as iOS does. */
-  async function choose(event: SoundEvent, ref: SoundRef | null) {
-    sounds.stop()
-    await save(p => { if (ref) p.overrides[event] = ref; else delete p.overrides[event] })
-    if (!error && ref?.type !== 'silent') void sounds.play(event, owner)
+  /**
+   * Choosing a sound plays it, as iOS does. The radios stay enabled while it saves (disabling them would drop
+   * keyboard focus mid-arrow), so choices queue and save in the order they were made.
+   */
+  let choosing = Promise.resolve()
+  function choose(event: SoundEvent, ref: SoundRef | null) {
+    choosing = choosing.then(async () => {
+      sounds.stop()
+      await save(p => { if (ref) p.overrides[event] = ref; else delete p.overrides[event] })
+      if (!error && ref?.type !== 'silent') void sounds.play(event, owner)
+    })
   }
   const picked = (event: SoundEvent, ref: SoundRef | null) => {
     const o = prefs?.overrides[event]
@@ -199,10 +205,12 @@
 
 {#snippet choice(event: SoundEvent, ref: SoundRef | null, text: string, sub?: string)}
   {@const on = picked(event, ref)}
-  <button class="nav-row" role="radio" aria-checked={on} disabled={busy} onclick={() => choose(event, ref)}>
+  <!-- A real radio, so arrow keys move through the list and it is one Tab stop. -->
+  <label class="nav-row choice">
+    <input type="radio" class="sr-only" name={`sound-${event}`} checked={on} onchange={() => choose(event, ref)} />
     <span class="grow">{text}{#if sub}<span class="sub">{sub}</span>{/if}</span>
     <span class="check" aria-hidden="true">{#if on}<Icon name="check" size={16} />{/if}</span>
-  </button>
+  </label>
 {/snippet}
 
 <style>
@@ -216,6 +224,8 @@
   .file:active { background: var(--press); }
   .sub { display: block; font-size: var(--fs-xs); color: var(--ink-3); }
   .check { display: grid; width: 18px; color: var(--lamp); }
+  .choice { position: relative; cursor: pointer; }
+  :global(:where(:root:not([data-input='touch']))) .choice:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
   .feedback { font-size: var(--fs-sm); color: var(--success); padding: 10px 4px 0; } .error { color: var(--danger); }
   @media (max-width: 650px) { input[type=range] { flex: 1; width: auto; min-width: 120px; } }
   @media (pointer: coarse) { .file { min-height: 52px; padding-block: 14px; } }

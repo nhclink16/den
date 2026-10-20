@@ -194,7 +194,7 @@
   {#if !bar}
   <header class="head">
     {#if narrow && current}
-      <button class="back" onclick={toList}><Icon name="back" size={22} /><span>Settings</span></button>
+      <button class="back" onclick={toList}><Icon name="back" size={22} /><span>{backLabel}</span></button>
       <h1 class="title" tabindex="-1" bind:this={heading}>{title}</h1>
       {#if current === 'appearance'}
         <button class="undo" disabled={!customizer.changed} onclick={() => customizer.undo()}>Undo</button>

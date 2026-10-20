@@ -215,10 +215,11 @@
     <!-- A phone: one row of colour circles, the chosen one ringed. -->
     <div class="slist" data-find="accent">
       <div class="pad circles" role="radiogroup" aria-label="Accent">
+        <!-- Real radios: arrow keys move between colours, one Tab stop. Custom opens the colour picker instead. -->
         {#each [[null, "Theme's own"], ...accentPresets.map(p => [p.id, p.name])] as [id, name] (id ?? 'theme')}
-          <button class="circle" role="radio" aria-checked={(appearance.accent ?? null) === id} aria-label={name} title={name} style:--c={swatch(id)} onclick={() => themes.accent(id)}></button>
+          <label class="circle" class:on={(appearance.accent ?? null) === id} title={name} style:--c={swatch(id)}><input type="radio" class="sr-only" name="accent" aria-label={name} checked={(appearance.accent ?? null) === id} onchange={() => themes.accent(id)} /></label>
         {/each}
-        <button class="circle custom" role="radio" aria-checked={!!custom} aria-label="Custom" title="Custom" style:--c={custom ? swatch(custom) : 'conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d)'} onclick={() => picker?.click()}></button>
+        <button class="circle custom" class:on={!!custom} aria-pressed={!!custom} aria-label="Custom accent" title="Custom" style:--c={custom ? swatch(custom) : 'conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d)'} onclick={() => picker?.click()}></button>
         <input type="color" class="sr-only" tabindex="-1" aria-label="Custom accent colour" bind:this={picker} value={custom ?? swatch(null)} onchange={e => themes.accent(e.currentTarget.value)} />
       </div>
     </div>
@@ -378,8 +379,10 @@
   .circles { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
   /* The chosen colour gets a ring with a gap, like iOS's colour wells. */
   .circle { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent); }
-  .circle[aria-checked=true] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--c); }
-  .circle.custom[aria-checked=true] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--ink-3); }
+  .circle { position: relative; cursor: pointer; }
+  .circle.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--c); }
+  .circle.custom.on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--ink-3); }
+  :global(:where(:root:not([data-input='touch']))) .circle:has(input:focus-visible) { outline: 2px solid var(--lamp); outline-offset: 4px; }
   .circle:active { transform: scale(.92); }
   @media (max-width: 650px) { .desk-only { display: none; } }
   .unsaved { margin-top: 12px; box-shadow: inset 0 0 0 1px var(--lamp); }
