@@ -417,7 +417,7 @@ final class TourUITests: XCTestCase {
                 photo.tap()
                 let add = app.buttons["Add"]
                 if add.waitForExistence(timeout: 3) { add.tap() }
-                if element(app, label: "Remove").waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
+                if element(app, label: "Remove", .prefix).waitForExistence(timeout: 10) { return putKeyboardAway(app, "room-photo-waiting") }
             }
             let cancel = app.buttons["Cancel"]
             if cancel.exists { cancel.tap() }
@@ -434,7 +434,7 @@ final class TourUITests: XCTestCase {
         let paste = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Paste'")).firstMatch
         try wait(for: paste, "Paste")
         paste.tap()
-        try find(app, label: "Remove", timeout: 10)
+        try find(app, label: "Remove", .prefix, timeout: 10)
         putKeyboardAway(app, "room-photo-waiting")
     }
 

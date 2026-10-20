@@ -61,9 +61,12 @@
   }
   onMount(() => {
     void tick().then(layout)
-    // The keyboard going down (focus left the reply box) moves the message.
+    // The keyboard going down (focus left the reply box) moves the message, and a
+    // picture in the copy takes its own shape once it loads.
     addEventListener('resize', layout)
-    return () => removeEventListener('resize', layout)
+    const grows = new ResizeObserver(layout)
+    if (lifted?.firstElementChild) grows.observe(lifted.firstElementChild)
+    return () => { removeEventListener('resize', layout); grows.disconnect() }
   })
 
   function act(a: Action) { onclose(); a.run() }
@@ -77,8 +80,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (focus starts on the dialog, so VoiceOver reads its name; Escape closes it) -->
-<dialog class="layer" use:modal tabindex="-1" aria-label={label} class:placed={!!place} style:--drop="{place?.drop ?? 0}px"
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_no_redundant_roles (focus starts on the dialog, so VoiceOver reads its name; Escape closes it; the explicit role keeps call shortcuts like push-to-talk out, as in Attachment) -->
+<dialog class="layer" role="dialog" use:modal tabindex="-1" aria-label={label} class:placed={!!place} style:--drop="{place?.drop ?? 0}px"
   oncancel={(e) => { e.preventDefault(); onclose() }} onkeydown={(e) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); onclose() } }}>
   <div class="frame">
     <div class="strip" class:right bind:this={strip} style={place?.strip} role="group" aria-label="React">

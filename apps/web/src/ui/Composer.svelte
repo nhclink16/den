@@ -157,14 +157,17 @@
   const uploading = $derived(pending.some((p) => !p.done && !p.error))
   const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
   // A picture on its way counts as something to send: Send stays lit, and a tap
-  // while it uploads sends once it's up (in the same conversation, if nothing failed).
+  // while it uploads sends once it's up: the same draft, untouched since, on the
+  // same account and in the same conversation, if nothing failed.
   const staged = $derived(sendable || (!locked && uploading))
-  let queued = $state<string | null>(null)
+  let queued = $state<{ key: string; owner: Drafts; token: number; revision: number; replyToId: string | null } | null>(null)
   $effect(() => {
     if (!queued || uploading) return
-    const key = queued
+    const q = queued
     queued = null
-    if (key === conversationKey(here) && !pending.some((p) => p.error)) untrack(() => void submit())
+    const same = store.drafts === q.owner && q.owner.holds(q.token) && conversationKey(here) === q.key
+      && q.owner.for(here).revision === q.revision && q.owner.for(here).replyToId === q.replyToId
+    if (same && !pending.some((p) => p.error)) untrack(() => void submit())
   })
 
   // A phone gets the Quiet box: a round + holds files, GIFs, emoji and dictation,
@@ -292,7 +295,7 @@
     const send = store.send
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
-    if (uploading && !busy && !locked) { queued = conversationKey(here); return }
+    if (uploading && !busy && !locked) { queued = { key: conversationKey(here), owner, token, revision: owner.for(conversation).revision, replyToId: owner.for(conversation).replyToId }; return }
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
     if (!plan || uploading || busy || locked) return
     // Placement is captured with everything else. The ROOT places a first reply
@@ -396,10 +399,10 @@
         {@const image = p.file.type.startsWith('image/')}
         <!-- On a phone a picture is a big thumbnail with its progress on it, and no name. -->
         <div class="chip" class:image class:err={!!p.error} class:done={!!p.done}>
-          {#if image}<img class="thumb" alt="" use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{#if !p.done && !p.error}<span class="ring over" style="--p:{pct}"></span>{/if}{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
+          {#if image}<img class="thumb" alt={p.file.name} use:preview={p.file} onerror={(e) => ((e.currentTarget as HTMLImageElement).hidden = true)} />{#if !p.done && !p.error}<span class="ring over" style="--p:{pct}"></span>{/if}{:else}<span class="ring" style="--p:{p.done ? 100 : pct}"></span>{/if}
           <span class="fname">{p.file.name}</span>
           <span class="faint">{p.error || (p.done ? bytes(p.file.size) : `${pct}%`)}</span>
-          <button class="x" onclick={() => removePending(p)} aria-label="Remove"><Icon name="x" size={13} /></button>
+          <button class="x" onclick={() => removePending(p)} aria-label="Remove {p.file.name}"><Icon name="x" size={13} /></button>
         </div>
       {/each}
     </div>
@@ -545,11 +548,12 @@
   .phone > .pending { flex-wrap: nowrap; gap: 10px; margin: 0 0 8px; padding: 7px 7px 0 0; overflow-x: auto; scrollbar-width: none; background: none; border: 0; border-radius: 0; }
   .phone .chip { position: relative; flex: none; width: 84px; height: 84px; padding: 0; justify-content: center; border-radius: 14px; }
   .phone .chip .thumb { width: 100%; height: 100%; margin: 0; border-radius: inherit; }
-  .phone .chip.image :is(.fname, .faint) { display: none; }
+  /* Still read out (which photo, how far along), just not drawn. */
+  .phone .chip.image :is(.fname, .faint) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .phone .chip:not(.image) { flex-direction: column; gap: 4px; padding: 8px; font-size: 12px; }
   .phone .chip:not(.image) .fname { max-width: 100%; }
   .phone .chip.image.err .faint {
-    display: block; position: absolute; inset: auto 0 0; padding: 2px 6px; border-radius: 0 0 14px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: block; position: absolute; inset: auto 0 0; width: auto; height: auto; clip: auto; padding: 2px 6px; border-radius: 0 0 14px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     background: rgb(0 0 0 / .65); color: #fff; font-size: 11px;
   }
   .phone .ring.over { display: block; position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; }
