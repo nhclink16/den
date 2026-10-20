@@ -266,10 +266,10 @@
 
   {#if error}<p class="err" role="alert">{error}</p>{/if}
 
-  {#snippet rootMessage()}
+  {#snippet rootMessage(onmediaready?: () => void)}
   <div class="root">
     {#if root}
-      <MessageItem m={root} prefix="t" onreply={(m) => (replyTo = m)} />
+      <MessageItem m={root} prefix="t" onreply={(m) => (replyTo = m)} {onmediaready} />
     {:else if rootError}
       <p class="err" role="alert">
         {rootError}

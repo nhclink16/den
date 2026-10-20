@@ -47,9 +47,10 @@
 
   // On a phone the list runs under the top bar and the message box, which pad it by their heights through
   // `--list-top` and `--list-bottom`. `below` says whether anything is out of sight under the message box,
-  // so it can frost. `lead` scrolls above the first message (a thread's root, on a phone).
+  // so it can frost. `lead` scrolls above the first message (a thread's root, on a phone), and gets the
+  // list's media-ready handler, so a picture loading late in it keeps the view in place too.
   let { channel, source, onreply, lead, below = $bindable(false) }: {
-    channel: Channel; source: Source; onreply: (m: Message) => void; lead?: Snippet; below?: boolean
+    channel: Channel; source: Source; onreply: (m: Message) => void; lead?: Snippet<[() => void]>; below?: boolean
   } = $props()
   let el: HTMLDivElement
   // How much of the list the bars cover, top and bottom: the scroll padding, which is just the bars.
@@ -252,8 +253,9 @@
     if (!scroller) return
     if (Date.now() - swiped < 1500) showDay()
     const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    // A hidden view scrolls only programmatically, at a width nobody sees.
-    stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight) && !source.hidden
+    // A hidden view scrolls only programmatically, at a width nobody sees (or because the bars it lost no longer
+    // pad it), so it keeps whether it was following the newest message for when it's shown again.
+    if (!source.hidden) stickToBottom = atBottom(el.scrollHeight, el.scrollTop, el.clientHeight)
     far = fromBottom > 400
     below = fromBottom > 1
     if (el.scrollTop < 120 && !source.exhausted && !source.loadingOlder) {
@@ -279,7 +281,7 @@
 <!-- Mentions are rendered HTML, so one delegated handler opens their profile cards. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (mentions are not focusable text; the person is reachable from their avatar and the people list) -->
 <div class="list" class:thread={prefix === 't'} bind:this={el} onscroll={onScroll} onclick={mention} onwheel={() => { touched = true; swiped = Date.now() }} ontouchstart={() => (touched = true)} ontouchmove={() => (swiped = Date.now())} onpointerdown={() => (touched = true)} onkeydown={() => (touched = true)}>
-  {@render lead?.()}
+  {@render lead?.(mediaReady)}
   <!-- A thread pins its root above the list, so only a room gets a start block. -->
   {#if source.exhausted && prefix === 'm'}
     <!-- Where a conversation begins. An empty one shows it in the middle of the screen. -->
