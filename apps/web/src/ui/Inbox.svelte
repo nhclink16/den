@@ -123,8 +123,9 @@
     if (opened === node) { opened = undefined; removeEventListener('pointerdown', outside, true) }
     node.classList.add('full'); place(node, -node.offsetWidth)
     await read(); await tick()
-    // Still listed: the read failed, or something newer arrived first. Put it back.
-    if (node.isConnected) { node.classList.remove('full'); place(node, 0) }
+    // Still listed: the read failed, or something newer arrived first. Put it back. A row on its way out is
+    // `inert` (Svelte's outro) and stays out.
+    if (node.isConnected && !node.inert) { node.classList.remove('full'); place(node, 0) }
   }
 
   function swipe(node: HTMLElement, read: () => Promise<unknown>) {
@@ -139,11 +140,13 @@
     }
     const move = (e: TouchEvent) => {
       if (!tracking) return
+      // A second finger anywhere: this is no longer a swipe.
+      if (e.touches.length !== 1) { tracking = false; cancel(); return }
       const t = e.touches[0]!, mx = t.clientX - x, my = t.clientY - y
       if (!sliding) {
         if (Math.abs(my) >= Math.abs(mx) || (base === 0 && mx > 0)) { if (Math.hypot(mx, my) > 6) tracking = false; return }
         if (Math.abs(mx) < 10) return
-        sliding = true; x = t.clientX; node.classList.add('dragging')
+        sliding = true; node.classList.add('dragging')
       }
       e.preventDefault()
       const width = node.offsetWidth
@@ -152,8 +155,9 @@
       if (full !== node.classList.contains('full')) { node.classList.toggle('full', full); if (full) haptic('light') }
       place(node, dx)
     }
-    const end = () => {
+    const end = (e: TouchEvent) => {
       if (!sliding) return
+      if (e.touches.length) { cancel(); return }
       tracking = sliding = swallow = false; node.classList.remove('dragging')
       if (node.classList.contains('full')) void commit(node, read)
       else if (dx < -BUTTON / 2) open(node)
@@ -172,7 +176,14 @@
     node.addEventListener('click', click, true)
     return {
       update(next: () => Promise<unknown>) { read = next },
-      destroy() { if (opened === node) shut() },
+      // A row removed mid-swipe must not read on a late touchend.
+      destroy() {
+        tracking = sliding = false
+        if (opened === node) shut()
+        node.removeEventListener('touchstart', start); node.removeEventListener('touchmove', move)
+        node.removeEventListener('touchend', end); node.removeEventListener('touchcancel', cancel)
+        node.removeEventListener('click', click, true)
+      },
     }
   }
   const when = (iso: string) => (dayLabel(iso) === 'Today' ? shortTime(iso) : dayLabel(iso))
@@ -229,7 +240,7 @@
         {#each g.msgs.slice(-4) as m (m.id)}
           <!-- Reading a message reads the room up to it: older rows go with it, newer ones stay. -->
           {@const read = () => g.s.markRead(g.c.id, m.id)}
-          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: reducedMotion.current ? 0 : 160 }}>
+          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: bar && !reducedMotion.current ? 160 : 0 }}>
             <button class="line" data-hover-animates onclick={() => openRoom(g.s, g.c.id)}>
               <Avatar instance={g.s} userId={m.author_id} size={40} />
               <span class="txt">
@@ -244,7 +255,7 @@
         {#each unreadThreads(g.s, g.c.id) as t (t.id)}
           {@const u = g.s.threadUnread(t.id)}
           {@const read = () => g.s.markThreadRead(t.id, t.last_reply_id ?? undefined)}
-          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: reducedMotion.current ? 0 : 160 }}>
+          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: bar && !reducedMotion.current ? 160 : 0 }}>
             <button class="line thread" onclick={() => openThread(g.s, g.c.id, t.id)}>
               <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
               <span class="txt">
