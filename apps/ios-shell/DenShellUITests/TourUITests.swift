@@ -217,6 +217,25 @@ final class TourUITests: XCTestCase {
             shotScrolling("settings", app)
             try settingsPages(app, ["Appearance", "Notifications", "Sounds", "Voice", "Spotify", "Layout", "Desktop app",
                                     "Account", "Machines", "Access", "API keys", "Agents"])
+            // Pages inside pages: one sound's own list, and the developer pages behind Developer.
+            try scrollAndTap(try find(app, label: "Sounds"), "Sounds", app)
+            try settingsPages(app, ["Mention, Default"], back: "Sounds", home: "Play All")
+            try tapBack(app, "Settings", home: "Appearance")
+            let developer = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == 'Developer'")).firstMatch
+            if developer.exists {
+                try scrollAndTap(developer, "Developer", app)
+                pause()
+                shotScrolling("settings-developer", app)
+                try settingsPages(app, ["Access", "API keys", "Agents"], back: "Developer", home: "API keys")
+                try tapBack(app, "Settings", home: "Appearance")
+            }
+            // Last: it may leave iOS's share sheet up, and the next run starts the app again.
+            let computer = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == 'Den on your computer'")).firstMatch
+            if computer.exists {
+                try scrollAndTap(computer, "Den on your computer", app)
+                pause(2)
+                shot("settings-computer")
+            }
         }
     }
 
@@ -272,7 +291,9 @@ final class TourUITests: XCTestCase {
             try find(app, label: "Your profile and settings").tap()
             try find(app, label: "Members")
             shotScrolling("settings-admin", app)
-            try settingsPages(app, ["Members", "Invites", "Rooms", "Plugins"])
+            try settingsPages(app, ["Members", "Invites", "Rooms", "Plugins", "Extras"])
+            try scrollAndTap(try find(app, label: "Rooms"), "Rooms", app)
+            try settingsPages(app, ["plans"], back: "Rooms", home: "New Room")
         }
         try signOut(try launchSignedIn(as: "rowan"))
         _ = try launchSignedIn()
@@ -392,18 +413,24 @@ final class TourUITests: XCTestCase {
     }
 
     /// Each Settings page in turn, scrolled through, then back to the list. A page this account doesn't have is skipped.
-    @MainActor private func settingsPages(_ app: XCUIApplication, _ pages: [String]) throws {
+    @MainActor private func settingsPages(_ app: XCUIApplication, _ pages: [String], back label: String = "Settings",
+                                          home: String = "Appearance") throws {
         for page in pages {
             let row = app.webViews.firstMatch.links.matching(NSPredicate(format: "label == %@", page)).firstMatch
             guard row.exists else { continue }
             try scrollAndTap(row, page, app)
             pause()
-            shotScrolling("settings-" + page.lowercased().replacingOccurrences(of: " ", with: "-"), app)
-            let back = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == 'Settings'")).firstMatch
-            try wait(for: back, "Settings back button")
-            back.tap()
-            try find(app, label: "Appearance")
+            shotScrolling("settings-" + page.lowercased().replacingOccurrences(of: ",", with: "").replacingOccurrences(of: " ", with: "-"), app)
+            try tapBack(app, label, home: home)
         }
+    }
+
+    /// The top bar's back button (named after the page it goes back to), then waits for something on that page.
+    @MainActor private func tapBack(_ app: XCUIApplication, _ label: String, home: String) throws {
+        let back = app.webViews.firstMatch.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+        try wait(for: back, "\(label) back button")
+        back.tap()
+        try find(app, label: home)
     }
 
     /// A photo waiting in the composer, the way a person adds one: + → Photos → Photo Library → pick one.
