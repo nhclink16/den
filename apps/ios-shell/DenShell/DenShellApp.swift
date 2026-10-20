@@ -183,9 +183,10 @@ struct DenWebView: UIViewRepresentable {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let ended = note.name != AVAudioSession.interruptionNotification
                     || note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.ended.rawValue
+                let active = note.name == UIApplication.didBecomeActiveNotification
                 MainActor.assumeIsolated {
                     if ended, self?.inCall == true { self?.applyCallAudio() }
-                    if note.name == UIApplication.didBecomeActiveNotification, self?.unreachable.shown == true { self?.retry() }
+                    if active, self?.unreachable.shown == true { self?.retry() }
                 }
             }
         }
