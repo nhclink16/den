@@ -366,7 +366,8 @@
   .right .cards { align-items: flex-end; }
   /* While its menu is open, the message has been lifted out (MessageMenu). */
   .msg.held > .row .content > :is(.bubble, .gif, .files, .reactions) { opacity: 0; }
-  .lifted { padding: 0; margin: 0; }
+  /* Not the run's spacing: the menu measures the copy's own box. */
+  .msg.lifted, .msg.lifted.head { padding: 0; margin: 0; }
   .lifted.feed .content { padding: 10px 14px; border-radius: var(--r-lg); background: var(--bg-2); }
   /* Tapbacks sit just under the bubble, on the side the bubble starts. */
   .reactions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 4px 0; }

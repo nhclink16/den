@@ -158,15 +158,16 @@
   const sendable = $derived(!locked && (!!text.trim() || pending.some((p) => p.done)))
   // A picture on its way counts as something to send: Send stays lit, and a tap
   // while it uploads sends once it's up: the same draft, untouched since, on the
-  // same account and in the same conversation, if nothing failed.
+  // same account and in the same conversation, with the same files, if nothing failed.
   const staged = $derived(sendable || (!locked && uploading))
-  let queued = $state<{ key: string; owner: Drafts; token: number; revision: number; replyToId: string | null } | null>(null)
+  let queued = $state<{ key: string; owner: Drafts; token: number; revision: number; replyToId: string | null; files: string } | null>(null)
+  const files = () => pending.map((p) => p.id).join()
   $effect(() => {
     if (!queued || uploading) return
     const q = queued
     queued = null
     const same = store.drafts === q.owner && q.owner.holds(q.token) && conversationKey(here) === q.key
-      && q.owner.for(here).revision === q.revision && q.owner.for(here).replyToId === q.replyToId
+      && q.owner.for(here).revision === q.revision && q.owner.for(here).replyToId === q.replyToId && files() === q.files
     if (same && !pending.some((p) => p.error)) untrack(() => void submit())
   })
 
@@ -295,7 +296,7 @@
     const send = store.send
     const content = text.trim()
     const ready = pending.filter((p) => p.done).map((p) => p.done!.id)
-    if (uploading && !busy && !locked) { queued = { key: conversationKey(here), owner, token, revision: owner.for(conversation).revision, replyToId: owner.for(conversation).replyToId }; return }
+    if (uploading && !busy && !locked) { queued = { key: conversationKey(here), owner, token, revision: owner.for(conversation).revision, replyToId: owner.for(conversation).replyToId, files: files() }; return }
     const plan = planComposerSubmit(content, ready, commands.map((c) => c.name))
     if (!plan || uploading || busy || locked) return
     // Placement is captured with everything else. The ROOT places a first reply
