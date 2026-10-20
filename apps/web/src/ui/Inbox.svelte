@@ -12,6 +12,10 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import Mark from './Mark.svelte'
+  import { tick } from 'svelte'
+  import { slide } from 'svelte/transition'
+  import { haptic } from '../lib/haptics'
+  import { reducedMotion } from '../lib/motion.svelte'
 
   let { narrow }: { narrow: boolean } = $props()
 
@@ -84,7 +88,7 @@
     return [...listed, ...fresh]
   }
 
-  function open(s: Store, id: string) { instances.select(s); router.go(`/c/${id}`) }
+  function openRoom(s: Store, id: string) { instances.select(s); router.go(`/c/${id}`) }
   function openThread(s: Store, channelId: string, threadId: string) {
     instances.select(s); router.go(`/c/${channelId}/t/${threadId}`)
   }
@@ -93,11 +97,95 @@
   function clearAll() { for (const g of groups) g.s.markAllRead(g.c.id) }
 
   const bar = $derived(narrow && !native)
+
+  // Swipe a row left to read it, as in Mail (phones). The row slides over a Read button: let go past half the
+  // row and it reads at once, past half the button and the button stays for a tap. A mostly vertical drag is
+  // the list's scroll, a rightward one on a closed row (iOS's swipe back) is never taken, and a tap still opens.
+  // VoiceOver and keyboards meet the same button after each row; keyboard focus slides it into view.
+  const BUTTON = 76, EDGE = 24
+  let opened: HTMLElement | undefined
+  const place = (node: HTMLElement, dx: number) => dx ? node.style.setProperty('--dx', `${dx}px`) : node.style.removeProperty('--dx')
+  const outside = (e: Event) => { if (!opened?.contains(e.target as Node)) shut() }
+  function shut() {
+    if (opened) place(opened, 0)
+    opened = undefined
+    removeEventListener('pointerdown', outside, true)
+  }
+  function open(node: HTMLElement) {
+    if (opened !== node) shut()
+    opened = node; place(node, -BUTTON)
+    addEventListener('pointerdown', outside, true)
+  }
+  $effect(() => shut)
+
+  // The row goes all the way out while the read is sent; it leaves the list when the read lands.
+  async function commit(node: HTMLElement, read: () => Promise<unknown>) {
+    if (opened === node) { opened = undefined; removeEventListener('pointerdown', outside, true) }
+    node.classList.add('full'); place(node, -node.offsetWidth)
+    await read(); await tick()
+    // Still listed: the read failed, or something newer arrived first. Put it back.
+    if (node.isConnected) { node.classList.remove('full'); place(node, 0) }
+  }
+
+  function swipe(node: HTMLElement, read: () => Promise<unknown>) {
+    let x = 0, y = 0, base = 0, dx = 0, tracking = false, sliding = false, swallow = false
+    const start = (e: TouchEvent) => {
+      if (sliding) cancel()
+      const t = e.touches[0]!
+      tracking = bar && e.touches.length === 1 && t.clientX > EDGE && !node.classList.contains('full')
+      x = t.clientX; y = t.clientY; dx = base = opened === node ? -BUTTON : 0
+      // A tap on an open row closes it, as in Mail, instead of opening the conversation.
+      swallow = base < 0 && !(e.target as Element).closest('.read')
+    }
+    const move = (e: TouchEvent) => {
+      if (!tracking) return
+      const t = e.touches[0]!, mx = t.clientX - x, my = t.clientY - y
+      if (!sliding) {
+        if (Math.abs(my) >= Math.abs(mx) || (base === 0 && mx > 0)) { if (Math.hypot(mx, my) > 6) tracking = false; return }
+        if (Math.abs(mx) < 10) return
+        sliding = true; x = t.clientX; node.classList.add('dragging')
+      }
+      e.preventDefault()
+      const width = node.offsetWidth
+      dx = Math.max(-width, Math.min(0, base + t.clientX - x))
+      const full = dx < -width / 2
+      if (full !== node.classList.contains('full')) { node.classList.toggle('full', full); if (full) haptic('light') }
+      place(node, dx)
+    }
+    const end = () => {
+      if (!sliding) return
+      tracking = sliding = swallow = false; node.classList.remove('dragging')
+      if (node.classList.contains('full')) void commit(node, read)
+      else if (dx < -BUTTON / 2) open(node)
+      else if (opened === node) shut()
+      else place(node, 0)
+    }
+    // iOS took the touch away (a call, a system gesture): put the row back where it was.
+    const cancel = () => {
+      if (!sliding) return
+      tracking = sliding = false; node.classList.remove('dragging', 'full'); place(node, base)
+    }
+    const click = (e: Event) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation(); shut() } }
+    node.addEventListener('touchstart', start, { passive: true })
+    node.addEventListener('touchmove', move, { passive: false })
+    node.addEventListener('touchend', end); node.addEventListener('touchcancel', cancel)
+    node.addEventListener('click', click, true)
+    return {
+      update(next: () => Promise<unknown>) { read = next },
+      destroy() { if (opened === node) shut() },
+    }
+  }
   const when = (iso: string) => (dayLabel(iso) === 'Today' ? shortTime(iso) : dayLabel(iso))
   const preview = (s: Store, m: Message) => plainMentions(previewText({
     content: m.content, attachment_types: m.attachments.map((a) => a.content_type), object_kinds: (m.objects ?? []).map((o) => o.kind),
   }), s.users)
 </script>
+
+{#snippet readButton(read: () => Promise<unknown>)}
+  <button class="read" aria-label="Mark as Read" onclick={(e) => commit(e.currentTarget.parentElement!, read)}>
+    <span class="in"><Icon name="check" size={20} /><span>Read</span></span>
+  </button>
+{/snippet}
 
 <!-- `edge`: on a phone the bar reaches up under the status bar (Shell). -->
 <section class="inbox" class:edge={bar}>
@@ -112,7 +200,7 @@
   </header>
   {/if}
 
-  <div class="scroll">
+  <div class="scroll" onscroll={() => { if (!opened?.classList.contains('dragging')) shut() }}>
     {#if bar}
       <NavBar title="Inbox">
         {#snippet leading()}<HomeButton />{/snippet}
@@ -131,7 +219,7 @@
     {#each groups as g (g.s.origin + g.c.id)}
       {#if instances.all.length > 1}<div class="eyebrow" style="margin:16px 0 6px">{g.s.settings.instance_name}</div>{/if}
       <h2 class="list-head">
-        <button class="section" onclick={() => open(g.s, g.c.id)}>
+        <button class="section" onclick={() => openRoom(g.s, g.c.id)}>
           <span class="name">{g.s.title(g.c)}</span>
           <span class="chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         </button>
@@ -139,24 +227,33 @@
       </h2>
       <div class="slist">
         {#each g.msgs.slice(-4) as m (m.id)}
-          <button class="line" data-hover-animates onclick={() => open(g.s, g.c.id)}>
-            <Avatar instance={g.s} userId={m.author_id} size={40} />
-            <span class="txt">
-              <span class="top"><span class="who">{g.s.name(m.author_id)}</span><time class="when">{when(m.created_at)}</time></span>
-              <span class="text">{preview(g.s, m)}</span>
-            </span>
-          </button>
+          <!-- Reading a message reads the room up to it: older rows go with it, newer ones stay. -->
+          {@const read = () => g.s.markRead(g.c.id, m.id)}
+          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: reducedMotion.current ? 0 : 160 }}>
+            <button class="line" data-hover-animates onclick={() => openRoom(g.s, g.c.id)}>
+              <Avatar instance={g.s} userId={m.author_id} size={40} />
+              <span class="txt">
+                <span class="top"><span class="who">{g.s.name(m.author_id)}</span><time class="when">{when(m.created_at)}</time></span>
+                <span class="text">{preview(g.s, m)}</span>
+              </span>
+            </button>
+            {#if bar}{@render readButton(read)}{/if}
+          </div>
         {/each}
-        {#if g.msgs.length > 4}<button class="more" onclick={() => open(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
+        {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each unreadThreads(g.s, g.c.id) as t (t.id)}
           {@const u = g.s.threadUnread(t.id)}
-          <button class="line thread" onclick={() => openThread(g.s, g.c.id, t.id)}>
-            <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
-            <span class="txt">
-              <span class="top"><span class="who">{plainMentions(t.title, g.s.users)}</span>{#if t.resolved_at}<span class="when">Resolved</span>{/if}</span>
-              <span class="text">{#if u.mention}<span class="at">Mentions you</span> · {/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
-            </span>
-          </button>
+          {@const read = () => g.s.markThreadRead(t.id, t.last_reply_id ?? undefined)}
+          <div class="swipe" class:on={bar} use:swipe={read} out:slide={{ duration: reducedMotion.current ? 0 : 160 }}>
+            <button class="line thread" onclick={() => openThread(g.s, g.c.id, t.id)}>
+              <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
+              <span class="txt">
+                <span class="top"><span class="who">{plainMentions(t.title, g.s.users)}</span>{#if t.resolved_at}<span class="when">Resolved</span>{/if}</span>
+                <span class="text">{#if u.mention}<span class="at">Mentions you</span> · {/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
+              </span>
+            </button>
+            {#if bar}{@render readButton(read)}{/if}
+          </div>
         {/each}
         {#if rows[key(g.s, g.c.id)]?.error}
           <div class="line">
@@ -203,7 +300,23 @@
   .glyph { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--bg-3); color: var(--lamp); }
   .more { display: block; width: 100%; min-height: 44px; padding: 8px 16px 8px 68px; text-align: left; color: var(--lamp); font-size: var(--fs-sm); }
   .more:active { background-color: var(--press); }
-  /* Hairlines start at the text, as on the home list. */
-  .slist > .line + *, .slist > .more + * { background-size: calc(100% - 68px) 1px; background-position: 68px 0; }
+  /* Hairlines start at the text, as on the home list. A row's own hairline rides on the row, so it stays over a
+     pressed row and slides with a swiped one. */
+  .slist > .swipe { background-image: none; }
+  .slist > * + .swipe > .line { background-image: linear-gradient(var(--hair), var(--hair)); background-repeat: no-repeat; }
+  .slist > .swipe + *, .slist > .more + *, .slist > * + .swipe > .line { background-size: calc(100% - 68px) 1px; background-position: 68px 0; }
+  /* Swipe to read (phones). The row and its Read button move together by --dx; the button starts just past the
+     row's end and grows to fill the gap on a full swipe, its label riding the row's edge. */
+  .swipe { position: relative; }
+  .swipe.on { overflow: clip; }
+  .on > .line, .read { translate: var(--dx, 0px) 0; transition: translate var(--t) var(--ease-out), width var(--t) var(--ease-out), background-color var(--t-fast); }
+  :global(:where(:root:not([data-input='touch']))) .swipe:has(> .read:focus-visible) { --dx: -76px; }
+  /* Set from the gesture's code, not the markup. */
+  .swipe:global(.dragging) > * { transition: none; }
+  .swipe:global(:is(.dragging, .full)) > .line { background-color: transparent; }
+  .read { position: absolute; inset-block: 0; left: 100%; width: max(76px, -1 * var(--dx, 0px)); display: flex; background: var(--lamp); color: var(--on-lamp); font-size: var(--fs-xs); font-weight: 600; }
+  .read .in { width: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .read:active { filter: brightness(.9); }
+  :global(:where(:root:not([data-input='touch']))) .on > :focus-visible { outline-offset: -3px; }
   .err { color: var(--danger, var(--lamp)); flex: 1; }
 </style>
