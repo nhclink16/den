@@ -86,7 +86,7 @@
   const dirty = $derived(
     displayName.trim() !== me.display_name || (bio.trim() || null) !== (me.bio ?? null) || accent !== (me.accent ?? null)
     || (emoji.trim() || null) !== (me.status?.emoji ?? null) || (statusText.trim() || null) !== (me.status?.text ?? null)
-    || (!!status && clearAfter !== (me.status?.expires_at ? 'keep' : 'never')),
+    || (!!status && (clearAfter !== (me.status?.expires_at ? 'keep' : 'never') || (clearAfter === 'keep' && keepAt !== (me.status?.expires_at ?? null)))),
   )
   const problem = $derived(
     !displayName.trim() ? 'Your name can’t be empty.'
@@ -116,7 +116,7 @@
       if (sentStatus) {
         done[5] = until ? `keep:${until}` : 'never'
         if (clearAfter === sentClear) { clearAfter = until ? 'keep' : 'never'; keepAt = until }
-      }
+      } else if (clearAfter === sentClear) { clearAfter = 'never'; keepAt = null }
       base = sent = JSON.stringify(done); failed = ''
       message = 'Saved. Everyone sees the new version now.'
     } catch (err) { error = err instanceof Error ? err.message : 'Could not save your profile.'; failed = snapshot; sent = base }
