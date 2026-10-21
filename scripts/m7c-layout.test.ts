@@ -42,7 +42,8 @@ test('a portrait container stacks tiles instead of spreading them across the nar
   const tall = presetCells(few, 'Auto', {}, true)
 
   // Landscape keeps two cams beside each other; portrait gives each the full width.
-  assert.equal(wide['a:cam'].w, 6)
+  assert.equal(wide['a:cam'].row, wide['n:cam'].row)
+  assert.notEqual(wide['a:cam'].col, wide['n:cam'].col)
   assert.equal(tall['a:cam'].w, 12)
   assert.equal(tall['a:cam'].col, 0)
   assert.equal(tall['n:cam'].col, 0)
@@ -96,4 +97,92 @@ test('custom layouts are kept per orientation and landscape keeps the original k
   store.set(storageKey('room-1', true), JSON.stringify(tall))
   assert.equal(readLayout('room-1', false, true).tiles['a:cam'].w, 12)
   assert.equal(readLayout('room-1', false).tiles['a:cam'].w, 6)
+})
+
+// Nicholas, alone with his camera on in Auto, got a 1908x371 strip (about 5:1) with his
+// face cropped off: every desktop preset gave cams a fixed three rows whatever their
+// width, and a row is at most .8 of a column. Tiles are now sized to the stage instead.
+// Stages measured in the app at 1280x800, 1970x1600 (with and without the member
+// list) and 1920x1080; the last is a short window.
+const stages = [[732, 591], [1422, 1391], [1908, 1391], [1372, 871], [1000, 500]]
+const cams = (n: number): TileSpec[] => Array.from({ length: n }, (_, i) => ({ key: `p${i}:cam`, kind: 'cam' as const }))
+// What CallGrid does with the cells: pixel boxes, rows squeezed only past the fit.
+function render(tiles: TileSpec[], preset: 'Auto' | 'Even' | 'Focus', [width, height]: number[], saved = {}) {
+  const stepX = (width + 8) / 12, fit = Math.floor((height - 8) / (stepX * .8))
+  const cells = presetCells(tiles, preset, saved, false, fit)
+  const rows = Math.max(...Object.values(cells).map(c => c.row + c.h))
+  const stepY = Math.max(24, Math.min(stepX * .8, (height - 8) / rows))
+  const box = (k: string) => ({ ...cells[k], px: cells[k].w * stepX - 8, ratio: (cells[k].w * stepX - 8) / (cells[k].h * stepY - 8) })
+  return { cells, rows, fit, box }
+}
+
+test('desktop presets keep cams close to 16:9 and inside the stage', () => {
+  for (const stage of stages) for (const n of [1, 2, 3, 4, 6, 9]) for (const preset of ['Auto', 'Even', 'Focus'] as const) {
+    const { cells, rows, fit, box } = render(cams(n), preset, stage)
+    const at = `${preset}, ${n} cams, ${stage.join('x')}`
+    assert(rows <= fit, `${at}: ${rows} rows don't fit in ${fit}`)
+    for (const k of Object.keys(cells)) assert(box(k).ratio > 1.6 && box(k).ratio < 2, `${at}: ${k} is ${box(k).ratio.toFixed(2)}:1`)
+    // Each line of tiles is centred: as much room left of it as right.
+    const lines = Map.groupBy(Object.values(cells), c => c.row)
+    for (const line of lines.values()) {
+      const left = Math.min(...line.map(c => c.col)), right = 12 - Math.max(...line.map(c => c.col + c.w))
+      assert.equal(left, right, `${at}: line at row ${line[0].row} is off centre`)
+    }
+    for (const [i, a] of Object.values(cells).entries()) for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a, b), at)
+  }
+})
+
+test('one person gets the largest tile that fits, two to four share the stage', () => {
+  // A wide stage: the full width. A short one: as wide as the height allows.
+  assert.equal(render(cams(1), 'Auto', [1372, 871]).box('p0:cam').w, 12)
+  const short = render(cams(1), 'Auto', [1000, 500])
+  assert(short.box('p0:cam').w < 12 && short.rows <= short.fit)
+  assert.equal(short.box('p0:cam').col, (12 - short.box('p0:cam').w) / 2)
+  // Two to four people each get at least half the width, never a thin row of quarters.
+  for (const stage of stages.slice(0, 4)) for (const n of [2, 3, 4])
+    assert(render(cams(n), 'Auto', stage).box('p0:cam').w >= 6, `${n} cams at ${stage.join('x')}`)
+})
+
+test('a share in Auto comes first and large, with cams in shape under it', () => {
+  const tiles: TileSpec[] = [{ key: 'p0:screen', kind: 'screen' }, ...cams(3)]
+  for (const stage of stages) {
+    const { cells, rows, fit, box } = render(tiles, 'Auto', stage)
+    assert(rows <= fit, `${stage.join('x')}: ${rows} rows don't fit in ${fit}`)
+    assert.equal(cells['p0:screen'].row, 0)
+    for (const k of ['p0:cam', 'p1:cam', 'p2:cam']) {
+      assert(cells[k].row >= cells['p0:screen'].h, 'cams sit under the share')
+      assert(box(k).ratio > 1.6 && box(k).ratio < 2, `${stage.join('x')}: ${k} is ${box(k).ratio.toFixed(2)}:1`)
+      assert(box('p0:screen').px > box(k).px, 'the share is larger than a cam')
+    }
+    assert(box('p0:screen').ratio > 1.6 && box('p0:screen').ratio < 2)
+  }
+})
+
+// The phone and a portrait monitor were already right; this pins them to what they were.
+test('stacked presets are unchanged', () => {
+  const flat = (c: Record<string, { col: number; row: number; w: number; h: number }>) =>
+    Object.entries(c).map(([k, v]) => `${k.split(':')[1]} ${v.col},${v.row},${v.w},${v.h}`).join(' | ')
+  const share: TileSpec = { key: 'p0:screen', kind: 'screen' }
+  const expected: Record<string, [TileSpec[], string, string, string]> = {
+    '1': [cams(1), 'cam 0,0,12,5', 'cam 0,0,12,5', 'cam 0,0,12,7'],
+    '2': [cams(2), 'cam 0,0,12,5 | cam 0,5,12,5', 'cam 0,0,6,5 | cam 6,0,6,5', 'cam 0,0,12,7 | cam 0,7,12,7'],
+    '3': [cams(3), 'cam 0,0,6,5 | cam 6,0,6,5 | cam 0,5,6,5', 'cam 0,0,6,5 | cam 6,0,6,5 | cam 0,5,6,5', 'cam 0,0,12,7 | cam 0,7,12,7 | cam 0,14,12,7'],
+    'share+3': [[share, ...cams(3)], 'screen 0,0,12,7 | cam 0,7,6,5 | cam 6,7,6,5 | cam 0,12,6,5', 'screen 0,0,6,5 | cam 6,0,6,5 | cam 0,5,6,5 | cam 6,5,6,5', 'screen 0,0,12,7 | cam 0,7,4,4 | cam 4,7,4,4 | cam 8,7,4,4'],
+  }
+  for (const [name, [tiles, auto, even, focus]] of Object.entries(expected)) {
+    assert.equal(flat(presetCells(tiles, 'Auto', {}, true)), auto, `Auto ${name}`)
+    assert.equal(flat(presetCells(tiles, 'Even', {}, true)), even, `Even ${name}`)
+    assert.equal(flat(presetCells(tiles, 'Focus', {}, true)), focus, `Focus ${name}`)
+  }
+})
+
+// A tile with nothing saved (a canvas just opened, someone new) takes its spot from the
+// Auto preset. It must fit around a saved Custom layout, never push a saved tile away.
+test('a new tile in a custom layout leaves the saved tiles where they were', () => {
+  const saved = { 'n:screen': { col: 0, row: 0, w: 6, h: 4, pinned: false }, 'a:cam': { col: 6, row: 0, w: 6, h: 4, pinned: false } }
+  const tiles: TileSpec[] = [{ key: 'n:screen', kind: 'screen' }, { key: 'n:canvas:1', kind: 'canvas' }, { key: 'a:cam', kind: 'cam' }]
+  const cells = pack(tiles, saved)
+  assert.deepEqual(cells['n:screen'], saved['n:screen'])
+  assert.deepEqual(cells['a:cam'], saved['a:cam'])
+  for (const [i, a] of Object.values(cells).entries()) for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a, b))
 })

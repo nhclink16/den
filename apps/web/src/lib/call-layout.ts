@@ -43,41 +43,76 @@ export function participantSlots(ids: string[], saved: Record<string, Cell>): Re
   }
   return result
 }
+// A landscape grid's row is .8 of a column (CallGrid), so this many rows keeps a
+// tile `w` columns wide close to 16:9.
+const tall = (w: number) => Math.max(2, Math.round(w * .7))
+// Rows that `n` tiles `w` columns wide take, wrapping as many across as fit.
+const rowsFor = (n: number, w: number) => n && Math.ceil(n / Math.min(n, Math.floor(columns / w))) * tall(w)
 // `stacked` means the container is taller than it is wide: a phone, or a desktop
 // monitor rotated into portrait. Both want fewer tiles across and taller rows.
-export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, stacked = false): Record<string, Cell> {
-  const mobile = stacked
+// `fit` is how many full-height rows a landscape stage has room for; tiles are sized
+// to stay within it, so a lone camera is one large 16:9 tile, not a full-width strip.
+// Nine is a 16:10 window, for callers that don't know the stage.
+export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, stacked = false, fit = 9): Record<string, Cell> {
   const cells: Record<string, Cell> = {}
   let row = 0
-  function band(items: TileSpec[], across: number, height?: number) {
+  function band(items: TileSpec[], across: number, h: number) {
     if (!items.length) return
     across = Math.min(across, items.length)
-    const w = Math.floor(columns / across), h = height ?? Math.max(3, Math.min(7, Math.round(w * .75)))
+    const w = Math.floor(columns / across)
     for (const [i, t] of items.entries()) cells[t.key] = { col: i % across * w, row: row + Math.floor(i / across) * h, w, h, pinned: saved[t.key]?.pinned || false }
     row += Math.ceil(items.length / across) * h
   }
-  if (preset === 'Even') band(tiles, mobile ? 2 : Math.min(3, tiles.length), mobile ? 5 : 3)
+  // Tiles `w` columns wide, each line centred. A half column is fine here: `bounds`
+  // rounds it when a cell is dragged, packed or loaded.
+  function grid(items: TileSpec[], w: number) {
+    const across = Math.min(items.length, Math.floor(columns / w)), h = tall(w)
+    for (const [i, t] of items.entries()) {
+      const line = Math.floor(i / across), count = Math.min(across, items.length - line * across)
+      cells[t.key] = { col: (columns - count * w) / 2 + i % across * w, row: row + line * h, w, h, pinned: saved[t.key]?.pinned || false }
+    }
+    row += rowsFor(items.length, w)
+  }
+  // The widest tiles that fit in `space` rows. When even three columns (four across)
+  // don't fit, CallGrid squeezes the rows, as it always has.
+  function fill(items: TileSpec[], space: number) {
+    let w = columns
+    while (w > 3 && rowsFor(items.length, w) > space) w--
+    grid(items, w)
+  }
+  if (!stacked) {
+    // Focus keeps its thumbnails smaller than Auto's cameras under a share.
+    const pinned = tiles.filter(t => saved[t.key]?.pinned), shared = tiles.filter(t => t.kind !== 'cam')
+    const large = preset === 'Even' ? tiles : preset === 'Focus' ? (pinned.length ? pinned : shared.length ? shared : tiles) : shared
+    const small = tiles.filter(t => !large.includes(t)), w = preset === 'Focus' ? 2 : 3
+    if (!large.length) fill(small, fit)
+    else { fill(large, fit - rowsFor(small.length, w)); grid(small, w) }
+    return cells
+  }
+  if (preset === 'Even') band(tiles, 2, 5)
   else if (preset === 'Focus') {
     let large = tiles.filter(t => saved[t.key]?.pinned)
     if (!large.length) large = tiles.filter(t => t.kind !== 'cam')
     if (!large.length) large = tiles
-    band(large, mobile ? 1 : 3, mobile ? 7 : undefined)
-    band(tiles.filter(t => !large.includes(t)), mobile ? 3 : 6, mobile ? 4 : 2)
+    band(large, 1, 7)
+    band(tiles.filter(t => !large.includes(t)), 3, 4)
   } else {
-    band(tiles.filter(t => t.kind === 'screen'), mobile ? 1 : 3, mobile ? 7 : undefined)
-    band(tiles.filter(t => t.kind === 'canvas' || t.kind === 'terminal'), mobile ? 1 : 3, mobile ? 7 : undefined)
+    band(tiles.filter(t => t.kind === 'screen'), 1, 7)
+    band(tiles.filter(t => t.kind === 'canvas' || t.kind === 'terminal'), 1, 7)
     // Two cams side by side across a narrow axis leaves each tile far taller than
     // the 16:9 inside it. Stacked and full width they stay close to their own shape.
     const cams = tiles.filter(t => t.kind === 'cam')
-    band(cams, mobile ? (cams.length <= 2 ? 1 : 2) : 4, mobile ? 5 : 3)
+    band(cams, cams.length <= 2 ? 1 : 2, 5)
   }
   return cells
 }
 // Active cells alone occupy space. A moved/resized tile wins its drop rectangle;
 // colliding neighbours shift to the first available cell, without hiding anything.
+// Saved tiles go before new ones, so a newcomer fits around a layout rather than moving it.
 export function pack(tiles: TileSpec[], saved: Record<string, Cell>, priority?: string): Record<string, Cell> {
   const placed: Record<string, Cell> = {}, defaults = presetCells(tiles, 'Auto', saved)
-  const ordered = [...tiles].sort((a, b) => a.key === priority ? -1 : b.key === priority ? 1 : 0)
+  const rank = (t: TileSpec) => t.key === priority ? 0 : saved[t.key] ? 1 : 2
+  const ordered = [...tiles].sort((a, b) => rank(a) - rank(b))
   for (const tile of ordered) {
     const desired = bounds(saved[tile.key] || defaults[tile.key])
     const free = (c: Cell) => Object.values(placed).every(p => !overlaps(c, p))

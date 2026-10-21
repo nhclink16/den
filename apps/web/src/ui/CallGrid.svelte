@@ -58,9 +58,11 @@
   // The room the tiles have: what the faces under them leave.
   const room = $derived(height - (shown.length && faces.length ? facesHeight + 12 : 0))
   const preset = $derived(mobile && callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
-  const cells = $derived(preview || (preset === 'Custom' ? pack(shown, callLayouts.value.tiles) : presetCells(shown, preset, callLayouts.value.tiles, stacked)))
-  const rows = $derived(Math.max(1, ...Object.values(cells).map(c => c.row + c.h)))
   const stepX = $derived((width + 8) / 12)
+  // Rows of full height (below) the stage has room for, so presets size tiles to fit it.
+  const fit = $derived(Math.floor((height - 8) / (stepX * .8)))
+  const cells = $derived(preview || (preset === 'Custom' ? pack(shown, callLayouts.value.tiles) : presetCells(shown, preset, callLayouts.value.tiles, stacked, fit)))
+  const rows = $derived(Math.max(1, ...Object.values(cells).map(c => c.row + c.h)))
   // Keep preset rows within the viewport when practical; custom layouts can scroll.
   // The ceiling is a ratio of the column width so a tile keeps a sane shape. Portrait
   // gets a taller ceiling: bounding rows by width alone left most of a tall screen
@@ -70,7 +72,7 @@
   // FaceTime, up to twice as tall as wide so one or two people don't become towers.
   // More rows than fit keep square cells and scroll.
   const stepY = $derived(mobile ? Math.max(24, stepX, Math.min(stepX * 2, (room - 8) / rows)) : Math.max(24, Math.min(stepX * (portrait ? 1.3 : .8), (height - 8) / rows)))
-  function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(shown, value, callLayouts.value.tiles, mobile)) }
+  function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(shown, value, callLayouts.value.tiles, mobile, fit)) }
   function reset() { cancelDrag?.(); callLayouts.reset() }
   function pin(key: string) {
     // Mobile presents Custom as Focus; pinning must not save its display geometry
