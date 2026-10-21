@@ -175,3 +175,14 @@ test('stacked presets are unchanged', () => {
     assert.equal(flat(presetCells(tiles, 'Focus', {}, true)), focus, `Focus ${name}`)
   }
 })
+
+// A tile with nothing saved (a canvas just opened, someone new) takes its spot from the
+// Auto preset. It must fit around a saved Custom layout, never push a saved tile away.
+test('a new tile in a custom layout leaves the saved tiles where they were', () => {
+  const saved = { 'n:screen': { col: 0, row: 0, w: 6, h: 4, pinned: false }, 'a:cam': { col: 6, row: 0, w: 6, h: 4, pinned: false } }
+  const tiles: TileSpec[] = [{ key: 'n:screen', kind: 'screen' }, { key: 'n:canvas:1', kind: 'canvas' }, { key: 'a:cam', kind: 'cam' }]
+  const cells = pack(tiles, saved)
+  assert.deepEqual(cells['n:screen'], saved['n:screen'])
+  assert.deepEqual(cells['a:cam'], saved['a:cam'])
+  for (const [i, a] of Object.values(cells).entries()) for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a, b))
+})

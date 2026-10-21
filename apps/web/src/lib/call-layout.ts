@@ -108,9 +108,11 @@ export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<str
 }
 // Active cells alone occupy space. A moved/resized tile wins its drop rectangle;
 // colliding neighbours shift to the first available cell, without hiding anything.
+// Saved tiles go before new ones, so a newcomer fits around a layout rather than moving it.
 export function pack(tiles: TileSpec[], saved: Record<string, Cell>, priority?: string): Record<string, Cell> {
   const placed: Record<string, Cell> = {}, defaults = presetCells(tiles, 'Auto', saved)
-  const ordered = [...tiles].sort((a, b) => a.key === priority ? -1 : b.key === priority ? 1 : 0)
+  const rank = (t: TileSpec) => t.key === priority ? 0 : saved[t.key] ? 1 : 2
+  const ordered = [...tiles].sort((a, b) => rank(a) - rank(b))
   for (const tile of ordered) {
     const desired = bounds(saved[tile.key] || defaults[tile.key])
     const free = (c: Cell) => Object.values(placed).every(p => !overlaps(c, p))
