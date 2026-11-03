@@ -64,6 +64,36 @@ until curl --noproxy '*' -fsS http://localhost:7000/health; do
     sleep 1
 done
 echo
+# TEMPORARY (shell-call-video): which ways a socket on each of this machine's addresses can reach LiveKit, by TCP and
+# by UDP. The simulator's sockets are all on one of them.
+{
+echo '--- network'
+ifconfig -a | grep -E '^[a-z]|inet '
+netstat -rn -f inet | head -25
+cat > "$dir/paths.py" <<'PY'
+import socket, subprocess, threading
+addrs = [l.split()[1] for l in subprocess.run(['ifconfig'], capture_output=True, text=True).stdout.splitlines() if l.strip().startswith('inet ')]
+echo = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); echo.bind(('0.0.0.0', 17999))
+def serve():
+    while True:
+        data, peer = echo.recvfrom(100); echo.sendto(data, peer)
+threading.Thread(target=serve, daemon=True).start()
+for src in addrs:
+    for dst in addrs:
+        t = socket.socket(); t.settimeout(2)
+        try:
+            t.bind((src, 0)); t.connect((dst, 7880)); t.sendall(b'GET / HTTP/1.0\r\n\r\n'); tcp = 'ok' if t.recv(20) else 'empty'
+        except Exception as e: tcp = type(e).__name__
+        t.close()
+        u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); u.settimeout(2)
+        try:
+            u.bind((src, 0)); u.sendto(b'ping', (dst, 17999)); udp = 'ok' if u.recvfrom(100)[0] == b'ping' else 'odd'
+        except Exception as e: udp = type(e).__name__
+        u.close()
+        print(f'from {src:>16} to {dst:>16}: tcp {tcp:<20} udp {udp}')
+PY
+python3 "$dir/paths.py"
+} >&2 || true
 # The keyboard test needs the on-screen keyboard, not the Mac's.
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 echo "Made-up Den for $commit is up on localhost:7000"
