@@ -82,7 +82,9 @@ struct VideoCommand: Equatable {
 
 /// One tile's video: a rounded view with LiveKit's renderer in it.
 @MainActor final class VideoSlotView: UIView, VideoViewDelegate {
-    let video = VideoView()
+    /// LiveKit's renderer, a new one for each track: its "first frame" is the view's, so a late frame of the track before
+    /// could otherwise count for the next.
+    private(set) var video: VideoView
     /// A frame of the current track has been drawn.
     private(set) var drawn = false
     /// The UI check's test pattern stands in for a track (CallTestCall.swift).
@@ -90,25 +92,39 @@ struct VideoCommand: Equatable {
     /// Its video is on screen: drawn, and still there. LiveKit holds the track weakly, so it can go by itself.
     var isReady: Bool { drawn && (video.track != nil || patterned) }
     var onDrawn: (() -> Void)?
+    var fit: VideoView.LayoutMode = .fill { didSet { video.layoutMode = fit } }
+    var enabled = true { didSet { video.isEnabled = enabled } }
 
     override init(frame: CGRect) {
+        video = VideoView()
         super.init(frame: frame)
         clipsToBounds = true
         isUserInteractionEnabled = false
-        video.frame = bounds
-        video.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        // Your own front camera reads as a mirror, as it does on the web.
-        video.mirrorMode = .auto
-        video.delegates.add(delegate: self)
-        addSubview(video)
+        install(video)
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+
+    private func install(_ view: VideoView) {
+        view.frame = bounds
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Your own front camera reads as a mirror, as it does on the web.
+        view.mirrorMode = .auto
+        view.layoutMode = fit
+        view.isEnabled = enabled
+        view.delegates.add(delegate: self)
+        insertSubview(view, at: 0)
+    }
 
     var track: VideoTrack? {
         get { video.track }
         set {
             if newValue == nil || newValue !== video.track { drawn = false }
+            guard newValue !== video.track else { return }
+            video.track = nil
+            video.removeFromSuperview()
+            video = VideoView()
+            install(video)
             video.track = newValue
         }
     }
@@ -121,9 +137,9 @@ struct VideoCommand: Equatable {
     nonisolated func videoView(_ videoView: VideoView, didUpdate isRendering: Bool) {
         guard isRendering else { return }
         Task { @MainActor in
-            // Not undone when frames pause (a still share sends few): only a new track starts over. And only for the track
-            // shown now: this may be the last word of the one before it.
-            guard !self.drawn, self.video.track != nil, self.video.didRenderFirstFrame else { return }
+            // Not undone when frames pause (a still share sends few): only a new track starts over. And only from the
+            // renderer of the track shown now.
+            guard videoView === self.video, !self.drawn, self.video.track != nil else { return }
             self.drawn = true
             self.onDrawn?()
         }
@@ -150,7 +166,7 @@ struct VideoCommand: Equatable {
         // Nothing is drawn while Den is in the background; the engine stops receiving too.
         for (name, shown) in [(UIApplication.didEnterBackgroundNotification, false), (UIApplication.willEnterForegroundNotification, true)] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.views.values.forEach { $0.video.isEnabled = shown } }
+                MainActor.assumeIsolated { self?.views.values.forEach { $0.enabled = shown } }
             }
         }
     }
@@ -214,14 +230,14 @@ struct VideoCommand: Equatable {
             if let shown = views[slot.key] { view = shown } else {
                 view = VideoSlotView(frame: slot.rect)
                 view.onDrawn = { [weak self] in self?.drawnChanged() }
-                view.video.isEnabled = foreground
+                view.enabled = foreground
                 layer.addSubview(view)
                 views[slot.key] = view
             }
             view.frame = slot.rect
             view.layer.cornerRadius = slot.radius
             view.backgroundColor = slot.fill ?? .black
-            view.video.layoutMode = slot.fit == .contain ? .fit : .fill
+            view.fit = slot.fit == .contain ? .fit : .fill
             #if DEBUG && targetEnvironment(simulator)
             if FakeCall.shared != nil { view.showTestPattern(slot.key); continue }
             #endif
