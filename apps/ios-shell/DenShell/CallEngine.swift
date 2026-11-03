@@ -88,6 +88,12 @@ enum CallRules {
     }
 }
 
+/// Runs its block the first time only. Touched on the main actor.
+final class Once: @unchecked Sendable {
+    private var done = false
+    func run(_ block: () -> Void) { if !done { done = true; block() } }
+}
+
 @MainActor final class CallEngine: NSObject {
     var onChange: (@MainActor (CallSnapshot) -> Void)?
     /// Videos came or went (CallVideo puts them in its views).
@@ -400,7 +406,14 @@ enum CallRules {
             let work = call.cameraWork
             Task { try? await track.stop(); await work?.value; try? await track.stop() }
         }
-        await call.room.disconnect()
+        // LiveKit's disconnect stops the published camera, which waits behind a camera start that's stuck: Leave waits
+        // for it 5 s at most, and it carries on by itself.
+        let room = call.room
+        await withCheckedContinuation { (go: CheckedContinuation<Void, Never>) in
+            let once = Once()
+            Task { @MainActor in await room.disconnect(); once.run { go.resume() } }
+            Task { @MainActor in try? await Task.sleep(for: .seconds(5)); once.run { go.resume() } }
+        }
         log.info("call ended \(call.id, privacy: .public)")
         call.finished = true
         for waiter in call.finishWaiters { waiter.resume() }

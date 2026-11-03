@@ -340,6 +340,8 @@ extension CallEngine {
             if local.isCameraEnabled() != live {
                 if live, !local.trackPublications.values.contains(where: { $0.source == .camera }) {
                     let track = await LocalVideoTrack.createCameraTrack(options: CameraCaptureOptions(position: call.cameraPosition))
+                    // Still this call, and still wanted? Leave or Off may have come while the track was made.
+                    guard self.call === call, call.wantsCamera, foreground else { return }
                     call.cameraTrack = track
                     do { try await local.publish(videoTrack: track) } catch { try? await track.stop(); call.cameraTrack = nil; throw error }
                 } else {
