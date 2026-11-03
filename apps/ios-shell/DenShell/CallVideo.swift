@@ -85,6 +85,10 @@ struct VideoCommand: Equatable {
     let video = VideoView()
     /// A frame of the current track has been drawn.
     private(set) var drawn = false
+    /// The UI check's test pattern stands in for a track (CallTestCall.swift).
+    var patterned = false
+    /// Its video is on screen: drawn, and still there. LiveKit holds the track weakly, so it can go by itself.
+    var isReady: Bool { drawn && (video.track != nil || patterned) }
     var onDrawn: (() -> Void)?
 
     override init(frame: CGRect) {
@@ -104,15 +108,14 @@ struct VideoCommand: Equatable {
     var track: VideoTrack? {
         get { video.track }
         set {
-            guard newValue !== video.track else { return }
-            drawn = false
+            if newValue == nil || newValue !== video.track { drawn = false }
             video.track = newValue
         }
     }
 
     #if DEBUG && targetEnvironment(simulator)
     /// The UI check's test pattern counts as a drawn picture (CallTestCall.swift).
-    func markDrawn() { if !drawn { drawn = true; onDrawn?() } }
+    func markDrawn() { patterned = true; if !drawn { drawn = true; onDrawn?() } }
     #endif
 
     nonisolated func videoView(_ videoView: VideoView, didUpdate isRendering: Bool) {
@@ -241,8 +244,7 @@ struct VideoCommand: Equatable {
         }
     }
 
-    /// `drawn` goes with the track: a view without one has nothing drawn (the UI check's test pattern aside).
-    private var ready: [String] { views.filter { $0.value.drawn }.map(\.key).sorted() }
+    private var ready: [String] { views.filter { $0.value.isReady }.map(\.key).sorted() }
 
     private func reply(seq: Int) -> String {
         rev += 1
@@ -295,6 +297,8 @@ extension CallEngine {
         guard self.call === call else { return snapshot }
         call.cameraSeq = seq
         call.wantsCamera = on
+        // Off at once, before the answer, even while another pass is busy (LiveKit queues its publish calls).
+        if !on { await updateCamera(call) }
         await reconcile()
         return snapshot
     }

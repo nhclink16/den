@@ -95,7 +95,13 @@ enum CallRules {
     /// The videos the page has on screen, by `CallRules.videoKey`: only these are subscribed.
     var shownVideo: Set<String> = [] { didSet { if shownVideo != oldValue { Task { await reconcile() } } } }
     /// iOS allows no camera in the background, and nobody sees video then.
-    var foreground = true { didSet { if foreground != oldValue { Task { await reconcile() } } } }
+    var foreground = true {
+        didSet {
+            guard foreground != oldValue else { return }
+            // The camera first, even while another pass is busy: iOS stops it in the background anyway.
+            Task { if let call { await updateCamera(call) }; await reconcile() }
+        }
+    }
 
     final class Call {
         let id = UUID()

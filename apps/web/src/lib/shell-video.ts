@@ -31,7 +31,8 @@ const slots = new Map<HTMLElement, Slot>()
 /** The last placement sent, and what the shell has drawn as of it (by key: where, and whether its video is in). */
 let seq = 0, rev = 0, sent = '', placed = new Map<string, string>(), ready = new Set<string>()
 let pending: { seq: number; at: Map<string, string> } | null = null
-let frame = 0, timer: ReturnType<typeof setInterval> | undefined, watch: MutationObserver | undefined, sized: ResizeObserver | undefined
+let frame = 0, timer: ReturnType<typeof setInterval> | undefined, watch: MutationObserver | undefined, theme: MutationObserver | undefined
+let sized: ResizeObserver | undefined
 
 const round = (n: number) => Math.round(n * 100) / 100
 const sig = (m: Measure | null) => m ? [m.rect.x, m.rect.y, m.rect.width, m.rect.height, m.visible.x, m.visible.y, m.visible.width, m.visible.height].map(round).join() : ''
@@ -63,7 +64,8 @@ function tick() {
   const zoom = zoomed()
   let moved = false
   for (const [node, slot] of slots) {
-    const m = zoom ? null : measure(node), now = sig(m)
+    // Its corners too: a theme with other corners needs the shell's view rounded again.
+    const m = zoom ? null : measure(node), now = m ? `${sig(m)}|${getComputedStyle(node).borderTopLeftRadius}` : ''
     if (now === slot.seen) continue
     slot.seen = now; slot.m = m; moved = true
   }
@@ -130,8 +132,8 @@ export function holes(box: Rect, open: { rect: Rect; visible: Rect; radius: numb
 /** Puts the open holes in the page's background layer and in every wallpaper layer, each in its own coordinates. */
 function cut() {
   const open = [...slots].flatMap(([node, s]) => s.open && s.m ? [{ ...s.m, radius: parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0 }] : [])
-  const root = document.documentElement
-  set(root, '--den-holes', holes({ x: 0, y: 0, width: innerWidth, height: innerHeight }, open))
+  // On <body>, whose ::before uses it: <html>'s style changing means a new theme (see `start`).
+  set(document.body, '--den-holes', holes({ x: 0, y: 0, width: innerWidth, height: innerHeight }, open))
   for (const host of document.querySelectorAll<HTMLElement>('.bg-host')) {
     const r = host.getBoundingClientRect(), b = getComputedStyle(host)
     const box = { x: r.x + parseFloat(b.borderLeftWidth), y: r.y + parseFloat(b.borderTopWidth), width: host.clientWidth, height: host.clientHeight }
@@ -147,6 +149,9 @@ function cut() {
 function kick() { if (slots.size && !frame) frame = requestAnimationFrame(tick) }
 /** A scroll moves the tiles on the compositor before the page hears of it: close at once, place again when it stops. */
 function scrolled() { for (const slot of slots.values()) slot.seen = 'scrolling'; refresh(); kick() }
+/** A new theme or wallpaper: shut every hole, so the tiles show their own colour and corners again, and place them anew
+ *  with those (a share's letterbox is the tile's colour). */
+const rethemed = () => { sent = ''; scrolled() }
 function place() { sent = ''; kick() }
 function visible() { if (document.visibilityState === 'visible') place() }
 
@@ -156,7 +161,8 @@ function start() {
   watch = new MutationObserver(tick)
   watch.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'class'] })
   // The theme and the wallpaper are set on <html>.
-  watch.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-bg-scope', 'data-sidebar-bg'] })
+  theme = new MutationObserver(rethemed)
+  theme.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-bg-scope', 'data-sidebar-bg', 'data-theme'] })
   sized = new ResizeObserver(kick)
   addEventListener('scroll', scrolled, { capture: true, passive: true })
   addEventListener('resize', kick)
@@ -169,13 +175,13 @@ function start() {
 
 function stop() {
   cancelAnimationFrame(frame); frame = 0
-  watch?.disconnect(); sized?.disconnect(); clearInterval(timer)
+  watch?.disconnect(); theme?.disconnect(); sized?.disconnect(); clearInterval(timer)
   removeEventListener('scroll', scrolled, { capture: true })
   removeEventListener('resize', kick)
   window.visualViewport?.removeEventListener('resize', kick)
   document.removeEventListener('visibilitychange', visible)
   delete document.documentElement.dataset.nativeVideo
-  document.documentElement.style.removeProperty('--den-holes')
+  document.body.style.removeProperty('--den-holes')
   for (const host of document.querySelectorAll<HTMLElement>('.bg-host')) { host.style.removeProperty('--den-holes-before'); host.style.removeProperty('--den-holes-after') }
   sent = ''; placed = new Map(); ready = new Set(); pending = { seq: ++seq, at: new Map() }
   void window.denShell!.video!({ type: 'slots', seq, slots: [] }).catch(() => {})
