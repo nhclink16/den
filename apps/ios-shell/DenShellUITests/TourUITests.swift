@@ -51,7 +51,7 @@ final class TourUITests: XCTestCase {
                 shot("notification-ask")
                 turnOn.tap()
             }
-            let allow = springboard.alerts.buttons["Allow"]
+            let allow = springboard.alerts.buttons["Allow"].firstMatch
             if allow.waitForExistence(timeout: theme == "light" ? 10 : 1) {
                 shot("notification-question")
                 allow.tap()
@@ -264,7 +264,7 @@ final class TourUITests: XCTestCase {
             join.tap()
             let failed = element(app, label: "The call could not connect. Try again.")
             let joined = element(app, label: "open the call", .contains)
-            let allow = springboard.alerts.buttons["Allow"]
+            let allow = springboard.alerts.buttons["Allow"].firstMatch
             var joining = false
             let deadline = Date().addingTimeInterval(45)
             while !failed.exists && !joined.exists && Date() < deadline {
@@ -282,6 +282,33 @@ final class TourUITests: XCTestCase {
                 missing("call outcome", tree: app.debugDescription)
                 throw Missing(description: "The join neither connected nor failed in 45 s.")
             }
+        }
+    }
+
+    /// The open call with video: a made-up call whose cameras and shares are test patterns drawn natively behind the page
+    /// (CallTestCall.swift), since the call's media can't connect here. Then your own camera, and More over the video.
+    @MainActor func test11bCallVideo() async throws {
+        let maya = try await signIn("maya")
+        let users = try await api("GET", "/users", token: maya) as? [[String: Any]] ?? []
+        let ids = ["ellis", "maya", "theo", "juno"].compactMap { name in users.first { $0["username"] as? String == name }?["id"] as? String }
+        await themes { _ in
+            let app = try launchSignedIn(extra: ["-DenFakeCall", ids.joined(separator: ",")])
+            try find(app, label: "Join hangout").tap()
+            try find(app, label: "open the call", .contains, timeout: 15).tap()
+            try find(app, label: "Maya camera")
+            pause(1.5)
+            shot("call-video")
+            try find(app, label: "Turn camera on").tap()
+            try find(app, label: "Ellis camera")
+            pause(1.5)
+            shot("call-video-own-camera")
+            try find(app, label: "More call options").tap()
+            try find(app, label: "Flip Camera")
+            pause(1)
+            shot("call-video-more")
+            try find(app, label: "Auto").tap()
+            try find(app, label: "Leave call").tap()
+            try find(app, label: "Join hangout", timeout: 15)
         }
     }
 
@@ -377,17 +404,17 @@ final class TourUITests: XCTestCase {
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
-    @MainActor private func launch(url: String = "http://localhost:7000") -> XCUIApplication {
+    @MainActor private func launch(url: String = "http://localhost:7000", extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-DenStartURL", url, "-DenCallTestTone", "YES",
-                               "-DenTestPushToken", String(repeating: "0d", count: 32)]
+                               "-DenTestPushToken", String(repeating: "0d", count: 32)] + extra
         app.launch()
         return app
     }
 
     /// Opens Den Shell signed in, signing in again if the web view lost the session.
-    @MainActor private func launchSignedIn(as user: String = "ellis") throws -> XCUIApplication {
-        let app = launch()
+    @MainActor private func launchSignedIn(as user: String = "ellis", extra: [String] = []) throws -> XCUIApplication {
+        let app = launch(extra: extra)
         let rooms = element(app, label: "Your profile and settings")
         let comeIn = element(app, label: "Come in")
         let deadline = Date().addingTimeInterval(30)
@@ -399,7 +426,7 @@ final class TourUITests: XCTestCase {
         try find(app, label: "Your profile and settings", timeout: 20)
         let turnOn = element(app, label: "Turn On")
         if turnOn.waitForExistence(timeout: 2) { turnOn.tap() }
-        let allow = springboard.alerts.buttons["Allow"]
+        let allow = springboard.alerts.buttons["Allow"].firstMatch
         if allow.waitForExistence(timeout: 1) { allow.tap() }
         return app
     }

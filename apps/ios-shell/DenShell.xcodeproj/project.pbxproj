@@ -21,6 +21,7 @@
 		CB031C933FF426598712460A /* MediaBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27256CD979671A918545899B /* MediaBridgeTests.swift */; };
 		D3F65720805BEF40328F712E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05DD3ADC085C441B6F6F23CE /* Assets.xcassets */; };
 		D87F8A83B370BF7820EE3018 /* HapticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A48F2F8995982F10687702 /* HapticsTests.swift */; };
+		DEDB21A148FB274DECC66A57 /* CallTestCall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2E000D05701513E41AA382 /* CallTestCall.swift */; };
 		E6CA17BC98976CE870F887A7 /* CallBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855A09EC376E8D9DE93C0C9 /* CallBridgeTests.swift */; };
 		EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B48E12D014890145BF8A95 /* DenShellApp.swift */; };
 		FB8599DA82DAC3572DC4943A /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5039DD1EF1C3D42D13B7555F /* Haptics.swift */; };
@@ -47,6 +48,7 @@
 
 /* Begin PBXFileReference section */
 		05DD3ADC085C441B6F6F23CE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0A2E000D05701513E41AA382 /* CallTestCall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallTestCall.swift; sourceTree = "<group>"; };
 		27256CD979671A918545899B /* MediaBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaBridgeTests.swift; sourceTree = "<group>"; };
 		2FBCD8C9C4D0C7ACCB071BB2 /* MediaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaBridge.swift; sourceTree = "<group>"; };
 		3AC97128CFA0FE6CE4E50BC8 /* CallVideoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallVideoTests.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 				05DD3ADC085C441B6F6F23CE /* Assets.xcassets */,
 				9B68CD8935418E42801B3969 /* CallBridge.swift */,
 				5D27A56B3D88E6C07EBDA53A /* CallEngine.swift */,
+				0A2E000D05701513E41AA382 /* CallTestCall.swift */,
 				75AFE942C4056FB331CD898A /* CallTestTone.swift */,
 				4359761849F8465C768BEE87 /* CallVideo.swift */,
 				6557F9B7F8BAB3A3FD83C433 /* DenShell.entitlements */,
@@ -279,6 +282,7 @@
 			files = (
 				FC6CAFAAF9863C649E9FC449 /* CallBridge.swift in Sources */,
 				8672973FC1420D29AADD01F2 /* CallEngine.swift in Sources */,
+				DEDB21A148FB274DECC66A57 /* CallTestCall.swift in Sources */,
 				904C0A1A33DAA5AA74E88CDA /* CallTestTone.swift in Sources */,
 				1B9F4AFFC9FC6DE931621029 /* CallVideo.swift in Sources */,
 				EE8402B4A135BF0F2971CEEB /* DenShellApp.swift in Sources */,

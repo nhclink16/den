@@ -96,8 +96,12 @@ enum CallCommand: Equatable {
         let allowLocalWS = false
         #endif
         do {
+            let command = try CallCommand(message.body, allowLocalWS: allowLocalWS)
+            #if DEBUG && targetEnvironment(simulator)
+            if let fake = FakeCall.shared { return (fake.answer(command), nil) }
+            #endif
             let snapshot: CallSnapshot?
-            switch try CallCommand(message.body, allowLocalWS: allowLocalWS) {
+            switch command {
             case .join(let request): snapshot = try await engine.join(request)
             case .leave: await engine.leave(); snapshot = nil
             case .mute(let muted, let seq): snapshot = try await engine.setMuted(muted, seq: seq)
