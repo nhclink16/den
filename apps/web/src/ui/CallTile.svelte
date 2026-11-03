@@ -7,7 +7,11 @@
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
   import { shell } from '../lib/shell-call'
+  import { nativeVideo } from '../lib/shell-video'
   let { participant, screen = false, share }: { participant: CallParticipant; screen?: boolean; share?: Share } = $props()
+  // Den Shell draws this video itself, behind the page: the tile is its slot, and keeps the face until the video is in.
+  const native = $derived(screen ? share?.native ? { identity: participant.id, source: 'screen' as const, name: share.name, fit: 'contain' as const } : null
+    : participant.nativeCamera ? { identity: participant.id, source: 'camera' as const, fit: 'cover' as const } : null)
   let video = $state<HTMLVideoElement>()
   const track = $derived(screen ? share ? share.track : participant.screen : participant.camera)
   $effect(() => {
@@ -19,13 +23,15 @@
   })
 </script>
 
-<div class="tile" class:screen class:speaking={participant.speaking} data-testid={screen ? 'screen-tile' : 'call-tile'} data-share-name={share?.name} data-local={participant.local} data-user-id={participant.userId} data-connection-id={participant.id}>
+<div class="tile" class:screen class:speaking={participant.speaking} use:nativeVideo={native} data-testid={screen ? 'screen-tile' : 'call-tile'} data-share-name={share?.name} data-local={participant.local} data-user-id={participant.userId} data-connection-id={participant.id}>
   {#if track}
     <video bind:this={video} class:mirror={participant.local && !screen && call.cameraSettings.mirror} autoplay playsinline muted aria-label={`${participant.name} ${screen ? 'screen' : 'camera'}`}></video>
   {:else if participant.music}
     <Icon name="music" size={32} />
   {:else}
     <span class="face"><Avatar userId={participant.userId} size={72} instance={call.owner ?? undefined} presence={false} /></span>
+    <!-- Named as the <video> above is, so VoiceOver and the UI check find it the same way. -->
+    {#if native}<span class="native-slot" role="img" aria-label={`${participant.name} ${screen ? 'screen' : 'camera'}`}></span>{/if}
     {#if participant.unseen}<span class="unseen">{participant.unseen === 'screen' ? 'Sharing their screen' : 'Camera on'}<span class="soon"> · video coming soon on iPhone</span></span>{/if}
   {/if}
   <div class="label">
@@ -65,6 +71,10 @@
   .tile.speaking::after { box-shadow: inset 0 0 0 3px var(--lamp); }
   video { width: 100%; height: 100%; min-height: 0; object-fit: cover; position: absolute; inset: 0; }
   .screen video { object-fit: contain; }
+  /* The shell's video is in, behind the page: see through to it (shell-video.ts). */
+  .tile:global([data-native='on']) { background: transparent; }
+  .tile:global([data-native='on']) > .face { visibility: hidden; }
+  .native-slot { position: absolute; inset: 0; }
   .mirror { transform: scaleX(-1); }
   .face { display: flex; margin-bottom: 14px; }
   @container (max-width: 300px) { .face { transform: scale(.66); margin-bottom: 0; } }

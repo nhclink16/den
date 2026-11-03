@@ -36,3 +36,21 @@ test('speaking, muted and quality pass through, and streams the phone cannot sho
   assert.equal(a!.camera, undefined, 'no track, so the tile never tries to attach one')
   assert.deepEqual(a!.screens, [])
 })
+
+test('a shell that draws video gets cameras and shares to draw, named as the page names them', () => {
+  const s = snapshot([
+    person('robin:x', { camera: true }),
+    person('maple:a', { screen: true, screens: [{ name: 'screen-1', label: 'window:12:0', surface: 'window' }, { name: 'screen-2', label: 'Cabin plan.pdf', surface: '' }] }),
+    person('oak:z'),
+  ])
+  const [a, b, c] = shellParticipants(s, (id) => names[id] || 'Someone', 'Den DJ', true)
+  assert.equal(a!.nativeCamera, true)
+  assert.equal(a!.unseen, undefined, 'nothing to apologise for')
+  assert.deepEqual(b!.screens, [
+    { name: 'screen-1', label: 'Window', surface: 'window', native: true },
+    { name: 'screen-2', label: 'Cabin plan.pdf', surface: 'monitor', native: true },
+  ], 'labels read as the web reads them: an opaque window handle is just "Window"')
+  assert.equal(c!.nativeCamera, undefined)
+  assert.equal(a!.camera, undefined, 'still no track on the page')
+  assert.deepEqual(shellParticipants(snapshot([person('robin:x', { screen: true })]), () => '', '', true)[0]!.screens, [], 'a snapshot without shares lists none')
+})

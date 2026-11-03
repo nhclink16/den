@@ -2,7 +2,8 @@ import { shareSource, type ShareSurface } from './share-source'
 import { firstShareLayers, setShareFramerate } from './share-quality'
 import { LocalVideoTrack, Track, type Room, type Participant, type LocalTrack } from 'livekit-client'
 
-export type Share = { name: string; label: string; surface: ShareSurface; track?: Track }
+/** `native`: Den Shell draws this share itself (shell-video.ts); there is no track on the page. */
+export type Share = { name: string; label: string; surface: ShareSurface; track?: Track; native?: boolean }
 // LiveKit 2.15's first-share default is 1080p/15 at 2.5 Mbps. Additional
 // captures get 750 kbps/15; Smooth lifts only the frame-rate cap to 30.
 export class Shares {

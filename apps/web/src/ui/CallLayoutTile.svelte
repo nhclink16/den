@@ -69,6 +69,9 @@
 <style>
   .layout-tile { position: absolute; border-radius: var(--r-tile); background: var(--bg-3); min-width: 0; transition: left 140ms ease, top 140ms ease, width 140ms ease, height 140ms ease; }
   .layout-tile:not(.mobile) { touch-action: none; }
+  /* Den Shell's video sits behind the page: a tile whose video is in lets it through (shell-video.ts), and keeps still. */
+  .layout-tile:has(:global(.tile[data-native='on'])) { background: transparent; }
+  .layout-tile:has(:global(.tile[data-native])) { transition: none; }
   .pinned { box-shadow: 0 0 0 2px var(--lamp-dim); }
   /* Plugin tiles (canvas, terminal) draw their own corners; match the call's. */
   .content-home :global(.canvas-tile), .content-home :global(.terminal-tile) { border-radius: inherit; }
