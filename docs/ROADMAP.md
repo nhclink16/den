@@ -35,6 +35,7 @@ Done when: a gaming session runs on it with cams.
 
 ## M4 — desktop (started 2026-09-14, brief in `docs/M4-DESKTOP-BRIEF.md`)
 - One Tauri 2 project for macOS, Windows, Linux: native sessions in the keychain, multi-server switcher, global PTT, native notifications, tray, updater, signed releases.
+- The Tauri plan above was superseded by Electron for Windows, Linux and macOS; see "Shipped since 2026-09-24" below. Mac code signing remains in the backlog.
 
 ## M5 — iOS, thin Swift shell (decided 2026-10-08)
 The native SwiftUI app (about 7,800 lines, decided 2026-09-14) is retired. It rebuilt every screen, so each feature had to be built twice and the phone fell behind: no Jam, Servers, wallpapers, customizer, music or GIFs. The new app shows the same Svelte SPA the desktop shells use, so a feature built once reaches the phone. Swift does only what a web page cannot on an iPhone:
@@ -44,7 +45,7 @@ The native SwiftUI app (about 7,800 lines, decided 2026-09-14) is retired. It re
   - If not (expected), a native call engine taken from the old app (LiveKit Swift, CallKit, background audio, about 1,500 lines) runs the call. The web Join button tells it to join or leave, and the call tiles are the one native screen.
 - Step one done 2026-10-11 (#72): a bare shell in `apps/ios-shell` ("Den Shell", `app.denchat.shell`) is built and signed, waiting for the call test. On the simulator WebKit ends the page's mic when the app goes to the background, so the native call engine is the likely outcome.
 - Call test run on the simulator instead of a real phone (2026-10-11, Nicholas's call): web calls fail. Locking or switching apps, even for 10 seconds, cuts your mic for everyone, in Den Shell and as a home screen web app alike. Den Shell also stops playing the others after about 27 seconds. So the native call engine is being built, voice first; AirPods, a real phone call and the camera get a short real-phone check at the end.
-- Native call engine phase 1 (voice) merged 2026-10-12 (#84): inside Den Shell the call runs in Swift (LiveKit Swift, CallKit, background audio) and the web page drives it through `window.denShell`. On the simulator, with CallKit off (the simulator can't host CallKit calls), both directions keep flowing for 2 minutes locked and in another app. Released in 0.3.9; waiting on a 20-minute real-phone check of CallKit, AirPods and a phone call. Phase 2: native video tiles; then push.
+- Native call engine phase 1 (voice) merged 2026-10-12 (#84): inside Den Shell the call runs in Swift (LiveKit Swift, CallKit, background audio) and the web page drives it through `window.denShell`. On the simulator, with CallKit off (the simulator can't host CallKit calls), both directions keep flowing for 2 minutes locked and in another app. Released in 0.3.9; waiting on a 20-minute real-phone check of CallKit, AirPods and a phone call. Native video tiles remain planned; push shipped in 0.4.4 (see below).
 - Den Shell builds in Xcode Cloud and ships to TestFlight as "Den" (`app.denchat.ios`, replacing the old native app, D18, #87). The first build, 0.4.0 (5), went to the internal group on 2026-10-13. Pull requests that touch `apps/ios-shell` get a cloud build-and-test check.
 - The old app stays in `apps/ios` until the shell replaces it, then is deleted. PR #55 (Take photo) was closed with it.
 
@@ -75,7 +76,7 @@ Every stream visible at once, drag, resize, pin, pop-out, presets, per-room save
 
 These three items are complete; acceptance is recorded in [M8 notes](M8-NOTES.md).
 
-- Multi-instance client design settled; ships in the Tauri shells (M4), not the browser.
+- Remembered instances and server switching ship in the Electron desktop shell (M4), not the browser.
 - Later: admin "Export server backup" download after a privacy review; hosted multi-tenant with one LiveKit per tenant; game-server plugin.
 
 ## M9 — appearance and themes (done 2026-09-14, brief in `docs/M9-THEMES-BRIEF.md`)
