@@ -620,17 +620,12 @@ class Call {
   setMode(mode: Preferences['mode']) { this.held = false; this.save({ mode }); void this.applyMic() }
   toggleCamera() {
     if (shell) {
-      // As the mic: shown at once, sent in order, dropped if the call ended meanwhile. The shell's answer stands, so a
-      // camera it couldn't start (no permission) shows off again.
+      // Shown at once and sent at once: an Off mustn't wait for an On still starting. The shell runs them in order, and
+      // its answer stands once it has caught up (`cameraSeq`), so a camera it couldn't start shows off again.
       if (!shellVideo || !this.channel) return Promise.resolve()
       const on = !this.cameraOn, seq = ++this.cameraSent, generation = this.generation
       this.cameraOn = on
-      this.cameraQueue = this.cameraQueue.then(async () => {
-        if (!this.channel || generation !== this.generation) return
-        const reply = await shell!.call({ type: 'camera', on, seq })
-        if (generation === this.generation) this.applyShell(reply)
-      }).catch((err) => this.report(err))
-      return this.cameraQueue
+      return shell.call({ type: 'camera', on, seq }).then((reply) => { if (generation === this.generation) this.applyShell(reply) }, (err) => this.report(err))
     }
     const room = this.room
     if (!room) return Promise.resolve()

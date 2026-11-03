@@ -135,6 +135,9 @@ final class Once: @unchecked Sendable {
         var cameraWork: Task<Void, Never>?
         /// The camera's track, made here rather than by LiveKit, so Leave can stop it whatever state its publishing is in.
         var cameraTrack: LocalVideoTrack?
+        /// One `reconcile` pass at a time, per call: an old call's stuck pass mustn't hold up the next call's.
+        var reconciling = false
+        var reconcileAgain = false
         /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
         var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
@@ -151,8 +154,6 @@ final class Once: @unchecked Sendable {
     #endif
     private(set) var call: Call?
     private var revision = 0
-    private var reconciling = false
-    private var reconcileAgain = false
 
     var inCall: Bool { call != nil }
 
@@ -348,12 +349,13 @@ final class Once: @unchecked Sendable {
     /// Brings subscriptions and the mic in line with what's wanted. One pass at a time; a change during
     /// a pass runs another.
     func reconcile() async {
-        guard !reconciling else { reconcileAgain = true; return }
-        reconciling = true
-        defer { reconciling = false }
+        guard let call else { return }
+        guard !call.reconciling else { call.reconcileAgain = true; return }
+        call.reconciling = true
+        defer { call.reconciling = false }
         repeat {
-            reconcileAgain = false
-            guard let call, call.phase != .ended, call.phase != .connecting else { return }
+            call.reconcileAgain = false
+            guard self.call === call, call.phase != .ended, call.phase != .connecting else { return }
             let room = call.room
             let local = room.localParticipant.identity?.stringValue ?? ""
             // First, and whatever fails after: a camera turned off must go off.
@@ -377,13 +379,13 @@ final class Once: @unchecked Sendable {
                     try await room.localParticipant.setMicrophone(enabled: call.wantsMic)
                 }
             } catch {
-                // An old call's pass failing after a new call began: still run the pass the new call asked for.
-                guard self.call === call else { continue }
+                // An old call's pass failing after a new call began: the new call runs its own.
+                guard self.call === call else { return }
                 log.error("call media update failed: \(error, privacy: .public)")
                 call.error = "Couldn't update call audio. Try that again."
             }
             publish()
-        } while reconcileAgain
+        } while call.reconcileAgain
     }
 
     private func finish(_ call: Call, reason: CXCallEndedReason?) async {
@@ -404,7 +406,8 @@ final class Once: @unchecked Sendable {
         // behind a start that is stuck, and Leave mustn't.
         if let track = call.cameraTrack {
             let work = call.cameraWork
-            Task { try? await track.stop(); await work?.value; try? await track.stop() }
+            // The capturer itself the second time: a flip restarts it under a track that already says it stopped.
+            Task { try? await track.stop(); await work?.value; _ = try? await track.capturer.stopCapture() }
         }
         // LiveKit's disconnect stops the published camera, which waits behind a camera start that's stuck: Leave waits
         // for it 5 s at most, and it carries on by itself.
