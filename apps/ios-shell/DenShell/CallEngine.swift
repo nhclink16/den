@@ -393,12 +393,12 @@ enum CallRules {
         onVideo?()
         // Tell the page before the slow disconnect, so a call joined meanwhile can't be hidden by this one's end.
         onChange?(snapshot(call))
-        // Your camera stops now, even one still starting: LiveKit only stops what it has published, and captures first.
-        // Once more when that start is done, in case it began capturing after this stop. Leave doesn't wait for it.
+        // Your camera stops, even one still starting: LiveKit only stops what it has published, and captures first. Once
+        // more when that start is done, in case it began capturing after the first stop. Off Leave's path: a stop waits
+        // behind a start that is stuck, and Leave mustn't.
         if let track = call.cameraTrack {
-            try? await track.stop()
             let work = call.cameraWork
-            Task { await work?.value; try? await track.stop() }
+            Task { try? await track.stop(); await work?.value; try? await track.stop() }
         }
         await call.room.disconnect()
         log.info("call ended \(call.id, privacy: .public)")
