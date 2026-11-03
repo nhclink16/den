@@ -89,7 +89,7 @@ enum CallRules {
 }
 
 /// Runs its block the first time only. Touched on the main actor.
-final class Once: @unchecked Sendable {
+final class FirstOnly: @unchecked Sendable {
     private var done = false
     func run(_ block: () -> Void) { if !done { done = true; block() } }
 }
@@ -415,7 +415,7 @@ final class Once: @unchecked Sendable {
         // for it 5 s at most, and it carries on by itself.
         let room = call.room
         await withCheckedContinuation { (go: CheckedContinuation<Void, Never>) in
-            let once = Once()
+            let once = FirstOnly()
             Task { @MainActor in await room.disconnect(); once.run { go.resume() } }
             Task { @MainActor in try? await Task.sleep(for: .seconds(5)); once.run { go.resume() } }
         }
