@@ -12,7 +12,10 @@ import UIKit
 // view, the holes, the names on top, a sheet over them, and the video going with the call view.
 
 @MainActor final class FakeCall {
-    static let shared: FakeCall? = UserDefaults.standard.string(forKey: "DenFakeCall").flatMap(FakeCall.init)
+    static let shared: FakeCall? = {
+        guard let raw = UserDefaults.standard.string(forKey: "DenFakeCall") else { return nil }
+        return FakeCall(raw)
+    }()
 
     private let ids: [String]
     private var revision = 1_000

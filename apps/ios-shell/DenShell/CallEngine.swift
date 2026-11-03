@@ -117,6 +117,8 @@ enum CallRules {
         var cameraSeq = 0
         var wantsCamera = false
         var cameraPosition = AVCaptureDevice.Position.front
+        /// A flip asked for, done in the next pass while the camera runs.
+        var flip = false
         /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
         var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
@@ -191,7 +193,9 @@ enum CallRules {
             return snapshot(call)
         }
         let room = Room(delegate: self, connectOptions: ConnectOptions(autoSubscribe: false),
-                        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true))
+                        // The camera's pause in the background is the engine's (`updateCamera`), not LiveKit's own: two owners
+                        // could bring back a camera turned off meanwhile.
+                        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true, suspendLocalVideoTracksInBackground: false))
         let call = Call(join: request, room: room, wantsMic: request.micOn)
         // Registered before the permission prompt, so a Leave during it finds and cancels this call.
         self.call = call

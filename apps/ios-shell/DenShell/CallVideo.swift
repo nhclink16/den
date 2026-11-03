@@ -118,8 +118,9 @@ struct VideoCommand: Equatable {
     nonisolated func videoView(_ videoView: VideoView, didUpdate isRendering: Bool) {
         guard isRendering else { return }
         Task { @MainActor in
-            // Not undone when frames pause (a still share sends few): only a new track starts over.
-            guard !self.drawn, self.video.track != nil else { return }
+            // Not undone when frames pause (a still share sends few): only a new track starts over. And only for the track
+            // shown now: this may be the last word of the one before it.
+            guard !self.drawn, self.video.track != nil, self.video.didRenderFirstFrame else { return }
             self.drawn = true
             self.onDrawn?()
         }
@@ -240,7 +241,8 @@ struct VideoCommand: Equatable {
         }
     }
 
-    private var ready: [String] { views.filter { $0.value.drawn && $0.value.track != nil }.map(\.key).sorted() }
+    /// `drawn` goes with the track: a view without one has nothing drawn (the UI check's test pattern aside).
+    private var ready: [String] { views.filter { $0.value.drawn }.map(\.key).sorted() }
 
     private func reply(seq: Int) -> String {
         rev += 1
@@ -297,12 +299,11 @@ extension CallEngine {
         return snapshot
     }
 
+    /// In a pass like any other camera change, so it can't restart a camera that a pass meanwhile turned off.
     func flipCamera() async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
-        if let track = call.room.localParticipant.firstCameraVideoTrack as? LocalVideoTrack, let capturer = track.capturer as? CameraCapturer {
-            try await capturer.switchCameraPosition()
-            call.cameraPosition = capturer.position
-        }
+        call.flip = true
+        await reconcile()
         return snapshot
     }
 
@@ -318,9 +319,19 @@ extension CallEngine {
     func updateCamera(_ call: Call) async {
         let live = call.wantsCamera && foreground
         let local = call.room.localParticipant
-        guard local.isCameraEnabled() != live else { return }
         do {
-            try await local.setCamera(enabled: live, captureOptions: CameraCaptureOptions(position: call.cameraPosition))
+            if local.isCameraEnabled() != live {
+                try await local.setCamera(enabled: live, captureOptions: CameraCaptureOptions(position: call.cameraPosition))
+            }
+            // Only while it runs: a flip asked for otherwise is dropped, as there's no camera to turn.
+            if call.flip {
+                call.flip = false
+                if live, local.isCameraEnabled(), let capturer = (local.firstCameraVideoTrack as? LocalVideoTrack)?.capturer as? CameraCapturer {
+                    // One that fails leaves the camera as it was.
+                    do { try await capturer.switchCameraPosition() } catch { log.error("camera flip failed: \(error, privacy: .public)") }
+                    call.cameraPosition = capturer.position
+                }
+            }
         } catch {
             guard self.call === call else { return }
             log.error("camera \(live ? "on" : "off", privacy: .public) failed: \(error, privacy: .public)")
