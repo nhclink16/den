@@ -10,7 +10,8 @@ import WebKit
 // view that is a frame late moving can only show inside the tile: the page is opaque everywhere else.
 //
 // The page sends every slot each time (`video({type: 'slots', seq, slots})`): where each tile is, its corners, and
-// whose camera or share it shows. The reply says which of them have their video drawn, once the views are on screen;
+// whose camera or share it shows. The reply says which of them have their video drawn, once the views are on screen,
+// and so does a push whenever that changes; both carry a growing `rev`, as they travel separately;
 // the page opens a tile's hole only then, and closes it the moment the tile moves. Only slots on screen are sent, and
 // the engine subscribes to just those videos, at the size their views ask for (LiveKit's adaptive stream).
 //
@@ -109,6 +110,11 @@ struct VideoCommand: Equatable {
         }
     }
 
+    #if DEBUG && targetEnvironment(simulator)
+    /// The UI check's test pattern counts as a drawn picture (CallTestCall.swift).
+    func markDrawn() { if !drawn { drawn = true; onDrawn?() } }
+    #endif
+
     nonisolated func videoView(_ videoView: VideoView, didUpdate isRendering: Bool) {
         guard isRendering else { return }
         Task { @MainActor in
@@ -128,6 +134,8 @@ struct VideoCommand: Equatable {
     let layer = UIView()
     private var views: [String: VideoSlotView] = [:]
     private var seq = 0
+    /// Grows with every word to the page, replies and pushes alike, so it can drop one that arrives late.
+    private var rev = 0
 
     init(den: Origin, engine: CallEngine) {
         self.den = den
@@ -210,6 +218,9 @@ struct VideoCommand: Equatable {
             view.layer.cornerRadius = slot.radius
             view.backgroundColor = slot.fill ?? .black
             view.video.layoutMode = slot.fit == .contain ? .fit : .fill
+            #if DEBUG && targetEnvironment(simulator)
+            if FakeCall.shared != nil { view.showTestPattern(slot.key); continue }
+            #endif
             view.track = engine.videoTrack(slot.key)
         }
         engine.shownVideo = keys
@@ -222,7 +233,8 @@ struct VideoCommand: Equatable {
     }
 
     private func drawnChanged() {
-        guard let webView, let json = String(data: (try? JSONSerialization.data(withJSONObject: ["type": "ready", "seq": seq, "ready": ready])) ?? Data(), encoding: .utf8) else { return }
+        rev += 1
+        guard let webView, let json = String(data: (try? JSONSerialization.data(withJSONObject: ["type": "ready", "seq": seq, "rev": rev, "ready": ready])) ?? Data(), encoding: .utf8) else { return }
         webView.callAsyncJavaScript("window.denShell?.onVideo?.(JSON.parse(s))", arguments: ["s": json], in: nil, in: .page) { result in
             if case .failure(let error) = result { log.error("video event not delivered: \(error, privacy: .public)") }
         }
@@ -231,7 +243,8 @@ struct VideoCommand: Equatable {
     private var ready: [String] { views.filter { $0.value.drawn && $0.value.track != nil }.map(\.key).sorted() }
 
     private func reply(seq: Int) -> String {
-        String(data: (try? JSONSerialization.data(withJSONObject: ["seq": seq, "ready": ready])) ?? Data(), encoding: .utf8) ?? "{}"
+        rev += 1
+        return String(data: (try? JSONSerialization.data(withJSONObject: ["seq": seq, "rev": rev, "ready": ready])) ?? Data(), encoding: .utf8) ?? "{}"
     }
 
     /// The page went (a load, a crash): so do its videos.

@@ -18,10 +18,10 @@ export type VideoSpec = { identity: string; source: 'camera' | 'screen'; name?: 
 export type ShellVideoSlot = VideoSpec & { key: string; rect: Rect; visible: Rect; radius: number; fill: string }
 /** Every slot each time, never a change: a missed one is fixed by the next. `seq` grows with each. */
 export type ShellVideoCommand = { type: 'slots'; seq: number; slots: ShellVideoSlot[] }
-/** The slots of placement `seq` whose video is drawn there. */
-export type ShellVideoReply = { seq: number; ready: string[] }
+/** The slots of placement `seq` whose video is drawn there. `rev` grows with each reply and push: they travel apart. */
+export type ShellVideoReply = { seq: number; rev: number; ready: string[] }
 /** `ready`: that set changed (a first frame came, a video went). `place`: the shell moved things itself; say again. */
-export type ShellVideoEvent = { type: 'ready'; seq: number; ready: string[] } | { type: 'place' }
+export type ShellVideoEvent = { type: 'ready'; seq: number; rev: number; ready: string[] } | { type: 'place' }
 
 export const videoKey = (s: VideoSpec) => s.source === 'camera' ? `${s.identity}|camera` : `${s.identity}|screen|${s.name}`
 
@@ -29,7 +29,7 @@ type Measure = { rect: Rect; visible: Rect }
 type Slot = { spec: VideoSpec; key: string; m: Measure | null; seen: string; fill: string; open: boolean }
 const slots = new Map<HTMLElement, Slot>()
 /** The last placement sent, and what the shell has drawn as of it (by key: where, and whether its video is in). */
-let seq = 0, sent = '', placed = new Map<string, string>(), ready = new Set<string>()
+let seq = 0, rev = 0, sent = '', placed = new Map<string, string>(), ready = new Set<string>()
 let pending: { seq: number; at: Map<string, string> } | null = null
 let frame = 0, timer: ReturnType<typeof setInterval> | undefined, watch: MutationObserver | undefined, sized: ResizeObserver | undefined
 
@@ -75,17 +75,21 @@ function tick() {
   if (want === sent) return
   sent = want
   const at = new Map(shown.map(([, s]) => [s.key, s.seen]))
+  // Until the shell answers this one, a tile counts as placed only where it was and still is: one that moved away and
+  // back must wait, the shell's view is on its way somewhere else.
+  for (const [key, where] of placed) if (at.get(key) !== where) placed.delete(key)
   pending = { seq: ++seq, at }
   const command: ShellVideoCommand = { type: 'slots', seq, slots: shown.map(([node, s]) => {
     if (!s.open) s.fill = getComputedStyle(node).backgroundColor
     return { ...s.spec, key: s.key, rect: s.m!.rect, visible: s.m!.visible, radius: parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0, fill: s.fill }
   }) }
-  void window.denShell!.video!(command).then((r) => accept(r.seq, r.ready), () => {})
+  void window.denShell!.video!(command).then((r) => accept(r.seq, r.rev, r.ready), () => {})
 }
 
-/** The shell's word on a placement: only the newest one counts. */
-function accept(at: number, keys: string[]) {
-  if (!pending || at !== pending.seq) return
+/** The shell's word on a placement: only on the newest one, and only its newest word. */
+function accept(at: number, said: number, keys: string[]) {
+  if (!pending || at !== pending.seq || said <= rev) return
+  rev = said
   placed = pending.at; ready = new Set(keys)
   refresh()
 }
@@ -160,7 +164,7 @@ function start() {
   document.addEventListener('visibilitychange', visible)
   // Anything else that moves one, caught late rather than never.
   timer = setInterval(tick, 500)
-  window.denShell!.onVideo = (e) => { if (e.type === 'place') place(); else accept(e.seq, e.ready) }
+  window.denShell!.onVideo = (e) => { if (e.type === 'place') place(); else accept(e.seq, e.rev, e.ready) }
 }
 
 function stop() {

@@ -336,6 +336,8 @@ enum CallRules {
             guard let call, call.phase != .ended, call.phase != .connecting else { return }
             let room = call.room
             let local = room.localParticipant.identity?.stringValue ?? ""
+            // First, and whatever fails after: a camera turned off must go off.
+            await updateCamera(call)
             do {
                 for participant in room.remoteParticipants.values {
                     let identity = participant.identity?.stringValue ?? ""
@@ -354,7 +356,6 @@ enum CallRules {
                 if room.localParticipant.isMicrophoneEnabled() != call.wantsMic {
                     try await room.localParticipant.setMicrophone(enabled: call.wantsMic)
                 }
-                await updateCamera(call)
             } catch {
                 // An old call's pass failing after a new call began: still run the pass the new call asked for.
                 guard self.call === call else { continue }
