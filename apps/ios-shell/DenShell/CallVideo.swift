@@ -338,7 +338,14 @@ extension CallEngine {
         let local = call.room.localParticipant
         do {
             if local.isCameraEnabled() != live {
-                try await local.setCamera(enabled: live, captureOptions: CameraCaptureOptions(position: call.cameraPosition))
+                if live, !local.trackPublications.values.contains(where: { $0.source == .camera }) {
+                    let track = await LocalVideoTrack.createCameraTrack(options: CameraCaptureOptions(position: call.cameraPosition))
+                    call.cameraTrack = track
+                    do { try await local.publish(videoTrack: track) } catch { try? await track.stop(); call.cameraTrack = nil; throw error }
+                } else {
+                    // Mutes or unmutes the one published.
+                    try await local.setCamera(enabled: live)
+                }
             }
             // Only while it runs: a flip asked for otherwise is dropped, as there's no camera to turn.
             if call.flip {

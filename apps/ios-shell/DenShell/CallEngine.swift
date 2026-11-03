@@ -127,6 +127,8 @@ enum CallRules {
         var flip = false
         /// The camera's changes, one after another: an Off waits for an On still starting, then applies.
         var cameraWork: Task<Void, Never>?
+        /// The camera's track, made here rather than by LiveKit, so Leave can stop it whatever state its publishing is in.
+        var cameraTrack: LocalVideoTrack?
         /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
         var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
@@ -391,15 +393,12 @@ enum CallRules {
         onVideo?()
         // Tell the page before the slow disconnect, so a call joined meanwhile can't be hidden by this one's end.
         onChange?(snapshot(call))
-        // A camera still starting goes first, so the disconnect stops it: LiveKit captures before it publishes. Not for
-        // ever: a stuck start mustn't hold Leave.
-        if let work = call.cameraWork {
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await work.value }
-                group.addTask { try? await Task.sleep(for: .seconds(3)) }
-                await group.next()
-                group.cancelAll()
-            }
+        // Your camera stops now, even one still starting: LiveKit only stops what it has published, and captures first.
+        // Once more when that start is done, in case it began capturing after this stop. Leave doesn't wait for it.
+        if let track = call.cameraTrack {
+            try? await track.stop()
+            let work = call.cameraWork
+            Task { await work?.value; try? await track.stop() }
         }
         await call.room.disconnect()
         log.info("call ended \(call.id, privacy: .public)")
