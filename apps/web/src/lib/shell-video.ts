@@ -29,6 +29,8 @@ type Measure = { rect: Rect; visible: Rect }
 type Slot = { spec: VideoSpec; key: string; m: Measure | null; seen: string; fill: string; open: boolean }
 const slots = new Map<HTMLElement, Slot>()
 /** The last placement sent, and what the shell has drawn as of it (by key: where, and whether its video is in). */
+/** `sent` when the shell must hear again whatever is there, even nothing. */
+const AGAIN = '\u0000'
 let seq = 0, rev = 0, sent = '', placed = new Map<string, string>(), ready = new Set<string>()
 let pending: { seq: number; at: Map<string, string> } | null = null
 let frame = 0, timer: ReturnType<typeof setInterval> | undefined, watch: MutationObserver | undefined, theme: MutationObserver | undefined
@@ -151,8 +153,8 @@ function kick() { if (slots.size && !frame) frame = requestAnimationFrame(tick) 
 function scrolled() { for (const slot of slots.values()) slot.seen = 'scrolling'; refresh(); kick() }
 /** A new theme or wallpaper: shut every hole, so the tiles show their own colour and corners again, and place them anew
  *  with those (a share's letterbox is the tile's colour). */
-const rethemed = () => { sent = ''; placed = new Map(); scrolled() }
-function place() { sent = ''; kick() }
+const rethemed = () => { sent = AGAIN; placed = new Map(); pending = null; scrolled() }
+function place() { sent = AGAIN; kick() }
 function visible() { if (document.visibilityState === 'visible') place() }
 
 function start() {
