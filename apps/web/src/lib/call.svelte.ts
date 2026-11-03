@@ -653,7 +653,13 @@ class Call {
   /** Den Shell: front camera to back and back again. */
   flipCamera() {
     if (!shellVideo || !this.channel) return Promise.resolve()
-    this.cameraQueue = this.cameraQueue.then(async () => { if (this.channel) this.applyShell(await shell!.call({ type: 'flip' })) }).catch((err) => this.report(err))
+    // Only for this call: a flip still queued when it ended mustn't turn the next call's camera round.
+    const generation = this.generation
+    this.cameraQueue = this.cameraQueue.then(async () => {
+      if (!this.channel || generation !== this.generation) return
+      const reply = await shell!.call({ type: 'flip' })
+      if (generation === this.generation) this.applyShell(reply)
+    }).catch((err) => this.report(err))
     return this.cameraQueue
   }
   async addScreen() {

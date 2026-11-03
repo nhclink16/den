@@ -288,26 +288,27 @@ extension CallEngine {
     }
 
     /// `seq` counts as applied once the camera is wanted or not (it may still be starting); on a refusal too.
+    /// The newest tap wins: one that waited on the permission question while a newer tap came does nothing.
     func setCamera(_ on: Bool, seq: Int) async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
+        call.cameraAsked = max(call.cameraAsked, seq)
         if on, !(await Self.cameraAllowed()) {
-            if self.call === call { call.cameraSeq = seq; publish() }
+            if self.call === call, call.cameraAsked == seq { call.cameraSeq = seq; publish() }
             throw CallError.camera
         }
-        guard self.call === call else { return snapshot }
+        guard self.call === call, call.cameraAsked == seq else { return snapshot }
         call.cameraSeq = seq
         call.wantsCamera = on
-        // Off at once, before the answer, even while another pass is busy (LiveKit queues its publish calls).
-        if !on { await updateCamera(call) }
-        await reconcile()
+        // Answered once the camera is as asked (an Off: stopped).
+        await updateCamera(call)
         return snapshot
     }
 
-    /// In a pass like any other camera change, so it can't restart a camera that a pass meanwhile turned off.
+    /// In the camera's own queue, so it can't restart a camera turned off meanwhile.
     func flipCamera() async throws -> CallSnapshot? {
         guard let call else { throw CallError.ended }
         call.flip = true
-        await reconcile()
+        await updateCamera(call)
         return snapshot
     }
 
@@ -329,6 +330,8 @@ extension CallEngine {
         }
         call.cameraWork = work
         await work.value
+        // A camera that wouldn't start, said on the page.
+        if self.call === call { publish() }
     }
 
     /// One that won't start is let go, and the page hears why.

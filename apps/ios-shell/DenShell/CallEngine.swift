@@ -104,8 +104,9 @@ final class Once: @unchecked Sendable {
     var foreground = true {
         didSet {
             guard foreground != oldValue else { return }
-            // The camera first, even while another pass is busy: iOS stops it in the background anyway.
-            Task { if let call { await updateCamera(call) }; await reconcile() }
+            // The camera in its own queue, the rest in a pass: neither waits for the other.
+            if let call { Task { await updateCamera(call) } }
+            Task { await reconcile() }
         }
     }
 
@@ -133,6 +134,8 @@ final class Once: @unchecked Sendable {
         var flip = false
         /// The camera's changes, one after another: an Off waits for an On still starting, then applies.
         var cameraWork: Task<Void, Never>?
+        /// The newest camera tap's number, as soon as it comes (`cameraSeq` counts it once applied).
+        var cameraAsked = 0
         /// The camera's track, made here rather than by LiveKit, so Leave can stop it whatever state its publishing is in.
         var cameraTrack: LocalVideoTrack?
         /// One `reconcile` pass at a time, per call: an old call's stuck pass mustn't hold up the next call's.
@@ -358,8 +361,7 @@ final class Once: @unchecked Sendable {
             guard self.call === call, call.phase != .ended, call.phase != .connecting else { return }
             let room = call.room
             let local = room.localParticipant.identity?.stringValue ?? ""
-            // First, and whatever fails after: a camera turned off must go off.
-            await updateCamera(call)
+            // The camera has its own queue (`updateCamera`): a stuck start mustn't hold up anyone's audio.
             do {
                 for participant in room.remoteParticipants.values {
                     let identity = participant.identity?.stringValue ?? ""
