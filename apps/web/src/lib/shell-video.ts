@@ -151,7 +151,7 @@ function kick() { if (slots.size && !frame) frame = requestAnimationFrame(tick) 
 function scrolled() { for (const slot of slots.values()) slot.seen = 'scrolling'; refresh(); kick() }
 /** A new theme or wallpaper: shut every hole, so the tiles show their own colour and corners again, and place them anew
  *  with those (a share's letterbox is the tile's colour). */
-const rethemed = () => { sent = ''; scrolled() }
+const rethemed = () => { sent = ''; placed = new Map(); scrolled() }
 function place() { sent = ''; kick() }
 function visible() { if (document.visibilityState === 'visible') place() }
 

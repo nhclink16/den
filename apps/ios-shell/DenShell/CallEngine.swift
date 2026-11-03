@@ -125,6 +125,8 @@ enum CallRules {
         var cameraPosition = AVCaptureDevice.Position.front
         /// A flip asked for, done in the next pass while the camera runs.
         var flip = false
+        /// The camera's changes, one after another: an Off waits for an On still starting, then applies.
+        var cameraWork: Task<Void, Never>?
         /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
         var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }

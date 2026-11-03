@@ -319,8 +319,21 @@ extension CallEngine {
         }
     }
 
-    /// The camera runs while it's wanted and Den is on screen. One that won't start is let go, and the page hears why.
+    /// The camera runs while it's wanted and Den is on screen. One change at a time, each deciding when its turn comes,
+    /// so whoever waits on it (an Off's answer) knows the camera is where it was asked to be.
     func updateCamera(_ call: Call) async {
+        let previous = call.cameraWork
+        let work = Task { @MainActor in
+            await previous?.value
+            await self.applyCamera(call)
+        }
+        call.cameraWork = work
+        await work.value
+    }
+
+    /// One that won't start is let go, and the page hears why.
+    private func applyCamera(_ call: Call) async {
+        guard self.call === call else { return }
         let live = call.wantsCamera && foreground
         let local = call.room.localParticipant
         do {
