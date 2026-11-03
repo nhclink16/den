@@ -2,10 +2,11 @@ import AVFoundation
 import CallKit
 import LiveKit
 import OSLog
+import UIKit
 
 // The native call engine: the web page's Join button hands it a LiveKit token, and it runs the call
 // as a CallKit call, so the call keeps going with the phone locked or in another app.
-// Voice only for now: it never subscribes to video, and reports cameras and shares as flags.
+// Video only while the page shows it: CallVideo.swift draws it behind the page and runs your camera.
 
 private let log = Logger(subsystem: "app.denchat.shell", category: "call")
 
@@ -24,13 +25,23 @@ struct CallSnapshot: Encodable, Equatable {
         let quality: String
         let camera: Bool
         let screen: Bool
+        /// Each screen share, with the label the sharer's app gave it (the web's `den.share.*` attributes).
+        let screens: [Screen]
+    }
+    struct Screen: Encodable, Equatable {
+        let name: String
+        let label: String
+        let surface: String
     }
     var revision: Int
     var phase: Phase
     var channelId: String
     var micSeq: Int
     var soundSeq: Int
+    var cameraSeq: Int
     var micOn: Bool
+    /// The camera you asked for: it pauses while Den is in the background, and this stays on.
+    var cameraOn: Bool
     var soundOff: Bool
     var otherDevices: Int
     var error: String?
@@ -62,16 +73,44 @@ enum CallRules {
         remoteIdentities.contains { $0 != localIdentity && accountID($0) == accountID(localIdentity) }
     }
 
-    /// Audio only, never your own other device's mic, nothing while sound is off.
-    static func subscribes(isAudio: Bool, isMicrophone: Bool, identity: String, localIdentity: String, soundOff: Bool) -> Bool {
-        isAudio && !soundOff && !(isMicrophone && accountID(identity) == accountID(localIdentity))
+    /// Audio, never your own other device's mic, nothing while sound is off; video only where the page shows it.
+    static func subscribes(isAudio: Bool, isMicrophone: Bool, identity: String, localIdentity: String, soundOff: Bool, videoShown: Bool = false) -> Bool {
+        isAudio ? !soundOff && !(isMicrophone && accountID(identity) == accountID(localIdentity)) : videoShown
     }
+
+    /// How the page names a video (shell-video.ts `videoKey`): whose, which camera or share.
+    static func videoKey(identity: String, source: Track.Source, name: String) -> String? {
+        switch source {
+        case .camera: "\(identity)|camera"
+        case .screenShareVideo: "\(identity)|screen|\(name)"
+        default: nil
+        }
+    }
+}
+
+/// Runs its block the first time only. Touched on the main actor.
+final class FirstOnly: @unchecked Sendable {
+    private var done = false
+    func run(_ block: () -> Void) { if !done { done = true; block() } }
 }
 
 @MainActor final class CallEngine: NSObject {
     var onChange: (@MainActor (CallSnapshot) -> Void)?
+    /// Videos came or went (CallVideo puts them in its views).
+    var onVideo: (@MainActor () -> Void)?
+    /// The videos the page has on screen, by `CallRules.videoKey`: only these are subscribed.
+    var shownVideo: Set<String> = [] { didSet { if shownVideo != oldValue { Task { await reconcile() } } } }
+    /// iOS allows no camera in the background, and nobody sees video then.
+    var foreground = true {
+        didSet {
+            guard foreground != oldValue else { return }
+            // The camera in its own queue, the rest in a pass: neither waits for the other.
+            if let call { Task { await updateCamera(call) } }
+            Task { await reconcile() }
+        }
+    }
 
-    private final class Call {
+    final class Call {
         let id = UUID()
         let join: CallJoin
         let room: Room
@@ -88,6 +127,20 @@ enum CallRules {
         var finishWaiters: [CheckedContinuation<Void, Never>] = []
         var micSeq = 0
         var soundSeq = 0
+        var cameraSeq = 0
+        var wantsCamera = false
+        var cameraPosition = AVCaptureDevice.Position.front
+        /// A flip asked for, done in the next pass while the camera runs.
+        var flip = false
+        /// The camera's changes, one after another: an Off waits for an On still starting, then applies.
+        var cameraWork: Task<Void, Never>?
+        /// The newest camera tap's number, as soon as it comes (`cameraSeq` counts it once applied).
+        var cameraAsked = 0
+        /// The camera's track, made here rather than by LiveKit, so Leave can stop it whatever state its publishing is in.
+        var cameraTrack: LocalVideoTrack?
+        /// One `reconcile` pass at a time, per call: an old call's stuck pass mustn't hold up the next call's.
+        var reconciling = false
+        var reconcileAgain = false
         /// Den's mute actions waiting for CallKit, by action: the command number counts once the action runs.
         var muteSeqs: [UUID: Int] = [:]
         init(join: CallJoin, room: Room, wantsMic: Bool) { self.join = join; self.room = room; self.wantsMic = wantsMic }
@@ -102,10 +155,8 @@ enum CallRules {
     #else
     private let usesCallKit = true
     #endif
-    private var call: Call?
+    private(set) var call: Call?
     private var revision = 0
-    private var reconciling = false
-    private var reconcileAgain = false
 
     var inCall: Bool { call != nil }
 
@@ -128,6 +179,11 @@ enum CallRules {
         provider = CXProvider(configuration: configuration)
         super.init()
         provider.setDelegate(self, queue: .main)
+        for (name, shown) in [(UIApplication.didEnterBackgroundNotification, false), (UIApplication.willEnterForegroundNotification, true)] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.foreground = shown }
+            }
+        }
         NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { _ in
             let outputs = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portName).joined(separator: ", ")
             log.info("audio route: \(outputs, privacy: .public)")
@@ -157,7 +213,9 @@ enum CallRules {
             return snapshot(call)
         }
         let room = Room(delegate: self, connectOptions: ConnectOptions(autoSubscribe: false),
-                        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true))
+                        // The camera's pause in the background is the engine's (`updateCamera`), not LiveKit's own: two owners
+                        // could bring back a camera turned off meanwhile.
+                        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true, suspendLocalVideoTracksInBackground: false))
         let call = Call(join: request, room: room, wantsMic: request.micOn)
         // Registered before the permission prompt, so a Leave during it finds and cancels this call.
         self.call = call
@@ -293,25 +351,29 @@ enum CallRules {
 
     /// Brings subscriptions and the mic in line with what's wanted. One pass at a time; a change during
     /// a pass runs another.
-    private func reconcile() async {
-        guard !reconciling else { reconcileAgain = true; return }
-        reconciling = true
-        defer { reconciling = false }
+    func reconcile() async {
+        guard let call else { return }
+        guard !call.reconciling else { call.reconcileAgain = true; return }
+        call.reconciling = true
+        defer { call.reconciling = false }
         repeat {
-            reconcileAgain = false
-            guard let call, call.phase != .ended, call.phase != .connecting else { return }
+            call.reconcileAgain = false
+            guard self.call === call, call.phase != .ended, call.phase != .connecting else { return }
             let room = call.room
             let local = room.localParticipant.identity?.stringValue ?? ""
+            // The camera has its own queue (`updateCamera`): a stuck start mustn't hold up anyone's audio.
             do {
                 for participant in room.remoteParticipants.values {
                     let identity = participant.identity?.stringValue ?? ""
                     for case let publication as RemoteTrackPublication in participant.trackPublications.values {
+                        let key = CallRules.videoKey(identity: identity, source: publication.source, name: publication.name)
                         let wanted = CallRules.subscribes(isAudio: publication.kind == .audio, isMicrophone: publication.source == .microphone,
-                                                          identity: identity, localIdentity: local, soundOff: call.soundOff)
-                        let key = publication.sid.stringValue
-                        if call.subscribed[key] != wanted {
+                                                          identity: identity, localIdentity: local, soundOff: call.soundOff,
+                                                          videoShown: foreground && key.map(shownVideo.contains) == true)
+                        let sid = publication.sid.stringValue
+                        if call.subscribed[sid] != wanted {
                             try await publication.set(subscribed: wanted)
-                            call.subscribed[key] = wanted
+                            call.subscribed[sid] = wanted
                         }
                     }
                 }
@@ -319,13 +381,13 @@ enum CallRules {
                     try await room.localParticipant.setMicrophone(enabled: call.wantsMic)
                 }
             } catch {
-                // An old call's pass failing after a new call began: still run the pass the new call asked for.
-                guard self.call === call else { continue }
+                // An old call's pass failing after a new call began: the new call runs its own.
+                guard self.call === call else { return }
                 log.error("call media update failed: \(error, privacy: .public)")
                 call.error = "Couldn't update call audio. Try that again."
             }
             publish()
-        } while reconcileAgain
+        } while call.reconcileAgain
     }
 
     private func finish(_ call: Call, reason: CXCallEndedReason?) async {
@@ -338,16 +400,32 @@ enum CallRules {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
         call.room.remove(delegate: self)
+        onVideo?()
         // Tell the page before the slow disconnect, so a call joined meanwhile can't be hidden by this one's end.
         onChange?(snapshot(call))
-        await call.room.disconnect()
+        // Your camera stops, even one still starting: LiveKit only stops what it has published, and captures first. Once
+        // more when that start is done, in case it began capturing after the first stop. Off Leave's path: a stop waits
+        // behind a start that is stuck, and Leave mustn't.
+        if let track = call.cameraTrack {
+            let work = call.cameraWork
+            // The capturer itself the second time: a flip restarts it under a track that already says it stopped.
+            Task { try? await track.stop(); await work?.value; _ = try? await track.capturer.stopCapture() }
+        }
+        // LiveKit's disconnect stops the published camera, which waits behind a camera start that's stuck: Leave waits
+        // for it 5 s at most, and it carries on by itself.
+        let room = call.room
+        await withCheckedContinuation { (go: CheckedContinuation<Void, Never>) in
+            let once = FirstOnly()
+            Task { @MainActor in await room.disconnect(); once.run { go.resume() } }
+            Task { @MainActor in try? await Task.sleep(for: .seconds(5)); once.run { go.resume() } }
+        }
         log.info("call ended \(call.id, privacy: .public)")
         call.finished = true
         for waiter in call.finishWaiters { waiter.resume() }
         call.finishWaiters = []
     }
 
-    private func publish() {
+    func publish() {
         if let call { onChange?(snapshot(call)) }
     }
 
@@ -361,13 +439,13 @@ enum CallRules {
             let isLocal = p === local
             return .init(identity: identity, name: p.name ?? "", local: isLocal, speaking: p.isSpeaking,
                          muted: isLocal ? !call.wantsMic : !p.isMicrophoneEnabled(), quality: Self.quality(p.connectionQuality),
-                         camera: p.isCameraEnabled(), screen: p.isScreenShareEnabled())
+                         camera: p.isCameraEnabled(), screen: p.isScreenShareEnabled(), screens: Self.screens(p))
         }
         let ownAccount = CallRules.accountID(local.identity?.stringValue ?? "")
         revision += 1
         return CallSnapshot(
             revision: revision, phase: call.phase, channelId: call.join.channelId, micSeq: call.micSeq, soundSeq: call.soundSeq,
-            micOn: call.wantsMic, soundOff: call.soundOff,
+            cameraSeq: call.cameraSeq, micOn: call.wantsMic, cameraOn: call.wantsCamera, soundOff: call.soundOff,
             otherDevices: remotes.filter { CallRules.accountID($0.identity?.stringValue ?? "") == ownAccount && !ownAccount.isEmpty }.count,
             error: call.error, participants: people)
     }
@@ -384,8 +462,9 @@ enum CallRules {
 
     // MARK: Room events
 
-    fileprivate func roomChanged(_ room: Room, publications: Bool) {
+    fileprivate func roomChanged(_ room: Room, publications: Bool, video: Bool = false) {
         guard let call, call.room === room else { return }
+        if video { onVideo?() }
         if publications { Task { await reconcile() } } else { publish() }
     }
 
@@ -466,9 +545,12 @@ extension CallEngine: RoomDelegate {
     nonisolated func room(_ room: Room, didUpdateSpeakingParticipants participants: [Participant]) { deliver(room) { $0.roomChanged(room, publications: false) } }
     nonisolated func room(_ room: Room, participant: Participant, didUpdateName name: String) { deliver(room) { $0.roomChanged(room, publications: false) } }
     nonisolated func room(_ room: Room, participant: Participant, didUpdateConnectionQuality quality: ConnectionQuality) { deliver(room) { $0.roomChanged(room, publications: false) } }
-    nonisolated func room(_ room: Room, participant: Participant, trackPublication: TrackPublication, didUpdateIsMuted isMuted: Bool) { deliver(room) { $0.roomChanged(room, publications: false) } }
-    nonisolated func room(_ room: Room, participant: LocalParticipant, didPublishTrack publication: LocalTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false) } }
-    nonisolated func room(_ room: Room, participant: LocalParticipant, didUnpublishTrack publication: LocalTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false) } }
+    nonisolated func room(_ room: Room, participant: Participant, trackPublication: TrackPublication, didUpdateIsMuted isMuted: Bool) { deliver(room) { $0.roomChanged(room, publications: false, video: true) } }
+    nonisolated func room(_ room: Room, participant: Participant, didUpdateAttributes attributes: [String: String]) { deliver(room) { $0.roomChanged(room, publications: false) } }
+    nonisolated func room(_ room: Room, participant: LocalParticipant, didPublishTrack publication: LocalTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false, video: true) } }
+    nonisolated func room(_ room: Room, participant: LocalParticipant, didUnpublishTrack publication: LocalTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false, video: true) } }
+    nonisolated func room(_ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false, video: true) } }
+    nonisolated func room(_ room: Room, participant: RemoteParticipant, didUnsubscribeTrack publication: RemoteTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false, video: true) } }
     nonisolated func room(_ room: Room, participant: RemoteParticipant, didPublishTrack publication: RemoteTrackPublication) { deliver(room) { $0.roomChanged(room, publications: true) } }
     nonisolated func room(_ room: Room, participant: RemoteParticipant, didUnpublishTrack publication: RemoteTrackPublication) { deliver(room) { $0.roomChanged(room, publications: false) } }
     nonisolated func room(_ room: Room, didStartReconnectWithMode reconnectMode: ReconnectMode) { deliver(room) { $0.roomReconnecting(room, done: false) } }

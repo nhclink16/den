@@ -59,6 +59,9 @@ struct CallBridgeTests {
         #expect(try CallCommand(["type": "mute", "muted": true, "seq": 3], allowLocalWS: false) == .mute(true, seq: 3))
         #expect(try CallCommand(["type": "sound", "off": false, "seq": 1], allowLocalWS: false) == .sound(off: false, seq: 1))
         #expect(try CallCommand(["type": "state"], allowLocalWS: false) == .state)
+        #expect(try CallCommand(["type": "camera", "on": true, "seq": 2], allowLocalWS: false) == .camera(true, seq: 2))
+        #expect(try CallCommand(["type": "flip"], allowLocalWS: false) == .flip)
+        #expect(throws: CallError.self, "a number is not a yes/no") { try CallCommand(["type": "camera", "on": 1, "seq": 2], allowLocalWS: false) }
     }
 
     @Test func multiDeviceRules() {
@@ -66,7 +69,9 @@ struct CallBridgeTests {
         #expect(!CallRules.joinsQuietly(localIdentity: "u1:b", remoteIdentities: ["u2:a", "u1:b"]))
         #expect(!CallRules.subscribes(isAudio: true, isMicrophone: true, identity: "u1:a", localIdentity: "u1:b", soundOff: false), "your other device's mic")
         #expect(CallRules.subscribes(isAudio: true, isMicrophone: false, identity: "u1:a", localIdentity: "u1:b", soundOff: false), "its shared audio")
-        #expect(!CallRules.subscribes(isAudio: false, isMicrophone: false, identity: "u2:a", localIdentity: "u1:b", soundOff: false), "no video in phase 1")
+        #expect(!CallRules.subscribes(isAudio: false, isMicrophone: false, identity: "u2:a", localIdentity: "u1:b", soundOff: false), "video the page doesn't show")
+        #expect(CallRules.subscribes(isAudio: false, isMicrophone: false, identity: "u2:a", localIdentity: "u1:b", soundOff: true, videoShown: true), "video it shows, sound or not")
+        #expect(!CallRules.subscribes(isAudio: true, isMicrophone: false, identity: "u2:a", localIdentity: "u1:b", soundOff: true, videoShown: true), "a share's sound still follows sound off")
         #expect(!CallRules.subscribes(isAudio: true, isMicrophone: true, identity: "u2:a", localIdentity: "u1:b", soundOff: true))
     }
 }

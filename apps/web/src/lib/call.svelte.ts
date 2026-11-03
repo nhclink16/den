@@ -5,7 +5,7 @@ import { LocalVideoTrack, RemoteAudioTrack, Room, RoomEvent, Track, type Partici
 import { store, instances, type Store } from './store.svelte'
 import { Shares, type Share } from './call-shares'
 import { HttpError } from './api'
-import { shell, shellParticipants, type ShellUpdate } from './shell-call'
+import { shell, shellParticipants, shellVideo, type ShellUpdate } from './shell-call'
 import type { CallState, CallToken, Channel } from './types'
 
 type Preferences = {
@@ -22,7 +22,9 @@ function load(): Preferences {
 export type CallParticipant = {
   id: string; userId: string; device: string; name: string; music: boolean; local: boolean; speaking: boolean; muted: boolean
   camera?: Track; screen?: Track; screens: Share[]; quality: ConnectionQuality
-  /** A camera or share this device can't show yet (Den Shell runs voice only). */
+  /** Den Shell draws this camera itself, in the tile's slot (shell-video.ts); its shares say `native` the same way. */
+  nativeCamera?: boolean
+  /** A camera or share this device can't show (an older Den Shell runs voice only). */
   unseen?: 'camera' | 'screen'
 }
 
@@ -446,7 +448,7 @@ class Call {
       if (!channel) return
       this.owner = owner; this.origin = owner.origin; this.instanceName = owner.settings.instance_name; this.channel = channel
       // A fresh page has sent nothing: take up the shell's count where it is.
-      this.micSent = state.micSeq; this.soundSent = state.soundSeq
+      this.micSent = state.micSeq; this.soundSent = state.soundSeq; this.cameraSent = state.cameraSeq ?? 0
     }
     // Replies and pushed updates travel separately; one older than what the page has seen is out of date.
     if (state.revision <= this.shellRevision) return
@@ -467,7 +469,7 @@ class Call {
       return
     }
     const owner = this.owner || store
-    this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`)
+    this.participants = shellParticipants(state, (id) => owner.name(id), `${this.instanceName} DJ`, shellVideo)
     this.otherDevices = state.otherDevices
     // Until the shell has applied the page's latest tap, the button keeps showing that tap. After that, the shell's
     // word goes, including a mute from iOS's call screen, and the saved choice the mic button toggles follows it.
@@ -478,6 +480,7 @@ class Call {
       if (this.prefs.mode === 'activity' && this.prefs.micOn !== state.micOn) this.save({ micOn: state.micOn })
     }
     if (state.soundSeq >= this.soundSent) { this.soundSent = state.soundSeq; this.outputMuted = state.soundOff }
+    if (state.cameraSeq !== undefined && state.cameraSeq >= this.cameraSent) { this.cameraSent = state.cameraSeq; this.cameraOn = !!state.cameraOn }
     this.reconnecting = state.phase === 'reconnecting'
     // Every snapshot repeats the last error; show it once.
     // A reload adopts the call with its last error: show it again, but don't buzz for it again.
@@ -510,6 +513,7 @@ class Call {
   private shellRevision = 0
   private micSent = 0
   private soundSent = 0
+  private cameraSent = 0
   private clear() {
     clearTimeout(this.duckTimer); this.duckTimer = undefined; this.ducked = false
     for (const [track, el] of this.audio) { track.detach(); el.remove() }
@@ -522,7 +526,7 @@ class Call {
     this.shares.clear(); this.audio.clear(); this.room = null; this.channel = null; this.participants = []
     this.held = false; this.expanded = false; this.reconnecting = false; this.audioBlocked = false
     this.micOn = false; this.cameraOn = false; this.screenOn = false; this.screenAdding = false
-    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0
+    this.outputMuted = false; this.otherDevices = 0; this.shellError = ''; this.micSent = 0; this.soundSent = 0; this.cameraSent = 0
   }
   /** `feedback` false: a switch to another call, which buzzes once when the new one joins. */
   async leave(feedback = true) {
@@ -615,6 +619,14 @@ class Call {
   }
   setMode(mode: Preferences['mode']) { this.held = false; this.save({ mode }); void this.applyMic() }
   toggleCamera() {
+    if (shell) {
+      // Shown at once and sent at once: an Off mustn't wait for an On still starting. The shell runs them in order, and
+      // its answer stands once it has caught up (`cameraSeq`), so a camera it couldn't start shows off again.
+      if (!shellVideo || !this.channel) return Promise.resolve()
+      const on = !this.cameraOn, seq = ++this.cameraSent, generation = this.generation
+      this.cameraOn = on
+      return shell.call({ type: 'camera', on, seq }).then((reply) => { if (generation === this.generation) this.applyShell(reply) }, (err) => this.report(err))
+    }
     const room = this.room
     if (!room) return Promise.resolve()
     const enabled = !room.localParticipant.isCameraEnabled
@@ -636,6 +648,18 @@ class Call {
       } catch (err) { if (!cancelled(err) && this.room === room) this.report(err) }
     })
     this.cameraQueue = update.catch(err => this.report(err))
+    return this.cameraQueue
+  }
+  /** Den Shell: front camera to back and back again. */
+  flipCamera() {
+    if (!shellVideo || !this.channel) return Promise.resolve()
+    // Only for this call: a flip still queued when it ended mustn't turn the next call's camera round.
+    const generation = this.generation
+    this.cameraQueue = this.cameraQueue.then(async () => {
+      if (!this.channel || generation !== this.generation) return
+      const reply = await shell!.call({ type: 'flip' })
+      if (generation === this.generation) this.applyShell(reply)
+    }).catch((err) => this.report(err))
     return this.cameraQueue
   }
   async addScreen() {
@@ -681,8 +705,8 @@ class Call {
     if (this.prefs.mode === 'ptt' && e.code === this.prefs.pttKey) { e.preventDefault(); this.setHeld(true); return }
     const key = e.key.toLowerCase()
     if (key === 'm' && this.prefs.mode === 'activity') { e.preventDefault(); void this.toggleMic() }
-    if (shell) return // voice only for now
-    if (key === 'v') { e.preventDefault(); void this.toggleCamera() }
+    if (key === 'v' && (!shell || shellVideo)) { e.preventDefault(); void this.toggleCamera() }
+    if (shell) return // no screen to share from a phone
     if (key === 's') { e.preventDefault(); void this.toggleScreen() }
   }
   keyup(e: KeyboardEvent) { if (e.code === this.prefs.pttKey) this.setHeld(false) }

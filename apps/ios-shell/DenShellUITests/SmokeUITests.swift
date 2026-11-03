@@ -213,7 +213,7 @@ final class SmokeUITests: XCTestCase {
         // open the call) instead of the hangout card.
         let joined = element(app, label: "open the call", .contains)
         let failed = element(app, label: "The call could not connect. Try again.")
-        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"].firstMatch
         let deadline = Date().addingTimeInterval(45)
         var joining = false
         while !joined.exists && !failed.exists && Date() < deadline {
@@ -240,6 +240,50 @@ final class SmokeUITests: XCTestCase {
         try find(app, label: "Leave call").tap()
         try find(app, label: "Join hangout", timeout: 15)
         shot("8-call-left")
+    }
+
+    /// Call video, drawn natively behind the page. The cloud's simulator can't carry call media (see test5Call), so Den
+    /// Shell runs a made-up call (CallTestCall.swift: Maya's camera, Theo's share) with test patterns in place of the
+    /// pictures. What this proves is the placement: each pattern sits in its tile, under the page's names and corners,
+    /// a sheet covers it, a layout change and a rotation move it, and it goes with the call view.
+    @MainActor func test7CallVideo() async throws {
+        continueAfterFailure = true
+        let maya = try await signIn("maya")
+        let users = try await api("GET", "/users", token: maya) as? [[String: Any]] ?? []
+        let ids = try ["ellis", "maya", "theo", "juno"].map { name in
+            try XCTUnwrap(users.first { $0["username"] as? String == name }?["id"] as? String, "no \(name)")
+        }
+        let app = try launchSignedIn(extra: ["-DenFakeCall", ids.joined(separator: ",")])
+        try find(app, label: "Join hangout").tap()
+        try find(app, label: "open the call", .contains, timeout: 15).tap()
+        try find(app, label: "Maya camera")
+        try find(app, label: "Theo screen")
+        pause(1.5)
+        shot("7-video-call")
+        try find(app, label: "Turn camera on").tap()
+        try find(app, label: "Ellis camera")
+        pause(1.5)
+        shot("7-video-own-camera")
+        try find(app, label: "More call options").tap()
+        try find(app, label: "Flip Camera")
+        pause(1)
+        shot("7-video-more-sheet")
+        try find(app, label: "Even").tap()
+        pause(1.5)
+        shot("7-video-even")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        pause(2.5)
+        shot("7-video-landscape")
+        XCUIDevice.shared.orientation = .portrait
+        pause(2.5)
+        shot("7-video-portrait-again")
+        try find(app, label: "Collapse call").tap()
+        pause(1)
+        shot("7-video-collapsed")
+        try find(app, label: "open the call", .contains).tap()
+        try find(app, label: "Leave call").tap()
+        try find(app, label: "Join hangout", timeout: 15)
+        shot("7-video-left")
     }
 
     /// Touch: the + sheet closes when pulled down, and a sent message asks for a haptic (the simulator has none to
@@ -269,10 +313,10 @@ final class SmokeUITests: XCTestCase {
 
     /// Opens Den Shell on the runner's Den, signing in as Ellis unless the web view still has the session.
     /// `-DenTestPushToken`: the simulator may get no token from Apple here, so it registers a made-up one.
-    @MainActor private func launchSignedIn(notificationPrompt: Bool = false) throws -> XCUIApplication {
+    @MainActor private func launchSignedIn(notificationPrompt: Bool = false, extra: [String] = []) throws -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-DenStartURL", "http://localhost:7000", "-DenCallTestTone", "YES",
-                               "-DenTestPushToken", String(repeating: "0d", count: 32)]
+                               "-DenTestPushToken", String(repeating: "0d", count: 32)] + extra
         app.launch()
         let rooms = element(app, label: "Your profile and settings")
         let comeIn = element(app, label: "Come in")
@@ -296,7 +340,7 @@ final class SmokeUITests: XCTestCase {
         }
         if notificationPrompt { shot("0-notification-question") }
         turnOn.tap()
-        let allow = springboard.alerts.buttons["Allow"]
+        let allow = springboard.alerts.buttons["Allow"].firstMatch
         if allow.waitForExistence(timeout: 10) {
             if notificationPrompt { shot("0-notification-prompt") }
             allow.tap()

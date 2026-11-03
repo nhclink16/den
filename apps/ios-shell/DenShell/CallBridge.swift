@@ -13,6 +13,8 @@ enum CallCommand: Equatable {
     case leave
     case mute(Bool, seq: Int)
     case sound(off: Bool, seq: Int)
+    case camera(Bool, seq: Int)
+    case flip
     case state
 
     /// `allowLocalWS`: plain `ws://` to this machine, for debug builds against a local LiveKit.
@@ -42,6 +44,8 @@ enum CallCommand: Equatable {
         case "leave": self = .leave
         case "mute": self = .mute(try flag("muted"), seq: try count("seq"))
         case "sound": self = .sound(off: try flag("off"), seq: try count("seq"))
+        case "camera": self = .camera(try flag("on"), seq: try count("seq"))
+        case "flip": self = .flip
         case "state": self = .state
         default: throw CallError(message: "Unknown call message.")
         }
@@ -92,12 +96,18 @@ enum CallCommand: Equatable {
         let allowLocalWS = false
         #endif
         do {
+            let command = try CallCommand(message.body, allowLocalWS: allowLocalWS)
+            #if DEBUG && targetEnvironment(simulator)
+            if let fake = FakeCall.shared { return (fake.answer(command), nil) }
+            #endif
             let snapshot: CallSnapshot?
-            switch try CallCommand(message.body, allowLocalWS: allowLocalWS) {
+            switch command {
             case .join(let request): snapshot = try await engine.join(request)
             case .leave: await engine.leave(); snapshot = nil
             case .mute(let muted, let seq): snapshot = try await engine.setMuted(muted, seq: seq)
             case .sound(let off, let seq): snapshot = try await engine.setSoundOff(off, seq: seq)
+            case .camera(let on, let seq): snapshot = try await engine.setCamera(on, seq: seq)
+            case .flip: snapshot = try await engine.flipCamera()
             case .state: snapshot = engine.snapshot
             }
             return (try snapshot.map(Self.json) ?? engine.noCall(), nil)

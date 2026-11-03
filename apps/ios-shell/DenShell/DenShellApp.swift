@@ -91,6 +91,7 @@ struct DenWebView: UIViewRepresentable {
         PushBridge.shared.install(in: config.userContentController, den: context.coordinator.den)
         context.coordinator.haptics.install(in: config.userContentController)
         context.coordinator.media.install(in: config.userContentController)
+        context.coordinator.video.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
         context.coordinator.webView = webView
         context.coordinator.calls.webView = webView
@@ -141,6 +142,8 @@ struct DenWebView: UIViewRepresentable {
             mark.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             mark.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
+        // Call video goes right behind the page, above the mark: the page leaves holes for it (CallVideo.swift).
+        context.coordinator.video.attach(behind: webView)
         // Painted until the page draws, and kept for the unreachable screen of a later launch.
         Self.wear(Unreachable.lastThemeColor, container: container, mark: mark)
         context.coordinator.themeObservation = webView.observe(\.themeColor, options: [.initial]) { [weak container, weak mark] webView, _ in
@@ -188,6 +191,7 @@ struct DenWebView: UIViewRepresentable {
     lazy var calls = CallBridge(den: den, engine: engine)
     lazy var haptics = Haptics(den: den)
     lazy var media = MediaBridge(den: den)
+    lazy var video = CallVideo(den: den, engine: engine)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     var offsetObservation: NSKeyValueObservation?
@@ -370,13 +374,13 @@ struct DenWebView: UIViewRepresentable {
 
     /// A new page in place of Den's: nothing native the old one put on screen may stay.
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        if webView === self.webView { media.pageGone() }
+        if webView === self.webView { media.pageGone(); video.pageGone() }
     }
 
     /// iOS can kill the page's process under memory pressure; reload rather than show a blank screen.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         log.error("web content process terminated, reloading")
-        if webView === self.webView { media.pageGone() }
+        if webView === self.webView { media.pageGone(); video.pageGone() }
         webView.reload()
     }
 }

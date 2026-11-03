@@ -269,6 +269,17 @@ kbd {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: rgba(var(--sb-scrim, 0, 0, 0), var(--sb-dim, 0));
 }
+/* Den Shell draws call video behind the page and the page leaves holes for it (lib/shell-video.ts). While it does, the
+   page's background moves from <body> to a fixed layer under everything, masked with the holes, and every wallpaper
+   layer gets the same holes (--den-holes-* are set per layer). With no hole open the masks are none: the same pixels. */
+/* !important: the theme paints <html> inline (theme-runtime.ts). */
+:root[data-native-video], :root[data-native-video] body { background: transparent !important; }
+:root[data-native-video] body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--bg);
+  mask: var(--den-holes, none) 0 0 / 100% 100% no-repeat;
+}
+:root[data-native-video] .bg-host::before { mask: var(--den-holes-before, none) 0 0 / 100% 100% no-repeat; }
+:root[data-native-video] .bg-host::after { mask: var(--den-holes-after, none) 0 0 / 100% 100% no-repeat; }
 /* Panels sitting on a wallpaper go translucent so it reads through. */
 :root[data-bg-scope='app'] .sidebar, :root[data-bg-scope='app'] .members {
   background: color-mix(in srgb, var(--bg2) 82%, transparent);

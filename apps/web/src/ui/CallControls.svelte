@@ -5,7 +5,7 @@
   import { blurSupported } from '../lib/av'
   import { callLayouts } from '../lib/call-layout.svelte'
   import { disclosurePopover } from '../lib/disclosure-popover'
-  import { shell } from '../lib/shell-call'
+  import { shell, shellVideo } from '../lib/shell-call'
   import Icon from './Icon.svelte'
   import MusicMenu from './MusicMenu.svelte'
   import { objects } from '../lib/objects.svelte'
@@ -19,7 +19,8 @@
   const pill = $derived(variant === 'pill')
   // A dock icon cannot carry a reason, so hide it where blur cannot run. Settings
   // shows the disabled control and says why.
-  const blurAvailable = blurSupported()
+  // Den Shell's camera is the shell's own, which blur can't reach.
+  const blurAvailable = blurSupported() && !shell
   // Phones have no screen to share: the button would only ever show an error.
   const shareAvailable = !!navigator.mediaDevices?.getDisplayMedia && !shell
   const shares = $derived(call.participants.find(p => p.local)?.screens || [])
@@ -28,9 +29,11 @@
   const music = $derived(!!call.channel && call.channel.kind !== 'text' && !!call.owner)
   // The tiles a phone's call shows (CallGrid): cameras that are on, shares, and an open canvas or terminal.
   const board = $derived(!!objects.active && (objects.active.kind === 'canvas' || objects.active.kind === 'terminal') && !!objectKind(objects.active.kind)?.tile)
-  const videos = $derived(call.participants.reduce((n, p) => n + (p.camera ? 1 : 0) + p.screens.length, 0) + (board ? 1 : 0))
+  const videos = $derived(call.participants.reduce((n, p) => n + (p.camera || p.nativeCamera ? 1 : 0) + p.screens.length, 0) + (board ? 1 : 0))
+  // Den Shell: front camera to back, while it's on.
+  const flip = $derived(shellVideo && call.cameraOn)
   const preset = $derived(callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
-  const more = $derived(shareAvailable || (call.cameraOn && blurAvailable) || music || videos > 1)
+  const more = $derived(shareAvailable || (call.cameraOn && blurAvailable) || flip || music || videos > 1)
   let moreOpen = $state(false), page = $state<'' | 'music'>('')
   $effect(() => { if (!moreOpen) page = '' })
   function done(run: () => unknown) { moreOpen = false; void run() }
@@ -50,8 +53,8 @@
   {/if}
   {#if !pill}
   <button class:off={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} size={icon} /></button>
-  <!-- Den Shell runs calls voice-only for now. -->
-  {#if !shell}<button aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
+  <!-- An older Den Shell runs calls voice only. -->
+  {#if !shell || shellVideo}<button aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
   {#if call.cameraOn && blurAvailable}<button class="wide" class:on={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
   {#if shareAvailable}<button class="wide" class:on={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
   {#if call.screenOn}
@@ -84,8 +87,9 @@
           <button class="sheet-back" onclick={() => (page = '')}><Icon name="back" size={20} />More</button>
           <MusicMenu roomId={call.channel.id} owner={call.owner} />
         {:else}
-          {#if shareAvailable || (call.cameraOn && blurAvailable) || music}
+          {#if shareAvailable || (call.cameraOn && blurAvailable) || flip || music}
             <div class="slist">
+              {#if flip}<button class="nav-row" onclick={() => done(() => call.flipCamera())}><Icon name="camera" size={20} /><span class="grow">Flip Camera</span></button>{/if}
               {#if shareAvailable}<button class="nav-row" disabled={!!call.joining} onclick={() => done(() => call.toggleScreen())}><Icon name="screen" size={20} /><span class="grow">{call.screenOn ? 'Stop Sharing' : 'Share Screen'}</span></button>{/if}
               {#if call.cameraOn && blurAvailable}<button class="nav-row" aria-pressed={call.cameraSettings.background !== 'none'} disabled={call.backgroundBusy} onclick={() => done(() => call.toggleBackground())}><Icon name="blur" size={20} /><span class="grow">Blur Background</span>{#if call.cameraSettings.background !== 'none'}<Icon name="check" size={18} />{/if}</button>{/if}
               {#if music}<button class="nav-row" onclick={() => (page = 'music')}><Icon name="music" size={20} /><span class="grow">Music</span><span class="chev"><Icon name="chevron" size={14} /></span></button>{/if}

@@ -27,7 +27,10 @@ export DEN_DB=$dir/data/den.db DEN_UPLOADS=$dir/data/uploads DEN_BOOTSTRAP_FILE=
 export DEN_LIVEKIT_URL=ws://localhost:7880 DEN_LIVEKIT_API_KEY=devkey DEN_LIVEKIT_API_SECRET=secret
 exec $dir/den-server > $dir/den.log 2>&1
 SH
-# The simulator reaches LiveKit's signalling on localhost, but not its media: see test5Call.
+# The simulator reaches LiveKit's signalling on localhost, but not its media. Its native WebRTC sees one network, a VPN
+# tunnel (utun, 10.255.0.2, the default route), and from a socket bound there nothing on this machine answers, TCP or
+# UDP, loopback included (probed 2026-11-03, report 48). Fixing that needs root, so test5Call stops at the join's error
+# and test7CallVideo runs a made-up call instead.
 cat > livekit.sh <<SH
 #!/bin/sh
 exec $dir/livekit-server --dev --bind 0.0.0.0 > $dir/livekit.log 2>&1

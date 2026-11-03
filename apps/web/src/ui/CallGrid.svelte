@@ -50,8 +50,8 @@
   })
   // A phone shows video only where there is some (a camera that's on, a share, a canvas), like
   // FaceTime. Everyone else is a face: big and centred when nobody has video, a row under it otherwise.
-  const shown = $derived(mobile ? tiles.filter(t => t.kind !== 'cam' || t.participant?.camera) : tiles)
-  const faces = $derived(mobile ? call.participants.filter(p => !p.camera) : [])
+  const shown = $derived(mobile ? tiles.filter(t => t.kind !== 'cam' || t.participant?.camera || t.participant?.nativeCamera) : tiles)
+  const faces = $derived(mobile ? call.participants.filter(p => !p.camera && !p.nativeCamera) : [])
   const big = $derived(!shown.length)
   const face = $derived(!big ? 52 : faces.length <= 2 ? 112 : faces.length <= 4 ? 88 : faces.length <= 9 ? 68 : 52)
   let facesHeight = $state(0)
