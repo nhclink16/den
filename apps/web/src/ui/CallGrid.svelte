@@ -26,7 +26,8 @@
   // as a rotation and hand you the other orientation's arrangement.
   let windowPortrait = $state(matchMedia('(orientation: portrait)').matches)
   const portrait = $derived(height > width && width > 0)
-  const stacked = $derived(mobile || portrait)
+  // A desktop row is .8 of a column, or 1.3 on a portrait stage so it fills more of the height.
+  const ratio = $derived(portrait ? 1.3 : .8)
   let scroll: HTMLDivElement
   let preview = $state<Record<string, Cell> | null>(null), dragging = $state('')
   let cancelDrag: (() => void) | undefined
@@ -60,8 +61,8 @@
   const preset = $derived(mobile && callLayouts.value.preset === 'Custom' ? 'Focus' : callLayouts.value.preset)
   const stepX = $derived((width + 8) / 12)
   // Rows of full height (below) the stage has room for, so presets size tiles to fit it.
-  const fit = $derived(Math.floor((height - 8) / (stepX * .8)))
-  const cells = $derived(preview || (preset === 'Custom' ? pack(shown, callLayouts.value.tiles) : presetCells(shown, preset, callLayouts.value.tiles, stacked, fit)))
+  const fit = $derived(Math.floor((height - 8) / (stepX * ratio)))
+  const cells = $derived(preview || (preset === 'Custom' ? pack(shown, callLayouts.value.tiles) : presetCells(shown, preset, callLayouts.value.tiles, mobile, fit, ratio)))
   const rows = $derived(Math.max(1, ...Object.values(cells).map(c => c.row + c.h)))
   // Keep preset rows within the viewport when practical; custom layouts can scroll.
   // The ceiling is a ratio of the column width so a tile keeps a sane shape. Portrait
@@ -71,8 +72,8 @@
   // A phone starts from square cells and stretches the rows to fill the screen, like
   // FaceTime, up to twice as tall as wide so one or two people don't become towers.
   // More rows than fit keep square cells and scroll.
-  const stepY = $derived(mobile ? Math.max(24, stepX, Math.min(stepX * 2, (room - 8) / rows)) : Math.max(24, Math.min(stepX * (portrait ? 1.3 : .8), (height - 8) / rows)))
-  function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(shown, value, callLayouts.value.tiles, mobile, fit)) }
+  const stepY = $derived(mobile ? Math.max(24, stepX, Math.min(stepX * 2, (room - 8) / rows)) : Math.max(24, Math.min(stepX * ratio, (height - 8) / rows)))
+  function choose(value: Preset) { cancelDrag?.(); callLayouts.save(value, presetCells(shown, value, callLayouts.value.tiles, mobile, fit, ratio)) }
   function reset() { cancelDrag?.(); callLayouts.reset() }
   function pin(key: string) {
     // Mobile presents Custom as Focus; pinning must not save its display geometry

@@ -135,7 +135,7 @@
   const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
   const auto = $derived(root ? [...(root.content.split('\n').map(squash).find(Boolean) || squash(root.objects?.[0]?.name ?? '') || 'Conversation')].slice(0, 80).join('') : '')
   const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
-  const where = $derived(`${channel.kind === 'text' ? `#${channel.name}` : store.title(channel)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
+  const where = $derived(`${channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
   const fromMenu = (work: () => void) => { menu = false; work() }
 

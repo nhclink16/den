@@ -103,18 +103,24 @@ pub(crate) async fn search(
         visible(&s, &a.user.id, channel).await?;
     }
     let limit = q.limit.unwrap_or(50);
-    let terms = q.q.split_whitespace().collect::<Vec<_>>();
+    // Control characters separate words in the index anyway, and FTS5 ends a query at a NUL.
+    let terms =
+        q.q.split(|c: char| c.is_whitespace() || c.is_control())
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>();
     if q.q.len() > 200 || terms.is_empty() || terms.len() > 20 || !(1..=100).contains(&limit) {
         return Err(Error::bad(
             "Search needs 1-200 bytes, at most 20 terms, and limit 1-100",
         ));
     }
     // Literal terms joined with AND. Never interpret user input as FTS operators.
+    // The last term is a prefix (`"cab"*` finds "cabin"), so results come as you type.
     let expression = terms
         .iter()
         .map(|t| format!("\"{}\"", t.replace('"', "\"\"")))
         .collect::<Vec<_>>()
-        .join(" AND ");
+        .join(" AND ")
+        + "*";
     let limit = limit as i64;
     let ids=sqlx::query_scalar!(r#"SELECT m.id FROM messages m JOIN channels c ON c.id=m.channel_id
         WHERE m.rowid IN (SELECT rowid FROM message_search WHERE message_search MATCH ?)

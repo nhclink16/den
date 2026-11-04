@@ -183,6 +183,74 @@ async fn replies_reactions_and_search_respect_membership_and_message_changes() {
     assert!(deleted.iter().all(|m| m.id != reply.id));
 }
 #[tokio::test]
+async fn search_matches_the_last_word_as_a_prefix_and_never_parses_input() {
+    let t = Test::new().await;
+    let a = &t.admin.token;
+    let cid = t.general().await;
+    let posted = t
+        .post(
+            &format!("/channels/{cid}/messages"),
+            a,
+            json!({"content":"meet at the cabin tonight"}),
+        )
+        .await;
+    let search = |q: &str| {
+        let url = reqwest::Url::parse_with_params("http://x/search/messages", [("q", q)]).unwrap();
+        format!("/search/messages?{}", url.query().unwrap())
+    };
+    // Typing finds the message before the last word is complete.
+    for q in ["cab", "meet cab", "meet at the cabin"] {
+        let found: Vec<Message> = get(&t, &search(q), a).await;
+        assert_eq!(found.len(), 1, "{q}");
+        assert_eq!(found[0].id, posted["id"], "{q}");
+    }
+    // Earlier words are still whole words.
+    let found: Vec<Message> = get(&t, &search("cab tonight"), a).await;
+    assert!(found.is_empty());
+    // Operators and quotes stay literal text: these would match if FTS5 parsed them.
+    for q in [
+        "cabin OR zebra",
+        "cabin\" OR \"zebra",
+        "content:cab",
+        "NEAR(meet cab)",
+        "meet NOT tonight",
+    ] {
+        let found: Vec<Message> = get(&t, &search(q), a).await;
+        assert!(found.is_empty(), "{q}");
+    }
+    // Nothing a person types is a server error.
+    for q in [
+        "\"",
+        "\"\"",
+        "*",
+        "cab*",
+        "-",
+        "-cabin",
+        ":",
+        "cabin:",
+        "NEAR",
+        "NEAR(",
+        "(",
+        ")",
+        "^",
+        "+",
+        "AND",
+        "OR",
+        "NOT",
+        "cab\"",
+        "\"cab",
+        "*\"*",
+        "a\0b",
+        "...",
+        "cabin ...",
+        "\u{301}",
+    ] {
+        let r = t.req(Method::GET, &search(q), a).send().await.unwrap();
+        assert_eq!(r.status(), 200, "{q:?}");
+        let _: Vec<Message> = r.json().await.unwrap();
+    }
+}
+#[tokio::test]
 async fn read_markers_are_monotonic_and_notification_counts_follow_preferences() {
     let t = Test::new().await;
     let bob = t.member("bob").await;

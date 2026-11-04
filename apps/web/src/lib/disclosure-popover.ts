@@ -24,10 +24,35 @@ export function disclosurePopover(node: HTMLElement, align: 'start' | 'end' = 'e
   return { destroy() { resize.disconnect(); view?.removeEventListener('resize', position); details.removeEventListener('toggle', toggle); node.removeEventListener('toggle', closed); stopPull() } }
 }
 
+// A tap on a phone sheet's dim backdrop closes the sheet and ends there. The backdrop takes no hits, so the
+// browser hands the whole tap to whatever is under it: the sheet closed (light dismiss) and the same tap opened
+// a picture or left the room. The tap that starts outside the topmost sheet stops at the window, down to its
+// click; closing is still the browser's.
+let swallowing = false
+function backdropTap(e: Event) {
+  if (e.type === 'pointerdown') {
+    const top = [...document.querySelectorAll('.sheet:popover-open')].at(-1)
+    swallowing = !!top && matchMedia('(max-width: 600px)').matches && !top.contains(e.target as Node)
+  }
+  // A keyboard's click (detail 0) is never part of a tap, and a tap that became a scroll has no click to end it.
+  if (e.type === 'click' && (e as MouseEvent).detail === 0) return
+  if (e.type.endsWith('cancel')) swallowing = false
+  if (!swallowing) return
+  e.stopPropagation()
+  // A link would still follow, a label tick its box, a summary open its menu.
+  if (e.type === 'click' || e.type === 'mousedown') e.preventDefault()
+  if (e.type === 'click') swallowing = false
+}
+let watching = false
+
 // A sheet along the bottom of a phone (app.css `.sheet`) follows a finger pulling it down and closes past a
 // third of its height, or on a flick. Not while a list inside it is scrolled down: that pull scrolls the list.
 // Pushed up, it gives a little and springs back. The profile sheet uses it too (ProfilePopover).
 export function pullDown(node: HTMLElement) {
+  if (!watching) {
+    watching = true
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel', 'mousedown', 'mouseup', 'click']) addEventListener(type, backdropTap, true)
+  }
   let x = 0, y = 0, dy = 0, at = 0, speed = 0, tracking = false, pulling = false
   const scrolled = (target: EventTarget | null) => {
     for (let el = target as Element | null; el && el !== node; el = el.parentElement) if (el.scrollTop > 0) return true
