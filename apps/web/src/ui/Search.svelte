@@ -132,16 +132,16 @@
         <div class="slist">
           {#each recent as r (r)}<button class="nav-row recent" onclick={() => again(r)}><Icon name="search" size={16} /><span class="grow">{r}</span></button>{/each}
         </div>
-        <p class="list-foot">Words are matched exactly. Several words means all of them.</p>
+        <p class="list-foot">Finds messages with all your words. The last one can be just its start.</p>
       {:else}
         <div class="empty">
           <Icon name="search" size={36} />
           <div class="title">Search messages</div>
-          <div class="muted">Words are matched exactly. Several words means all of them.</div>
+          <div class="muted">Finds messages with all your words. The last one can be just its start.</div>
         </div>
       {/if}
     {:else if !results.length && !error}
-      <div class="empty"><div class="title">No results for “{q}”</div><div class="muted">{scopeName ? `Try Everywhere instead of ${placeName(scopeName)}.` : 'Search matches whole words. Try fewer words.'}</div></div>
+      <div class="empty"><div class="title">No results for “{q}”</div><div class="muted">{scopeName ? `Try Everywhere instead of ${placeName(scopeName)}.` : 'Try fewer words.'}</div></div>
     {:else if results.length}
       <h2 class="head-row">{results.length}{results.length === 50 ? '+' : ''} results</h2>
       <div class="slist">
