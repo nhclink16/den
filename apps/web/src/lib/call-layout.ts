@@ -43,17 +43,18 @@ export function participantSlots(ids: string[], saved: Record<string, Cell>): Re
   }
   return result
 }
-// A landscape grid's row is .8 of a column (CallGrid), so this many rows keeps a
-// tile `w` columns wide close to 16:9.
-const tall = (w: number) => Math.max(2, Math.round(w * .7))
+// A row is `ratio` of a column (CallGrid: .8 on a landscape stage, 1.3 on a portrait
+// one), so this many rows keeps a tile `w` columns wide close to 16:9.
+const tall = (w: number, ratio = .8) => Math.max(2, Math.round(w * .56 / ratio))
 // Rows that `n` tiles `w` columns wide take, wrapping as many across as fit.
-const rowsFor = (n: number, w: number) => n && Math.ceil(n / Math.min(n, Math.floor(columns / w))) * tall(w)
-// `stacked` means the container is taller than it is wide: a phone, or a desktop
-// monitor rotated into portrait. Both want fewer tiles across and taller rows.
-// `fit` is how many full-height rows a landscape stage has room for; tiles are sized
+const rowsFor = (n: number, w: number, ratio = .8) => n && Math.ceil(n / Math.min(n, Math.floor(columns / w))) * tall(w, ratio)
+// `stacked` is the phone: fewer tiles across and taller rows. A desktop stage of any
+// shape (a monitor rotated into portrait, a narrow window with both side panels open)
+// sizes its tiles to the stage instead, with rows `ratio` of a column tall.
+// `fit` is how many full-height rows the stage has room for; tiles are sized
 // to stay within it, so a lone camera is one large 16:9 tile, not a full-width strip.
 // Nine is a 16:10 window, for callers that don't know the stage.
-export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, stacked = false, fit = 9): Record<string, Cell> {
+export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<string, Cell>, stacked = false, fit = 9, ratio = .8): Record<string, Cell> {
   const cells: Record<string, Cell> = {}
   let row = 0
   function band(items: TileSpec[], across: number, h: number) {
@@ -66,27 +67,28 @@ export function presetCells(tiles: TileSpec[], preset: Preset, saved: Record<str
   // Tiles `w` columns wide, each line centred. A half column is fine here: `bounds`
   // rounds it when a cell is dragged, packed or loaded.
   function grid(items: TileSpec[], w: number) {
-    const across = Math.min(items.length, Math.floor(columns / w)), h = tall(w)
+    const across = Math.min(items.length, Math.floor(columns / w)), h = tall(w, ratio)
     for (const [i, t] of items.entries()) {
       const line = Math.floor(i / across), count = Math.min(across, items.length - line * across)
       cells[t.key] = { col: (columns - count * w) / 2 + i % across * w, row: row + line * h, w, h, pinned: saved[t.key]?.pinned || false }
     }
-    row += rowsFor(items.length, w)
+    row += rowsFor(items.length, w, ratio)
   }
   // The widest tiles that fit in `space` rows. When even three columns (four across)
   // don't fit, CallGrid squeezes the rows, as it always has.
   function fill(items: TileSpec[], space: number) {
     let w = columns
-    while (w > 3 && rowsFor(items.length, w) > space) w--
+    while (w > 3 && rowsFor(items.length, w, ratio) > space) w--
     grid(items, w)
   }
   if (!stacked) {
-    // Focus keeps its thumbnails smaller than Auto's cameras under a share.
+    // Focus keeps its thumbnails smaller than Auto's cameras under a share. Taller rows
+    // need wider thumbnails to keep their shape (two rows of 1.3 under four columns).
     const pinned = tiles.filter(t => saved[t.key]?.pinned), shared = tiles.filter(t => t.kind !== 'cam')
     const large = preset === 'Even' ? tiles : preset === 'Focus' ? (pinned.length ? pinned : shared.length ? shared : tiles) : shared
-    const small = tiles.filter(t => !large.includes(t)), w = preset === 'Focus' ? 2 : 3
+    const small = tiles.filter(t => !large.includes(t)), w = Math.ceil((preset === 'Focus' ? 2 : 3) * (ratio / .8))
     if (!large.length) fill(small, fit)
-    else { fill(large, fit - rowsFor(small.length, w)); grid(small, w) }
+    else { fill(large, fit - rowsFor(small.length, w, ratio)); grid(small, w) }
     return cells
   }
   if (preset === 'Even') band(tiles, 2, 5)

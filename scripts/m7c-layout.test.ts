@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bounds, overlaps, pack, participantSlots, presetCells, readLayout, storageKey, type TileSpec } from '../apps/web/src/lib/call-layout.ts'
+import { bounds, overlaps, pack, participantSlots, presetCells, readLayout, storageKey, type Cell, type TileSpec } from '../apps/web/src/lib/call-layout.ts'
 const tiles: TileSpec[] = [{key:'a:screen',kind:'screen'},{key:'b:screen',kind:'screen'},...['a','b','c'].map(key=>({key:key+':cam',kind:'cam' as const}))]
 test('shares receive equal large slots and packing reserves a manual drop without overlap', () => {
   const auto=presetCells(tiles,'Auto',{})
@@ -107,11 +107,12 @@ test('custom layouts are kept per orientation and landscape keeps the original k
 const stages = [[732, 591], [1422, 1391], [1908, 1391], [1372, 871], [1000, 500]]
 const cams = (n: number): TileSpec[] => Array.from({ length: n }, (_, i) => ({ key: `p${i}:cam`, kind: 'cam' as const }))
 // What CallGrid does with the cells: pixel boxes, rows squeezed only past the fit.
+// A portrait stage's rows are 1.3 of a column, a landscape one's .8.
 function render(tiles: TileSpec[], preset: 'Auto' | 'Even' | 'Focus', [width, height]: number[], saved = {}) {
-  const stepX = (width + 8) / 12, fit = Math.floor((height - 8) / (stepX * .8))
-  const cells = presetCells(tiles, preset, saved, false, fit)
+  const ratio = height > width ? 1.3 : .8, stepX = (width + 8) / 12, fit = Math.floor((height - 8) / (stepX * ratio))
+  const cells = presetCells(tiles, preset, saved, false, fit, ratio)
   const rows = Math.max(...Object.values(cells).map(c => c.row + c.h))
-  const stepY = Math.max(24, Math.min(stepX * .8, (height - 8) / rows))
+  const stepY = Math.max(24, Math.min(stepX * ratio, (height - 8) / rows))
   const box = (k: string) => ({ ...cells[k], px: cells[k].w * stepX - 8, ratio: (cells[k].w * stepX - 8) / (cells[k].h * stepY - 8) })
   return { cells, rows, fit, box }
 }
@@ -158,7 +159,7 @@ test('a share in Auto comes first and large, with cams in shape under it', () =>
   }
 })
 
-// The phone and a portrait monitor were already right; this pins them to what they were.
+// The phone was already right; this pins it to what it was.
 test('stacked presets are unchanged', () => {
   const flat = (c: Record<string, { col: number; row: number; w: number; h: number }>) =>
     Object.entries(c).map(([k, v]) => `${k.split(':')[1]} ${v.col},${v.row},${v.w},${v.h}`).join(' | ')
@@ -185,4 +186,33 @@ test('a new tile in a custom layout leaves the saved tiles where they were', () 
   assert.deepEqual(cells['n:screen'], saved['n:screen'])
   assert.deepEqual(cells['a:cam'], saved['a:cam'])
   for (const [i, a] of Object.values(cells).entries()) for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a, b))
+})
+
+// A portrait monitor (1080x1920) and the narrowest desktop window with both side panels
+// open (908x640) both have a portrait call stage. They took the phone's path, so cams
+// were 0.92:1 and Focus thumbnails 0.76:1: towers. The desktop now sizes tiles to the
+// stage as it does for a wide window, with the portrait stage's taller rows (1.3 of a
+// column, kept so saved portrait Custom layouts draw as they did). Rows that coarse
+// can't hit 16:9 as closely as .8 rows do, so the band is a little wider.
+// Stages measured in the app at those two window sizes.
+test('a portrait monitor and a narrow desktop window keep cams close to 16:9', () => {
+  const share: TileSpec = { key: 'p9:screen', kind: 'screen' }
+  const pin = { 'p0:cam': { col: 0, row: 0, w: 6, h: 4, pinned: true } }
+  for (const stage of [[532, 1711], [360, 431]]) {
+    const cases: [string, TileSpec[], Record<string, Cell>][] = [
+      ...[1, 2, 3, 4, 6].map((n): [string, TileSpec[], Record<string, Cell>] => [`${n} cams`, cams(n), {}]),
+      ['a share and 3 cams', [share, ...cams(3)], {}], ['a pin and 3 cams', cams(4), pin]]
+    for (const [name, tiles, saved] of cases) for (const preset of ['Auto', 'Even', 'Focus'] as const) {
+      const { cells, rows, fit, box } = render(tiles, preset, stage, saved)
+      const at = `${preset}, ${name}, ${stage.join('x')}`
+      assert(rows <= fit, `${at}: ${rows} rows don't fit in ${fit}`)
+      for (const k of Object.keys(cells)) assert(box(k).ratio > 1.5 && box(k).ratio < 2.2, `${at}: ${k} is ${box(k).ratio.toFixed(2)}:1`)
+      for (const [i, a] of Object.values(cells).entries()) for (const b of Object.values(cells).slice(i + 1)) assert(!overlaps(a, b), at)
+    }
+    // Focus still makes what it focuses on larger than the rest.
+    const focus = render(cams(4), 'Focus', stage, pin)
+    assert(focus.box('p0:cam').px > focus.box('p1:cam').px, `${stage.join('x')}: the pinned cam is the large one`)
+    // A lone cam is as wide as the stage, not a strip and not a tower.
+    assert.equal(render(cams(1), 'Auto', stage).box('p0:cam').w, 12)
+  }
 })
