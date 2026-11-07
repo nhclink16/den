@@ -37,9 +37,8 @@ try {
   const channel = (await cleanup.api('GET', '/channels')).find(c => c.name === 'general')
   await page.goto(`${base}/c/${channel.id}`)
   const field = page.getByRole('textbox', { name: /^Message #?general$/ })
+  // Tap as soon as the button shows: a tap while the room is still loading must count.
   await page.getByRole('button', { name: 'Dictate', exact: true }).waitFor()
-  // A click while the room is still loading is dropped (the button resets once it settles).
-  await page.waitForLoadState('networkidle')
   assert.equal(downloads.length, 0, 'no model download before consent')
   await page.getByRole('button', { name: 'Dictate', exact: true }).click()
   await page.getByRole('button', { name: 'Not now', exact: true }).click()
@@ -52,6 +51,12 @@ try {
   await page.waitForFunction(() => /fellow/i.test(document.querySelector('textarea')?.value || ''), { }, { timeout: 10000 })
   console.log(`Speech entered the composer in ${Date.now() - started} ms after listening began.`)
   assert.match(await field.inputValue(), /^Before .*fellow.* after$/i)
+  // A new message re-renders the room; dictation keeps listening. Posted from Node, so cleanup removes it.
+  const arrived = 'Dictation smoke: a message arrives'
+  assert((await fetch(`${base}/channels/${channel.id}/messages`, { method: 'POST', headers: { authorization: `Bearer ${session.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ content: arrived }) })).ok)
+  await page.locator('article.msg').filter({ hasText: arrived }).waitFor()
+  await page.waitForTimeout(500)
+  assert.equal(await page.locator('.dictate.listening').count(), 1, 'a new message in the room does not stop dictation')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   assert.equal(await page.locator('.dictate.listening').evaluate(e => getComputedStyle(e, '::after').animationName), 'none')
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -107,7 +112,6 @@ try {
     await deniedContext.grantPermissions([], { origin: base })
     const deniedPage = await deniedContext.newPage()
     await deniedPage.goto(`${base}/c/${channel.id}`)
-    await deniedPage.waitForLoadState('networkidle')
     await deniedPage.getByRole('button', { name: 'Dictate', exact: true }).click()
     await deniedPage.getByRole('button', { name: 'Download', exact: true }).click()
     await deniedPage.getByRole('alert').filter({ hasText: 'Den needs the microphone for dictation. Allow it in Settings.' }).waitFor()
@@ -122,5 +126,5 @@ try {
   assert.equal(await other.getByRole('button', { name: 'Dictate', exact: true }).count(), 0)
   await unsupported.close()
   assert.deepEqual(errors, [])
-  console.log('PASS consent, real ASR, caret/partial text, no auto-send or audio upload, Escape/mic release, desktop/mobile layout, offline cached model, punctuation, Remove, denied permission and unsupported browser.')
+  console.log('PASS consent (tapped as the room loads), real ASR, caret/partial text, a new message keeps listening, no auto-send or audio upload, Escape/mic release, desktop/mobile layout, offline cached model, punctuation, Remove, denied permission and unsupported browser.')
 } finally { await cleanup.finish(browser) }

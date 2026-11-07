@@ -22,7 +22,10 @@
     if (phase === 'listening') { phase = 'stopping'; engine?.stop() }
     else { reset(); dialog?.close() }
   }
-  $effect(() => { void channelId; return reset })
+  // Only a real room change stops dictation. `channelId` reads through the parent's channel object, which the
+  // store replaces as the room loads and on every new message; the derived changes only when the id does.
+  const room = $derived(channelId)
+  $effect(() => { void room; return reset })
   $effect(() => { if (!usable && phase !== 'idle') reset() })
   function receive(event: DictationEvent) {
     if (event.type === 'loading') { phase = 'loading'; progress = Math.round(event.progress || 0) }
