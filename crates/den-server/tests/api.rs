@@ -592,6 +592,9 @@ mod terminal_recording;
 #[path = "api/voice_preferences.rs"]
 mod voice_preferences;
 
+#[path = "api/hosts.rs"]
+mod hosts;
+
 #[path = "api/jams.rs"]
 mod jams;
 
