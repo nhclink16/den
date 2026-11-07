@@ -73,6 +73,8 @@ pub(crate) async fn remove(
         "DELETE FROM sessions WHERE user_id=?",
         "DELETE FROM tokens WHERE user_id=?",
         "DELETE FROM devices WHERE user_id=?",
+        // Their bots' tokens are in their hands too. Nobody else can mint new ones.
+        "DELETE FROM tokens WHERE user_id IN (SELECT id FROM users WHERE owner_id=? AND bot=1)",
     ] {
         sqlx::query(sql).bind(&id).execute(&mut *tx).await?;
     }

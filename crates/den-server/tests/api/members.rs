@@ -165,3 +165,67 @@ async fn a_removed_member_is_signed_out_everywhere_but_keeps_their_messages() {
         .unwrap();
     assert!(users.iter().any(|u| u.id == bob.user.id && u.removed));
 }
+
+async fn bot_token(t: &Test, owner: &str, username: &str) -> String {
+    let created: BotCreated = serde_json::from_value(
+        t.post(
+            "/bots",
+            owner,
+            json!({"username":username,"display_name":"Helper"}),
+        )
+        .await,
+    )
+    .unwrap();
+    created.credential.token
+}
+
+// A bot's token sits in its owner's scripts. Removing the owner must not leave
+// them a way back in through it; another member's bot is untouched.
+#[tokio::test]
+async fn removing_a_member_revokes_their_bots_tokens() {
+    let t = Test::new().await;
+    let bob = t.member("bot_owner_bob").await;
+    let carol = t.member("bot_owner_carol").await;
+    let general = t.general().await;
+    let bobs_bot = bot_token(&t, &bob.token, "bobs_helper").await;
+    let carols_bot = bot_token(&t, &carol.token, "carols_helper").await;
+    let posts = |token: &str| {
+        t.req(
+            Method::POST,
+            &format!("/channels/{general}/messages"),
+            token,
+        )
+        .json(&json!({"content":"still posting"}))
+        .send()
+    };
+    assert_eq!(posts(&bobs_bot).await.unwrap().status(), 200);
+
+    let removed = t
+        .req(
+            Method::DELETE,
+            &format!("/users/{}", bob.user.id),
+            &t.admin.token,
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(removed.status(), 200);
+
+    for (method, path) in [
+        (Method::GET, "/users/me"),
+        (Method::GET, &format!("/channels/{general}/messages")),
+        (Method::POST, "/auth/ws-ticket"),
+    ] {
+        assert_eq!(
+            t.req(method, path, &bobs_bot)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            401,
+            "{path}"
+        );
+    }
+    assert_eq!(posts(&bobs_bot).await.unwrap().status(), 401);
+    assert_eq!(posts(&carols_bot).await.unwrap().status(), 200);
+}
