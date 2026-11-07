@@ -48,6 +48,9 @@ pub(crate) async fn permitted(s: &AppState, user: &str, host: &str, control: boo
     let Ok(h) = load(s, host).await else {
         return false;
     };
+    if !auth::active(s, user).await || !auth::active(s, &h.owner_id).await {
+        return false;
+    }
     if h.owner_id == user {
         return true;
     }
@@ -114,6 +117,9 @@ pub(crate) async fn login(
     .fetch_optional(&mut *tx)
     .await?;
     let owner = owner.ok_or_else(Error::unauthorized)?;
+    if !auth::active(&s, &owner).await {
+        return Err(Error::unauthorized());
+    }
     let id = s.id();
     let token = auth::secret();
     sqlx::query("INSERT INTO hosts(id,owner_id,name,token_hash) VALUES(?,?,?,?)")
@@ -175,7 +181,12 @@ pub(crate) async fn authenticate(s: &AppState, headers: &HeaderMap) -> Result<Ho
         .bind(auth::hash(token))
         .fetch_optional(&s.db)
         .await?;
-    load(s, &id.ok_or_else(Error::unauthorized)?).await
+    let host = load(s, &id.ok_or_else(Error::unauthorized)?).await?;
+    // A removed member's machine is signed out with them.
+    if !auth::active(s, &host.owner_id).await {
+        return Err(Error::unauthorized());
+    }
+    Ok(host)
 }
 #[utoipa::path(get,path="/hosts/ws",responses((status=101)))]
 pub(crate) async fn connect(

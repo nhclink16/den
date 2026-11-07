@@ -61,6 +61,20 @@ pub(crate) async fn user(state: &AppState, id: &str) -> Result<User> {
     }
     Ok(user)
 }
+/// Not removed, and for a bot, its owner not removed either. Removal deletes
+/// credentials, but a sign-in or token request already past its checks could
+/// still write a new one, and machines and grants outlive credentials.
+pub(crate) async fn active(s: &AppState, id: &str) -> bool {
+    sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM users u LEFT JOIN users o ON o.id=u.owner_id
+         WHERE u.id=? AND u.removed_at IS NULL AND o.removed_at IS NULL",
+    )
+    .bind(id)
+    .fetch_one(&s.db)
+    .await
+    .unwrap_or(0)
+        == 1
+}
 #[derive(Clone)]
 pub(crate) struct Auth {
     pub user: User,
@@ -76,6 +90,9 @@ impl Auth {
         }
     }
     pub async fn valid(&self, s: &AppState) -> bool {
+        if !active(s, &self.user.id).await {
+            return false;
+        }
         if self.session {
             let time = now();
             sqlx::query_scalar!(
@@ -157,6 +174,9 @@ impl FromRequestParts<AppState> for Auth {
                     return Err(Error::forbidden());
                 }
             }
+            if !active(s, &row.user_id).await {
+                return Err(Error::unauthorized());
+            }
             return Ok(Self {
                 user: user(s, &row.user_id).await?,
                 credential: row.id,
@@ -169,6 +189,9 @@ impl FromRequestParts<AppState> for Auth {
                     .fetch_optional(&s.db)
                     .await?
             {
+                if !active(s, &row.user_id).await {
+                    return Err(Error::unauthorized());
+                }
                 return Ok(Self {
                     user: user(s, &row.user_id).await?,
                     credential: row.id,

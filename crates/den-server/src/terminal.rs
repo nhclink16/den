@@ -5,6 +5,10 @@ use tokio::io::AsyncWriteExt;
 
 pub(crate) async fn load(s: &AppState, id: &str) -> Result<TerminalState> {
     let o = objects::load(s, id).await?;
+    // A canvas may hold a record named "terminal"; only a terminal card is one.
+    if o.summary.kind != "terminal" {
+        return Err(Error::missing());
+    }
     serde_json::from_value(
         o.state
             .get("terminal")

@@ -122,6 +122,35 @@ async fn webhook_rejects_missing_invalid_and_tampered_signatures() {
             .status(),
         401
     );
+    // Every member holds a call token signed with the webhook's own key; it has
+    // no body hash, so it cannot pass as LiveKit. Nor can another key or issuer.
+    let member = t.member("webhook_forger").await;
+    let call = t
+        .post(&format!("/calls/{channel}/token"), &member.token, json!({}))
+        .await;
+    let forged = |key: &str, secret: &str| {
+        AccessToken::with_api_key(key, secret)
+            .with_sha256(&digest)
+            .to_jwt()
+            .unwrap()
+    };
+    for auth in [
+        call["token"].as_str().unwrap().to_string(),
+        forged("test-key", "another-secret-at-least-thirty-two-bytes"),
+        forged("other-key", "test-secret-at-least-thirty-two-bytes"),
+    ] {
+        assert_eq!(
+            t.http
+                .post(format!("{}/livekit/webhook", t.url))
+                .header("authorization", auth)
+                .body(body.clone())
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            401
+        );
+    }
     let mut rx = t.state.events.subscribe();
     assert_eq!(
         t.http

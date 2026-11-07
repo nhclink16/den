@@ -77,6 +77,9 @@ pub(crate) async fn decide(
 ) -> Result<Json<AccessRequest>> {
     let _g = s.writes.lock().await;
     let o = objects::load(&s, &id).await?;
+    if o.summary.kind != "access_request" {
+        return Err(Error::missing());
+    }
     let mut r: AccessRequest =
         serde_json::from_value(o.state.get("request").cloned().ok_or_else(Error::missing)?)
             .map_err(|_| Error::missing())?;

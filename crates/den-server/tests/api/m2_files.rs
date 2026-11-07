@@ -265,3 +265,41 @@ async fn upgrading_m1_indexes_existing_messages_and_mentions() {
     state.db.close().await;
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+// The web folder sits beside the database on a real server too. Encoded `..`
+// must never climb out of it. reqwest normalizes dots itself, so send raw HTTP.
+#[tokio::test]
+async fn the_web_fallback_never_serves_files_outside_its_folder() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let t = Test::new().await;
+    let root = t.dir.join("spa");
+    std::fs::create_dir_all(root.join("assets")).unwrap();
+    std::fs::write(root.join("index.html"), "<!doctype html>").unwrap();
+    let address = t.url.trim_start_matches("http://").to_string();
+    for path in [
+        "/../den.db",
+        "/%2e%2e/den.db",
+        "/..%2fden.db",
+        "/%2e%2e%2fden.db",
+        "/assets/..%2f..%2fden.db",
+        "/assets/%2e%2e/%2e%2e/den.db",
+        "/..%5cden.db",
+    ] {
+        let mut stream = tokio::net::TcpStream::connect(&address).await.unwrap();
+        stream
+            .write_all(
+                format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n")
+                    .as_bytes(),
+            )
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        stream.read_to_end(&mut response).await.unwrap();
+        assert!(
+            !response
+                .windows(b"SQLite format 3".len())
+                .any(|w| w == b"SQLite format 3"),
+            "{path} served the database"
+        );
+    }
+}

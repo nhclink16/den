@@ -750,3 +750,126 @@ async fn restart_retains_answers_and_expiry_closes_only_pending_ringing() {
     .await
     .is_err());
 }
+
+// An invitation belongs to the DM it rang in. Someone in two DMs can't answer,
+// decline, cancel or end it through the other DM's path, and an outsider's call
+// lists never show it.
+#[tokio::test]
+async fn invitations_act_only_on_their_own_dm_and_stay_out_of_outsiders_lists() {
+    let t = Test::with_voice(true).await;
+    let bob = t.member("path_bob").await;
+    let carol = t.member("path_carol").await;
+    let outsider = t.member("path_outsider").await;
+    let first = t
+        .post("/dms", &t.admin.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let first = first["id"].as_str().unwrap();
+    let second = t
+        .post(
+            "/dms",
+            &t.admin.token,
+            json!({"member_ids":[bob.user.id,carol.user.id]}),
+        )
+        .await;
+    let second = second["id"].as_str().unwrap();
+    webhook(
+        &t,
+        first,
+        "participant_joined",
+        &format!("{}:caller", t.admin.user.id),
+        "PA_caller",
+        "RM_first",
+    )
+    .await;
+    let invite = t
+        .post(&format!("/calls/{first}/invite"), &t.admin.token, json!({}))
+        .await;
+    let id = invite["id"].as_str().unwrap();
+    let answer = json!({"invitation_id":id,"answer_id":"6f1c2a43-7f0e-4d38-9a51-0c3e2b7d9e14"});
+    let wrong = format!("/calls/{second}/invite");
+    for (path, token, body) in [
+        (format!("{wrong}/accept"), &bob.token, answer.clone()),
+        (
+            format!("{wrong}/decline"),
+            &bob.token,
+            json!({"from_user_id":t.admin.user.id,"expires_at":invite["expires_at"],"invitation_id":id}),
+        ),
+        (
+            format!("{wrong}/cancel"),
+            &t.admin.token,
+            json!({"invitation_id":id}),
+        ),
+        (
+            format!("{wrong}/end"),
+            &t.admin.token,
+            json!({"invitation_id":id}),
+        ),
+    ] {
+        assert_eq!(
+            t.req(Method::POST, &path, token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            404,
+            "{path}"
+        );
+    }
+
+    let listed: Vec<Value> = t
+        .req(Method::GET, "/calls/invitations", &outsider.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(listed.is_empty());
+    assert_eq!(
+        t.req(
+            Method::GET,
+            &format!("/calls/invitations/{id}"),
+            &outsider.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        404
+    );
+    let calls: Vec<CallState> = t
+        .req(Method::GET, "/calls", &outsider.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(calls.iter().all(|c| c.channel_id != first));
+    let calls: Vec<CallState> = t
+        .req(Method::GET, "/calls", &bob.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(calls
+        .iter()
+        .any(|c| c.channel_id == first && c.participant_ids == vec![t.admin.user.id.clone()]));
+    // Untouched by all of that: Bob can still answer on the right path.
+    assert_eq!(
+        t.req(
+            Method::POST,
+            &format!("/calls/{first}/invite/accept"),
+            &bob.token
+        )
+        .json(&answer)
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        200
+    );
+}

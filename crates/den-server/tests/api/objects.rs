@@ -283,3 +283,61 @@ async fn instance_name_is_public_bounded_and_admin_only() {
     let persisted: Settings = get().send().await.unwrap().json().await.unwrap();
     assert_eq!(persisted, legacy);
 }
+
+async fn presence(t: &Test, token: &str) -> PresenceState {
+    t.req(Method::GET, "/presence", token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap()
+}
+
+// Who has a canvas open is part of the room. The presence snapshot shows it to
+// the DM's members and leaves it out for everyone else.
+#[tokio::test]
+async fn presence_shows_who_has_a_dm_canvas_open_only_to_its_members() {
+    let t = Test::new().await;
+    let alice = t.member("canvas_presence_alice").await;
+    let bob = t.member("canvas_presence_bob").await;
+    let outsider = t.member("canvas_presence_outsider").await;
+    let dm = t
+        .post("/dms", &alice.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let canvas = t
+        .post(
+            &format!("/channels/{}/objects", dm["id"].as_str().unwrap()),
+            &alice.token,
+            json!({"kind":"canvas","name":"Plans","state":{}}),
+        )
+        .await;
+    let id = canvas["id"].as_str().unwrap();
+    let mut open = super::realtime::socket(&t, &alice.token).await;
+    open.send(Frame::Text(
+        json!({"type":"object_open","object_id":id})
+            .to_string()
+            .into(),
+    ))
+    .await
+    .unwrap();
+    let mut seen = false;
+    for _ in 0..100 {
+        if presence(&t, &bob.token)
+            .await
+            .objects
+            .iter()
+            .any(|o| o.id == id && o.user_ids == vec![alice.user.id.clone()])
+        {
+            seen = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(seen, "the DM member never saw the open canvas");
+    assert!(presence(&t, &outsider.token)
+        .await
+        .objects
+        .iter()
+        .all(|o| o.id != id));
+}
