@@ -345,3 +345,64 @@ async fn sound_upload_limits_zip_sharing_and_offline_roundtrip() {
     );
     restored_db.close().await;
 }
+
+// A sound shared in a DM is the DM's. Someone outside it can neither audition
+// nor install it, and the refusal leaves their own sounds alone.
+#[tokio::test]
+async fn sounds_shared_in_a_dm_stay_with_its_members() {
+    let t = Test::new().await;
+    let alice = t.member("dm_sound_alice").await;
+    let bob = t.member("dm_sound_bob").await;
+    let carol = t.member("dm_sound_carol").await;
+    let dm = t
+        .post("/dms", &alice.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let audio = wav(1);
+    let upload = t
+        .post(
+            "/uploads",
+            &alice.token,
+            json!({"channel_id":dm["id"],"filename":"knock.wav","content_type":"audio/wav","size":audio.len()}),
+        )
+        .await;
+    let id = upload["id"].as_str().unwrap();
+    t.req(Method::PATCH, &format!("/uploads/{id}"), &alice.token)
+        .header("upload-offset", "0")
+        .body(audio)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    t.post(&format!("/uploads/{id}/complete"), &alice.token, json!({}))
+        .await;
+    let preview = format!("/uploads/{id}/sounds");
+    assert_eq!(
+        t.req(Method::GET, &preview, &bob.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        200
+    );
+
+    let before = state(&t, &carol.token).await;
+    for (method, path, body) in [
+        (Method::GET, preview.clone(), json!({})),
+        (Method::GET, format!("{preview}/message"), json!({})),
+        (Method::POST, preview.clone(), json!({"event":"message"})),
+    ] {
+        assert_eq!(
+            t.req(method, &path, &carol.token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            404,
+            "{path}"
+        );
+    }
+    assert_eq!(state(&t, &carol.token).await, before);
+    assert!(!t.dir.join("uploads/sounds").join(&carol.user.id).exists());
+}

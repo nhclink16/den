@@ -333,3 +333,44 @@ async fn a_failed_first_track_advances_to_the_next_one() {
     );
     assert_eq!(q.queue[0].title, "Could not load this track");
 }
+
+// Music lives in voice rooms. An outsider asking about a DM must get the same
+// answer as for a room that does not exist, before the "not a voice room" one.
+#[tokio::test]
+async fn music_routes_do_not_confirm_a_dm_to_an_outsider() {
+    let t = Test::new().await;
+    let alice = t.member("music_dm_alice").await;
+    let bob = t.member("music_dm_bob").await;
+    let carol = t.member("music_dm_carol").await;
+    let dm = t
+        .post("/dms", &alice.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let dm = dm["id"].as_str().unwrap();
+    for (method, path, body) in [
+        (Method::GET, format!("/rooms/{dm}/music"), json!({})),
+        (
+            Method::POST,
+            format!("/rooms/{dm}/music/queue"),
+            json!({"url":"https://www.youtube.com/watch?v=aaaaaaaaaaa"}),
+        ),
+        (Method::POST, format!("/rooms/{dm}/music/skip"), json!({})),
+        (
+            Method::POST,
+            format!("/rooms/{dm}/music/pause"),
+            json!({"paused":true}),
+        ),
+    ] {
+        for (token, expected) in [(&bob.token, 400), (&carol.token, 404)] {
+            assert_eq!(
+                t.req(method.clone(), &path, token)
+                    .json(&body)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                expected,
+                "{path}"
+            );
+        }
+    }
+}

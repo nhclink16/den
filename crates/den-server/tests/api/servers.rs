@@ -194,8 +194,24 @@ async fn relay_requires_admin_api_token() {
     cookie
         .headers_mut()
         .insert("Origin", t.url.parse().unwrap());
+    // An admin's bot is a member, and an admin's session secret is a session
+    // whichever header carries it: neither may run a relay.
+    let bot: BotCreated = serde_json::from_value(
+        t.post(
+            "/bots",
+            &t.admin.token,
+            json!({"username":"relay_bot","display_name":"Relay bot"}),
+        )
+        .await,
+    )
+    .unwrap();
     for (request, expected) in [
         (ws_request(&t, "/servers/relay", Some(&member_token)), 403),
+        (ws_request(&t, "/servers/relay", Some(&t.admin.token)), 403),
+        (
+            ws_request(&t, "/servers/relay", Some(&bot.credential.token)),
+            403,
+        ),
         (cookie, 403),
         (ws_request(&t, "/servers/relay", None), 401),
     ] {
