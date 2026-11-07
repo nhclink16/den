@@ -75,11 +75,14 @@ pub(crate) async fn remove(
         "DELETE FROM devices WHERE user_id=?",
         // Their bots' tokens are in their hands too. Nobody else can mint new ones.
         "DELETE FROM tokens WHERE user_id IN (SELECT id FROM users WHERE owner_id=? AND bot=1)",
+        "DELETE FROM host_enrollments WHERE owner_id=?",
     ] {
         sqlx::query(sql).bind(&id).execute(&mut *tx).await?;
     }
     tx.commit().await?;
-    // Open sockets notice the missing session on their next check and close.
+    // Their machines' tokens stop working too (hosts::authenticate); hang up the
+    // ones online now. Open sockets notice the missing session on their next check.
+    hosts::disconnect_owner(&s, &id).await?;
     activities::clear_all(&s, &id);
     let user = auth::user(&s, &id).await?;
     profiles::broadcast(&s, &user);

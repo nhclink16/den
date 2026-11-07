@@ -415,3 +415,77 @@ async fn terminal_output_reaches_only_viewers_and_view_input_never_reaches_the_h
         .await
         .is_empty());
 }
+
+// Removing a member signs out their machines too: the one online is hung up,
+// its token no longer connects, and a pending enrollment code is void.
+#[tokio::test]
+async fn a_removed_members_machine_is_disconnected_and_cannot_return() {
+    let t = Test::new().await;
+    let alice = t.member("removed_host_alice").await;
+    let mut m = machine(&t, &alice.token, "alice-box").await;
+    let pending = t.post("/hosts/enroll", &alice.token, json!({})).await;
+    let code = pending["code"]
+        .as_str()
+        .unwrap()
+        .rsplit_once('#')
+        .unwrap()
+        .1;
+    assert_eq!(
+        status(
+            &t,
+            Method::DELETE,
+            &format!("/users/{}", alice.user.id),
+            &t.admin.token,
+            json!({})
+        )
+        .await,
+        200
+    );
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match m.socket.next().await {
+                None | Some(Ok(Frame::Close(_))) | Some(Err(_)) => break,
+                Some(Ok(Frame::Ping(v))) => {
+                    let _ = m.socket.send(Frame::Pong(v)).await;
+                }
+                _ => {}
+            }
+        }
+    })
+    .await
+    .expect("the removed member's machine stayed connected");
+    assert!(connect_async({
+        let mut request = format!("{}/hosts/ws", t.url.replace("http:", "ws:"))
+            .into_client_request()
+            .unwrap();
+        request.headers_mut().insert(
+            "authorization",
+            format!("Bearer {}", m.token).parse().unwrap(),
+        );
+        request
+    })
+    .await
+    .is_err());
+    assert_eq!(
+        status(
+            &t,
+            Method::POST,
+            "/hosts/direct/check",
+            &m.token,
+            json!({"token":"x","session_id":"y","input":false})
+        )
+        .await,
+        401
+    );
+    assert_eq!(
+        status(
+            &t,
+            Method::POST,
+            "/hosts/login",
+            "",
+            json!({"code":code,"name":"again"})
+        )
+        .await,
+        401
+    );
+}
