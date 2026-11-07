@@ -110,6 +110,7 @@ pub(super) async fn run(s: AppState, host: Host, mut ws: WebSocket) {
             _=tick.tick()=>{
                 let current=s.hosts.connections.lock().await.get(&host.id).map(|c|c.id.clone());
                 if current.as_deref()!=Some(&connection) || seen.elapsed()>Duration::from_secs(45)
+                    || !crate::auth::active(&s,&host.owner_id).await
                     || (!ready && connected_at.elapsed()>Duration::from_secs(5)) {break;}
                 if ws.send(Frame::Ping(vec![].into())).await.is_err(){break;}
             }

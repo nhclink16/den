@@ -48,6 +48,9 @@ pub(crate) async fn permitted(s: &AppState, user: &str, host: &str, control: boo
     let Ok(h) = load(s, host).await else {
         return false;
     };
+    if !auth::active(s, user).await || !auth::active(s, &h.owner_id).await {
+        return false;
+    }
     if h.owner_id == user {
         return true;
     }
@@ -114,6 +117,9 @@ pub(crate) async fn login(
     .fetch_optional(&mut *tx)
     .await?;
     let owner = owner.ok_or_else(Error::unauthorized)?;
+    if !auth::active(&s, &owner).await {
+        return Err(Error::unauthorized());
+    }
     let id = s.id();
     let token = auth::secret();
     sqlx::query("INSERT INTO hosts(id,owner_id,name,token_hash) VALUES(?,?,?,?)")
@@ -171,27 +177,16 @@ pub(crate) async fn authenticate(s: &AppState, headers: &HeaderMap) -> Result<Ho
         .and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "))
         .ok_or_else(Error::unauthorized)?;
-    // A removed member's machine is signed out with them.
-    let id: Option<String> = sqlx::query_scalar(
-        "SELECT h.id FROM hosts h JOIN users u ON u.id=h.owner_id WHERE h.token_hash=? AND u.removed_at IS NULL",
-    )
-    .bind(auth::hash(token))
-    .fetch_optional(&s.db)
-    .await?;
-    load(s, &id.ok_or_else(Error::unauthorized)?).await
-}
-/// Hang up every machine this person owns. Each connection loop sees its entry
-/// gone on its next tick and closes.
-pub(crate) async fn disconnect_owner(s: &AppState, owner: &str) -> Result<()> {
-    let ids = sqlx::query_scalar::<_, String>("SELECT id FROM hosts WHERE owner_id=?")
-        .bind(owner)
-        .fetch_all(&s.db)
+    let id: Option<String> = sqlx::query_scalar("SELECT id FROM hosts WHERE token_hash=?")
+        .bind(auth::hash(token))
+        .fetch_optional(&s.db)
         .await?;
-    let mut connections = s.hosts.connections.lock().await;
-    for id in ids {
-        connections.remove(&id);
+    let host = load(s, &id.ok_or_else(Error::unauthorized)?).await?;
+    // A removed member's machine is signed out with them.
+    if !auth::active(s, &host.owner_id).await {
+        return Err(Error::unauthorized());
     }
-    Ok(())
+    Ok(host)
 }
 #[utoipa::path(get,path="/hosts/ws",responses((status=101)))]
 pub(crate) async fn connect(

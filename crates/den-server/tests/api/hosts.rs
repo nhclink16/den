@@ -416,13 +416,68 @@ async fn terminal_output_reaches_only_viewers_and_view_input_never_reaches_the_h
         .is_empty());
 }
 
-// Removing a member signs out their machines too: the one online is hung up,
-// its token no longer connects, and a pending enrollment code is void.
+async fn hung_up(socket: &mut Socket) -> bool {
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match socket.next().await {
+                None | Some(Ok(Frame::Close(_))) | Some(Err(_)) => break,
+                Some(Ok(Frame::Ping(v))) => {
+                    let _ = socket.send(Frame::Pong(v)).await;
+                }
+                _ => {}
+            }
+        }
+    })
+    .await
+    .is_ok()
+}
+async fn direct_check(t: &Test, host_token: &str, direct: &str, session: &str, input: bool) -> u16 {
+    status(
+        t,
+        Method::POST,
+        "/hosts/direct/check",
+        host_token,
+        json!({"token":direct,"session_id":session,"input":input}),
+    )
+    .await
+}
+
+// Removing a member signs out their machines too, including one enrolled with
+// their bot's token: the machine online is hung up, its token no longer
+// connects or vouches for direct connections, and a pending code is void.
 #[tokio::test]
-async fn a_removed_members_machine_is_disconnected_and_cannot_return() {
+async fn a_removed_members_machines_are_disconnected_and_cannot_return() {
     let t = Test::new().await;
     let alice = t.member("removed_host_alice").await;
+    let bot: BotCreated = serde_json::from_value(
+        t.post(
+            "/bots",
+            &alice.token,
+            json!({"username":"removed_host_bot","display_name":"Runner"}),
+        )
+        .await,
+    )
+    .unwrap();
     let mut m = machine(&t, &alice.token, "alice-box").await;
+    let mut runner = machine(&t, &bot.credential.token, "bot-box").await;
+    let general = t.general().await;
+    let session = t
+        .post(
+            &format!("/hosts/{}/sessions", m.id),
+            &alice.token,
+            json!({"channel_id":general}),
+        )
+        .await;
+    let sid = session["id"].as_str().unwrap();
+    let direct = t
+        .post(
+            &format!("/sessions/{sid}/direct-token"),
+            &alice.token,
+            json!({}),
+        )
+        .await;
+    let direct = direct["token"].as_str().unwrap();
+    assert_eq!(direct_check(&t, &m.token, direct, sid, true).await, 200);
     let pending = t.post("/hosts/enroll", &alice.token, json!({})).await;
     let code = pending["code"]
         .as_str()
@@ -430,6 +485,16 @@ async fn a_removed_members_machine_is_disconnected_and_cannot_return() {
         .rsplit_once('#')
         .unwrap()
         .1;
+    let bot_pending = t
+        .post("/hosts/enroll", &bot.credential.token, json!({}))
+        .await;
+    let bot_code = bot_pending["code"]
+        .as_str()
+        .unwrap()
+        .rsplit_once('#')
+        .unwrap()
+        .1;
+
     assert_eq!(
         status(
             &t,
@@ -441,53 +506,77 @@ async fn a_removed_members_machine_is_disconnected_and_cannot_return() {
         .await,
         200
     );
-    tokio::time::timeout(Duration::from_secs(3), async {
-        loop {
-            match m.socket.next().await {
-                None | Some(Ok(Frame::Close(_))) | Some(Err(_)) => break,
-                Some(Ok(Frame::Ping(v))) => {
-                    let _ = m.socket.send(Frame::Pong(v)).await;
-                }
-                _ => {}
-            }
-        }
-    })
-    .await
-    .expect("the removed member's machine stayed connected");
-    assert!(connect_async({
-        let mut request = format!("{}/hosts/ws", t.url.replace("http:", "ws:"))
-            .into_client_request()
-            .unwrap();
-        request.headers_mut().insert(
-            "authorization",
-            format!("Bearer {}", m.token).parse().unwrap(),
+    assert!(hung_up(&mut m.socket).await, "her machine stayed connected");
+    assert!(
+        hung_up(&mut runner.socket).await,
+        "her bot's machine stayed connected"
+    );
+    for token in [&m.token, &runner.token] {
+        assert!(host_socket(&t, token).await.is_none());
+    }
+    assert_eq!(direct_check(&t, &m.token, direct, sid, true).await, 401);
+    for code in [code, bot_code] {
+        assert_eq!(
+            status(
+                &t,
+                Method::POST,
+                "/hosts/login",
+                "",
+                json!({"code":code,"name":"again"})
+            )
+            .await,
+            401
         );
-        request
-    })
-    .await
-    .is_err());
+    }
+}
+
+// A grantee who is removed loses the machine at once, not when a 60-second
+// direct token runs out or when someone remembers to revoke their grant.
+#[tokio::test]
+async fn a_removed_grantee_loses_direct_access_at_once() {
+    let t = Test::new().await;
+    let alice = t.member("grant_owner_alice").await;
+    let bob = t.member("grant_removed_bob").await;
+    let m = machine(&t, &alice.token, "alice-box").await;
+    let general = t.general().await;
+    let session = t
+        .post(
+            &format!("/hosts/{}/sessions", m.id),
+            &alice.token,
+            json!({"channel_id":general}),
+        )
+        .await;
+    let sid = session["id"].as_str().unwrap();
+    grant(&t, &m.id, &bob.token, &alice.token, "terminal_control").await;
+    t.post(
+        &format!("/sessions/{sid}/controller"),
+        &alice.token,
+        json!({"user_id":bob.user.id}),
+    )
+    .await;
+    let direct = t
+        .post(
+            &format!("/sessions/{sid}/direct-token"),
+            &bob.token,
+            json!({}),
+        )
+        .await;
+    let direct = direct["token"].as_str().unwrap();
+    assert_eq!(direct_check(&t, &m.token, direct, sid, true).await, 200);
     assert_eq!(
         status(
             &t,
-            Method::POST,
-            "/hosts/direct/check",
-            &m.token,
-            json!({"token":"x","session_id":"y","input":false})
+            Method::DELETE,
+            &format!("/users/{}", bob.user.id),
+            &t.admin.token,
+            json!({})
         )
         .await,
-        401
+        200
     );
-    assert_eq!(
-        status(
-            &t,
-            Method::POST,
-            "/hosts/login",
-            "",
-            json!({"code":code,"name":"again"})
-        )
-        .await,
-        401
-    );
+    for input in [true, false] {
+        assert_eq!(direct_check(&t, &m.token, direct, sid, input).await, 403);
+    }
 }
 
 // A canvas can hold any records, including ones named "terminal" or "request".

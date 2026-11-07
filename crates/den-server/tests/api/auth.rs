@@ -420,3 +420,81 @@ async fn tokens_stay_with_their_owner_and_bots_never_act_as_admins() {
         401
     );
 }
+
+// Removal deletes credentials, but a sign-in or token request already past its
+// checks can still write one a moment later. Such a credential must not work:
+// a removed member's own, or one for a bot they own.
+#[tokio::test]
+async fn a_credential_written_after_removal_does_not_sign_anyone_in() {
+    use sha2::{Digest, Sha256};
+    let t = Test::new().await;
+    let bob = t.member("late_bob").await;
+    let bot: BotCreated = serde_json::from_value(
+        t.post(
+            "/bots",
+            &bob.token,
+            json!({"username":"late_bot","display_name":"Late"}),
+        )
+        .await,
+    )
+    .unwrap();
+    assert_eq!(
+        t.req(
+            Method::DELETE,
+            &format!("/users/{}", bob.user.id),
+            &t.admin.token
+        )
+        .send()
+        .await
+        .unwrap()
+        .status(),
+        200
+    );
+    let digest = |secret: &str| format!("{:x}", Sha256::digest(secret.as_bytes()));
+    sqlx::query("INSERT INTO sessions(id,user_id,secret_hash,csrf_hash,expires_at) VALUES('late-session',?,?,?,?)")
+        .bind(&bob.user.id)
+        .bind(digest("late-session-secret"))
+        .bind(digest("late-csrf"))
+        .bind(i64::MAX)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    for (id, user, secret) in [
+        ("late-token", &bob.user.id, "late-token-secret"),
+        ("late-bot-token", &bot.user.id, "late-bot-secret"),
+    ] {
+        sqlx::query("INSERT INTO tokens(id,user_id,name,secret_hash) VALUES(?,?,'late',?)")
+            .bind(id)
+            .bind(user)
+            .bind(digest(secret))
+            .execute(&t.state.db)
+            .await
+            .unwrap();
+    }
+    for secret in [
+        "late-session-secret",
+        "late-token-secret",
+        "late-bot-secret",
+    ] {
+        for (method, path) in [
+            (Method::GET, "/users/me"),
+            (Method::POST, "/auth/ws-ticket"),
+        ] {
+            assert_eq!(
+                t.req(method, path, secret).send().await.unwrap().status(),
+                401,
+                "{path}"
+            );
+        }
+    }
+    assert_eq!(
+        t.http
+            .get(format!("{}/users/me", t.url))
+            .header("Cookie", "den_session=late-session-secret")
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+}
