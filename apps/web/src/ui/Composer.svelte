@@ -469,7 +469,7 @@
       <span class="picker" class:tucked={phone}><GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked} bind:open={gifOpen}><span class="icon-btn"><span class="badge">GIF</span></span></GifPicker></span>
       <span class="picker" class:tucked={phone}><EmojiPicker label="Add an emoji" onpick={insertEmoji} bind:open={emojiOpen}><span class="icon-btn"><Icon name="smile" size={18} /></span></EmojiPicker></span>
       <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
-      <DictationButton bind:this={dictation} channelId={channel.id} textarea={() => ta} text={() => text} bind:listening bind:available={canDictate} hidden={!showMic} update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
+      <DictationButton bind:this={dictation} conversation={conversationKey(here)} textarea={() => ta} text={() => text} bind:listening bind:available={canDictate} hidden={!showMic} update={(value, caret) => { setText(value); requestAnimationFrame(() => { grow(); ta?.setSelectionRange(caret, caret) }) }} />
       {#if showSend}<button class="sendbtn icon-btn" class:ready={staged} onclick={submit} disabled={!!locked || busy} title={locked ?? 'Send (Enter)'} aria-label="Send"><Icon name="up" size={18} /></button>{/if}
     </div>
   </div>

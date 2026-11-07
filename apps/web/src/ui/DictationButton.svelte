@@ -6,7 +6,7 @@
   import type { DictationDraft } from '../lib/dictation-draft'
   // `hidden` hides only the button: the dictation it started keeps running and
   // its notices still show. `available` tells the composer whether to offer it.
-  let { textarea, text, update, listening = $bindable(false), available = $bindable(false), hidden = false, channelId }: { textarea: () => HTMLTextAreaElement; text: () => string; update: (value: string, caret: number) => void; listening?: boolean; available?: boolean; hidden?: boolean; channelId: string } = $props()
+  let { textarea, text, update, listening = $bindable(false), available = $bindable(false), hidden = false, conversation }: { textarea: () => HTMLTextAreaElement; text: () => string; update: (value: string, caret: number) => void; listening?: boolean; available?: boolean; hidden?: boolean; conversation: string } = $props()
   let supported = $state(false), phase = $state('idle'), error = $state(''), progress = $state(0)
   let button = $state<HTMLButtonElement>(), dialog: HTMLDialogElement
   let engine: Dictation | undefined, draft: DictationDraft | undefined, lastApplied = ''
@@ -22,10 +22,11 @@
     if (phase === 'listening') { phase = 'stopping'; engine?.stop() }
     else { reset(); dialog?.close() }
   }
-  // Only a real room change stops dictation. `channelId` reads through the parent's channel object, which the
-  // store replaces as the room loads and on every new message; the derived changes only when the id does.
-  const room = $derived(channelId)
-  $effect(() => { void room; return reset })
+  // Only moving to another room or thread stops dictation. `conversation` (its key) reads through the parent's
+  // channel object, which the store replaces as the room loads and on every new message; the derived changes
+  // only when the key does.
+  const key = $derived(conversation)
+  $effect(() => { void key; return reset })
   $effect(() => { if (!usable && phase !== 'idle') reset() })
   function receive(event: DictationEvent) {
     if (event.type === 'loading') { phase = 'loading'; progress = Math.round(event.progress || 0) }
