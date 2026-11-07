@@ -393,3 +393,96 @@ async fn only_admins_set_and_clear_a_room_icon() {
     );
     assert_eq!(listed(alice.token.clone()).await, Value::Null);
 }
+
+// Admins moderate rooms. A DM they are not in is not theirs to read or change:
+// every admin path answers as if it did not exist, and nothing in it moves.
+#[tokio::test]
+async fn admin_powers_stop_at_a_dm_they_are_not_in() {
+    let t = Test::new().await;
+    let a = &t.admin.token;
+    let alice = t.member("dm_alice").await;
+    let bob = t.member("dm_bob").await;
+    let dm = t
+        .post("/dms", &alice.token, json!({"member_ids":[bob.user.id]}))
+        .await;
+    let dm = dm["id"].as_str().unwrap();
+    let message = t
+        .post(
+            &format!("/channels/{dm}/messages"),
+            &alice.token,
+            json!({"content":"between us"}),
+        )
+        .await;
+    let mid = message["id"].as_str().unwrap();
+    let upload = t
+        .post(
+            "/uploads",
+            &alice.token,
+            json!({"channel_id":dm,"filename":"note.png","content_type":"image/png","size":5}),
+        )
+        .await;
+    let uid = upload["id"].as_str().unwrap();
+    let chunk = t
+        .req(Method::PATCH, &format!("/uploads/{uid}"), &alice.token)
+        .header("Upload-Offset", 0)
+        .body("01234")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(chunk.status(), 200);
+    t.post(&format!("/uploads/{uid}/complete"), &alice.token, json!({}))
+        .await;
+
+    for (method, path, body) in [
+        (
+            Method::PATCH,
+            format!("/messages/{mid}"),
+            json!({"content":"moderated"}),
+        ),
+        (Method::DELETE, format!("/messages/{mid}"), json!({})),
+        (Method::DELETE, format!("/uploads/{uid}"), json!({})),
+        (Method::GET, format!("/uploads/{uid}/file"), json!({})),
+        (
+            Method::PUT,
+            format!("/channels/{dm}"),
+            json!({"name":"mine","position":0}),
+        ),
+        (
+            Method::PUT,
+            format!("/channels/{dm}/icon"),
+            json!({"icon":"flame"}),
+        ),
+    ] {
+        assert_eq!(
+            t.req(method, &path, a)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            404,
+            "{path}"
+        );
+    }
+    // Deleting rooms is idempotent, so the answer says nothing; the DM stays.
+    t.req(Method::DELETE, &format!("/channels/{dm}"), a)
+        .send()
+        .await
+        .unwrap();
+    let kept: Vec<Message> = t
+        .req(Method::GET, &format!("/channels/{dm}/messages"), &bob.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].content, "between us");
+    let file = t
+        .req(Method::GET, &format!("/uploads/{uid}/file"), &bob.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(file.status(), 200);
+}
