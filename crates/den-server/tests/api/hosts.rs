@@ -489,3 +489,70 @@ async fn a_removed_members_machine_is_disconnected_and_cannot_return() {
         401
     );
 }
+
+// A canvas can hold any records, including ones named "terminal" or "request".
+// That must not make it a terminal or an access request on the routes that
+// trust those cards' fields.
+#[tokio::test]
+async fn a_canvas_cannot_pose_as_a_terminal_or_an_access_request() {
+    let t = Test::new().await;
+    let alice = t.member("canvas_alice").await;
+    let mallory = t.member("canvas_mallory").await;
+    let m = machine(&t, &alice.token, "alice-box").await;
+    let general = t.general().await;
+    let terminal = json!({
+        "id":"terminal","host_id":m.id,"host_name":"alice-box","owner_id":mallory.user.id,
+        "cols":80,"rows":24,"active_controller_id":mallory.user.id,"viewer_ids":[],
+        "ended_at":null,"started_at":0,"recording_upload_id":null,"recording_enabled":false,
+        "recording_capped":false,"control_request_ids":[]
+    });
+    let request = json!({
+        "id":"request","host_id":m.id,"host_name":"alice-box","owner_id":alice.user.id,
+        "requester_id":mallory.user.id,"capability":"terminal_control","duration_minutes":null,
+        "standing":true,"status":"pending","expires_at":4102444800i64,"grant_id":null
+    });
+    let canvas = t
+        .post(
+            &format!("/channels/{general}/objects"),
+            &mallory.token,
+            json!({"kind":"canvas","name":"Totally a terminal","state":{"terminal":terminal,"request":request}}),
+        )
+        .await;
+    let fake = canvas["id"].as_str().unwrap();
+    for (method, path, token, body) in [
+        (
+            Method::POST,
+            format!("/sessions/{fake}/controller"),
+            &mallory.token,
+            json!({"user_id":null}),
+        ),
+        (
+            Method::POST,
+            format!("/sessions/{fake}/recording"),
+            &mallory.token,
+            json!({"enabled":true}),
+        ),
+        (
+            Method::DELETE,
+            format!("/sessions/{fake}"),
+            &mallory.token,
+            json!({}),
+        ),
+        (
+            Method::POST,
+            format!("/requests/{fake}/decide"),
+            &alice.token,
+            json!({"allow":true}),
+        ),
+    ] {
+        assert_eq!(
+            status(&t, method.clone(), &path, token, body).await,
+            404,
+            "{method} {path}"
+        );
+    }
+    let log: Vec<AccessLog> = get(&t, "/access/log", &alice.token).await;
+    assert!(log.iter().all(|l| l.actor_id != mallory.user.id));
+    let grants: Vec<Grant> = get(&t, "/grants", &alice.token).await;
+    assert!(grants.is_empty());
+}
