@@ -404,3 +404,88 @@ async fn profile_images_preserve_gifs_enforce_ownership_and_roundtrip_archives()
     task.abort();
     state.db.close().await;
 }
+
+// Someone else's pictures are an admin's to tidy or a bot owner's to set. A
+// member can't touch another person's, and owning a bot is enough without
+// being an admin.
+#[tokio::test]
+async fn members_change_only_their_own_and_their_bots_pictures() {
+    let t = Test::new().await;
+    let alice = t.member("picture_alice").await;
+    let bob = t.member("picture_bob").await;
+    let picture = png(20, 20);
+    for kind in ["avatar", "banner"] {
+        let r = t
+            .req(Method::PUT, &format!("/users/me/{kind}"), &alice.token)
+            .header("Content-Type", "image/png")
+            .body(picture.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), 200);
+    }
+    let before: User = t
+        .req(Method::GET, "/users/me", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    for kind in ["avatar", "banner"] {
+        let path = format!("/users/{}/{kind}", alice.user.id);
+        let put = t
+            .req(Method::PUT, &path, &bob.token)
+            .header("Content-Type", "image/png")
+            .body(png(30, 30))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(put.status(), 403, "PUT {path}");
+        let delete = t
+            .req(Method::DELETE, &path, &bob.token)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(delete.status(), 403, "DELETE {path}");
+        let missing = t
+            .req(Method::DELETE, &format!("/users/nobody/{kind}"), &bob.token)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), 404);
+    }
+    let after: User = t
+        .req(Method::GET, "/users/me", &alice.token)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(after.avatar_url, before.avatar_url);
+    assert_eq!(after.banner_url, before.banner_url);
+
+    let bot = t
+        .post(
+            "/bots",
+            &bob.token,
+            json!({"username":"bobs_picture_bot","display_name":"Bob's bot"}),
+        )
+        .await;
+    let bot_path = format!("/users/{}/avatar", bot["user"]["id"].as_str().unwrap());
+    let own = t
+        .req(Method::PUT, &bot_path, &bob.token)
+        .header("Content-Type", "image/png")
+        .body(picture.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(own.status(), 200);
+    let other = t
+        .req(Method::DELETE, &bot_path, &alice.token)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(other.status(), 403);
+}

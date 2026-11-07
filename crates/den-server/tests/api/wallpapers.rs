@@ -89,6 +89,20 @@ async fn past_uploads_stay_in_a_private_library_with_previews() {
         .await
         .unwrap();
     assert_eq!(peek.status(), 404);
+    for (method, path) in [
+        (
+            Method::GET,
+            format!("/users/me/backgrounds/{}/preview", second.id),
+        ),
+        (
+            Method::DELETE,
+            format!("/users/me/backgrounds/{}", second.id),
+        ),
+    ] {
+        let r = t.req(method, &path, &bob.token).send().await.unwrap();
+        assert_eq!(r.status(), 404, "{path}");
+    }
+    assert_eq!(library(&t, &alice.token).await.len(), 2);
     for bad in ["../../den.db", "not-a-hash"] {
         let r = t
             .req(
