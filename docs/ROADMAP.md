@@ -83,7 +83,7 @@ These three items are complete; acceptance is recorded in [M8 notes](M8-NOTES.md
 Shared theme schema in den-core, nine built-in themes, fonts, radius, density, a live editor with export and import, synced per user. Done before the desktop and iOS apps so they consume the same JSON.
 
 ## Dictation (started 2026-09-14, brief in `docs/DICTATION-BRIEF.md`)
-On-device speech to text in the composer: iOS 26 SpeechAnalyzer on the phone, Whisper in WebAssembly on web and desktop. Audio never leaves the device.
+The current web, Electron and Den Shell clients share on-device Whisper (WebGPU when available, WebAssembly otherwise); audio never leaves the device. The iOS 26 SpeechAnalyzer path in the original brief belongs to the retired native app in `apps/ios`, not Den Shell.
 
 ## Shipped since 2026-09-24 (desktop 0.3.2)
 Electron replaced Tauri for the desktop app (0.3.0 was the first Electron release; 0.3.2 is the first one whose updates the app can actually verify). Also shipped:
