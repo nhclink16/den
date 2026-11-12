@@ -239,3 +239,105 @@ test('a quote survives edits and only an explicit clear removes it', () => {
   owner.setReplyTo(here, null)
   assert.equal(owner.for(here).replyToId, null)
 })
+
+// --- Dictation follows a conversation, not its replaced channel object -------
+// Run the component's real script through Svelte's compiler and reactive runtime.
+// There is no DOM, microphone, model download or server. The engine is a fake;
+// the test-only exports let us run the real start/reset code and observe cleanup.
+
+async function dictationConversation() {
+  const { readFileSync } = await import('node:fs')
+  const { createRequire } = await import('node:module')
+  const { runInNewContext } = await import('node:vm')
+  const require = createRequire(import.meta.url)
+  const { compile } = require('../apps/web/node_modules/svelte/compiler')
+  const ts = require('../apps/web/node_modules/typescript')
+  const $ = await import('../apps/web/node_modules/svelte/src/internal/client/index.js')
+  const source = readFileSync(new URL('../apps/web/src/ui/DictationButton.svelte', import.meta.url), 'utf8')
+  const composer = readFileSync(new URL('../apps/web/src/ui/Composer.svelte', import.meta.url), 'utf8')
+  const binding = composer.match(/<DictationButton\b[^>]*\bconversation=\{([^}]+)\}/)
+  assert.ok(binding, 'Composer must give dictation its conversation identity')
+  const keyFor = new Function('conversationKey', 'here', `return (${binding[1]})`)
+  const script = source.match(/<script lang="ts">([\s\S]*?)<\/script>/)![1]
+  const compiled = compile(`<script lang="ts">${script}
+    export function prepareTest(Engine) {
+      supported = true;
+      modules = [{ Dictation: Engine }, { DictationDraft: class {} }];
+      dialog = { close() {} };
+    }
+    export { start };
+    export function stateTest() { return { listening, phase, error }; }
+  </script>`, { filename: 'DictationButton.svelte', generate: 'client' }).js.code
+  const exports: Record<string, any> = {}
+  const modules: Record<string, unknown> = {
+    'svelte/internal/disclose-version': {}, 'svelte/internal/client': $,
+    svelte: { onMount() {} }, // Browser event listeners are outside this fixture.
+    '../lib/call.svelte': { call: { channel: null, joining: false, prefs: { microphone: '' } } },
+    './Icon.svelte': {},
+  }
+  runInNewContext(ts.transpileModule(compiled, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    exports, require: (name: string) => { assert.ok(name in modules, name); return modules[name] },
+    localStorage: { getItem: () => null },
+  })
+  const selected = $.state({ id: 'room', root: null as string | null })
+  const engines: { disposed: number; emit: (event: object) => void }[] = []
+  class Engine {
+    disposed = 0
+    emit: (event: object) => void
+    constructor(emit: (event: object) => void) { this.emit = emit; engines.push(this) }
+    async start() { this.emit({ type: 'listening' }) }
+    dispose() { this.disposed++ }
+  }
+  let component: any
+  const destroy = $.effect_root(() => {
+    component = exports.default(null, {
+      // The parent reads through an object that the store replaces when a
+      // message arrives, even though its room/thread identity stays the same.
+      get conversation() { const value = $.get(selected); return keyFor(conversationKey, c(value.id, value.root)) },
+      text: () => 'existing draft', textarea: () => ({ focus() {} }), update() {},
+    })
+    component.prepareTest(Engine)
+  })
+  $.flush()
+  return {
+    engines, state: () => component.stateTest(), destroy,
+    async start() { await component.start(); $.flush() },
+    select(id: string, root: string | null = null) { $.set(selected, { id, root }); $.flush() },
+  }
+}
+
+test('dictation survives channel-object replacement but stops when its room changes', async () => {
+  const d = await dictationConversation()
+  try {
+    await d.start()
+    assert.equal(d.state().listening, true)
+    d.select('room') // new object, same identity, as when the room loads or receives a message
+    d.select('room')
+    assert.equal(d.engines[0].disposed, 0, 'a room refresh disposed the running microphone')
+    assert.equal(d.state().listening, true)
+    d.select('other-room')
+    assert.equal(d.engines[0].disposed, 1)
+    assert.equal(d.state().listening, false)
+  } finally { d.destroy() }
+})
+
+test('dictation ends on a thread switch and ignores the previous engine after restarting', async () => {
+  const d = await dictationConversation()
+  try {
+    await d.start()
+    for (const root of ['thread-a', 'thread-b', null]) {
+      const previous = d.engines.at(-1)!
+      d.select('room', root)
+      assert.equal(previous.disposed, 1, 'the previous conversation kept its microphone')
+      assert.equal(d.state().listening, false)
+      await d.start()
+      previous.emit({ type: 'error', message: 'late error from the old conversation' })
+      assert.equal(d.state().listening, true)
+      assert.equal(d.state().phase, 'listening')
+      assert.equal(d.state().error, '')
+    }
+  } finally { d.destroy() }
+  assert.ok(d.engines.every(engine => engine.disposed === 1), 'unmount must dispose the last engine too')
+})
