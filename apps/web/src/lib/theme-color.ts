@@ -56,6 +56,12 @@ export function deriveHalf(source: ThemeColors): ThemeColors {
   for (const role of ['accent','success','danger'] as const) out[role]=readable(source[role],[out.bg])
   return out
 }
+/** What is written on the accent (your own bubbles, badges, lit buttons): whichever
+ *  of the theme's page and text colours reads better on it. Built-in accents read
+ *  on the page, so they get the page colour; a custom theme's pale accent gets its ink. */
+export function onLamp(c: Pick<ThemeColors, 'bg' | 'ink'>, accent: string): string {
+  return contrast(c.bg, accent) >= contrast(c.ink, accent) ? c.bg : c.ink
+}
 /** Controls need a stronger edge than the hairline used between panels. */
 export function controlBorder(colors: ThemeColors): string {
   const surfaces = [colors.bg, colors.bg2, colors.bg3]

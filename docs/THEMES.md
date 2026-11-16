@@ -158,21 +158,21 @@ own font (SF on Apple devices, Segoe UI on Windows; `fontStack` in
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | neutral | light | #ffffff | #f4f4f5 | #e9e9ec | #d9d9de | #18181b | #52525b | #686871 | #1d63d8 | #137333 | #c81e1e |
 | neutral | dark | #161618 | #1d1d20 | #28282c | #38383d | #ededef | #a8a8b0 | #909099 | #5b9dff | #45c46e | #f26b6b |
-| den | light | #f4efe6 | #ebe5da | #e2dbcd | #d3cabb | #26221c | #5e564a | #6b645a | #965f17 | #5f7f4a | #b8462a |
+| den | light | #f4efe6 | #ebe5da | #e2dbcd | #d3cabb | #26221c | #5e564a | #6b645a | #854f00 | #5f7f4a | #b8462a |
 | den | dark | #1b1916 | #232019 | #2c2821 | #3a3429 | #ece5d8 | #a89f8f | #908675 | #e8a44a | #8da874 | #d2623e |
-| moss | light | #f3f6ef | #e9eee3 | #dfe6d6 | #cdd6c3 | #1f261d | #55604f | #636c5e | #467a25 | #3f8a4a | #c2552f |
+| moss | light | #f3f6ef | #e9eee3 | #dfe6d6 | #cdd6c3 | #1f261d | #55604f | #636c5e | #396c14 | #3f8a4a | #c2552f |
 | moss | dark | #151a15 | #1b221b | #232c23 | #2f3a2f | #e4ead9 | #a3ad98 | #808a79 | #9ccf6f | #7fbf8a | #d9694f |
-| tide | light | #f1f6f7 | #e6eef0 | #dae5e8 | #c6d4d8 | #15252b | #4d6068 | #5d6c72 | #1a7a71 | #2f8f5b | #d0533f |
+| tide | light | #f1f6f7 | #e6eef0 | #dae5e8 | #c6d4d8 | #15252b | #4d6068 | #5d6c72 | #006c64 | #2f8f5b | #d0533f |
 | tide | dark | #0f1518 | #151d21 | #1c272c | #27353c | #dfe8ec | #98a9b1 | #768891 | #5fd3c6 | #7fd39a | #e26d5c |
-| ember | light | #faf3f1 | #f3e9e6 | #ebdedb | #dcc9c4 | #2a1c19 | #6a544f | #7a6661 | #bf4722 | #4f8f4a | #c8284a |
+| ember | light | #faf3f1 | #f3e9e6 | #ebdedb | #dcc9c4 | #2a1c19 | #6a544f | #7a6661 | #ab3409 | #4f8f4a | #c8284a |
 | ember | dark | #191313 | #211919 | #2b2020 | #3a2b2b | #f0e4e0 | #b09c97 | #927e7a | #f4845f | #8fc48a | #ff4d6d |
 | iris | light | #f6f4fb | #eeeaf7 | #e4dff1 | #d2cbe4 | #1f1a2e | #5b5470 | #6e6683 | #6d4de0 | #3f8f5a | #d0405f |
 | iris | dark | #14121b | #1a1724 | #231f2f | #302a40 | #ebe6f5 | #a89fbd | #877e99 | #b48cff | #8fd39a | #ff6b8a |
-| paper | light | #fafaf7 | #f2f1ec | #e9e8e1 | #dad9d1 | #1f1f1d | #5c5c57 | #6c6c66 | #2669ec | #2f8f5b | #d6453d |
+| paper | light | #fafaf7 | #f2f1ec | #e9e8e1 | #dad9d1 | #1f1f1d | #5c5c57 | #6c6c66 | #1558da | #2f8f5b | #d6453d |
 | paper | dark | #1a1a19 | #222221 | #2b2b29 | #393937 | #eeeeea | #a6a6a0 | #898982 | #6f95ff | #5fbf85 | #f0655c |
 | slate | light | #f6f7f9 | #eef0f3 | #e4e7ec | #d3d7de | #16171b | #565a63 | #686c74 | #4f57e6 | #2e9a62 | #d84545 |
 | slate | dark | #111214 | #17181b | #1f2024 | #2a2c31 | #e6e7ea | #9a9ca3 | #7f828a | #8b93ff | #6fcf97 | #f26b6b |
-| terminal | light | #ffffff | #f4f4f4 | #e8e8e8 | #cfcfcf | #111111 | #555555 | #707070 | #09852c | #1f8a4c | #d11a1a |
+| terminal | light | #ffffff | #f4f4f4 | #e8e8e8 | #cfcfcf | #111111 | #555555 | #707070 | #007419 | #1f8a4c | #d11a1a |
 | terminal | dark | #000000 | #0a0a0a | #141414 | #262626 | #d0d0d0 | #8a8a8a | #797979 | #33ff66 | #5fd38d | #ff5555 |
 
 | Family | Display / body / mono | Radius | Density |
@@ -208,7 +208,7 @@ A colour that already passes is used as is; if none passes, black or white. The
 theme's own accent is never adjusted: its author checked it.
 
 `scripts/m9-contrast.mjs` runs before web builds and checks ink/bg, ink2/bg2,
-ink3/bg2 and accent/bg at 4.5:1 for both halves of every built-in family. User-authored colors retain
+ink3/bg2, accent/bg and accent/bg2 at 4.5:1 for both halves of every built-in family. User-authored colors retain
 M9's validation policy and are not silently modified to meet a contrast target.
 
 ## Backgrounds and contrast

@@ -3,7 +3,7 @@
   import { instances, store } from '../lib/store.svelte'
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
-  import { render, emojiOnly, plainMentions } from '../lib/markdown'
+  import { render, emojiOnly, plain, plainMentions } from '../lib/markdown'
   import { dayLabel, shortTime } from '../lib/time'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
@@ -17,7 +17,7 @@
   import { klipyGif, snippet } from '../lib/klipy'
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
-  import { accentBubble, bubbleFill, linkInk, nameInk, personColor, withContrast } from '../lib/bubbles'
+  import { accentBubble, bubbleFill, linkInk, nameInk, personColor, reactors, withContrast } from '../lib/bubbles'
   import { haptic } from '../lib/haptics'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
@@ -54,6 +54,8 @@
       .then((p) => { if (m.reply_to === want) parent = p })
       .catch(() => { if (m.reply_to === want) parent = undefined })
   })
+  // Who reacted with what: the long-press menu lists them, and each pill says them out loud.
+  const reacted = $derived((m.reactions ?? []).map((r) => ({ emoji: r.emoji, names: reactors(r.user_ids, store.me?.id, (id) => store.name(id)) })))
   const mentionsMe = $derived(!!store.me && (m.mention_ids || []).includes(store.me.id))
   const QUICK = ['👍', '😂', '❤️', '🔥', '👀', '💀']
   // A message that is nothing but a few emoji is a reaction said out loud: draw it big.
@@ -136,6 +138,26 @@
     if (text && text !== m.content) await store.edit(m.id, text)
     editing = false
   }
+  // Someone else's toolbar sits beside their first bubble, level with its top, so it
+  // never covers their name. Measured as it is about to show (a pointer coming in, or
+  // keyboard focus): with no room beside the bubble it sits over the bubble's own top
+  // corner instead. Your own and the plain feed keep theirs where the CSS puts it.
+  let tools = $state<HTMLElement>()
+  let toolsAt = $state<{ left?: string; right?: string; top?: string; bottom?: string }>({})
+  function placeTools() {
+    if (right || feed || !content || !tools) return
+    const said = content.querySelector<HTMLElement>(':scope > :is(.bubble, .gif, .files)')
+    // A message that is only a card: the card sits below .content, so measure it against .content's box.
+    const card = said ? null : content.parentElement?.querySelector<HTMLElement>(':scope > .cards > *')
+    if (!said && !card) { toolsAt = {}; return }
+    const box = content.getBoundingClientRect(), r = card?.getBoundingClientRect()
+    const end = said ? said.offsetLeft + said.offsetWidth : r!.right - box.left
+    const top = said ? said.offsetTop : r!.top - box.top
+    toolsAt = content.clientWidth - end >= tools.offsetWidth + 6
+      ? { left: `${end + 6}px`, top: `${top}px`, bottom: 'auto' }
+      : { left: 'auto', right: `${content.clientWidth - end}px` }
+  }
+  const at = $derived(right || feed ? {} : toolsAt)
   // Delete asks first, in the message itself, like every other delete in Den.
   let deleting = $state(false)
   let deletingBox = $state<HTMLElement>(), deleteButton = $state<HTMLButtonElement>()
@@ -155,7 +177,7 @@
   <button class="reply-ref" onclick={() => goToMessage(instances.active, p.channel_id, p.id)}>
     <Icon name="reply" size={12} />
     <span class="who">{store.name(p.author_id)}</span>
-    <span class="snippet">{plainMentions(snippet(p.content), store.users).slice(0, 90) || 'sent a file'}</span>
+    <span class="snippet">{plainMentions(plain(snippet(p.content)), store.users).slice(0, 90) || 'sent a file'}</span>
   </button>
 {/snippet}
 {#snippet face(size: number)}
@@ -173,8 +195,9 @@
   {/if}
   {#if m.reactions?.length}
     <div class="reactions">
-      {#each m.reactions as r (r.emoji)}
-        <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
+      {#each m.reactions as r, i (r.emoji)}
+        <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}
+          aria-label="{r.emoji} {r.user_ids.length}: {reacted[i]?.names.join(', ')}">
           <span>{r.emoji}</span><span class="n">{r.user_ids.length}</span>
         </button>
       {/each}
@@ -191,6 +214,7 @@
 <article class="msg" data-hover-animates class:feed class:right class:lit class:tinted={!!fill.bubble} class:head class:tail class:me={mentionsMe} class:fresh class:replying={!!parent} class:held id="{prefix}-{m.id}"
   style:--fill={fill.bubble} style:--name={fill.name} style:--link={fill.link}
   onpointerdown={down} onpointermove={move} onpointerup={lift} onpointercancel={lift}
+  onpointerenter={(e) => { if (e.pointerType !== 'touch') placeTools() }} onfocusin={placeTools}
   onclickcapture={swallow} oncontextmenu={(e) => { if (touch && own(e)) e.preventDefault() }}>
   {#if parent && feed}{@render replyRef(parent)}{/if}
   <div class="row">
@@ -203,9 +227,10 @@
           <button class="author" onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}>{author?.display_name || author?.username || 'someone'}</button>
           {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />Agent</span>{/if}
         </div>
+      {:else}
+        <!-- Your own messages and the later ones in a run show no name; a screen reader still hears who spoke. -->
+        <span class="sr-only">{author?.display_name || author?.username || (mine ? 'You' : 'Someone')}:</span>
       {/if}
-      <!-- Your own messages show no name; a screen reader still hears who spoke. -->
-      {#if head && right}<span class="sr-only">{author?.display_name || author?.username || 'You'}</span>{/if}
       {#if parent && !feed}{@render replyRef(parent)}{/if}
       <div class="content" bind:this={content}>
         {#if tail && !right && !feed && pieces}<span class="tail-face">{@render face(28)}</span>{/if}
@@ -217,7 +242,7 @@
         {:else}
           {@render said()}
         {/if}
-        <div class="tools">
+        <div class="tools" bind:this={tools} style:left={at.left} style:right={at.right} style:top={at.top} style:bottom={at.bottom}>
           <time class="when" datetime={m.created_at}>{shortTime(m.created_at)}</time>
           <EmojiPicker label="React to this message" quick={QUICK} align="end" onpick={(e) => void store.react(m, e)}><span class="tool" aria-hidden="true">😶</span></EmojiPicker>
           <button title="Reply" aria-label="Reply" onclick={() => onreply(m)}><Icon name="reply" /></button>
@@ -249,7 +274,7 @@
           <span class="replies">{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
           {#if last}
             <!-- An empty reply carries a file or a card; the preview cannot tell which. -->
-            <span class="said"><span class="who">{store.name(last.author_id)}:</span> {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}</span>
+            <span class="said"><span class="who">{store.name(last.author_id)}:</span> {plainMentions(plain(snippet(last.excerpt)), store.users).trim() || 'shared something'}</span>
           {/if}
           {#if unread?.count}<span class="count" class:at={unread.mention}>{unread.mention ? '@' : unread.count}</span>{/if}
           {#if conversation.resolved_at}<span class="state">resolved</span>{/if}
@@ -262,7 +287,7 @@
   </div>
   {#if held && content}
     <MessageMenu from={content} {right} when="{dayLabel(m.created_at)} {shortTime(m.created_at)}" label="{author?.display_name || author?.username || 'Someone'}'s message"
-      quick={QUICK} picked={(m.reactions ?? []).filter((r) => !!store.me && r.user_ids.includes(store.me.id)).map((r) => r.emoji)}
+      quick={QUICK} reactions={reacted} picked={(m.reactions ?? []).filter((r) => !!store.me && r.user_ids.includes(store.me.id)).map((r) => r.emoji)}
       {actions} preview={lifted} onreact={(e) => void store.react(m, e)} onclose={done} />
   {/if}
 </article>
@@ -327,6 +352,8 @@
   .bubble :global(.mention) { padding: 0; color: var(--link, var(--lamp)); background: none; }
   .tinted .bubble :global(a), .lit .bubble :global(a) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   .tinted .bubble :global(.mention), .lit .bubble :global(.mention) { color: inherit; }
+  /* The focus ring is the accent, which vanishes on an accent bubble: there it takes the text colour. */
+  :is(.lit, .tinted) .bubble :global(:focus-visible) { outline-color: currentColor; }
   .bubble :global(code) { background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre code) { background: none; }
   .bubble :global(pre) { max-width: 100%; margin: 6px 0; background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
@@ -335,6 +362,8 @@
   /* Your own: the accent, with the page colour as text (accents read at 4.5:1 on the page). */
   .lit .bubble:not(.jumbo) { background: var(--lamp); color: var(--on-lamp); }
   .lit .bubble :global(:is(code, pre)) { color: inherit; background: color-mix(in srgb, var(--on-lamp) 16%, transparent); }
+  /* The block carries the wash; its lines don't add their own on top. */
+  .lit .bubble :global(pre code) { background: none; }
   .lit .bubble:not(.jumbo) .edited { color: inherit; }
   /* The time in the bubble's corner, on touch screens: a see-through copy keeps room
      for it at the end of the last line (pushing it to a line of its own when full).
@@ -376,11 +405,13 @@
     transition: background-color var(--t-fast), transform var(--t) var(--ease-out); }
   /* A fingertip-sized target around a small pill. */
   .rx::after { content: ''; position: absolute; inset: -8px -2px; }
-  .rx[aria-pressed=true] { background: var(--sel); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
+  /* Yours: the accent wash over the raised surface, solid so a wallpaper never shows through.
+     Its count is ink, not accent: accent text on an accent wash falls under 4.5:1. */
+  .rx[aria-pressed=true] { background: color-mix(in srgb, var(--lamp) 14%, var(--bg-3)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
   @media (hover: hover) { .rx:hover { transform: translateY(-1px); } }
   .rx:active { transform: scale(.94); }
   .rx .n { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .rx[aria-pressed=true] .n { color: var(--lamp); }
+  .rx[aria-pressed=true] .n { color: var(--ink); }
   .reply-ref {
     position: relative; display: flex; text-align: left; align-items: center; gap: 6px; margin: 0 8px 3px; min-width: 0;
     font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap;
@@ -405,12 +436,20 @@
     flex: none; min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000); font-weight: 700; text-align: center;
   }
   @media (pointer: coarse) { .thread-link { min-height: 32px; } }
+  /* Over a wallpaper in the room, the words between bubbles sit on small frosted pills,
+     so they read on any photo. With no wallpaper nothing changes. */
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) :is(.meta, .thread-link, .reply-ref) {
+    width: fit-content; border-radius: var(--r-pill, 999px); box-shadow: 0 0 0 .5px var(--line);
+    background: var(--overlay); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) :is(.meta, .reply-ref) { padding: 1px 8px; }
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) .meta { margin-left: 4px; }
   .deleting { margin-top: 6px; }
   .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 
   /* The actions, and the exact time: on hover with a mouse, or keyboard focus.
-     Touch screens long-press for MessageMenu instead. They float over the top
-     edge where the bubble starts. */
+     Touch screens long-press for MessageMenu instead. Your own float over the top
+     corner of your bubble; everyone else's are placed beside theirs (placeTools). */
   .tools {
     opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity var(--t-fast), transform var(--t) var(--ease-out);
     position: absolute; bottom: calc(100% - 6px); left: 0; display: flex; align-items: center; gap: 2px; z-index: 2;
@@ -422,7 +461,9 @@
   @media (hover: hover) {
     .msg:hover .tools { opacity: 1; pointer-events: auto; transform: none; }
   }
-  .msg:not(.held):focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
+  /* Focus shows them only after keyboard input (main.ts clears data-input on Tab and the arrows):
+     a tap or click that leaves focus behind, like a closed profile sheet, never does. */
+  :global(:root:not([data-input])) .msg:not(.held):focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
   .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   @media (hover: hover) { .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); } }
   .tools button:active, .tool:active { background: var(--press); }
@@ -446,7 +487,7 @@
   .feed .gif { border-radius: var(--r); }
   .feed .reactions { margin: 5px 0 0; gap: 4px; }
   .feed .rx { min-height: 26px; padding: 2px 9px 2px 7px; gap: 5px; background: var(--bg-3); box-shadow: none; font-size: var(--fs-body); }
-  .feed .rx[aria-pressed=true] { background: var(--sel); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); box-shadow: none; }
+  .feed .rx[aria-pressed=true] { background: color-mix(in srgb, var(--lamp) 14%, var(--bg-3)); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); box-shadow: none; }
   .feed .reply-ref { max-width: calc(100% - 48px); margin: 0 0 2px 48px; }
   /* A spine from the avatar up to the quoted line ties the reply to its parent. */
   .feed .reply-ref::before {

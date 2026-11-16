@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { accentBubble, bubbleFill, linkInk, nameInk, personColor, places, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
-import { accentPresets, contrast, deriveHalf, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
+import { accentBubble, bubbleFill, linkInk, nameInk, personColor, places, reactors, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
+import { accentPresets, contrast, deriveHalf, onLamp, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
 
 const themes = JSON.parse(readFileSync(new URL('../crates/den-core/src/themes.json', import.meta.url), 'utf8'))
 const halves = ['light', 'dark'] as const
@@ -21,6 +21,8 @@ test('a long pause or a new day shows the time and starts a new stack', () => {
   const quiet = TIME_BREAK / 60_000
   const list = [msg('1', 'a', 0), msg('2', 'a', quiet - 1), msg('3', 'a', 2 * quiet), msg('4', 'a', 2 * quiet + 1)]
   assert.deepEqual(shape(list), ['TH', 'E', 'TH', 'E'])
+  // A half-hour lull in a friend chat is still one conversation.
+  assert.deepEqual(shape([msg('1', 'a', 0), msg('2', 'a', 30), msg('3', 'b', 59)]), ['TH', 'E', 'HE'])
   // Midnight splits a burst even when it was only a minute.
   const late = [{ id: '1', author_id: 'a', created_at: '2026-10-13T23:59:30' }, { id: '2', author_id: 'a', created_at: '2026-10-14T00:00:10' }]
   assert.deepEqual(shape(late), ['THE', 'THE'])
@@ -126,6 +128,26 @@ test('text on your own accent bubble reads at 4.5:1 in every built-in theme, bot
     // Links and mentions on everyone else's grey bubble.
     assert.ok(contrast(linkInk(accent, c), c.bg3) >= 4.5, `link ${t.id} ${h} ${choice ?? 'theme'}`)
   }
+})
+
+test('text on the accent is the page colour in built-in themes, and the ink on a pale custom accent', () => {
+  for (const t of themes) for (const h of halves) for (const choice of [null, ...accentPresets.map((p) => p.id)]) {
+    const c = t[h]
+    assert.equal(onLamp(c, resolveAccent(c, choice, h)), c.bg, `${t.id} ${h} ${choice ?? 'theme'}`)
+  }
+  // A custom theme's own accent is never moved. A pale one takes the darker of its own two colours.
+  const fog = { bg: '#f6f0fa', ink: '#6b5a78' }
+  assert.equal(onLamp(fog, '#c99ad8'), fog.ink)
+  assert.ok(contrast(onLamp(fog, '#c99ad8'), '#c99ad8') > contrast(fog.bg, '#c99ad8'))
+})
+
+test('who reacted: you first, then first names, full names only where two clash', () => {
+  const names: Record<string, string> = { w: 'Wren Calloway', o: 'Oskar Lind', me: 'Felix Moreau', a: 'Sam Ito', b: 'Sam Reyes', p: 'pip' }
+  const name = (id: string) => names[id]!
+  assert.deepEqual(reactors(['w', 'me', 'o'], 'me', name), ['You', 'Wren', 'Oskar'])
+  assert.deepEqual(reactors(['w', 'o'], 'me', name), ['Wren', 'Oskar'])
+  assert.deepEqual(reactors(['a', 'w', 'b'], 'me', name), ['Sam Ito', 'Wren', 'Sam Reyes'])
+  assert.deepEqual(reactors(['p'], undefined, name), ['pip'])
 })
 
 test("a chosen profile colour is used as is; without one it follows the picture's hue", () => {
