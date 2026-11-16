@@ -323,7 +323,7 @@ kbd {
 }
 
 /* Shells that manage their own focus ring: keep the inner field quiet. */
-:where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
+:where(.search, .bar, .box, .input-shell) :where(input, textarea):focus-visible { outline: none; box-shadow: none; border-color: transparent; }
 
 /* One heading treatment across sibling settings pages. */
 .settings h2:not(.list-head) { font-family: var(--display); font-size: var(--fs-large); font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
