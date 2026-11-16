@@ -429,6 +429,13 @@
   }
   /* The box's own buttons are --hit tall, so a Reopen as tall gives the row the box's height. */
   .resolved .btn { min-height: var(--hit); padding-block: 0; color: var(--lamp); }
+  /* A phone's message box is the slim one (Composer.svelte's .phone): its 30px buttons, 2px inset and hairline. */
+  @media (max-width: 600px) {
+    .resolved { --hit: 30px; padding: 2px 2px 2px 14px; border-color: var(--line); }
+    /* A fingertip-sized target around the slim button, as the box's own buttons have. */
+    .resolved .btn { position: relative; }
+    .resolved .btn::before { content: ''; position: absolute; inset: -7px; }
+  }
   /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
      reply box under the keyboard. */
   .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
