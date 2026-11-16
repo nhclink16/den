@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { SUGGESTED, callFaces, callLine, defaultIcon, lastOf, placedIn, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
+import { SUGGESTED, callFaces, callLine, defaultIcon, groupTitle, lastOf, placedIn, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
 import type { Message } from '../apps/web/src/lib/types.ts'
 
 const lucide = new URL('../apps/web/node_modules/lucide-static/', import.meta.url)
@@ -94,4 +94,11 @@ test('a room in a category the list does not have shows with the uncategorized r
   assert.equal(placedIn(room('k'), categories), 'k')
   assert.equal(placedIn(room(null), categories), null)
   assert.equal(placedIn(room('just-made'), categories), null, 'a room moved into a new category vanished')
+})
+
+test('a group chat is titled by first names, and by full names when two share one', () => {
+  assert.equal(groupTitle(['Nadia Okoro', 'Priya Raman', 'Wren Calloway']), 'Nadia, Priya and Wren')
+  assert.equal(groupTitle(['Nadia Okoro', 'Pip']), 'Nadia and Pip')
+  assert.equal(groupTitle(['Sam Lee', 'Sam Ortiz', 'Wren Calloway']), 'Sam Lee, Sam Ortiz and Wren Calloway')
+  assert.equal(groupTitle(['  Mary Jane Watson ', 'Oskar Lind']), 'Mary and Oskar')
 })

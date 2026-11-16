@@ -19,7 +19,7 @@ import { apiFor, setCsrf } from './api'
 import { native, invoke, activeOrigin, setOrigin } from './native'
 import { router } from './router.svelte'
 import { cachedAppearance } from './theme-runtime'
-import { lastOf } from './room-list'
+import { groupTitle, lastOf } from './room-list'
 import { carryOldAvatarChoices } from './avatar-carry'
 import type { Jam, RoomJam, SpotifyAccount, MusicQueue, CallState, Category, Channel, ChannelReadState, Event, LastMessage, Message, NotificationPreferences, PresenceState, Reaction, Session, ThreadReadState, ThreadSummary, ThreadView, User } from './types'
 
@@ -235,8 +235,10 @@ export class Store {
   selfDm(c: Channel) { return c.kind === 'dm' && !(c.member_ids || []).some((id) => id !== this.me?.id) }
   dmTitle(c: Channel) {
     const others = (c.member_ids || []).filter((id) => id !== this.me?.id)
-    // Your own name, the way WhatsApp and Slack title the chat with yourself.
-    return others.length ? others.map((id) => this.name(id)).join(', ') : `${this.me ? this.name(this.me.id) : 'You'} (you)`
+    // Your own name, the way WhatsApp and Slack title the chat with yourself. One person keeps their full name;
+    // a group reads by first names, so everyone in it fits on a phone's bar.
+    if (others.length > 1) return groupTitle(others.map((id) => this.name(id)))
+    return others.length ? this.name(others[0]!) : `${this.me ? this.name(this.me.id) : 'You'} (you)`
   }
   title(c: Channel) { return c.kind === 'dm' ? this.dmTitle(c) : c.name }
 

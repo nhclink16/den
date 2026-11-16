@@ -124,7 +124,8 @@ try {
   await desktop.getByRole('button', { name: 'Leave call', exact: true }).click()
   await until(async () => tiles(observer).count().then((n) => n === 1), 'last own connection leaves')
   assert(!(await api('/calls', undefined, admin.token)).find((c) => c.channel_id === hangout.id).participant_ids.includes(admin.user.id))
-  await observer.getByTestId('call-dock').getByRole('button', { name: 'Leave call', exact: true }).click()
+  // The call is open, so its own row holds Leave; the sidebar's bar drops its buttons then.
+  await observer.getByRole('button', { name: 'Leave call', exact: true }).click()
   assert.deepEqual(errors, [])
   console.log('Multi-device smoke passed: three connections on one account, independent cameras and screen shares, two shared-audio streams to desktop, no own-mic echo, quiet secondary devices, unique user presence, independent leave, and screenshots.')
 } catch (err) {

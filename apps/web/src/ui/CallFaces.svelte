@@ -13,9 +13,10 @@
 </span>
 
 <style>
-  /* --ring is whatever the faces sit on, so the gap between pictures reads as a cut. */
+  /* --ring is whatever the faces sit on, so the gap between pictures reads as a cut. Each face is positioned,
+     like the Avatar inside it, so the next face and its ring paint over the one before. */
   .faces { display: flex; align-items: center; padding-left: 7px; flex: none; }
-  .faces > span { margin-left: -7px; display: flex; border-radius: var(--avatar-r, 50%); box-shadow: 0 0 0 2px var(--ring, var(--bg-3)); }
+  .faces > span { position: relative; margin-left: -7px; display: flex; border-radius: var(--avatar-r, 50%); box-shadow: 0 0 0 2px var(--ring, var(--bg-3)); }
   .faces > span.speaking { position: relative; z-index: 1; box-shadow: 0 0 0 2px var(--ring, var(--bg-3)), 0 0 0 4px var(--lamp); }
   small { margin-left: 4px; font-size: var(--fs-xs); color: var(--ink-2); }
 </style>
