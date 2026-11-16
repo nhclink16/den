@@ -450,7 +450,8 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
    floats beside its button on a wide screen and rises from the bottom on a phone.
    `:root` outranks the component's own [popover] rule, which loads later. */
 @media (max-width: 600px) {
-  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  /* !important on the shape too: a component's own `.x [popover]` rule compiles to a higher specificity. */
+  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0 !important; border-width: 1px 0 0 !important; padding-bottom: env(safe-area-inset-bottom); }
   :root .sheet[popover]::backdrop { background: rgb(0 0 0 / .35); }
   /* The grabber: it says the sheet pulls down to close (disclosure-popover.ts). */
   :root .sheet[popover]::before { content: ''; display: block; width: 36px; height: 5px; margin: 6px auto 0; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 45%, transparent); }
