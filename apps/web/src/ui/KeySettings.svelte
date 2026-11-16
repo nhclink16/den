@@ -57,11 +57,11 @@
   <button class="action-row add" onclick={() => (adding = true)}><Icon name="plus" size={15} /> {section === 'keys' ? 'New API Key' : 'New Agent'}</button>
   {#each shown as t (t.id)}
     {@const owner = store.user(t.user_id)}
-    {@const agent = owner ? owner.display_name || owner.username : 'Agent'}
-    <!-- Agents lead with the agent, since the row is about it; its key is the detail. -->
+    {@const agent = owner ? owner.display_name || owner.username : ''}
+    <!-- Agents lead with the agent, since the row is about it; its key is the detail. An agent not loaded yet shows its key. -->
     {#if section === 'agents'}
-      <SettingRow label={agent} hint={`Key: ${t.name}`}>
-        {#snippet control()}<InlineConfirm action="Revoke key" sentence={`Revoke ${agent}'s key? ${agent} can't post until it gets a new one. Its messages stay.`} confirm={() => revoke(t)} />{/snippet}
+      <SettingRow label={agent || t.name} hint={agent ? `Key: ${t.name}` : undefined}>
+        {#snippet control()}<InlineConfirm action="Revoke key" sentence={agent ? `Revoke ${agent}'s key? ${agent} can't post until it gets a new one. Its messages stay.` : "Revoke this key? The agent can't post until it gets a new one. Its messages stay."} confirm={() => revoke(t)} />{/snippet}
       </SettingRow>
     {:else}
       <SettingRow label={t.name}>
@@ -96,5 +96,4 @@
   button.action-row.add { display: flex; align-items: center; gap: 6px; }
   .line { display: block; }
   .broken { color: var(--danger); }
-  .tick { display: inline-flex; vertical-align: -2px; margin-inline-start: 6px; color: var(--success); }
 </style>

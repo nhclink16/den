@@ -57,6 +57,8 @@
   .fields :global(p) { margin: 0; font-size: var(--fs-sm); line-height: 1.4; text-align: center; color: var(--ink-2); text-wrap: balance; }
   /* What a field's text becomes ("Shows as cabin-trip"). */
   .fields :global(p b) { font-weight: 600; color: var(--ink); }
+  /* A rule under a field gains a tick at its end once met, as on sign-up. */
+  .fields :global(.tick) { display: inline-flex; vertical-align: -2px; margin-inline-start: 6px; color: var(--success); }
   .buttons button:disabled { color: var(--ink-3); cursor: default; }
   .buttons button:active:not(:disabled) { background: var(--press); }
 </style>
