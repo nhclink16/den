@@ -250,7 +250,7 @@
   .subtitle summary.lit b { color: var(--lamp); }
   .subtitle summary:active { opacity: .5; }
   .subtitle .count { min-width: 16px; padding: 0 4px; font-size: 11px; line-height: 16px; }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); overflow: hidden; }
   .box { width: min(400px, calc(100vw - 16px)); max-height: min(480px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .tabs { margin: 10px 10px 6px; align-self: flex-start; }
   .list { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 8px; display: grid; gap: 2px; }

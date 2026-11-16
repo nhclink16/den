@@ -380,7 +380,7 @@
   }
   .menu-btn summary { list-style: none; cursor: pointer; }
   .menu-btn summary::-webkit-details-marker { display: none; }
-  .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
   /* The same rows as the composer's + sheet. */
   .menu { display: grid; padding: 12px 12px 16px; }
   .menu button { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }

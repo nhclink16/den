@@ -55,6 +55,8 @@
   /* Lamplight: the soft halo live things carry. */
   --glow: 0 0 12px color-mix(in srgb, var(--lamp) 45%, transparent);
   --lift: 0 1px 2px var(--shadow), 0 8px 24px -8px var(--shadow);
+  /* What floats over everything: menus, pickers, popovers and sheets on a wide screen. */
+  --shadow-pop: 0 14px 44px var(--shadow);
   /* Avatar shape: follows Corners unless this device picked one. */
   --avatar-r: var(--r-avatar, 35%);
 }

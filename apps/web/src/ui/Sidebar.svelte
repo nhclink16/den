@@ -372,7 +372,7 @@
   .phone .inbox .count { top: 1px; right: 1px; box-shadow: 0 0 0 2px var(--bg); }
   .compose summary { list-style: none; cursor: pointer; }
   .compose summary::-webkit-details-marker { display: none; }
-  .compose [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(360px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 120px)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); }
+  .compose [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(360px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 120px)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .people { display: grid; padding: 4px 12px 16px; }
   .sheet-title { margin: 8px 4px 10px; text-align: center; font-weight: 600; font-size: 17px; }
   .people button { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 12px; background: var(--bg); text-align: start; color: var(--ink); }

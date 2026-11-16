@@ -134,7 +134,7 @@
   details[open] > summary { color: var(--lamp); }
   summary::-webkit-details-marker { display: none; }
   summary.disabled { pointer-events: none; opacity: .5; }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
   .picker { width: min(360px, calc(100vw - 16px)); height: min(420px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .quick { display: flex; justify-content: space-between; padding: 8px 10px 0; }
   .quick button { font-size: 24px; width: 44px; height: 44px; border-radius: var(--r); transition: transform var(--t) var(--ease-out), background-color var(--t-fast); }

@@ -41,7 +41,7 @@
 </dialog>
 
 <style>
-  .form-dialog { width: min(300px, calc(100vw - 48px)); padding: 0; overflow: hidden; border: 0; border-radius: max(14px, var(--r-lg)); background: var(--bg-2); color: var(--ink); box-shadow: 0 12px 40px rgb(0 0 0 / .25); }
+  .form-dialog { width: min(300px, calc(100vw - 48px)); padding: 0; overflow: hidden; border: 0; border-radius: max(14px, var(--r-lg)); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .form-dialog::backdrop { background: rgb(0 0 0 / .35); }
   /* Outranks Settings' page titles, which style every h2 inside it. */
   .form-dialog h2.title { margin: 0; padding: 20px 16px 4px; font: 600 17px/1.3 var(--body); letter-spacing: 0; text-align: center; color: var(--ink); }

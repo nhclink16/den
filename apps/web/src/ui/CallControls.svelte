@@ -171,18 +171,18 @@
   .overflow { position: relative; flex: none; }
   .overflow > summary { list-style: none; }
   .overflow > summary::-webkit-details-marker { display: none; }
-  .options > div { position: fixed; inset: auto; margin: 0; z-index: 20; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .options > div { position: fixed; inset: auto; margin: 0; z-index: 20; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .options > div button { width: max-content; padding: 8px 12px; border-radius: var(--r); font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .options > div button:hover { background: var(--hover); } }
   /* Your shares hide behind a smaller button beside Share. */
   .controls > .shares > summary { width: calc(var(--cb) * .6); }
-  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
+  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--shadow-pop); }
   .shares > div button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stop-label { color: var(--ember); }
   /* More: a list and the layout switch; a bottom sheet on a phone (app.css). */
-  .more-sheet { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(340px, calc(100vw - 24px)); padding: 8px 12px 12px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .more-sheet { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(340px, calc(100vw - 24px)); padding: 8px 12px 12px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .more-sheet .slist { margin-top: 8px; background: var(--bg-3); }
   .more-sheet .nav-row { font-size: var(--fs-body); }
   .more-sheet .nav-row :global(svg) { flex: none; color: var(--ink-2); }

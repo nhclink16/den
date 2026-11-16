@@ -91,7 +91,7 @@
   .stop { padding: 0 10px; min-height: 26px; flex: none; border-radius: var(--r-pill); font: 600 var(--fs-xs) var(--body); color: var(--ink); }
   @media (hover: hover) { .stop:hover { color: var(--ember); } }
   .volume-menu { flex: none; }
-  .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--lift); }
+  .volume-panel { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); }
   .quality-menu { flex: none; }
   summary { cursor: pointer; list-style: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-pill); }
   @media (hover: hover) { summary:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); } }

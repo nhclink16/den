@@ -233,7 +233,7 @@
   .people:not(.big) .nm { font-size: var(--fs-xs); font-weight: 500; color: var(--ink-2); }
   .nm small { font-weight: 400; color: var(--ink-2); }
   .note { margin-top: -4px; font-size: var(--fs-xs); color: var(--ink-3); }
-  .who-sheet { position: fixed; inset: auto; margin: 0; padding: 8px 8px 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .who-sheet { position: fixed; inset: auto; margin: 0; padding: 8px 8px 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .who-name { margin: 6px 8px 0; font-weight: 700; }
   @media (max-width: 600px) { .who-sheet { padding-inline: 16px; } .who-sheet :global(.volume-control) { width: auto; } }
 </style>

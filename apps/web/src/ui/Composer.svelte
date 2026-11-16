@@ -521,7 +521,7 @@
      can grow upward. Lift the + by that much: it shares the box's centre line, and once
      the box grows, its last line's. */
   .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
-  .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
   /* The + sheet: round tiles with their names under them, under Den Shell's strip of recent photos. The shell draws
      the strip over this slot; the card is what shows while the sheet moves and the strip steps aside. */
   .strip { height: 96px; margin: var(--s3) var(--s3) 0; border-radius: var(--r-lg); background: var(--bg-3); }
