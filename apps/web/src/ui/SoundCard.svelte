@@ -35,6 +35,8 @@
   {#if status}<p class="small" role="status">{status}</p>{/if}{#if error}<p class="error small" role="alert">{error}</p>{/if}
 </article>
 <style>
-  .sound-card { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; background: var(--bg-2); max-width: 480px; }
-  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: var(--fs-xs); margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .use { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; } .error { color: var(--danger); } audio { max-width: 100%; }
+  .sound-card { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; background: var(--bg-2); max-width: 480px; min-width: 0; }
+  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: var(--fs-xs); margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .use { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; white-space: nowrap; } .error { color: var(--danger); } audio { max-width: 100%; }
+  /* Touch screens strip the box from selects (app.css). This one sits among buttons, not in a settings row, so it keeps it. */
+  @media (pointer: coarse) { .actions .field { border-color: var(--line-strong); background-color: var(--bg); color: var(--ink); text-align: start; text-align-last: start; padding-inline-start: 11px; } }
 </style>
