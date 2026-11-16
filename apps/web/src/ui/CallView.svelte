@@ -51,8 +51,11 @@
   const count = $derived((Tile ? 1 : 0) + call.participants.reduce((n, p) => n + 1 + p.screens.length, 0))
   let tilesWidth = $state(0), atEnd = $state(true), tiles = $state<HTMLDivElement>()
   const PAD_X = 28, PAD_Y = 26, GAP = 10
-  const tileWidth = $derived(Math.min((shownHeight - PAD_Y) * 16 / 9, Math.max(160, (tilesWidth - PAD_X - (count - 1) * GAP) / Math.max(1, count))))
+  const fitWidth = $derived(Math.max(160, (tilesWidth - PAD_X - (count - 1) * GAP) / Math.max(1, count)))
+  const tileWidth = $derived(Math.min((shownHeight - PAD_Y) * 16 / 9, fitWidth))
   const stripHeight = $derived(Math.min(shownHeight, Math.round(tileWidth * 9 / 16 + PAD_Y)))
+  // The tallest strip these tiles can fill. The handle offers nothing past it, so it never keeps a height you can't see.
+  const tallest = $derived(Math.max(100, Math.min(maximum, Math.round(fitWidth * 9 / 16 + PAD_Y))))
   const over = $derived(tilesWidth > 0 && count * tileWidth + (count - 1) * GAP + PAD_X > tilesWidth + 1)
   const edge = () => { if (tiles) atEnd = tiles.scrollLeft + tiles.clientWidth >= tiles.scrollWidth - 2 }
   $effect(() => { void over; void tileWidth; edge() })
@@ -68,7 +71,7 @@
     return () => el.removeEventListener('wheel', wheel)
   })
   function change(value: number) {
-    height = Math.max(100, Math.min(value, maximum))
+    height = Math.max(100, Math.min(value, tallest))
     try { localStorage.setItem(heightKey, String(height)) } catch { /* Resizing still works without storage. */ }
   }
   function resize(e: PointerEvent) { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }
@@ -76,7 +79,7 @@
   function resizeKey(e: KeyboardEvent) {
     if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(e.key)) {
       e.preventDefault()
-      change(e.key === 'Home' ? 100 : e.key === 'End' ? maximum : e.key === 'Enter' ? 160 : shownHeight + (e.key === 'ArrowUp' ? -20 : 20))
+      change(e.key === 'Home' ? 100 : e.key === 'End' ? tallest : e.key === 'Enter' ? 160 : stripHeight + (e.key === 'ArrowUp' ? -20 : 20))
     }
   }
 </script>
@@ -99,7 +102,7 @@
   </div>
   <button class="expand" aria-label="Expand call" title="Expand call" onclick={() => (call.expanded = true)}><Icon name="expand" /></button>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-  <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={maximum} aria-valuenow={shownHeight} aria-valuetext={`${shownHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
+  <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={tallest} aria-valuenow={stripHeight} aria-valuetext={`${stripHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
   {/if}
 </div>
 
