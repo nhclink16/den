@@ -3,12 +3,12 @@
 // shape; iOS's XXXL and every larger accessibility size land there. Never below the default: Den's smallest sizes
 // are already the smallest it reads well at. Everywhere else `window.denShell.textScale` is missing and none of this runs.
 
-export const MAX_TEXT_SCALE = 1.3
+const MAX_TEXT_SCALE = 1.3
 
 /** What the page uses for a value from the shell: anything that isn't a number reads as the default. */
 export function textScale(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 1
-  return Math.round(Math.min(MAX_TEXT_SCALE, Math.max(1, value)) * 1000) / 1000
+  return Math.min(MAX_TEXT_SCALE, Math.max(1, value))
 }
 
 /** Asks the shell once, then follows each change it sends. */

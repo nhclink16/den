@@ -9,8 +9,8 @@ import { followTextSize, textScale } from '../apps/web/src/lib/text-scale.ts'
 test('follows the phone up to the cap, never below the default', () => {
   assert.equal(textScale(17 / 17), 1, 'Large, the default')
   assert.equal(textScale(14 / 17), 1, 'xSmall stays at Den’s own size')
-  assert.equal(textScale(19 / 17), 1.118, 'xLarge')
-  assert.equal(textScale(21 / 17), 1.235, 'XXL')
+  assert.equal(textScale(19 / 17), 19 / 17, 'xLarge')
+  assert.equal(textScale(21 / 17), 21 / 17, 'XXL')
   assert.equal(textScale(23 / 17), 1.3, 'XXXL is past the cap')
   assert.equal(textScale(53 / 17), 1.3, 'the largest accessibility size')
 })
@@ -32,10 +32,10 @@ test('asks the shell once, then follows each change it sends', async () => {
   const set = page(shell)
   followTextSize()
   await new Promise((r) => setTimeout(r))
-  assert.deepEqual(set, ['--text-scale=1.235'])
+  assert.deepEqual(set, [`--text-scale=${21 / 17}`])
   shell.onTextScale!(28 / 17)
   shell.onTextScale!(1)
-  assert.deepEqual(set, ['--text-scale=1.235', '--text-scale=1.3', '--text-scale=1'])
+  assert.deepEqual(set, [`--text-scale=${21 / 17}`, '--text-scale=1.3', '--text-scale=1'])
 })
 
 test('a browser, or a shell from before text size, changes nothing', async () => {
