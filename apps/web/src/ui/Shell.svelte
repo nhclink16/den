@@ -107,7 +107,7 @@
 
 <div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
-    <aside class="sidebar bg-host scope-sidebar"><Sidebar /></aside>
+    <aside class="sidebar bg-host scope-sidebar"><Sidebar callControls={!(callShown && call.expanded)} /></aside>
   {/if}
 
   <main class="main bg-host scope-chat">
