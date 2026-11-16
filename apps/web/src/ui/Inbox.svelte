@@ -288,7 +288,7 @@
             <button class="btn quiet" onclick={() => loadRows(g.s, g.c.id, rows[key(g.s, g.c.id)]!.appending)}>Retry</button>
           </div>
         {:else if rows[key(g.s, g.c.id)]?.more}
-          <button class="more" onclick={() => loadRows(g.s, g.c.id, true)}>More conversations</button>
+          <button class="more" onclick={() => loadRows(g.s, g.c.id, true)}>More threads</button>
         {/if}
       </div>
     {/each}
