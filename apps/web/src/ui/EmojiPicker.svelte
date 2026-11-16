@@ -168,6 +168,7 @@
     /* On the phone's own edge, like the rest of the screen. */
     .search { margin-inline: var(--gutter); }
     .tabs { padding-inline: var(--gutter); }
+    .results { padding-inline: calc(var(--gutter) - 4px); }
     .clear { padding: 16px; margin: -4px -14px -4px 0; }
   }
   @media (prefers-reduced-motion: reduce) { @media (hover: hover) { .quick button:hover { transform: none; } } }
