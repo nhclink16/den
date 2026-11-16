@@ -342,11 +342,18 @@
       {#if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
     </div>
 
-    <Composer
-      {channel} conversation={here} bind:replyTo bind:dropped bind:listening
-      locked={!root ? "This thread isn't available here."
-        : resolved ? 'This thread is resolved. Reopen it to add anything new.' : undefined}
-    />
+    <!-- A resolved thread takes nothing new, so it offers the way to reopen it instead of a box that can't send. -->
+    {#if resolved && root}
+      <div class="resolved" role="status">
+        <span>This thread is resolved.</span>
+        <button class="btn quiet" onclick={() => setResolved(false)} disabled={busy}>Reopen</button>
+      </div>
+    {:else}
+      <Composer
+        {channel} conversation={here} bind:replyTo bind:dropped bind:listening
+        locked={!root ? "This thread isn't available here." : undefined}
+      />
+    {/if}
   </div>
   {#if dragging > 0}
     <div class="drop">
@@ -410,6 +417,12 @@
   .root { padding-bottom: 4px; }
   /* Pinned above the replies on a computer: an edge for them to scroll under, as the room has under its header. */
   .panel:not(:has(> :global(.navbar))) > .root { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .resolved {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 0 var(--gutter) max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)); padding: 6px 6px 6px 14px;
+    border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink-2); font-size: var(--fs-sm);
+  }
+  .resolved .btn { color: var(--lamp); }
   /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
      reply box under the keyboard. */
   .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
