@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { accentBubble, bubbleFill, linkInk, nameInk, personColor, places, tint, TIME_BREAK, withContrast } from '../apps/web/src/lib/bubbles.ts'
-import { accentPresets, contrast, deriveHalf, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
+import { accentPresets, contrast, deriveHalf, onLamp, resolveAccent } from '../apps/web/src/lib/theme-color.ts'
 
 const themes = JSON.parse(readFileSync(new URL('../crates/den-core/src/themes.json', import.meta.url), 'utf8'))
 const halves = ['light', 'dark'] as const
@@ -126,6 +126,17 @@ test('text on your own accent bubble reads at 4.5:1 in every built-in theme, bot
     // Links and mentions on everyone else's grey bubble.
     assert.ok(contrast(linkInk(accent, c), c.bg3) >= 4.5, `link ${t.id} ${h} ${choice ?? 'theme'}`)
   }
+})
+
+test('text on the accent is the page colour in built-in themes, and the ink on a pale custom accent', () => {
+  for (const t of themes) for (const h of halves) for (const choice of [null, ...accentPresets.map((p) => p.id)]) {
+    const c = t[h]
+    assert.equal(onLamp(c, resolveAccent(c, choice, h)), c.bg, `${t.id} ${h} ${choice ?? 'theme'}`)
+  }
+  // A custom theme's own accent is never moved. A pale one takes the darker of its own two colours.
+  const fog = { bg: '#f6f0fa', ink: '#6b5a78' }
+  assert.equal(onLamp(fog, '#c99ad8'), fog.ink)
+  assert.ok(contrast(onLamp(fog, '#c99ad8'), '#c99ad8') > contrast(fog.bg, '#c99ad8'))
 })
 
 test("a chosen profile colour is used as is; without one it follows the picture's hue", () => {
