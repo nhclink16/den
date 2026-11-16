@@ -290,7 +290,7 @@ export class Store {
   windows = $state<Map<string, Message[]>>(new Map())
   windowState = $state<Map<string, {
     loading: boolean; error: string; start: boolean; end: boolean
-    failedEdge?: string; failedOlder?: boolean
+    gone?: boolean; failedEdge?: string; failedOlder?: boolean
   }>>(new Map())
   roots = $state<Map<string, Message>>(new Map())
 
@@ -861,8 +861,9 @@ export class Store {
   windowStatus(key: string) {
     return this.windowState.get(key) ?? { loading: false, error: '', start: false, end: false }
   }
+  /// `gone`: the target itself no longer exists, so there is nothing to retry.
   private setWindowState(key: string, part: Partial<{
-    loading: boolean; error: string; start: boolean; end: boolean; failedEdge?: string; failedOlder?: boolean
+    loading: boolean; error: string; gone?: boolean; start: boolean; end: boolean; failedEdge?: string; failedOlder?: boolean
   }>) {
     this.windowState = new Map(this.windowState).set(key, { ...this.windowStatus(key), ...part })
   }
@@ -883,7 +884,7 @@ export class Store {
     const conversation = threadId ?? channelId
     const req = this.request({ cache: 'window', conversation, target }, 'open')
     const fetch = this.fetches.begin(req)
-    this.setWindowState(key, { loading: true, error: '' })
+    this.setWindowState(key, { loading: true, error: '', gone: false })
     // A refresh already holds its anchor. Re-reading it is worth doing, but a
     // transient failure there must not throw away the window: the adjacent
     // pages are the point of the refresh, and the held copy is a usable anchor.
@@ -899,7 +900,10 @@ export class Store {
       const found = usable(fetched) ? fetched! : usable(held) ? held! : undefined
       if (!found) {
         this.fetches.end(fetch)
-        this.setWindowState(key, { loading: false, error: 'That message is not in this conversation.' })
+        // Deleted, or never visible to this account (fetchMessage hides 404 and 403 alike).
+        this.setWindowState(key, fetched
+          ? { loading: false, error: 'That message is not in this conversation.' }
+          : { loading: false, error: "That message isn't here any more. It may have been deleted.", gone: true })
         return key
       }
       const { url, roots } = this.path(channelId, threadId)

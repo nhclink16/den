@@ -16,5 +16,5 @@
 <style>
   /* CallControls sizes and colours the button with the ones beside it. */
   summary { cursor: pointer; list-style: none; } summary::-webkit-details-marker { display: none; }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 10px 36px var(--shadow); }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); }
 </style>

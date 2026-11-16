@@ -55,6 +55,8 @@
   /* Lamplight: the soft halo live things carry. */
   --glow: 0 0 12px color-mix(in srgb, var(--lamp) 45%, transparent);
   --lift: 0 1px 2px var(--shadow), 0 8px 24px -8px var(--shadow);
+  /* What floats over everything: menus, pickers, popovers and sheets on a wide screen. */
+  --shadow-pop: 0 14px 44px var(--shadow);
   /* Avatar shape: follows Corners unless this device picked one. */
   --avatar-r: var(--r-avatar, 35%);
 }
@@ -460,10 +462,21 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
    floats beside its button on a wide screen and rises from the bottom on a phone.
    `:root` outranks the component's own [popover] rule, which loads later. */
 @media (max-width: 600px) {
-  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  /* !important on the shape too: a component's own `.x [popover]` rule compiles to a higher specificity. */
+  :root .sheet[popover] { left: 0 !important; top: auto !important; right: 0; bottom: 0; width: 100%; border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0 !important; border-width: 1px 0 0 !important; padding-bottom: env(safe-area-inset-bottom); }
   :root .sheet[popover]::backdrop { background: rgb(0 0 0 / .35); }
   /* The grabber: it says the sheet pulls down to close (disclosure-popover.ts). */
   :root .sheet[popover]::before { content: ''; display: block; width: 36px; height: 5px; margin: 6px auto 0; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 45%, transparent); }
+}
+/* Every sheet arrives the same way: a menu settles beside its button, and on a phone a sheet rises from the
+   bottom. No exit motion. Transform, so it never fights the pull-down's `translate`. */
+@keyframes card-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet[popover]:popover-open { animation: card-in .18s var(--ease-out); }
+}
+@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+  :root .sheet[popover]:popover-open { animation: sheet-in .28s var(--ease-out); }
 }
 @media (pointer: coarse) {
   .segments button, .segments label { min-height: 44px; }

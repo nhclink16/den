@@ -24,13 +24,13 @@
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
-  import Composer from './Composer.svelte'
+  import Composer, { focusComposer } from './Composer.svelte'
   import ThreadStrip from './ThreadStrip.svelte'
   import ThreadPanel from './ThreadPanel.svelte'
   import { router } from '../lib/router.svelte'
   import { viewing } from '../lib/notify.svelte'
   import { native } from '../lib/native'
-  import { tick, untrack } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   let q = $state('')
   let listening = $state(false)
   // Searches everywhere: a miss in this room reads as "the message is gone".
@@ -119,7 +119,7 @@
       .then((view) => {
         if (loadingFor !== mine) return
         if (view && view.thread.channel_id !== channel.id) {
-          threadGone = 'That conversation is not in this room.'
+          threadGone = 'That thread is not in this room.'
         }
       })
       .catch((e) => {
@@ -127,8 +127,8 @@
         const status = (e as { status?: number }).status
         // Only confirmed missing or denied is unavailable; anything else is
         // transient and gets an explicit Retry rather than a dead end.
-        threadGone = status === 404 ? 'That conversation no longer exists.'
-          : status === 403 ? "You don't have access to that conversation."
+        threadGone = status === 404 ? 'That thread no longer exists.'
+          : status === 403 ? "You don't have access to that thread."
           : (e as Error).message
         retryable = status !== 404 && status !== 403
       })
@@ -139,7 +139,7 @@
     // Switching routes cancels whatever the previous one was doing.
     loadingFor = id ? `${channel.id}/${id}` : ''
     loadingThread = false
-    threadGone = wrongRoom ? 'That conversation is not in this room.' : ''
+    threadGone = wrongRoom ? 'That thread is not in this room.' : ''
     retryable = false
     if (!id || known) return
     loadRoute(id)
@@ -180,10 +180,12 @@
   const roomTarget = $derived(panel ? undefined : target)
   const roomInTail = $derived(!!roomTarget && (store.messages.get(channel.id) || []).some((m) => m.id === roomTarget))
   const roomKey = $derived(roomTarget && !roomInTail ? store.windowKey(channel.id, undefined, roomTarget) : '')
+  // Untracked: openWindow reads the window's own state, and its failure writes it,
+  // so a tracked call would start again on every failure and never stop.
   $effect(() => {
-    const want = roomTarget
+    const want = roomTarget, id = channel.id
     if (!roomKey || !want) return
-    void store.openWindow(channel.id, undefined, want)
+    untrack(() => void store.openWindow(id, undefined, want))
   })
   const roomWindow = $derived(roomKey ? store.windowAt(roomKey) : undefined)
   const roomWindowStatus = $derived(roomKey ? store.windowStatus(roomKey) : undefined)
@@ -222,7 +224,8 @@
     else router.go(to, false, roomUrl)
   }
   function closePanel() {
-    restoring = opener
+    // A thread opened from a link has no Reply button to go back to, but focus still has to land in the room.
+    restoring = opener || '-'
     // Real back only when the recorded parent IS this room. A parent pointing
     // somewhere else is not something this control should walk into, and the
     // replacement below also clears it so a stale one cannot be inherited.
@@ -238,9 +241,24 @@
     restoring = ''
     void tick().then(() => {
       const opener = document.querySelector<HTMLButtonElement>(`#m-${CSS.escape(back)} button[title="Reply"]`)
-      const fallback = document.querySelector<HTMLElement>('.view h1')
-      ;(opener ?? fallback)?.focus()
+      if (opener) return opener.focus()
+      if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+      document.querySelector<HTMLElement>('.view h1')?.focus()
     })
+  })
+  // Opening a room (this view is keyed per room) puts the cursor where typing goes: the message box with a mouse
+  // or keyboard, else the room's title, which moves a screen reader without raising a phone's keyboard. A frame
+  // later, so it lands after the palette or a menu has handed focus back. An open thread panel focuses itself.
+  onMount(() => {
+    let frame = 0
+    void tick().then(() => {
+      frame = requestAnimationFrame(() => {
+        if (panel || document.activeElement?.closest('dialog[open], :popover-open')) return
+        if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+        document.querySelector<HTMLElement>('.view h1[tabindex]')?.focus({ preventScroll: true })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
   })
   // The first reply saves the thread: swap the pre-creation URL for the canonical
   // one in place, so Back does not return to a conversation that now exists.
@@ -410,7 +428,7 @@
       {#if roomKey && roomWindowStatus?.error}
         <p class="windowed" role="alert">
           {roomWindowStatus.error}
-          <button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>
+          {#if !roomWindowStatus.gone}<button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>{/if}
           <button class="btn quiet" onclick={() => router.go(roomUrl, true)}>Jump to newest</button>
         </p>
       {:else if roomKey && roomWindowStatus?.loading && !roomWindowed}
@@ -453,14 +471,14 @@
         onvalid={(ok) => (panelValid = ok)}
       />
     {:else if panel && loadingThread}
-      <section class="panel-missing" aria-label="Conversation" aria-busy="true">
-        <p class="muted">Opening that conversation…</p>
+      <section class="panel-missing" aria-label="Thread" aria-busy="true">
+        <p class="muted">Opening that thread…</p>
         <!-- On a phone the room's header has given way, so the way back is here. -->
         <button class="btn quiet" onclick={closePanel}>Back to room</button>
       </section>
     {:else if panel}
-      <section class="panel-missing" aria-label="Conversation">
-        <p class="muted" role="alert">{threadGone || "That conversation isn't available here."}</p>
+      <section class="panel-missing" aria-label="Thread">
+        <p class="muted" role="alert">{threadGone || "That thread isn't available here."}</p>
         <div class="row">
           {#if retryable && openThread}
             <button class="btn quiet" onclick={() => loadRoute(openThread)}>Retry</button>

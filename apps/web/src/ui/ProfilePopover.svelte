@@ -98,15 +98,14 @@
     overflow: visible; border-radius: var(--r-lg);
     box-shadow: 0 24px 60px -16px var(--shadow-lg), 0 2px 6px var(--shadow);
   }
+  /* card-in and sheet-in are app.css's, shared with every sheet. */
   @media (prefers-reduced-motion: no-preference) {
     .pop:popover-open { animation: card-in .18s var(--ease-out); }
   }
-  @keyframes card-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
   /* The sheet: the card fills it, and the grabber floats on the banner. */
   .pop.sheet { max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; background: var(--bg-2); border-radius: max(10px, var(--r-lg)) max(10px, var(--r-lg)) 0 0; box-shadow: none; }
   .pop.sheet::before { position: absolute; z-index: 2; left: 50%; translate: -50% 0; margin: 6px 0 0; background: rgb(255 255 255 / .7); box-shadow: 0 0 2px rgb(0 0 0 / .25); }
   @media (prefers-reduced-motion: no-preference) {
     .pop.sheet:popover-open { animation: sheet-in .28s var(--ease-out); }
   }
-  @keyframes sheet-in { from { transform: translateY(100%); } }
 </style>

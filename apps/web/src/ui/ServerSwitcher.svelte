@@ -49,7 +49,7 @@
   /* A gap round the dot cut out of the mark, so it reads on any background (hover, open, wallpaper). */
   .attention > :global(svg) { mask:radial-gradient(circle at 100% 1px, transparent 5px, #000 5.5px); }
   .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-  .popover { position:fixed; inset:auto; margin:0; width:320px; max-width:calc(100vw - 16px); padding:6px; border:1px solid var(--line); background:var(--bg2); color:var(--ink); border-radius:var(--r-lg); box-shadow:0 12px 40px var(--scrim); }
+  .popover { position:fixed; inset:auto; margin:0; width:320px; max-width:calc(100vw - 16px); padding:6px; border:1px solid var(--line-strong); background:var(--bg2); color:var(--ink); border-radius:var(--r-lg); box-shadow:var(--shadow-pop); }
   .server { display:flex; align-items:center; border-radius:var(--r); }
   .server.active { background:var(--bg3); }
   @media (hover: hover) { .server:hover { background:var(--bg3); } }

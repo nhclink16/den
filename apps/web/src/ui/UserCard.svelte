@@ -181,7 +181,7 @@
   .act::-webkit-details-marker { display: none; }
   .ic { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--bg-3); color: var(--lamp); transition: opacity var(--t-fast); }
   .act:active .ic { opacity: .6; }
-  .menu { position: fixed; inset: auto; margin: 0; padding: 4px; min-width: 200px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .menu { position: fixed; inset: auto; margin: 0; padding: 4px; min-width: 200px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: var(--r); font-size: var(--fs-body); text-align: start; }
   .menu button:active { background: var(--press); }
 </style>

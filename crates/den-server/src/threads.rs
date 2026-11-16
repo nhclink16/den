@@ -63,6 +63,8 @@ async fn readable(s: &AppState, user: &str, id: &str) -> Result<ThreadSummary> {
     Ok(thread)
 }
 /// First nonempty line of the root, whitespace collapsed, at most 80 characters.
+/// A longer line is cut at its last space within the limit and ends in "…", so a
+/// title never stops mid-word. ThreadPanel.svelte's `autoTitle` mirrors this.
 pub(crate) fn title_from(content: &str, hint: Option<&str>) -> String {
     let line = content
         .lines()
@@ -73,10 +75,22 @@ pub(crate) fn title_from(content: &str, hint: Option<&str>) -> String {
         (None, Some(hint)) if !hint.trim().is_empty() => {
             hint.split_whitespace().collect::<Vec<_>>().join(" ")
         }
-        _ => "Conversation".into(),
+        _ => "Thread".into(),
     };
-    // Truncate by characters: an 80-byte cut can split a multi-byte character.
-    chosen.chars().take(80).collect()
+    // Count characters: an 80-byte cut can split a multi-byte character.
+    if chosen.chars().count() <= 80 {
+        return chosen;
+    }
+    let head: String = chosen.chars().take(80).collect();
+    // The ellipsis takes the 80th place, so the words before it get 79 at most.
+    let cut = match head.rfind(' ') {
+        Some(at) if at > 0 => &head[..at],
+        _ => {
+            let end = head.char_indices().nth(79).map_or(head.len(), |(i, _)| i);
+            &head[..end]
+        }
+    };
+    format!("{cut}…")
 }
 fn check_title(value: &str) -> Result<String> {
     let title = value.trim();
@@ -523,4 +537,25 @@ pub(crate) async fn update(
         thread: thread.clone(),
     });
     Ok(Json(thread))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title_from;
+
+    #[test]
+    fn a_long_first_line_is_cut_at_a_word_with_an_ellipsis() {
+        let line = "ok long thread incoming: band name brainstorm. we have a gig in three weeks and we need a name";
+        let title = title_from(line, None);
+        assert_eq!(
+            title,
+            "ok long thread incoming: band name brainstorm. we have a gig in three weeks and…"
+        );
+        assert!(title.chars().count() <= 80);
+        // Short lines and the fallback are untouched; one unbroken word still fits.
+        assert_eq!(title_from("  hi   there \nmore", None), "hi there");
+        assert_eq!(title_from("", None), "Thread");
+        let word = "é".repeat(100);
+        assert_eq!(title_from(&word, None), format!("{}…", "é".repeat(79)));
+    }
 }
