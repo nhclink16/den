@@ -36,11 +36,13 @@
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
   })
-  // A wide window has the list beside the room, so home is the room you were last in on this server (the desktop
-  // app always starts at home), or the first room. Kept on this device only; storage that's blocked just means none.
+  // A wide window has the list beside the room, so home is the conversation you were last in on this server (the
+  // desktop app always starts at home), or the first room. The voice room's page isn't a conversation, so it's never
+  // the one kept. Kept on this device only; storage that's blocked just means none.
   const lastKey = () => `den.lastRoom.${store.origin}`
+  const talk = (id: string | null) => { const c = id ? store.channel(id) : undefined; return c && c.kind !== 'voice' ? c : undefined }
   $effect(() => {
-    if (router.route.name !== 'channel' || !store.channel(router.route.id)) return
+    if (router.route.name !== 'channel' || !talk(router.route.id)) return
     const id = router.route.id
     untrack(() => { try { localStorage.setItem(lastKey(), id) } catch { /* not kept */ } })
   })
@@ -48,7 +50,7 @@
     if (narrow || router.route.name !== 'home') return
     let last: string | null = null
     try { last = localStorage.getItem(lastKey()) } catch { /* none */ }
-    const to = (last && store.channel(last)) || store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
+    const to = talk(last) || store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
     if (to) untrack(() => router.go(`/c/${to.id}`, true))
   })
 
