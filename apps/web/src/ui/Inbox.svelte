@@ -249,7 +249,7 @@
           <span class="name">{g.s.title(g.c)}</span>
           <span class="chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         </button>
-        <span class="new">{#if g.mention}<span class="at">Mentions you</span> · {/if}{g.count} new</span>
+        <span class="new">{#if g.mention}<span class="at">Mentions you</span>{' · '}{/if}{g.count} new</span>
       </h2>
       <div class="slist">
         {#each g.msgs.slice(-4) as m (m.id)}
@@ -275,7 +275,7 @@
               <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
               <span class="txt">
                 <span class="top"><span class="who">{plainMentions(t.title, g.s.users)}</span>{#if t.resolved_at}<span class="when">Resolved</span>{/if}</span>
-                <span class="text">{#if u.mention}<span class="at">Mentions you</span> · {/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
+                <span class="text">{#if u.mention}<span class="at">Mentions you</span>{' · '}{/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
               </span>
             </button>
             {#if bar}{@render readButton(read)}{/if}
