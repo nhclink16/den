@@ -449,6 +449,8 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 }
 /* Its open list keeps the theme's colours, not a transparent one. */
 .slist select.field option { background: var(--bg-2); color: var(--ink); }
+/* No box, but a keyboard still finds it: the shared field border comes back on keyboard focus. */
+:where(:root:not([data-input='touch'])) .slist select.field:focus-visible { border-color: var(--lamp); }
 /* Rows that fill their group draw focus inside, or the group's rounded clip hides it. */
 :where(:root:not([data-input='touch'])) :is(.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
 /* Settings search lands here: the row it found glows for a moment. */
