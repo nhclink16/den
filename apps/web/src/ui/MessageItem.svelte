@@ -136,6 +136,22 @@
     if (text && text !== m.content) await store.edit(m.id, text)
     editing = false
   }
+  // Someone else's toolbar sits beside their first bubble, level with its top, so it
+  // never covers their name. Measured as it is about to show (a pointer coming in, or
+  // keyboard focus): with no room beside the bubble it sits over the bubble's own top
+  // corner instead. Your own and the plain feed keep theirs where the CSS puts it.
+  let tools = $state<HTMLElement>()
+  let toolsAt = $state<{ left?: string; right?: string; top?: string; bottom?: string }>({})
+  function placeTools() {
+    if (right || feed || !content || !tools) return
+    const said = content.querySelector<HTMLElement>(':scope > :is(.bubble, .gif, .files)')
+    if (!said) { toolsAt = {}; return }
+    const end = said.offsetLeft + said.offsetWidth
+    toolsAt = content.clientWidth - end >= tools.offsetWidth + 6
+      ? { left: `${end + 6}px`, top: `${said.offsetTop}px`, bottom: 'auto' }
+      : { left: 'auto', right: `${content.clientWidth - end}px` }
+  }
+  const at = $derived(right || feed ? {} : toolsAt)
   // Delete asks first, in the message itself, like every other delete in Den.
   let deleting = $state(false)
   let deletingBox = $state<HTMLElement>(), deleteButton = $state<HTMLButtonElement>()
@@ -191,6 +207,7 @@
 <article class="msg" data-hover-animates class:feed class:right class:lit class:tinted={!!fill.bubble} class:head class:tail class:me={mentionsMe} class:fresh class:replying={!!parent} class:held id="{prefix}-{m.id}"
   style:--fill={fill.bubble} style:--name={fill.name} style:--link={fill.link}
   onpointerdown={down} onpointermove={move} onpointerup={lift} onpointercancel={lift}
+  onpointerenter={(e) => { if (e.pointerType !== 'touch') placeTools() }} onfocusin={placeTools}
   onclickcapture={swallow} oncontextmenu={(e) => { if (touch && own(e)) e.preventDefault() }}>
   {#if parent && feed}{@render replyRef(parent)}{/if}
   <div class="row">
@@ -217,7 +234,7 @@
         {:else}
           {@render said()}
         {/if}
-        <div class="tools">
+        <div class="tools" bind:this={tools} style:left={at.left} style:right={at.right} style:top={at.top} style:bottom={at.bottom}>
           <time class="when" datetime={m.created_at}>{shortTime(m.created_at)}</time>
           <EmojiPicker label="React to this message" quick={QUICK} align="end" onpick={(e) => void store.react(m, e)}><span class="tool" aria-hidden="true">😶</span></EmojiPicker>
           <button title="Reply" aria-label="Reply" onclick={() => onreply(m)}><Icon name="reply" /></button>
@@ -419,8 +436,8 @@
   .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 
   /* The actions, and the exact time: on hover with a mouse, or keyboard focus.
-     Touch screens long-press for MessageMenu instead. They float over the top
-     edge where the bubble starts. */
+     Touch screens long-press for MessageMenu instead. Your own float over the top
+     corner of your bubble; everyone else's are placed beside theirs (placeTools). */
   .tools {
     opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity var(--t-fast), transform var(--t) var(--ease-out);
     position: absolute; bottom: calc(100% - 6px); left: 0; display: flex; align-items: center; gap: 2px; z-index: 2;
