@@ -32,7 +32,7 @@ export type ShellCommand =
 declare global {
   // `push` and `onPush` came later (shell-push.svelte.ts), then `haptic` (haptics.ts), then `photos`, `photoChunk`
   // and `share`, then `photoStrip` and `onPhotoStrip` (shell-media.ts), then `video` and `onVideo` (shell-video.ts), which
-  // also bring the `camera` and `flip` calls: older shells don't have them.
+  // also bring the `camera` and `flip` calls, then `textScale` and `onTextScale` (text-scale.ts): older shells don't have them.
   interface Window {
     denShell?: {
       call(command: ShellCommand): Promise<ShellUpdate | null>; onCall: ((update: ShellUpdate) => void) | null
@@ -42,6 +42,7 @@ declare global {
       share?(data: ShellShare): Promise<void>
       photoStrip?(command: ShellStripCommand): Promise<void>; onPhotoStrip?: ((event: ShellStripEvent) => void) | null
       video?(command: ShellVideoCommand): Promise<ShellVideoReply>; onVideo?: ((event: ShellVideoEvent) => void) | null
+      textScale?(): Promise<number>; onTextScale?: ((scale: number) => void) | null
     }
   }
 }
