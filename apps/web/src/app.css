@@ -6,8 +6,10 @@
   --gutter: 20px;
   --control-height: 42px;
   /* Type scale. Body text, a step down for secondary text, small labels and times,
-     and two title sizes. Phones read one step larger, like iOS. */
-  --fs-xs: 12px; --fs-sm: 13px; --fs-body: 15px; --fs-title: 20px; --fs-large: 30px;
+     and two title sizes. Phones read one step larger, like iOS. Den Shell sets --text-scale
+     from the iPhone's Text Size (lib/text-scale.ts): 1 by default, at most 1.3. */
+  --fs-xs: calc(12px * var(--text-scale, 1)); --fs-sm: calc(13px * var(--text-scale, 1)); --fs-body: calc(15px * var(--text-scale, 1));
+  --fs-title: calc(20px * var(--text-scale, 1)); --fs-large: calc(30px * var(--text-scale, 1));
   /* Spacing scale. Density tightens all of it at once. */
   --s1: calc(4px * var(--density, 1)); --s2: calc(8px * var(--density, 1)); --s3: calc(12px * var(--density, 1));
   --s4: calc(16px * var(--density, 1)); --s5: calc(24px * var(--density, 1)); --s6: calc(32px * var(--density, 1));
@@ -58,7 +60,12 @@
   /* Avatar shape: follows Corners unless this device picked one. */
   --avatar-r: var(--r-avatar, 35%);
 }
-@media (max-width: 600px) { :root { --fs-xs: 13px; --fs-sm: 14px; --fs-body: 16px; --fs-title: 17px; --fs-large: 34px; } }
+@media (max-width: 600px) {
+  :root {
+    --fs-xs: calc(13px * var(--text-scale, 1)); --fs-sm: calc(14px * var(--text-scale, 1)); --fs-body: calc(16px * var(--text-scale, 1));
+    --fs-title: calc(17px * var(--text-scale, 1)); --fs-large: calc(34px * var(--text-scale, 1));
+  }
+}
 @media (pointer: coarse) { :root { --hit: 44px; } }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root { --bar-alpha: 100%; } }
 @media (prefers-reduced-transparency: reduce) { :root { --bar-alpha: 100%; } }
