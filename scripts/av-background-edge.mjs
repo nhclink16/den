@@ -113,7 +113,7 @@ try {
       })
     })
     await join(page)
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await requested
     await until(async () => (await callState(page)).cameraOn, 'camera enabled while blur initializes')
     await page.evaluate(async () => {
@@ -123,7 +123,7 @@ try {
     })
     const during = {
       busy: (await callState(page)).backgroundBusy,
-      disabled: await page.getByRole('button', { name: 'Turn camera off', exact: true }).isDisabled(),
+      disabled: await page.getByRole('button', { name: 'Camera', exact: true, pressed: true }).isDisabled(),
     }
     await page.evaluate(async () => {
       const url = performance.getEntriesByType('resource').find(entry => new URL(entry.name).pathname === '/src/lib/call.svelte.ts').name
@@ -149,7 +149,7 @@ try {
     const after = await callState(page)
     const preferenceAfterCancel = await savedBackground(page, cameraId)
     assert.equal(preferenceAfterCancel, 'blur', 'cancellation does not clear the saved effect')
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await until(async () => (await callState(page)).processor === 'den-background-blur', 'blur usable after cancelled camera-off').catch(async error => {
       throw Error(`${error.message}: ${JSON.stringify({ state: await callState(page), saved: await savedBackground(page, cameraId) })}`)
     })
@@ -186,7 +186,7 @@ try {
       })
     })
     await join(page)
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await requested
     await until(async () => (await callState(page)).cameraOn, 'camera enabled before stalled leave')
     const leftPromptly = await page.evaluate(async () => {
@@ -233,7 +233,7 @@ try {
     await page.reload()
     await page.locator('a[title="Settings"]').waitFor()
     await join(page)
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await until(async () => {
       const state = await callState(page)
       return state.cameraOn && state.processor === null
@@ -283,7 +283,7 @@ try {
         return setCameraEnabled(...args)
       }
     })
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await page.getByRole('alert').filter({ hasText: 'Allow camera and microphone access' }).waitFor()
     assert.equal((await callState(page)).cameraOn, false)
     assert.equal(await savedBackground(page, selectedCamera), 'blur')
@@ -314,7 +314,7 @@ try {
     assert(await page.getByRole('radio', { name: 'None', exact: true }).isChecked())
     await page.getByText('Background blur needs modern frame processing', { exact: false }).waitFor()
     await join(page)
-    await page.getByRole('button', { name: 'Turn camera on', exact: true }).click()
+    await page.getByRole('button', { name: 'Camera', exact: true, pressed: false }).click()
     await until(async () => (await callState(page)).cameraOn, 'unsupported browser plain camera')
     const state = await callState(page)
     assert.equal(state.processor, null)

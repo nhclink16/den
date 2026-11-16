@@ -17,7 +17,7 @@ async function login(user){
  await c.addInitScript(()=>{localStorage.setItem('den.voice',JSON.stringify({sounds:false,micOn:false,musicDucking:true}));window.__pcs=[];const PC=window.RTCPeerConnection;window.RTCPeerConnection=class extends PC{constructor(...args){super(...args);window.__pcs.push(this)}}})
  const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(20000)
  await p.goto(base);await p.getByLabel('Username',{exact:true}).fill(user);await p.getByLabel('Password',{exact:true}).fill(credentials.password);await p.getByRole('button',{name:'Come in',exact:true}).click();await p.getByLabel('Join hangout',{exact:true}).click();await p.getByTestId('call-dock').waitFor();await until(()=>p.locator('summary[aria-label="Music queue"]').count().then(n=>n>0),'music button')
- if(await p.getByRole('button',{name:'Play sound on this device',exact:true}).count()) await p.getByRole('button',{name:'Play sound on this device',exact:true}).click()
+ if(await p.getByRole('button',{name:'Sound on this device',exact:true,pressed:false}).count()) await p.getByRole('button',{name:'Sound on this device',exact:true,pressed:false}).click()
  return p
 }
 const moduleCall=p=>p.evaluate(async()=>{const url=performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/lib/call.svelte.ts').name;window.__call=(await import(url)).call})
@@ -47,12 +47,12 @@ try{
  await panel.getByRole('button',{name:'Mute for me',exact:true}).click();assert.equal((await inspect(a)).audio.find(e=>e.id.startsWith('den-dj-')).volume,0)
  await panel.getByRole('button',{name:'Mute for me',exact:true}).click()
  if(process.env.DEN_SMOKE_AUDIO){
-  await b.locator('summary[aria-label="Music queue"]').press('Escape');await b.getByRole('button',{name:'Unmute microphone',exact:true}).click()
+  await b.locator('summary[aria-label="Music queue"]').press('Escape');await b.getByRole('button',{name:'Microphone',exact:true,pressed:false}).click()
   await until(async()=>(await inspect(a)).ducked,'real remote voice ducks music')
   const ducked=(await inspect(a)).audio.find(e=>e.id.startsWith('den-dj-')).volume
   assert(Math.abs(ducked-.35*Math.pow(10,-12/20))<.001);results.duckedVolume=ducked
   await panel.getByRole('checkbox',{name:'Lower music while people talk'}).uncheck();assert(Math.abs((await inspect(a)).audio.find(e=>e.id.startsWith('den-dj-')).volume-.35)<.001)
-  await panel.getByRole('checkbox',{name:'Lower music while people talk'}).check();await b.getByRole('button',{name:'Mute microphone',exact:true}).click();await until(async()=>!(await inspect(a)).ducked,'duck releases after speech')
+  await panel.getByRole('checkbox',{name:'Lower music while people talk'}).check();await b.getByRole('button',{name:'Microphone',exact:true,pressed:true}).click();await until(async()=>!(await inspect(a)).ducked,'duck releases after speech')
  }
  console.log('Volume and ducking passed')
  await panel.getByText('Your listening volume',{exact:true}).click()

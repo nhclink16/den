@@ -160,7 +160,7 @@ try {
   assert.equal(await stored(a), null)
   assert.equal(await grid(a).getByRole('button', { name: 'Auto', exact: true }).getAttribute('aria-pressed'), 'true')
   // Two captures from one person, stable publication names and individual stop.
-  await grid(b).getByLabel('Stop sharing screen', { exact: true }).click()
+  await grid(b).getByRole('button', { name: 'Share screen', exact: true, pressed: true }).click()
   await a.getByLabel('Your shares', { exact: true }).first().click(); await a.getByLabel('Share another', { exact: true }).first().click()
   await until(async () => await screens(b).count() === 2 && await screens(b).getByText('Editor · source', { exact: false }).count() === 1, 'two labeled shares from one participant')
   assert.equal(new Set(await screens(b).locator('[data-connection-id]').evaluateAll(es => es.map(e => e.dataset.connectionId))).size, 1)
@@ -189,7 +189,7 @@ try {
   await shot(c, 'focus-mobile')
   await cams(c).first().focus(); await c.keyboard.press('p')
   assert.equal(await cams(c).first().evaluate((e) => e.classList.contains('pinned')), true)
-  await grid(a).getByLabel('Stop sharing screen', { exact: true }).click()
+  await grid(a).getByRole('button', { name: 'Share screen', exact: true, pressed: true }).click()
   await until(async () => await screens(b).count() === 0, 'main toggle stops all')
   for (const p of [a, b, c]) await grid(p).getByLabel('Leave call', { exact: true }).click()
   assert.deepEqual(errors, [], 'browser errors')
