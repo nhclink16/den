@@ -139,7 +139,9 @@
           </dl>
         {/if}
 
+        <!-- The people on the left (who's on, who plays most), the graphs on the right. -->
         <div class="split">
+          <div class="people">
           <section class="card online" aria-labelledby="online-h">
             <h3 id="online-h" class="eyebrow">Online now</h3>
             {#if server.players.length}
@@ -156,6 +158,29 @@
               <p class="faint none">{!server.connected ? "Den can't see who's playing right now." : server.state === 'up' ? 'Nobody is playing right now.' : `Nobody can play while the server is ${stateLabel(server).toLowerCase()}.`}</p>
             {/if}
           </section>
+          {#if detail?.playtime.length}
+            <section class="card" aria-labelledby="play-h">
+              <h3 id="play-h" class="eyebrow">Playtime</h3>
+              <table>
+                <thead><tr><th scope="col">Player</th><th scope="col" class="num">Last 7 days</th><th scope="col" class="num">All time</th></tr></thead>
+                <tbody>
+                  {#each detail.playtime as p (p.name)}
+                    <tr>
+                      <th scope="row">
+                        <span class="prow">
+                          {#if p.user_id}<Avatar userId={p.user_id} size={22} presence={false} />{:else}<span class="initial small" aria-hidden="true">{p.name[0]?.toUpperCase()}</span>{/if}
+                          {who(p) ?? p.name}
+                        </span>
+                      </th>
+                      <td class="num">{playtime(p.week_seconds ?? 0)}</td>
+                      <td class="num">{p.total_seconds != null ? playtime(p.total_seconds) : '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </section>
+          {/if}
+          </div>
           <div class="charts">
             {#if players}<ServerChart series={players} ceiling={server.max_players ?? undefined} step />{/if}
             {#each graphs as g (g.key)}<ServerChart series={g} />{/each}
@@ -163,28 +188,6 @@
           </div>
         </div>
 
-        {#if detail?.playtime.length}
-          <section class="card" aria-labelledby="play-h">
-            <h3 id="play-h" class="eyebrow">Playtime</h3>
-            <table>
-              <thead><tr><th scope="col">Player</th><th scope="col" class="num">Last 7 days</th><th scope="col" class="num">All time</th></tr></thead>
-              <tbody>
-                {#each detail.playtime as p (p.name)}
-                  <tr>
-                    <th scope="row">
-                      <span class="prow">
-                        {#if p.user_id}<Avatar userId={p.user_id} size={22} presence={false} />{:else}<span class="initial small" aria-hidden="true">{p.name[0]?.toUpperCase()}</span>{/if}
-                        {who(p) ?? p.name}
-                      </span>
-                    </th>
-                    <td class="num">{playtime(p.week_seconds ?? 0)}</td>
-                    <td class="num">{p.total_seconds != null ? playtime(p.total_seconds) : '—'}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </section>
-        {/if}
         {#if error}<p class="result bad" role="alert">{error} <button class="btn quiet small" onclick={load}>Retry</button></p>{/if}
       </div>
     {/if}
@@ -239,7 +242,7 @@
   .stat.warn dd { color: var(--lamp); }
 
   .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 14px; align-items: start; }
-  .charts { display: grid; gap: 14px; min-width: 0; }
+  .people, .charts { display: grid; gap: 14px; min-width: 0; }
   .card { padding: 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); }
   .card h3 { margin: 0 0 10px; }
   .online ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
