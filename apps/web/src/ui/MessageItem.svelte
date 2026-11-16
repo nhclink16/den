@@ -449,7 +449,9 @@
   @media (hover: hover) {
     .msg:hover .tools { opacity: 1; pointer-events: auto; transform: none; }
   }
-  .msg:not(.held):focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
+  /* Focus shows them only after keyboard input (main.ts clears data-input on Tab and the arrows):
+     a tap or click that leaves focus behind, like a closed profile sheet, never does. */
+  :global(:root:not([data-input])) .msg:not(.held):focus-within .tools, .tools:has(:global(details[open])) { opacity: 1; pointer-events: auto; transform: none; }
   .tools button, .tool { padding: 6px; border-radius: var(--r); color: var(--ink-2); display: grid; transition: background-color var(--t-fast), color var(--t-fast); }
   @media (hover: hover) { .tools button:hover, .tool:hover { background: var(--bg-3); color: var(--ink); } }
   .tools button:active, .tool:active { background: var(--press); }
