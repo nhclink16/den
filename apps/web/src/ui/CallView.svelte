@@ -3,6 +3,7 @@
   import { objectKind } from '../plugins'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
+  import { router } from '../lib/router.svelte'
   import CallGrid from './CallGrid.svelte'
   import CallTile from './CallTile.svelte'
   import CallControls from './CallControls.svelte'
@@ -70,7 +71,8 @@
     <CallJam />
   {:else}
   <div class="tiles">
-    {#if objects.active}
+    <!-- In a room the open object already has its dock right under the strip; elsewhere this is where it shows. -->
+    {#if objects.active && router.route.name !== 'channel'}
       {@const Tile = objectKind(objects.active.kind)?.tile}
       {#if Tile}<Tile object={objects.active} />{/if}
     {/if}

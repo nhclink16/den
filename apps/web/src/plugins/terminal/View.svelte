@@ -208,7 +208,7 @@
   {#if error}<div class="status" role="status">{error}<button aria-label="Dismiss terminal message" onclick={() => error = ''}>×</button></div>{/if}
 </div>
 <style>
-  .terminal-view { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; padding-top: 44px; }
+  .terminal-view { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; padding-top: var(--s1); }
   .recording-header { display: flex; align-items: center; min-height: 28px; padding: 0 10px 4px; font-size: var(--fs-xs); color: var(--ink-2); }
   .recording-header label { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; }
   .terminal-screen { flex: 1; min-height: 0; min-width: 0; overflow: auto; position: relative; margin: 0 10px 24px; }
@@ -219,8 +219,8 @@
   .hint { position: absolute; bottom: 8px; left: 12px; font: var(--fs-xs) var(--body); color: var(--ink-2); }
   .actions { display: flex; align-items: center; gap: 8px; padding: 4px 10px 28px; font-size: var(--fs-xs); } .actions .btn { padding: 3px 6px; min-height: 24px; }
   select { font-size: var(--fs-xs); max-width: 145px; padding: 2px; margin-left: 6px; }
-  .access-needed { position: absolute; inset: 44px 0 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 8px; background: var(--bg); font-size: var(--fs-sm); } .access-needed p { width: 100%; text-align: center; }
-  .status { position: absolute; top: 44px; left: 12px; max-width: calc(100% - 24px); border: 1px solid var(--line); padding: 8px 10px; background: var(--bg-2); font-size: var(--fs-xs); } .status button { margin-left: 8px; }
+  .access-needed { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 8px; background: var(--bg); font-size: var(--fs-sm); } .access-needed p { width: 100%; text-align: center; }
+  .status { position: absolute; top: var(--s2); left: 12px; max-width: calc(100% - 24px); border: 1px solid var(--line); padding: 8px 10px; background: var(--bg-2); font-size: var(--fs-xs); } .status button { margin-left: 8px; }
   .replay { display: flex; align-items: center; gap: 8px; padding: 4px 10px 12px; font: var(--fs-xs) var(--body); flex-wrap: wrap; } .replay input { flex: 1; min-width: 60px; }
   .compact { padding-top: 28px; } .compact .terminal-screen { margin: 0 4px 22px; }
 </style>
