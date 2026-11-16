@@ -395,7 +395,7 @@
   .phone .hang { --ring: var(--bg-2); }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
-  .phone .row { position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }
+  .phone .row { --ring: var(--bg); position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }
   .phone .row::after { content: ''; position: absolute; left: 72px; right: 0; bottom: 0; height: 1px; background: color-mix(in srgb, var(--line) 70%, transparent); }
   .phone .row.bare::after { left: 16px; }
   .phone .row.last::after { display: none; }

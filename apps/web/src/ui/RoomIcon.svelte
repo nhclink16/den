@@ -1,6 +1,6 @@
 <script lang="ts">
   // What sits before a room's name: its Lucide icon in a round tile, a #, or
-  // nothing, as each person chose in Appearance. A DM always shows the person.
+  // nothing, as each person chose in Appearance. A DM always shows the person, a group DM two of them.
   // `bare` drops the tile (room headers); `name` draws that icon whatever the
   // choice (the picker).
   import type { Channel } from '../lib/types'
@@ -18,9 +18,15 @@
   let failed = $state<string[]>([])
   const icon = $derived.by(() => { const n = name ?? (channel ? roomIcon(channel) : 'message-circle'); return failed.includes(n) && channel ? defaultIcon(channel) : n })
   const other = $derived(channel?.kind === 'dm' ? (channel.member_ids || []).find((id) => id !== store.me?.id) || store.me?.id || '' : '')
+  // A group chat shows two of its people, so it doesn't read as a chat with the first one.
+  const group = $derived(channel?.kind === 'dm' ? (channel.member_ids || []).filter((id) => id !== store.me?.id).slice(0, 2) : [])
 </script>
 
-{#if other && !bare}
+{#if group.length > 1 && !bare}
+  <span class="pair" style:--size="{size}px" aria-hidden="true">
+    {#each group as id (id)}<span><Avatar userId={id} size={Math.round(size * 0.68)} presence={false} /></span>{/each}
+  </span>
+{:else if other && !bare}
   <Avatar userId={other} {size} />
 {:else if mode !== 'none' && (name || channel?.kind !== 'dm')}
   <span class="tile" class:bare style:--size="{size}px" aria-hidden="true">
@@ -41,4 +47,10 @@
     -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat;
   }
   .bare .glyph { width: var(--size); height: var(--size); }
+  /* Two faces on a diagonal in the one picture slot, so the name keeps the list's edge. The front one is cut
+     out by a ring of whatever the row sits on (--ring, as CallFaces). */
+  .pair { position: relative; flex: none; width: var(--size); height: var(--size); }
+  .pair > span { position: absolute; display: flex; border-radius: var(--avatar-r, 35%); }
+  .pair > span:first-child { top: 0; left: 0; }
+  .pair > span:last-child { right: 0; bottom: 0; box-shadow: 0 0 0 2px var(--ring, var(--bg-2)); }
 </style>
