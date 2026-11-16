@@ -277,7 +277,7 @@
   {#if problem || error}<p class="note error top" role="status">{problem || error}</p>{/if}
 {:else}
 <h2 class="display">Profile</h2>
-<p class="muted lede">What people see when they tap your name. It follows you to every device.</p>
+<p class="muted">What people see when they tap your name. It follows you to every device.</p>
 {/if}
 
 <div class="layout" class:phone>
@@ -440,7 +440,8 @@
   .preview { position: sticky; top: 0; display: grid; gap: 8px; }
   .preview .eyebrow { padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview { position: static; order: -1; } }
-  .lede { margin: 0 0 20px; }
+  /* The intro line, then the same gap as every other section's first group; the Preview label stays level with it. */
+  .layout:not(.phone) { margin-top: 26px; }
   .form > section:first-child > .list-head { margin-top: 0; }
   .actions { margin-top: 22px; }
   label.btn { cursor: pointer; }
