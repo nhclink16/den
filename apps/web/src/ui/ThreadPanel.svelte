@@ -130,19 +130,22 @@
   // Rename, Follow and Resolve behind ⋯. The title only repeats the root's first line until it's renamed.
   const bar = $derived(narrow && phone)
   // The automatic title is the server's (threads.rs title_from): the root's first line, else its card's name,
-  // else "Conversation"; past 80 characters, cut at its last space with "…". An edited root can't be told from
+  // else "Thread"; past 80 characters, cut at its last space with "…". An edited root can't be told from
   // a rename without the server saying so, so it shows "Thread" rather than its old first line (the name still
   // shows in the room's list).
   const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
-  function autoTitle(m: Message) {
-    const line = m.content.split('\n').map(squash).find(Boolean) || squash(m.objects?.[0]?.name ?? '') || 'Conversation'
+  // Threads made before the whole-word cut kept the old title: the first 80 characters, cut anywhere, or
+  // "Conversation" for a root with no words. Those count as automatic too, or the old threads would read as renamed.
+  function autoTitles(m: Message) {
+    const line = m.content.split('\n').map(squash).find(Boolean) || squash(m.objects?.[0]?.name ?? '')
+    if (!line) return ['Thread', 'Conversation']
     const chars = [...line]
-    if (chars.length <= 80) return line
+    if (chars.length <= 80) return [line]
     const head = chars.slice(0, 80).join(''), at = head.lastIndexOf(' ')
-    return `${at > 0 ? head.slice(0, at) : chars.slice(0, 79).join('')}…`
+    return [`${at > 0 ? head.slice(0, at) : chars.slice(0, 79).join('')}…`, head]
   }
-  const auto = $derived(root ? autoTitle(root) : '')
-  const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
+  const autos = $derived(root ? autoTitles(root) : [])
+  const named = $derived(!!summary && !!root && !root.edited_at && !autos.includes(summary.title))
   const where = $derived(`${channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
   const fromMenu = (work: () => void) => { menu = false; work() }
@@ -266,7 +269,7 @@
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
       <div class="title">
-        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New thread', store.users)}</h2>
+        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content) === 'GIF' ? 'GIF' : autos[0]) ?? 'New thread', store.users)}</h2>
         <span class="sub">{channel.kind === 'dm' ? `with ${store.title(channel)}` : `in ${roomName(channel, themes.appearance.room_icons)}`}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
       </div>
     {/if}

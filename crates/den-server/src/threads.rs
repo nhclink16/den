@@ -75,7 +75,7 @@ pub(crate) fn title_from(content: &str, hint: Option<&str>) -> String {
         (None, Some(hint)) if !hint.trim().is_empty() => {
             hint.split_whitespace().collect::<Vec<_>>().join(" ")
         }
-        _ => "Conversation".into(),
+        _ => "Thread".into(),
     };
     // Count characters: an 80-byte cut can split a multi-byte character.
     if chosen.chars().count() <= 80 {
@@ -554,7 +554,7 @@ mod tests {
         assert!(title.chars().count() <= 80);
         // Short lines and the fallback are untouched; one unbroken word still fits.
         assert_eq!(title_from("  hi   there \nmore", None), "hi there");
-        assert_eq!(title_from("", None), "Conversation");
+        assert_eq!(title_from("", None), "Thread");
         let word = "é".repeat(100);
         assert_eq!(title_from(&word, None), format!("{}…", "é".repeat(79)));
     }
