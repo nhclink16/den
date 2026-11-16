@@ -20,19 +20,22 @@
   async function createBot() {
     const visit = settingsVisit()
     const b = await api.post<BotCreated>('/bots', { username: botName.trim(), display_name: botDisplay.trim() || botName.trim() })
-    if (visit === settingsVisit()) shownOnce.reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
+    if (visit === settingsVisit()) shownOnce.reveal = { label: `${b.user.display_name} is ready. Copy its key now; it won't be shown again.`, token: b.credential.token }
     botName = ''; botDisplay = ''
     await store.resync(); await load()
   }
   async function createToken() {
     const visit = settingsVisit()
     const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-    if (visit === settingsVisit()) shownOnce.reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
+    if (visit === settingsVisit()) shownOnce.reveal = { label: `Key "${t.credential.name}" acts as you. Copy it now; it won't be shown again.`, token: t.token }
     tokenName = ''; await load()
   }
   async function revoke(t: Token) { await api.del(`/tokens/${t.id}`); await load() }
   async function copy(s: string) { await navigator.clipboard.writeText(s); copied = true; setTimeout(() => (copied = false), 1500) }
   const shown = $derived(tokens.filter((t) => (section === 'keys') === (t.user_id === store.me?.id)))
+  // New Agent's rule, said under the field: a tick once it's met, red only for what it can never take.
+  const botOk = $derived(/^[a-z0-9_]{3,32}$/.test(botName.trim()))
+  const botBroken = $derived(/[^a-z0-9_]/.test(botName.trim()) || botName.trim().length > 32)
 </script>
 
 <h2 class="display">{section === 'keys' ? 'API keys' : 'Agents'}</h2>
@@ -54,9 +57,17 @@
   <button class="action-row add" onclick={() => (adding = true)}><Icon name="plus" size={15} /> {section === 'keys' ? 'New API Key' : 'New Agent'}</button>
   {#each shown as t (t.id)}
     {@const owner = store.user(t.user_id)}
-    <SettingRow label={t.name} hint={section === 'agents' ? (owner ? owner.display_name || owner.username : 'agent') : undefined}>
-      {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
-    </SettingRow>
+    {@const agent = owner ? owner.display_name || owner.username : ''}
+    <!-- Agents lead with the agent, since the row is about it; its key is the detail. An agent not loaded yet shows its key. -->
+    {#if section === 'agents'}
+      <SettingRow label={agent || t.name} hint={agent ? `Key: ${t.name}` : undefined}>
+        {#snippet control()}<InlineConfirm action="Revoke key" sentence={agent ? `Revoke ${agent}'s key? ${agent} can't post until it gets a new one. Its messages stay.` : "Revoke this key? The agent can't post until it gets a new one. Its messages stay."} confirm={() => revoke(t)} />{/snippet}
+      </SettingRow>
+    {:else}
+      <SettingRow label={t.name}>
+        {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
+      </SettingRow>
+    {/if}
   {/each}
 </div>
 <p class="list-foot">
@@ -69,8 +80,10 @@
     <input class="field" bind:value={tokenName} placeholder="What it's for, e.g. minecraft-relay" aria-label="What the key is for" autocomplete="off" />
   </FormDialog>
 {:else}
-  <FormDialog bind:open={adding} title="New Agent" action="Create" disabled={!/^[a-z0-9_]{3,32}$/.test(botName.trim())} onsubmit={createBot}>
-    <input class="field" bind:value={botName} placeholder="username, e.g. hermes" aria-label="Agent username" autocapitalize="off" autocomplete="off" />
+  <FormDialog bind:open={adding} title="New Agent" action="Create" disabled={!botOk} onsubmit={createBot}>
+    <input class="field" bind:value={botName} placeholder="username, e.g. hermes" aria-label="Agent username" aria-describedby="new-agent-username-hint" autocapitalize="off" autocomplete="off" />
+    <!-- As on sign-up: the rule stays put once met and gains a tick at its end, so nothing moves while you type. -->
+    <p id="new-agent-username-hint"><span class="line">People @mention it with this.</span>{' '}<span class="line" class:broken={botBroken}>3 to 32 lowercase letters, numbers or _.{#if botOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</span></p>
     <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" aria-label="Agent display name" autocomplete="off" />
   </FormDialog>
 {/if}
@@ -81,4 +94,6 @@
   .small { font-size: var(--fs-sm); }
   .gap-top { margin-top: 18px; }
   button.action-row.add { display: flex; align-items: center; gap: 6px; }
+  .line { display: block; }
+  .broken { color: var(--danger); }
 </style>

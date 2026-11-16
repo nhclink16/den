@@ -323,7 +323,7 @@ kbd {
 }
 
 /* Shells that manage their own focus ring: keep the inner field quiet. */
-:where(.search, .bar, .box) :where(input, textarea):focus-visible { box-shadow: none; border-color: transparent; }
+:where(.search, .bar, .box, .input-shell) :where(input, textarea):focus-visible { outline: none; box-shadow: none; border-color: transparent; }
 
 /* One heading treatment across sibling settings pages. */
 .settings h2:not(.list-head) { font-family: var(--display); font-size: var(--fs-large); font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
@@ -441,6 +441,16 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
     color: var(--ink-2); text-align: end; text-align-last: end;
   }
 }
+/* Inside a settings row it looks the same with a mouse, at the row's own height: no box beside the switches. */
+.slist select.field {
+  -webkit-appearance: none; appearance: none; width: auto; max-width: 100%; min-height: 0; padding: 8px 22px 8px 8px;
+  border-color: transparent; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3'/%3E%3C/svg%3E") no-repeat right 4px center;
+  color: var(--ink-2); text-align: end; text-align-last: end; cursor: pointer;
+}
+/* Its open list keeps the theme's colours, not a transparent one. */
+.slist select.field option { background: var(--bg-2); color: var(--ink); }
+/* No box, but a keyboard still finds it: the shared field border comes back on keyboard focus. */
+:where(:root:not([data-input='touch'])) .slist select.field:focus-visible { border-color: var(--lamp); }
 /* Rows that fill their group draw focus inside, or the group's rounded clip hides it. */
 :where(:root:not([data-input='touch'])) :is(.slist :is(.nav-row, .action-row, .who-row):focus-visible, .slist > [data-find]:focus-visible) { outline: 2px solid var(--lamp); outline-offset: -3px; }
 /* Settings search lands here: the row it found glows for a moment. */

@@ -298,6 +298,11 @@
 <style>
   .inbox { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
+  /* One top-header height on a computer, as in a room (ChannelView). */
+  @media (min-width: 901px) {
+    .head { block-size: 52px; min-height: 0; padding-block: 0; }
+    .head .btn { min-height: var(--hit); padding-block: 0; }
+  }
   .kind { color: var(--ink-3); display: grid; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .spacer { flex: 1; }

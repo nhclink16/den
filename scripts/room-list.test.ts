@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { SUGGESTED, callFaces, callLine, defaultIcon, groupTitle, hereLine, lastOf, placedIn, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
+import { SUGGESTED, callFaces, callLine, defaultIcon, groupTitle, hereLine, lastOf, placedIn, previewText, roomName, roomSlug, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
 import type { Message } from '../apps/web/src/lib/types.ts'
 
 const lucide = new URL('../apps/web/node_modules/lucide-static/', import.meta.url)
@@ -111,4 +111,15 @@ test('a voice room says who is in it, by name up to three, then as a count', () 
   assert.equal(hereLine(['Wren', 'Oskar', 'Inês'], false), 'Wren, Oskar and Inês are here')
   assert.equal(hereLine(['Wren', 'Oskar', 'Inês', 'Bodhi', 'Felix'], false), 'Wren, Oskar and 3 others are here')
   assert.equal(hereLine(['Wren'], true), 'You, Wren')
+})
+
+test('a typed room name becomes the name the server takes', () => {
+  assert.equal(roomSlug('Cabin Trip!'), 'cabin-trip')
+  assert.equal(roomSlug('  Book   club  '), 'book-club')
+  assert.equal(roomSlug('Café Ñandú'), 'cafe-nandu')
+  assert.equal(roomSlug('dev_ops-2'), 'dev_ops-2')
+  assert.equal(roomSlug('a - b'), 'a-b')
+  assert.equal(roomSlug('!!! 🎉'), '')
+  assert.equal(roomSlug('x'.repeat(39) + ' y'), 'x'.repeat(39))
+  assert.match(roomSlug('Long '.repeat(20)), /^[a-z0-9_-]{1,40}$/)
 })
