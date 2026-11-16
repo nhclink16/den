@@ -333,7 +333,8 @@
   .row { display: flex; align-items: center; gap: 10px; padding: calc(7px * var(--density, 1)) 10px; margin: 1px 0; border-radius: var(--r-lg); color: var(--ink); text-align: left; transition: background-color var(--t-fast); }
   .row.bare { padding-inline: 12px; }
   @media (hover: hover) { .row:hover { background: var(--hover); text-decoration: none; } }
-  .row.sel { background: var(--sel); }
+  /* The face pair's ring is the selected row's colour: the --sel tint laid over the sidebar. */
+  .row.sel { --ring: color-mix(in srgb, var(--lamp) 14%, var(--bg-2)); background: var(--sel); }
   .row.sel :global(.tile:not(.bare)) { background: color-mix(in srgb, var(--lamp) 22%, var(--bg-3)); color: var(--lamp); }
   .mid { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .top, .pv { display: flex; align-items: center; gap: 6px; min-width: 0; }
