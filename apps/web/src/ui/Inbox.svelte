@@ -12,7 +12,7 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import Mark from './Mark.svelte'
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { slide } from 'svelte/transition'
   import { haptic } from '../lib/haptics'
   import { reducedMotion } from '../lib/motion.svelte'
@@ -30,8 +30,21 @@
       .filter((g) => g.count > 0)
       ).sort((a, b) => Number(b.mention) - Number(a.mention) || (b.msgs.at(-1)?.id || '').localeCompare(a.msgs.at(-1)?.id || '')),
   )
-  // Load previews for unread rooms we haven't opened yet.
-  $effect(() => { for (const g of groups) if (!g.s.messages.has(g.c.id)) g.s.loadLatest(g.c.id) })
+  // Load previews for unread rooms we haven't opened yet. A room that fails says so under its header, with a
+  // Retry, instead of "3 new" over nothing; it isn't retried by itself, or a failing room would loop.
+  let latest = $state<Record<string, 'loading' | { error: string }>>({})
+  async function loadLatest(s: Store, channelId: string) {
+    const k = key(s, channelId)
+    latest = { ...latest, [k]: 'loading' }
+    try {
+      await s.loadLatest(channelId)
+      const next = { ...latest }; delete next[k]; latest = next
+    } catch (e) { latest = { ...latest, [k]: { error: (e as Error).message } } }
+  }
+  $effect(() => {
+    for (const g of groups) if (!g.s.messages.has(g.c.id) && !untrack(() => latest[key(g.s, g.c.id)])) void loadLatest(g.s, g.c.id)
+  })
+  const latestError = (s: Store, channelId: string) => { const l = latest[key(s, channelId)]; return typeof l === 'object' ? l.error : '' }
 
   // Unread conversations inside each unread room. unread_only WITHOUT a
   // resolution filter: a resolved conversation with unread replies is exactly
@@ -252,6 +265,12 @@
         <span class="new">{#if g.mention}<span class="at">Mentions you</span>{' · '}{/if}{g.count} new</span>
       </h2>
       <div class="slist">
+        {#if latestError(g.s, g.c.id)}
+          <div class="line">
+            <span class="text err" role="alert">{latestError(g.s, g.c.id)}</span>
+            <button class="btn quiet" onclick={() => loadLatest(g.s, g.c.id)}>Retry</button>
+          </div>
+        {/if}
         <!-- Oldest to newest, so what came before sits above them. -->
         {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each g.msgs.slice(-4) as m (m.id)}
@@ -346,4 +365,5 @@
   .read:active { filter: brightness(.9); }
   :global(:where(:root:not([data-input='touch']))) .on > :focus-visible { outline-offset: -3px; }
   .err { color: var(--danger, var(--lamp)); flex: 1; }
+  .line:has(> .err) { align-items: center; }
 </style>
