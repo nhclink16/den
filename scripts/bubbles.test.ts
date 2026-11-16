@@ -21,6 +21,8 @@ test('a long pause or a new day shows the time and starts a new stack', () => {
   const quiet = TIME_BREAK / 60_000
   const list = [msg('1', 'a', 0), msg('2', 'a', quiet - 1), msg('3', 'a', 2 * quiet), msg('4', 'a', 2 * quiet + 1)]
   assert.deepEqual(shape(list), ['TH', 'E', 'TH', 'E'])
+  // A half-hour lull in a friend chat is still one conversation.
+  assert.deepEqual(shape([msg('1', 'a', 0), msg('2', 'a', 30), msg('3', 'b', 59)]), ['TH', 'E', 'HE'])
   // Midnight splits a burst even when it was only a minute.
   const late = [{ id: '1', author_id: 'a', created_at: '2026-10-13T23:59:30' }, { id: '2', author_id: 'a', created_at: '2026-10-14T00:00:10' }]
   assert.deepEqual(shape(late), ['THE', 'THE'])
