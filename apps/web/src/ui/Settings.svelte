@@ -392,6 +392,10 @@
   .pane { --pane-end: 48px; overflow-y: auto; padding: 28px 28px var(--pane-end); min-width: 0; }
   .pane-inner { width: 100%; max-width: 640px; margin-inline: auto; }
   .wide-pane .pane-inner { max-width: 940px; }
+  /* A computer: every section in the same centred column as Profile, so the title never moves when you switch.
+     Sections without a preview keep their forms 640px wide, at the column's start. */
+  .settings:not(.drill) .pane-inner { max-width: 940px; }
+  .settings:not(.drill) .pane:not(.wide-pane) .pane-inner > :global(*) { max-width: 640px; }
   .pane-inner > :global(p.muted) { margin: 0; max-width: 62ch; }
   .gap-top { margin-top: 20px; }
   .val { color: var(--ink-3); font-size: var(--fs-sm); }
