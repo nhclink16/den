@@ -578,7 +578,7 @@
   @media (hover: hover) { .sendbtn.ready:hover { color: var(--on-lamp); background: var(--lamp); filter: brightness(1.06); } }
   .sendbtn.ready:active { transform: scale(.94); }
   .sendbtn:disabled { opacity: .4; }
-  .plus { background: var(--bg-3); color: var(--ink-2); list-style: none; cursor: pointer; }
+  .plus { color: var(--ink-2); list-style: none; cursor: pointer; }
   .plus::-webkit-details-marker { display: none; }
   .more[open] > .plus { color: var(--lamp); }
   /* The box is the + plus its padding and border, and both sit on the bottom so the box
@@ -587,7 +587,6 @@
   .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
   /* On a computer the + sits in the box where the paperclip was, quiet until its list is open. */
   .box .more { margin: 0; }
-  .box .plus { background: none; }
   .box .more[open] > .plus { background: var(--sel); }
   .rows { display: grid; width: 256px; padding: 4px; }
   .rows button { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r); text-align: start; }
