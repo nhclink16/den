@@ -237,7 +237,7 @@
           <RoomIcon channel={c} size={phone ? 44 : 34} />
         {/if}
         <span class="txt">
-          <span class="nm">{c.name}{#if ids.length && !talking}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
+          <span class="nm"><span class="nm-t">{c.name}</span>{#if ids.length && !talking}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
           <span class="who" class:talking class:failed={failed === c.id && !joining && !ids.length}>{#if failed === c.id && !joining && !ids.length}Couldn't connect{:else if talking}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="say">{talking}</span>{:else}{who(ids)}{/if}</span>
           {#if jam}<span class="jam-line" data-testid="sidebar-jam" title={jam}><span aria-hidden="true">🎧</span> {jam}</span>{/if}
         </span>
@@ -312,6 +312,7 @@
   .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; padding: 12px 10px; border-radius: var(--r-lg); background: var(--bg-3); }
   .hang .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .hang .nm { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .hang .nm-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hang .who, .hang .jam-line { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hang .jam-line { color: var(--lamp); }
   .hang .who.talking { display: flex; align-items: center; gap: 6px; color: var(--lamp); }
