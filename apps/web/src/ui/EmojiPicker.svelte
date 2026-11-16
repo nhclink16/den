@@ -164,7 +164,8 @@
     .picker { width: 100%; height: min(440px, 62vh); }
     .grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
     .grid button { height: 44px; font-size: 28px; }
-    .tabs button { min-width: 36px; }
+    /* Ten tabs share the width between the gutters, so the last one stays on screen. */
+    .tabs button { flex: 1 1 0; min-width: 0; }
     /* On the phone's own edge, like the rest of the screen. */
     .search { margin-inline: var(--gutter); }
     .tabs { padding-inline: var(--gutter); }
