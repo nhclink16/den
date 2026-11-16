@@ -216,7 +216,8 @@
     else router.go(to, false, roomUrl)
   }
   function closePanel() {
-    restoring = opener
+    // A thread opened from a link has no Reply button to go back to, but focus still has to land in the room.
+    restoring = opener || '-'
     // Real back only when the recorded parent IS this room. A parent pointing
     // somewhere else is not something this control should walk into, and the
     // replacement below also clears it so a stale one cannot be inherited.
@@ -232,8 +233,9 @@
     restoring = ''
     void tick().then(() => {
       const opener = document.querySelector<HTMLButtonElement>(`#m-${CSS.escape(back)} button[title="Reply"]`)
-      const fallback = document.querySelector<HTMLElement>('.view h1')
-      ;(opener ?? fallback)?.focus()
+      if (opener) return opener.focus()
+      if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+      document.querySelector<HTMLElement>('.view h1')?.focus()
     })
   })
   // Opening a room (this view is keyed per room) puts the cursor where typing goes: the message box with a mouse
