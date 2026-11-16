@@ -444,6 +444,8 @@
   }
   :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) :is(.meta, .reply-ref) { padding: 1px 8px; }
   :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) .meta { margin-left: 4px; }
+  /* A filled pill needs air above and below, or it touches the bubbles on either side. */
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) .thread-link { margin-block: var(--s1); }
   .deleting { margin-top: 6px; }
   .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 
