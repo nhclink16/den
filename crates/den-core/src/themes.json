@@ -204,7 +204,7 @@
       "ink": "#1f1a2e",
       "ink2": "#5b5470",
       "ink3": "#6e6683",
-      "accent": "#6d4de0",
+      "accent": "#6542d5",
       "success": "#3f8f5a",
       "danger": "#d0405f"
     }
@@ -274,7 +274,7 @@
       "ink": "#16171b",
       "ink2": "#565a63",
       "ink3": "#686c74",
-      "accent": "#4f57e6",
+      "accent": "#494fde",
       "success": "#2e9a62",
       "danger": "#d84545"
     }
