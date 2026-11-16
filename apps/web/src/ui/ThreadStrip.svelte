@@ -242,6 +242,10 @@
   /* The bar's grey subtitle. The tap area reaches past the text without moving it. */
   .subtitle { justify-content: center; max-width: 100%; }
   .subtitle summary { display: flex; align-items: center; gap: 3px; max-width: 100%; padding: 4px 6px; margin: -4px 0; font-size: 12px; line-height: 1.2; color: var(--ink-3); }
+  /* The line stays small; its tap area grows up over the title (not a control in a room) and sideways, and stays
+     inside the bar, as the composer's + and mic do. */
+  .subtitle summary { position: relative; }
+  .subtitle summary::before { content: ''; position: absolute; inset: -12px -12px 0; }
   .subtitle summary b { font-weight: 600; color: inherit; }
   .subtitle summary.lit b { color: var(--lamp); }
   .subtitle summary:active { opacity: .5; }
