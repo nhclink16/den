@@ -42,6 +42,7 @@
   import { themes } from '../lib/theme.svelte'
   import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
+  import CallFaces from './CallFaces.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { atBottom, landing } from '../lib/landing'
 
@@ -279,6 +280,8 @@
   // A DM with one person opens on their picture rather than an icon.
   const dm = $derived(channel.kind === 'dm')
   const other = $derived(dm && (channel.member_ids?.length ?? 0) <= 2 ? channel.member_ids?.find((id) => id !== store.me?.id) ?? store.me?.id : undefined)
+  // A group DM opens on everyone else's faces.
+  const group = $derived(dm && !other ? (channel.member_ids ?? []).filter((id) => id !== store.me?.id).map((userId) => ({ userId })) : [])
   // A DM with yourself: notes, not a conversation.
   const self = $derived(store.selfDm(channel))
 </script>
@@ -293,6 +296,7 @@
     <!-- Where a conversation begins. An empty one shows it in the middle of the screen. -->
     <div class="start" class:empty={!list.length}>
       {#if other}<span class="start-face" aria-hidden="true"><Avatar userId={other} size={72} presence={false} /></span>
+      {:else if group.length}<span class="start-face group" aria-hidden="true"><CallFaces faces={group} size={64} /></span>
       {:else}<div class="start-mark" aria-hidden="true"><RoomIcon {channel} size={28} bare /></div>{/if}
       <div class="display start-title">{dm ? store.title(channel) : `Welcome to ${roomName(channel, themes.appearance.room_icons)}`}</div>
       <div class="muted">{list.length ? 'This is where it started.' : !dm ? 'Nobody has said anything yet. Say the first thing.' : self ? 'Notes to yourself. Only you can see this.' : `Say hello. Only ${other ? 'the two of you' : 'the people here'} can see this.`}</div>
@@ -376,6 +380,7 @@
   .start-title { font-size: 26px; text-wrap: balance; }
   .start .muted { max-width: 34ch; text-wrap: pretty; }
   .start-face { display: grid; margin-bottom: 10px; }
+  .start-face.group { --ring: var(--bg); }
   .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
   /* The time sits between bursts, not on every line. */
   .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }

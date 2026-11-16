@@ -293,7 +293,8 @@
 {#snippet person()}
   <h1 class="person">
     <button onclick={(e) => other && profileCard.open(other, e.currentTarget, instances.active)} disabled={!other} aria-label={other ? `${store.title(channel)}'s profile` : undefined}>
-      {#if other}<Avatar userId={other} size={26} presence={false} />{:else}<RoomIcon {channel} size={26} />{/if}
+      <!-- A group DM is its names alone: a phone's bar has no room for faces as well. -->
+      {#if other}<Avatar userId={other} size={26} presence={false} />{:else if store.selfDm(channel)}<RoomIcon {channel} size={26} />{/if}
       <span>{store.title(channel)}</span>
     </button>
   </h1>
