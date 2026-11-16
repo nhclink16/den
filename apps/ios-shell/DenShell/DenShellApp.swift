@@ -92,12 +92,10 @@ struct DenWebView: UIViewRepresentable {
         context.coordinator.haptics.install(in: config.userContentController)
         context.coordinator.media.install(in: config.userContentController)
         context.coordinator.video.install(in: config.userContentController)
-        context.coordinator.textSize.install(in: config.userContentController)
         let webView = WKWebView(frame: .zero, configuration: config)
         context.coordinator.webView = webView
         context.coordinator.calls.webView = webView
         context.coordinator.media.webView = webView
-        context.coordinator.textSize.webView = webView
         PushBridge.shared.webView = webView
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -194,7 +192,6 @@ struct DenWebView: UIViewRepresentable {
     lazy var haptics = Haptics(den: den)
     lazy var media = MediaBridge(den: den)
     lazy var video = CallVideo(den: den, engine: engine)
-    lazy var textSize = TextSize(den: den)
     private var observations: [NSKeyValueObservation] = []
     var themeObservation: NSKeyValueObservation?
     var offsetObservation: NSKeyValueObservation?
@@ -385,61 +382,6 @@ struct DenWebView: UIViewRepresentable {
         log.error("web content process terminated, reloading")
         if webView === self.webView { media.pageGone(); video.pageGone() }
         webView.reload()
-    }
-}
-
-// MARK: Text size
-
-/// The iPhone's Text Size, for the page's type: `window.denShell.textScale()` answers how much larger than default it
-/// makes body text (17 points at the default size), and `onTextScale` hears each change. The page decides how far to
-/// follow it (web: lib/text-scale.ts).
-@MainActor final class TextSize: NSObject, WKScriptMessageHandlerWithReply {
-    let den: Origin
-    weak var webView: WKWebView?
-
-    init(den: Origin) {
-        self.den = den
-        super.init()
-        // Changed in Settings while Den was away: iOS posts it when Den comes back.
-        NotificationCenter.default.addObserver(forName: UIContentSizeCategory.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.send() }
-        }
-    }
-
-    static var scale: Double {
-        let traits = UITraitCollection(preferredContentSizeCategory: UIApplication.shared.preferredContentSizeCategory)
-        return Double(UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize) / 17
-    }
-
-    /// Adds `textScale` to the `window.denShell` that CallBridge's script made, so install after it.
-    func install(in controller: WKUserContentController) {
-        // A JSON string literal is a valid JavaScript string literal.
-        let origin = String(data: try! JSONEncoder().encode(den.serialized), encoding: .utf8)!
-        let source = """
-        if (location.origin === \(origin) && window.denShell) Object.assign(window.denShell, {
-          textScale: () => window.webkit.messageHandlers.denTextScale.postMessage(null),
-          onTextScale: null,
-        })
-        """
-        controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        controller.addScriptMessageHandler(self, contentWorld: .page, name: "denTextScale")
-    }
-
-    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) async -> (Any?, String?) {
-        guard CallBridge.allows(isMainFrame: message.frameInfo.isMainFrame, origin: Origin(message.frameInfo.securityOrigin), den: den) else {
-            log.error("text size refused from \(message.frameInfo.securityOrigin.host, privacy: .public)")
-            return (nil, "Not allowed.")
-        }
-        return (Self.scale, nil)
-    }
-
-    private func send() {
-        guard let webView else { return }
-        let scale = Self.scale
-        log.info("text size changed: \(scale, privacy: .public)")
-        webView.callAsyncJavaScript("window.denShell?.onTextScale?.(s)", arguments: ["s": scale], in: nil, in: .page) { result in
-            if case .failure(let error) = result { log.error("text size not delivered: \(error, privacy: .public)") }
-        }
     }
 }
 
