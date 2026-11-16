@@ -50,6 +50,8 @@
     box-shadow: -18px 0 50px -20px var(--shadow-lg); outline: none;
     container: panel / inline-size;
   }
+  /* Docked beside the app on a wide window (Shell makes room for it), it floats over nothing: the edge rule is enough. */
+  @media (min-width: 1100px) { .customizer { box-shadow: none; } }
   @media (prefers-reduced-motion: no-preference) { .customizer { animation: slide-in .26s var(--ease-out); } }
   @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }

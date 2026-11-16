@@ -57,14 +57,16 @@
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
   // People steps aside when the conversation needs the width: the room would drop under about 640px beside it,
-  // or a thread is open beside the room. Asking for People (the button or
+  // a thread is open beside the room, or Appearance is docked at the right. Asking for People (the button or
   // Ctrl+Shift+M) brings it back anyway for the rest of the session; the saved setting doesn't change.
   const ROOM_MIN = 640
   const px = (name: string) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0
   const SIDEBAR_W = px('--sidebar-w'), MEMBERS_W = px('--members-w')
   let winW = $state(innerWidth)
+  // Appearance docks beside the app, rather than over it, where the conversation still has room to its left.
+  const docked = $derived(customizer.open && !narrow && winW >= 1100)
   const threadOpen = $derived(router.route.name === 'channel' && !!(router.route.thread || router.route.reply))
-  const crowded = $derived(winW - (store.layout.sidebar ? SIDEBAR_W : 0) - MEMBERS_W < ROOM_MIN || threadOpen)
+  const crowded = $derived(winW - (store.layout.sidebar ? SIDEBAR_W : 0) - MEMBERS_W < ROOM_MIN || threadOpen || docked)
   let peopleAnyway = $state(false)
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel && (peopleAnyway || !crowded))
   function togglePeople() {
@@ -124,7 +126,7 @@
 
 <svelte:window onkeydown={key} bind:innerWidth={winW} />
 
-<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
+<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} class:docked inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
     <aside class="sidebar bg-host scope-sidebar"><Sidebar /></aside>
   {/if}
@@ -206,6 +208,8 @@
   .main { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .members { grid-area: members; background: var(--bg-2); border-left: 1px solid var(--line); min-height: 0; overflow-y: auto; }
   .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
+  /* Appearance docked at the right (Customizer): the app ends where the panel starts, so your own bubbles stay in view. */
+  .shell.docked { padding-right: 400px; }
 
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
   /* A phone screen whose NavBar is the first thing on screen (`.edge`) reaches up under the status bar, so its
