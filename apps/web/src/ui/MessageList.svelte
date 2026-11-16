@@ -340,7 +340,7 @@
   /* A phone: a round chevron in the corner, clear of the words, with how many are new. */
   @media (max-width: 600px) {
     .latest, .latest.lit { left: auto; right: 12px; bottom: calc(12px + var(--list-bottom, 0px)); transform: none; width: 40px; height: 40px; padding: 0; justify-content: center;
-      border: 0; border-radius: 50%; background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
+      border: 0; border-radius: var(--r-pill, 999px); background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
     .latest :global(svg) { width: 20px; height: 20px; }
     .latest .words { display: none; }
     .latest .count {
