@@ -147,10 +147,14 @@
   function placeTools() {
     if (right || feed || !content || !tools) return
     const said = content.querySelector<HTMLElement>(':scope > :is(.bubble, .gif, .files)')
-    if (!said) { toolsAt = {}; return }
-    const end = said.offsetLeft + said.offsetWidth
+    // A message that is only a card: the card sits below .content, so measure it against .content's box.
+    const card = said ? null : content.parentElement?.querySelector<HTMLElement>(':scope > .cards > *')
+    if (!said && !card) { toolsAt = {}; return }
+    const box = content.getBoundingClientRect(), r = card?.getBoundingClientRect()
+    const end = said ? said.offsetLeft + said.offsetWidth : r!.right - box.left
+    const top = said ? said.offsetTop : r!.top - box.top
     toolsAt = content.clientWidth - end >= tools.offsetWidth + 6
-      ? { left: `${end + 6}px`, top: `${said.offsetTop}px`, bottom: 'auto' }
+      ? { left: `${end + 6}px`, top: `${top}px`, bottom: 'auto' }
       : { left: 'auto', right: `${content.clientWidth - end}px` }
   }
   const at = $derived(right || feed ? {} : toolsAt)
