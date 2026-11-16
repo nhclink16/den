@@ -343,8 +343,9 @@
   .mid { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .top, .pv { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .top { align-items: baseline; }
-  .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .unread .nm, .sel .nm { font-weight: 700; color: var(--ink); }
+  /* Every name is bright and a step above its grey preview; unread is told by weight, the lit time and the badge. */
+  .nm { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .unread .nm, .sel .nm { font-weight: 700; }
   .tm { flex: none; font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
   .unread .tm { color: var(--lamp); }
   .pvt { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
