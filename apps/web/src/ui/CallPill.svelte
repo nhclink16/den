@@ -17,7 +17,7 @@
   <button class="open" title={call.expanded ? 'Back to the chat' : 'Open the call'} onclick={() => (call.expanded = !call.expanded)}>
     <CallFaces {faces} size={full ? 26 : 22} instance={call.owner ?? undefined} />
     <span class="tx">
-      <b>{call.title}{#if native}<small> · {call.instanceName}</small>{/if}</b>
+      <b>{call.title}{#if native}<small> · {call.instanceName}</small>{/if}{#if full && !call.expanded}<span class="cue" aria-hidden="true"><Icon name="expand" size={12} /></span>{/if}</b>
       <span class="line" class:talking={!!line.talking && !call.reconnecting}>
         {#if line.talking && !call.reconnecting}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span>{/if}
         <span class="say">{line.talking || line.people}</span>
@@ -45,6 +45,8 @@
   .tx { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   b { font-size: var(--fs-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   b small { font-weight: 400; color: var(--ink-2); }
+  /* The sidebar's bar is the way into the call, so it says so: the camera strip's expand icon. */
+  .cue { display: inline-flex; vertical-align: -1px; margin-inline-start: var(--s1); color: var(--ink-3); }
   .line { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); }
   .line.talking { color: var(--lamp); }
   .say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
