@@ -10,7 +10,8 @@
   import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
 
-  let { onclose }: { onclose: () => void } = $props()
+  // people: whether the People panel is showing now, which can differ from the saved setting when it steps aside for space.
+  let { onclose, people, onpeople }: { onclose: () => void; people: boolean; onpeople: () => void } = $props()
   let q = $state('')
   let cursor = $state(0)
   let input: HTMLInputElement
@@ -31,7 +32,7 @@
       { id: 'a-settings', label: 'Settings', hint: 'action', kind: 'action', run: () => router.go('/settings') },
       { id: 'a-appearance', label: 'Appearance: themes and wallpaper', hint: 'action', kind: 'action', run: () => matchMedia('(max-width: 900px)').matches ? router.go('/settings/appearance') : customizer.show() },
       { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide room list' : 'Show room list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
-      { id: 'a-members', label: store.layout.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.saveLayout({ members: !store.layout.members }) },
+      { id: 'a-members', label: people ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: onpeople },
       { id: 'a-logout', label: 'Log out', hint: 'action', kind: 'action', run: () => { store.logout(); router.go('/login') } },
     )
     return out

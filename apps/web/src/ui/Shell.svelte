@@ -79,6 +79,8 @@
   const threadOpen = $derived(router.route.name === 'channel' && !!(router.route.thread || router.route.reply))
   const crowded = $derived(winW - (store.layout.sidebar ? SIDEBAR_W : 0) - MEMBERS_W < ROOM_MIN || threadOpen || docked)
   let peopleAnyway = $state(false)
+  // Docking Appearance takes the width back: People steps aside even if you asked for it earlier, until you ask again.
+  $effect(() => { if (docked) untrack(() => { peopleAnyway = false }) })
   const showMembers = $derived(!narrow && store.layout.members && !!currentChannel && (peopleAnyway || !crowded))
   function togglePeople() {
     if (showMembers) {
@@ -182,7 +184,7 @@
 {#if call.error}<div class="call-error" role="alert"><button title="Dismiss" onclick={() => (call.error = '')}><Icon name="phone" />{call.error}</button></div>{/if}
 {#if store.toast}<div class="toast" role="status">{store.toast}<button aria-label="Dismiss notification" onclick={() => store.toast = ''}>×</button></div>{/if}
 
-{#if palette}<Palette onclose={() => (palette = false)} />{/if}
+{#if palette}<Palette onclose={() => (palette = false)} people={showMembers} onpeople={togglePeople} />{/if}
 <ProfilePopover />
 <Customizer />
 <PushAsk />
