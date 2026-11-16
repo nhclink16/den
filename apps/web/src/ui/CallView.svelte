@@ -3,6 +3,7 @@
   import { objectKind } from '../plugins'
   import { objects } from '../lib/objects.svelte'
   import { call } from '../lib/call.svelte'
+  import { router } from '../lib/router.svelte'
   import CallGrid from './CallGrid.svelte'
   import CallTile from './CallTile.svelte'
   import CallControls from './CallControls.svelte'
@@ -47,7 +48,8 @@
   // Everyone in the call stays on the strip: tiles shrink to fit, at 16:9, down to 160px wide, and only
   // past that does the strip scroll, with a fade at the edge for the people beyond it. Once tiles have
   // shrunk, the strip hugs them rather than leaving an empty band; it never grows past the height you chose.
-  const Tile = $derived(objects.active ? objectKind(objects.active.kind)?.tile : undefined)
+  // In a room the open object already has its dock right under the strip; elsewhere the strip is where it shows.
+  const Tile = $derived(objects.active && router.route.name !== 'channel' ? objectKind(objects.active.kind)?.tile : undefined)
   const count = $derived((Tile ? 1 : 0) + call.participants.reduce((n, p) => n + 1 + p.screens.length, 0))
   let tilesWidth = $state(0), atEnd = $state(true), tiles = $state<HTMLDivElement>()
   const PAD_X = 28, PAD_Y = 26, GAP = 10

@@ -12,7 +12,7 @@
 
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
-  import { plugins } from '../plugins'
+  import { plugins, type CommandContext, type ComposerItem } from '../plugins'
   import { planComposerSubmit, shouldClearDraft, type DraftIdentity } from '../lib/composer-submit'
   import { conversationKey, room, sameConversation, type Conversation } from '../lib/conversation'
   import type { Drafts } from '../lib/drafts'
@@ -50,6 +50,8 @@
   const text = $derived(store.drafts.for(here).text)
   function setText(value: string) {
     if (value === text) return
+    // A failed command's line is about what was typed; once that changes, it goes.
+    error = ''
     store.drafts.setText(here, value)
   }
   // Read through a captured owner, never through a derived and never through the
@@ -107,8 +109,22 @@
   let dismissed = $state(false)
   let selected = $state(0)
   const commands = $derived(plugins.flatMap((p) => p.slashCommands))
-  const matches = $derived(!dismissed && /^\/\S*$/.test(text) ? commands.filter((c) => c.name.startsWith(text.slice(1))) : [])
-  function pickCommand(name: string) { setText(`/${name} `); dismissed = true; ta.focus() }
+  // What the + offers besides a file: a canvas, a terminal while a machine is online.
+  const items = $derived(plugins.flatMap((p) => p.composerItems ?? []))
+  // The list offers commands while the first word is typed, then the values of that command's argument.
+  // A command whose argument has nothing to offer is left out: picking it could only fail.
+  type Suggestion = { fill: string; name: string; arg?: string; hint?: string; more?: boolean }
+  const matches = $derived.by((): Suggestion[] => {
+    if (dismissed) return []
+    const word = /^\/(\S*)$/.exec(text)
+    if (word) return commands.filter((c) => c.name.startsWith(word[1]!) && (!c.arg || c.arg.values.length))
+      .map((c) => ({ fill: `/${c.name} `, name: `/${c.name}`, arg: c.arg?.label, hint: c.hint, more: !!c.arg }))
+    const typed = /^\/(\S+) (\S*)$/.exec(text)
+    const command = typed && commands.find((c) => c.name === typed[1])
+    return command?.arg?.values.filter((v) => v.startsWith(typed![2]!)).map((v) => ({ fill: `/${command.name} ${v}`, name: `/${command.name} ${v}` })) ?? []
+  })
+  // A command that takes an argument keeps the list open for it.
+  function pickCommand(s: Suggestion) { setText(s.fill); dismissed = !s.more; selected = 0; ta.focus() }
 
   // Mentions. The caret matters, so this cannot key off `text` alone: typing `@a`
   // in the middle of a sentence should offer people, and moving away should stop.
@@ -258,9 +274,11 @@
     if (open) {
       if (e.key === 'Escape') { e.preventDefault(); dismissed = true; return }
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected = (selected + (e.key === 'ArrowDown' ? 1 : open - 1)) % open; return }
-      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing) {
+      const chosen = matches.length ? matches[selected % matches.length]! : null
+      // Enter on a row that is already the whole text ('/terminal pi') runs it.
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing && !(e.key === 'Enter' && chosen?.fill === text)) {
         e.preventDefault()
-        if (matches.length) pickCommand(matches[selected % matches.length]!.name)
+        if (chosen) pickCommand(chosen)
         else pickPerson(people[selected % people.length]!)
         return
       }
@@ -311,6 +329,49 @@
     if (alive) ta?.focus()
   }
 
+  // What a slash command or a + item runs with: this conversation and its quote, captured now, and a
+  // post that goes out only while the same account is signed in. A command can post long after it was
+  // invoked, and by then the account may have changed.
+  function commandContext(args: string): CommandContext {
+    const channelId = channel.id, owner = store.drafts, token = owner.token, send = store.send
+    const replyToId = owner.for(here).replyToId
+    const placement: { thread_id?: string; reply_to?: string } =
+      threadId ? { thread_id: threadId } : here.rootId ? { reply_to: here.rootId } : {}
+    return {
+      channelId, conversation: here, replyToId, args,
+      post: async (content) => { if (store.drafts === owner && owner.holds(token)) await send(channelId, content, { ...placement, reply_to: replyToId ?? placement.reply_to }) },
+    }
+  }
+
+  // A + item makes its object in this conversation, quoting what the box quotes, then drops the quote
+  // as a sent GIF does. One that needs an argument fills the box instead and opens the list for it.
+  async function runItem(item: ComposerItem) {
+    if (locked || busy) return
+    const ctx = commandContext('')
+    const owner = store.drafts, token = owner.token, conversation = ctx.conversation!
+    busy = true; error = ''
+    try {
+      const fill = await item.run(ctx)
+      if (!alive) return
+      if (typeof fill === 'string') {
+        if (text.trim()) { error = `Clear the message box first, then pick ${item.label} again.`; return }
+        setText(fill)
+        requestAnimationFrame(() => { ta?.focus(); ta?.setSelectionRange(fill.length, fill.length); grow() })
+        return
+      }
+      haptic('light')
+      if (owner.holds(token) && owner.for(conversation).replyToId === ctx.replyToId) {
+        owner.setReplyTo(conversation, null)
+        if (sameConversation(conversation, here)) replyTo = null
+      }
+    } catch (err) {
+      haptic('warning')
+      if (alive) error = (err as Error).message
+    } finally {
+      if (alive) busy = false
+    }
+  }
+
   async function submit() {
     const channelId = channel.id
     // Everything this send will still need afterwards is captured NOW, off the
@@ -342,17 +403,7 @@
     try {
       if (plan.kind === 'command') {
         const command = commands.find((c) => c.name === plan.name)!
-        // A command can post long after it was invoked. By then the account may
-        // have changed, and that post would be written as the new one.
-        await command.run({
-          channelId,
-          conversation,
-          replyToId: submitted.replyToId,
-          args: plan.args,
-          post: async (content) => {
-            if (sameAccount()) await send(channelId, content, { ...placement, reply_to: submitted.replyToId ?? placement.reply_to })
-          },
-        })
+        await command.run(commandContext(plan.args))
         // Commands never receive upload IDs, so completed attachments stay queued.
       } else {
         await send(channelId, content, {
@@ -396,8 +447,8 @@
   {#if locked}<p class="locked" role="status">{locked}</p>{/if}
   {#if matches.length}
     <div class="commands" role="listbox" id="slash-commands" aria-label="Commands">
-      {#each matches as command, i}
-        <button id={`slash-${i}`} role="option" aria-selected={i === selected % matches.length} class:chosen={i === selected % matches.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickCommand(command.name)}><b>/{command.name}</b><span>{command.hint}</span></button>
+      {#each matches as s, i}
+        <button id={`slash-${i}`} role="option" aria-selected={i === selected % matches.length} class:chosen={i === selected % matches.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickCommand(s)}><b>{s.name}</b>{#if s.arg}<span class="arg">{s.arg}</span>{/if}{#if s.hint}<span>{s.hint}</span>{/if}</button>
       {/each}
     </div>
   {/if}
@@ -415,7 +466,7 @@
   {#if replyTo}
     <div class="reply-bar" style:--who={replyInk}>
       <Icon name="reply" size={13} />
-      <span class="to"><span class="lead">Replying to </span><b>{store.name(replyTo.author_id)}</b></span>
+      <span class="to"><span class="lead">Replying to</span>{' '}<b>{store.name(replyTo.author_id)}</b></span>
       <span class="snippet faint">{snippet(replyTo.content).slice(0, 80) || 'a file'}</span>
       <button class="x" onclick={cancelReply} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
     </div>
@@ -438,11 +489,13 @@
   {/if}
 
   <div class="row">
-    {#if phone}
+    <!-- The +: round tiles in a sheet on a phone, a short list on a computer, where it takes the
+         paperclip's place once there is more than a file to add. -->
+    {#snippet more()}
       <details class="more" bind:open={menu}>
-        <summary bind:this={plus} class="icon-btn plus" title="Add a file, GIF, emoji or dictation" aria-label="More"><Icon name="plus" size={20} /></summary>
+        <summary bind:this={plus} class="icon-btn plus" title={phone ? 'Add a file, GIF, emoji or dictation' : `Attach a file, or start a ${items.map((i) => i.label.toLowerCase()).join(' or ')}`} aria-label={phone ? 'More' : 'Add'}><Icon name="plus" size={phone ? 20 : 18} /></summary>
         <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
-          {#if menu}
+          {#if menu && phone}
             {#if strip}{#key conversationKey(here)}<div class="strip" aria-hidden="true" use:photoStrip={stripTray()}></div>{/key}{/if}
             <!-- Round tiles, as in Messages or WhatsApp. Photos and Camera ask iOS for just that. -->
             <div class="menu" role="menu" aria-label="Add to your message">
@@ -452,11 +505,20 @@
               <button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => (gifOpen = true))}><span class="tile" aria-hidden="true"><span class="badge">GIF</span></span>GIF</button>
               <button role="menuitem" onclick={() => fromMenu(() => (emojiOpen = true))}><span class="tile" aria-hidden="true"><Icon name="smile" size={24} /></span>Emoji</button>
               {#if canDictate}<button role="menuitem" onclick={() => fromMenu(() => void dictation?.toggle())}><span class="tile" aria-hidden="true"><Icon name="mic" size={24} /></span>Dictate</button>{/if}
+              <!-- The things you make end the sheet together. -->
+              {#each items as item (item.command)}<button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => void runItem(item))}><span class="tile" aria-hidden="true"><Icon name={item.icon} size={24} /></span>{item.label}</button>{/each}
+            </div>
+          {:else if menu}
+            <!-- Drawn like the slash list, each object with its command so people learn it. -->
+            <div class="rows" role="menu" aria-label="Add to your message">
+              <button role="menuitem" onclick={() => fromMenu(() => fileInput.click())}><Icon name="clip" size={18} /><span class="label">Attach a file</span></button>
+              {#each items as item (item.command)}<button role="menuitem" disabled={!!locked} onclick={() => fromMenu(() => void runItem(item))}><Icon name={item.icon} size={18} /><span class="label">{item.label}</span><span class="hint">/{item.command}</span></button>{/each}
             </div>
           {/if}
         </div>
       </details>
-    {/if}
+    {/snippet}
+    {#if phone}{@render more()}{/if}
     <div class="box" class:uploading>
       <input class="sr-only" type="file" multiple bind:this={fileInput} onchange={(e) => { add([...(e.currentTarget.files || [])]); e.currentTarget.value = '' }} tabindex="-1" />
       {#if phone}
@@ -465,7 +527,7 @@
       {/if}
       <!-- On a phone these three live in the + menu. The pickers stay mounted, with
            their own buttons hidden, so the menu can open them. -->
-      <button class="attach icon-btn" class:hidden={phone} title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>
+      {#if !phone && items.length}{@render more()}{:else if !phone}<button class="attach icon-btn" title="Attach a file" aria-label="Attach a file" onclick={() => fileInput.click()}><Icon name="clip" size={18} /></button>{/if}
       <span class="picker" class:tucked={phone}><GifPicker label="Send a GIF" onpick={sendGif} disabled={!!locked} bind:open={gifOpen}><span class="icon-btn"><span class="badge">GIF</span></span></GifPicker></span>
       <span class="picker" class:tucked={phone}><EmojiPicker label="Add an emoji" onpick={insertEmoji} bind:open={emojiOpen}><span class="icon-btn"><Icon name="smile" size={18} /></span></EmojiPicker></span>
       <textarea data-composer bind:this={ta} bind:value={() => text, (value) => setText(value)} {placeholder} rows="1" oninput={grow} onkeydown={onKey} onkeyup={track} onclick={track} onpaste={onPaste} aria-label={placeholder} aria-controls={matches.length ? "slash-commands" : people.length ? "mention-people" : undefined} aria-activedescendant={matches.length ? `slash-${selected % matches.length}` : people.length ? `mention-${selected % people.length}` : undefined}></textarea>
@@ -477,11 +539,14 @@
 
 <style>
   .error { color: var(--ember); }
-  .commands { position: absolute; bottom: calc(100% - 6px); left: var(--gutter); right: var(--gutter); background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 4px; z-index: 6; box-shadow: var(--lift); }
+  /* Floats clear of the box, keeping its own edge and shadow. */
+  .commands { position: absolute; bottom: calc(100% + var(--s2)); left: var(--gutter); right: var(--gutter); background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 4px; z-index: 6; box-shadow: var(--lift); }
   .locked { margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); font-size: 12px; }
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
-  .commands .chosen { background: var(--bg-3); box-shadow: inset 2px 0 0 var(--lamp); }
+  .commands .chosen { background: var(--sel); }
+  /* What goes after the command, in the faintest ink, close to it. */
+  .commands .arg { margin-inline-start: -8px; color: var(--ink-3); }
   .people { max-height: 260px; overflow-y: auto; }
   .people button { align-items: center; gap: 8px; }
   .people b { font-weight: 600; }
@@ -504,7 +569,6 @@
   /* A long room name must not wrap the placeholder onto a hidden second line. Its colour is app.css's. */
   textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .picker { display: contents; }
-  .hidden { display: none; }
   /* Only the picker's own button goes: a popover inside a hidden box can't show. */
   .tucked :global(summary) { display: none; }
   .badge { font: 800 9.5px/1 var(--body); letter-spacing: .04em; padding: 3px 3.5px 2.5px; border: 1.5px solid currentColor; border-radius: 4px; }
@@ -514,13 +578,24 @@
   @media (hover: hover) { .sendbtn.ready:hover { color: var(--on-lamp); background: var(--lamp); filter: brightness(1.06); } }
   .sendbtn.ready:active { transform: scale(.94); }
   .sendbtn:disabled { opacity: .4; }
-  .plus { background: var(--bg-3); color: var(--ink-2); list-style: none; cursor: pointer; }
+  .plus { color: var(--ink-2); list-style: none; cursor: pointer; }
   .plus::-webkit-details-marker { display: none; }
   .more[open] > .plus { color: var(--lamp); }
   /* The box is the + plus its padding and border, and both sit on the bottom so the box
      can grow upward. Lift the + by that much: it shares the box's centre line, and once
      the box grows, its last line's. */
   .more { display: flex; margin-bottom: calc(var(--box-pad) + var(--box-edge)); }
+  /* On a computer the + sits in the box where the paperclip was, quiet until its list is open. */
+  .box .more { margin: 0; }
+  .box .more[open] > .plus { background: var(--sel); }
+  .rows { display: grid; width: 256px; padding: 4px; }
+  .rows button { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r); text-align: start; }
+  @media (hover: hover) { .rows button:hover:not(:disabled) { background: var(--bg-3); } }
+  .rows button:disabled { opacity: .5; }
+  @media (pointer: coarse) { .rows button { min-height: 44px; } }
+  .rows :global(svg) { flex: none; color: var(--ink-2); }
+  .rows .label { flex: 1; }
+  .rows .hint { color: var(--ink-3); font-size: var(--fs-sm); }
   .more [popover] { position: fixed; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
   /* The + sheet: round tiles with their names under them, under Den Shell's strip of recent photos. The shell draws
      the strip over this slot; the card is what shows while the sheet moves and the strip steps aside. */

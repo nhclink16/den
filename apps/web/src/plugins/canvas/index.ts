@@ -48,4 +48,10 @@ registerPlugin({
           if (store.drafts === owner && owner.holds(token)) openObject(made)
         } catch (err) { alert((err as Error).message) }
       } }] : [] },
+  // Started from the +, the new canvas opens straight away, as it does from the palette.
+  get composerItems() { return enabled() ? [{ label: 'Canvas', icon: 'canvas' as const, command: 'canvas', run: async (ctx: CommandContext) => {
+        const owner = store.drafts, token = owner.token
+        const made = await create(ctx.channelId, '', ctx.conversation, ctx.replyToId)
+        if (store.drafts === owner && owner.holds(token)) openObject(made)
+      } }] : [] },
 })
