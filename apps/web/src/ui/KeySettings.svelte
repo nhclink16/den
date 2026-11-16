@@ -83,7 +83,7 @@
   <FormDialog bind:open={adding} title="New Agent" action="Create" disabled={!botOk} onsubmit={createBot}>
     <input class="field" bind:value={botName} placeholder="username, e.g. hermes" aria-label="Agent username" aria-describedby="new-agent-username-hint" autocapitalize="off" autocomplete="off" />
     <!-- As on sign-up: the rule stays put once met and gains a tick at its end, so nothing moves while you type. -->
-    <p id="new-agent-username-hint"><span class="line">People @mention it with this.</span><span class="line" class:broken={botBroken}>3 to 32 lowercase letters, numbers or _.{#if botOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</span></p>
+    <p id="new-agent-username-hint"><span class="line">People @mention it with this.</span>{' '}<span class="line" class:broken={botBroken}>3 to 32 lowercase letters, numbers or _.{#if botOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</span></p>
     <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" aria-label="Agent display name" autocomplete="off" />
   </FormDialog>
 {/if}
