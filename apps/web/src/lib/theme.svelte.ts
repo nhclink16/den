@@ -5,7 +5,7 @@ import { themeFor, appearanceHalf, applyTheme, appearanceCacheKey, builtinThemes
 import { deriveHalf, colorRoles } from './theme-color'
 import { forgetOldAvatarChoice } from './avatar-carry'
 export { builtinThemes }
-export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces', 'Commit Mono'])].sort()
+export const fontFamilies = [...new Set([...builtinThemes.flatMap(t => Object.values(t.fonts)), 'Inter', 'Instrument Sans', 'Space Grotesk', 'Nunito', 'Lora', 'Fraunces'])].sort()
 /** The families that come from Google Fonts: not the device's own, not the bundled mono. */
 export const webFonts = (families: string[]) => [...new Set(families)].filter(f => f !== systemFont && f !== 'IBM Plex Mono')
 export const validName = (v: string) => [...v].length >= 1 && [...v].length <= 40 && !!v.trim() && /^[\p{L}\p{N} _-]+$/u.test(v)
@@ -45,6 +45,8 @@ class Themes {
   owner = () => activeOrigin()
   private systemLight = $state(matchMedia('(prefers-color-scheme: light)').matches)
   private fontRun = 0
+  /** Families the last font request could not load, so a later apply still falls back for them. */
+  private fontsFailed: string[] = []
   private stored = copy(this.appearance)
   // Each save sends only the fields it changes, and the server keeps the rest, so a
   // save never writes an old copy of another device's change back.
@@ -88,23 +90,37 @@ class Themes {
   apply() { applyTheme(this.active, this.half, this.appearance); void this.loadFonts(this.active.fonts) }
   async loadFonts(fonts: ThemeFonts) {
     const families = webFonts(Object.values(fonts))
-    const url = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:wght@400;500;600;700`).join('&')}&display=swap`
+    // Italics too where the family has them (Google sends only the upright faces otherwise),
+    // so *emphasis* is the real italic rather than a slanted copy.
+    const url = `https://fonts.googleapis.com/css2?${families.map(f => `family=${encodeURIComponent(f)}:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700`).join('&')}&display=swap`
     let link = document.querySelector<HTMLLinkElement>('#den-fonts')
-    if (link?.href === url) return
+    if (link?.href === url) { this.fallBack(fonts, this.fontsFailed); return }
     const run = ++this.fontRun
     link?.remove()
+    this.fontsFailed = []
     if (!families.length) return
     link = document.createElement('link'); link.id = 'den-fonts'; link.rel = 'stylesheet'; link.href = url
     let timer: ReturnType<typeof setTimeout>
     const loaded = new Promise<boolean>(resolve => { link!.onload = () => resolve(true); link!.onerror = () => resolve(false) })
     document.head.append(link)
-    const ok = await Promise.race([loaded.then(async ok => ok && (await Promise.all(families.map(f => document.fonts.load(`16px "${f}"`)))).every(f => f.length > 0)).catch(() => false), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), 3000) })])
+    // Each family is checked on its own: Google drops a name it doesn't serve and sends the
+    // rest, so one bad family must not take the other roles' fonts with it.
+    const none = families.map(() => false)
+    const ok = await Promise.race([
+      loaded.then(ok => ok ? Promise.all(families.map(async f => (await document.fonts.load(`16px "${f}"`)).length > 0)) : none).catch(() => none),
+      new Promise<boolean[]>(resolve => { timer = setTimeout(() => resolve(none), 3000) }),
+    ])
     clearTimeout(timer!)
     if (run !== this.fontRun) return
-    if (!ok) {
-      link.remove(); this.error = "Couldn't load that font"
-      for (const [role, family] of Object.entries(fonts)) if (webFonts([family]).length) document.documentElement.style.setProperty(`--${role}`, role === 'mono' ? '"Den Terminal Mono", monospace' : fontStack(systemFont, 'body'))
-    } else if (this.error === "Couldn't load that font") this.error = ''
+    const failed = families.filter((_, i) => !ok[i])
+    this.fontsFailed = failed
+    if (failed.length === families.length) link.remove()
+    if (failed.length) { this.error = "Couldn't load that font"; this.fallBack(fonts, failed) }
+    else if (this.error === "Couldn't load that font") this.error = ''
+  }
+  /** Only the roles whose family failed go to the device's own font. */
+  private fallBack(fonts: ThemeFonts, failed: string[]) {
+    for (const [role, family] of Object.entries(fonts)) if (failed.includes(family)) document.documentElement.style.setProperty(`--${role}`, role === 'mono' ? '"Den Terminal Mono", monospace' : fontStack(systemFont, 'body'))
   }
   /** Saves the fields in `patch`, one save at a time. A save waiting its turn is dropped
    *  if the account or server changed meanwhile, so it never reaches the wrong one. */
