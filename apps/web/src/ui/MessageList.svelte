@@ -380,6 +380,11 @@
   /* The time sits between bursts, not on every line. */
   .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }
   .time b { font-weight: 600; color: var(--ink-2); }
+  /* Over a wallpaper in the room it sits on a small frosted pill, like the floating day, so it reads on any photo. */
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .time {
+    width: fit-content; margin-inline: auto; padding: 2px 10px; border-radius: var(--r-pill, 999px); box-shadow: 0 0 0 .5px var(--line);
+    background: var(--overlay); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
   /* Where unread starts is live, so it is lit: a thin accent rule. */
   .new { display: flex; align-items: center; gap: 10px; margin: 12px var(--gutter) 0; color: var(--lamp); font: 700 var(--fs-xs)/1.5 var(--body); }
   .new::before, .new::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--lamp) 50%, transparent); }

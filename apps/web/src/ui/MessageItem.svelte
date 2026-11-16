@@ -407,6 +407,14 @@
     flex: none; min-width: 18px; padding: 0 5px; border-radius: var(--r-pill, 999px); background: var(--lamp); color: var(--on-lamp, #000); font-weight: 700; text-align: center;
   }
   @media (pointer: coarse) { .thread-link { min-height: 32px; } }
+  /* Over a wallpaper in the room, the words between bubbles sit on small frosted pills,
+     so they read on any photo. With no wallpaper nothing changes. */
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) :is(.meta, .thread-link, .reply-ref) {
+    width: fit-content; border-radius: var(--r-pill, 999px); box-shadow: 0 0 0 .5px var(--line);
+    background: var(--overlay); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) :is(.meta, .reply-ref) { padding: 1px 8px; }
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .msg:not(.feed) .meta { margin-left: 4px; }
   .deleting { margin-top: 6px; }
   .deleting :global(.confirmation) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 
