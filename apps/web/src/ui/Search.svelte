@@ -36,7 +36,8 @@
   const scopeName = $derived(scope ? store.channel(scope) : undefined)
   const bar = $derived(narrow && !native)
   const places = $derived(store.channels.filter((c) => c.kind !== 'voice'))
-  const placeName = (c: Channel) => (c.kind === 'dm' ? store.title(c) : `#${c.name}`)
+  // Your DM with yourself is your notes: naming it after you would repeat the name on each of your own results.
+  const placeName = (c: Channel) => (store.selfDm(c) ? 'Notes' : c.kind === 'dm' ? store.title(c) : `#${c.name}`)
 
   // The URL is the search. It follows the field, trimmed, so it only overwrites the field when it changed
   // some other way (Back, a recent search): "hello " mid-word must stay "hello ".
