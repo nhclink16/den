@@ -338,8 +338,8 @@
   </header>
   {/if}
 
-  {#if channel.kind !== 'text'}<JamCard channelId={channel.id} />{/if}
-  {#if call.channel && call.owner && call.channel.id !== channel.id && !objects.expanded}<JamCard channelId={call.channel.id} owner={call.owner} compact />{/if}
+  <!-- In the call, the Jam lives with the call (CallJam), so the room doesn't repeat it. -->
+  {#if channel.kind !== 'text' && !(call.channel?.id === channel.id && call.origin === store.origin)}<JamCard channelId={channel.id} />{/if}
 
   {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} titled={pushed && callCovers} />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
