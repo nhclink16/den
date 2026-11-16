@@ -17,13 +17,13 @@
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
-  import Composer from './Composer.svelte'
+  import Composer, { focusComposer } from './Composer.svelte'
   import ThreadStrip from './ThreadStrip.svelte'
   import ThreadPanel from './ThreadPanel.svelte'
   import { router } from '../lib/router.svelte'
   import { viewing } from '../lib/notify.svelte'
   import { native } from '../lib/native'
-  import { tick, untrack } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   let q = $state('')
   let listening = $state(false)
   // Searches everywhere: a miss in this room reads as "the message is gone".
@@ -235,6 +235,20 @@
       const fallback = document.querySelector<HTMLElement>('.view h1')
       ;(opener ?? fallback)?.focus()
     })
+  })
+  // Opening a room (this view is keyed per room) puts the cursor where typing goes: the message box with a mouse
+  // or keyboard, else the room's title, which moves a screen reader without raising a phone's keyboard. A frame
+  // later, so it lands after the palette or a menu has handed focus back. An open thread panel focuses itself.
+  onMount(() => {
+    let frame = 0
+    void tick().then(() => {
+      frame = requestAnimationFrame(() => {
+        if (panel || document.activeElement?.closest('dialog[open], :popover-open')) return
+        if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+        document.querySelector<HTMLElement>('.view h1[tabindex]')?.focus({ preventScroll: true })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
   })
   // The first reply saves the thread: swap the pre-creation URL for the canonical
   // one in place, so Back does not return to a conversation that now exists.
