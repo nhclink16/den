@@ -265,7 +265,8 @@
         <span class="new">{#if g.mention}<span class="at">Mentions you</span>{' · '}{/if}{g.count} new</span>
       </h2>
       <div class="slist">
-        {#if latestError(g.s, g.c.id)}
+        <!-- Only while nothing loaded: messages that came in another way (a reconnect, the room opened elsewhere) win. -->
+        {#if latestError(g.s, g.c.id) && !g.s.messages.has(g.c.id)}
           <div class="line">
             <span class="text err" role="alert">{latestError(g.s, g.c.id)}</span>
             <button class="btn quiet" onclick={() => loadLatest(g.s, g.c.id)}>Retry</button>
