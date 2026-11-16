@@ -17,19 +17,28 @@ export class HttpError extends Error {
     super(message)
   }
 }
+/** Nothing answered: offline, a wrong address, or a server that is down. Not an HttpError, so callers that
+    stay quiet about a refusal (call.svelte.ts report) still sound the error. */
+export class NetworkError extends Error {}
 
 async function call<T>(origin: string, method: string, path: string, body?: unknown, raw?: BodyInit, headers: Record<string, string> = {}): Promise<T> {
   const h: Record<string, string> = { ...headers }
   if (body !== undefined) h['content-type'] = 'application/json'
   if (method !== 'GET' && method !== 'HEAD' && csrf) h['x-csrf-token'] = csrf
   let res: Response
-  if (native) {
-    const bytes = body !== undefined ? new TextEncoder().encode(JSON.stringify(body)) : raw ? new Uint8Array(await new Response(raw).arrayBuffer()) : undefined
-    const response = await invoke<{ status: number; headers: Record<string, string>; body: number[] }>('api_request', { origin, method, path, body: bytes ? Array.from(bytes) : null, headers: h })
-    res = new Response(response.status === 204 ? null : new Uint8Array(response.body), { status: response.status, headers: response.headers })
-  } else res = await fetch(path, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : raw, credentials: 'same-origin' })
+  // The browser's own words ("Failed to fetch", "Load failed") and a proxy's "Bad Gateway" mean nothing to
+  // anyone, so they are said once here in Den's.
+  try {
+    if (native) {
+      const bytes = body !== undefined ? new TextEncoder().encode(JSON.stringify(body)) : raw ? new Uint8Array(await new Response(raw).arrayBuffer()) : undefined
+      const response = await invoke<{ status: number; headers: Record<string, string>; body: number[] }>('api_request', { origin, method, path, body: bytes ? Array.from(bytes) : null, headers: h })
+      res = new Response(response.status === 204 ? null : new Uint8Array(response.body), { status: response.status, headers: response.headers })
+    } else res = await fetch(path, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : raw, credentials: 'same-origin' })
+  } catch {
+    throw new NetworkError("Can't reach Den. Check your connection and try again.")
+  }
   if (!res.ok) {
-    let err: ApiError = { error: 'http', message: res.statusText }
+    let err: ApiError = { error: 'http', message: res.status >= 500 ? "Den isn't answering right now. Try again in a minute." : 'Something went wrong. Try again.' }
     try { err = await res.json() } catch { /* not json */ }
     if (method !== 'GET' && method !== 'HEAD') window.dispatchEvent(new CustomEvent('den-sound-event', { detail: { origin, sound: 'error' } }))
     throw new HttpError(res.status, err.error, err.message)

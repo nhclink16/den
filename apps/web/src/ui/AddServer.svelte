@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { Store, instances } from '../lib/store.svelte'
-  import { apiFor } from '../lib/api'
+  import { apiFor, NetworkError } from '../lib/api'
   import { originOf } from '../lib/native'
   import type { Instance } from '../lib/types'
   import Mark from './Mark.svelte'
@@ -21,7 +21,9 @@
         origin = originOf(link.protocol === 'den:' ? link.searchParams.get('url') || '' : url)
         invite = link.searchParams.get('invite') || invite
         if (invite) mode = 'register'
-        preview = await apiFor(origin).get<Instance>('/instance')
+        preview = await apiFor(origin).get<Instance>('/instance').catch((e) => {
+          throw e instanceof NetworkError ? Error('Nothing answered at that address. Check the URL, including http or https.') : e
+        })
       } else {
         const s = instances.stores.find(s => s.origin === origin) || new Store(origin)
         if (!s.me) {
