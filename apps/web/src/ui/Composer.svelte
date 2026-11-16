@@ -109,8 +109,20 @@
   let dismissed = $state(false)
   let selected = $state(0)
   const commands = $derived(plugins.flatMap((p) => p.slashCommands))
-  const matches = $derived(!dismissed && /^\/\S*$/.test(text) ? commands.filter((c) => c.name.startsWith(text.slice(1))) : [])
-  function pickCommand(name: string) { setText(`/${name} `); dismissed = true; ta.focus() }
+  // The list offers commands while the first word is typed, then the values of that command's argument.
+  // A command whose argument has nothing to offer is left out: picking it could only fail.
+  type Suggestion = { fill: string; name: string; arg?: string; hint?: string; more?: boolean }
+  const matches = $derived.by((): Suggestion[] => {
+    if (dismissed) return []
+    const word = /^\/(\S*)$/.exec(text)
+    if (word) return commands.filter((c) => c.name.startsWith(word[1]!) && (!c.arg || c.arg.values.length))
+      .map((c) => ({ fill: `/${c.name} `, name: `/${c.name}`, arg: c.arg?.label, hint: c.hint, more: !!c.arg }))
+    const typed = /^\/(\S+) (\S*)$/.exec(text)
+    const command = typed && commands.find((c) => c.name === typed[1])
+    return command?.arg?.values.filter((v) => v.startsWith(typed![2]!)).map((v) => ({ fill: `/${command.name} ${v}`, name: `/${command.name} ${v}` })) ?? []
+  })
+  // A command that takes an argument keeps the list open for it.
+  function pickCommand(s: Suggestion) { setText(s.fill); dismissed = !s.more; selected = 0; ta.focus() }
 
   // Mentions. The caret matters, so this cannot key off `text` alone: typing `@a`
   // in the middle of a sentence should offer people, and moving away should stop.
@@ -262,7 +274,7 @@
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected = (selected + (e.key === 'ArrowDown' ? 1 : open - 1)) % open; return }
       if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing) {
         e.preventDefault()
-        if (matches.length) pickCommand(matches[selected % matches.length]!.name)
+        if (matches.length) pickCommand(matches[selected % matches.length]!)
         else pickPerson(people[selected % people.length]!)
         return
       }
@@ -398,8 +410,8 @@
   {#if locked}<p class="locked" role="status">{locked}</p>{/if}
   {#if matches.length}
     <div class="commands" role="listbox" id="slash-commands" aria-label="Commands">
-      {#each matches as command, i}
-        <button id={`slash-${i}`} role="option" aria-selected={i === selected % matches.length} class:chosen={i === selected % matches.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickCommand(command.name)}><b>/{command.name}</b><span>{command.hint}</span></button>
+      {#each matches as s, i}
+        <button id={`slash-${i}`} role="option" aria-selected={i === selected % matches.length} class:chosen={i === selected % matches.length} onmousedown={(e) => e.preventDefault()} onclick={() => pickCommand(s)}><b>{s.name}</b>{#if s.arg}<span class="arg">{s.arg}</span>{/if}{#if s.hint}<span>{s.hint}</span>{/if}</button>
       {/each}
     </div>
   {/if}
@@ -485,6 +497,8 @@
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
   .commands .chosen { background: var(--sel); }
+  /* What goes after the command, in the faintest ink, close to it. */
+  .commands .arg { margin-inline-start: -8px; color: var(--ink-3); }
   .people { max-height: 260px; overflow-y: auto; }
   .people button { align-items: center; gap: 8px; }
   .people b { font-weight: 600; }

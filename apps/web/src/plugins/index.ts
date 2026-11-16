@@ -17,7 +17,9 @@ export type CommandContext = {
 }
 export type Plugin = {
   objectKinds: Record<string, { card: Component<ObjectProps>; view?: Component<ObjectProps>; tile?: Component<ObjectProps> }>
-  slashCommands: { name: string; hint: string; run: (ctx: CommandContext) => void | Promise<void> }[]
+  /// `arg` names what goes after the command ("<machine>") and the values the list offers for it. With
+  /// no values the list leaves the command out, since picking it could only fail; typed, it still runs.
+  slashCommands: { name: string; hint: string; arg?: { label: string; values: string[] }; run: (ctx: CommandContext) => void | Promise<void> }[]
   paletteActions: { id: string; label: string; hint: string; disabled?: boolean; run: () => void | Promise<void> }[]
 }
 export const plugins: Plugin[] = []
