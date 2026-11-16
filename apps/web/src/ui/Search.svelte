@@ -118,13 +118,18 @@
     </form>
     {#if bar}<button class="cancel" onclick={cancel}>Cancel</button>{/if}
   </header>
-  <!-- Where to look: everywhere, or one room or DM. -->
-  <div class="chips" role="group" aria-label="Where">
-    <button class="chip" aria-pressed={!scope} onclick={() => pick('')}>Everywhere</button>
-    {#each places as c (c.id)}<button class="chip" aria-pressed={scope === c.id} onclick={() => pick(c.id)}>{placeName(c)}</button>{/each}
-  </div>
+  <!-- Where to look: everywhere, or one room or DM. A phone keeps it under its bar; a computer shows it as the
+       first row of the results, wrapped, so every place is in reach without a sideways scroll. -->
+  {#snippet chips()}
+    <div class="chips" role="group" aria-label="Where">
+      <button class="chip" aria-pressed={!scope} onclick={() => pick('')}>Everywhere</button>
+      {#each places as c (c.id)}<button class="chip" aria-pressed={scope === c.id} onclick={() => pick(c.id)}>{placeName(c)}</button>{/each}
+    </div>
+  {/snippet}
+  {#if bar}{@render chips()}{/if}
 
   <div class="scroll">
+    {#if !bar}{@render chips()}{/if}
     {#if error}<p class="error">{error}</p>{/if}
     {#if results === null}
       {#if recent.length}
@@ -169,7 +174,11 @@
   .top { display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter) 6px; min-height: 52px; }
   .bar .top { gap: 4px; padding: 4px 8px 4px 16px; min-height: 44px; }
   .find { flex: 1; min-width: 0; }
-  .search-page:not(.bar) .find { max-width: 640px; }
+  /* A computer: the field row is the header, and field, places and results share one centred column, as Inbox does. */
+  .search-page:not(.bar) .top { block-size: 52px; min-height: 0; padding-block: 0; border-bottom: 1px solid var(--line); }
+  .search-page:not(.bar) .find { max-width: 760px; margin-inline: auto; }
+  .search-page:not(.bar) .scroll > :global(*) { margin-inline: auto; }
+  .search-page:not(.bar) .chips { flex-wrap: wrap; overflow: visible; padding: var(--s4) 0 0; border-bottom: 0; }
   /* The iPhone's search field: a grey capsule with the magnifier inside and a clear button. */
   .q { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px 0 10px; border: 1px solid transparent; border-radius: 10px; background: var(--bg-3); color: var(--ink-3); cursor: text; }
   :global(:where(:root:not([data-input='touch']))) .q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
