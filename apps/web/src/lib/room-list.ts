@@ -109,3 +109,11 @@ export function callLine(participants: InCall[], reconnecting = false) {
   const people = faces.length > 1 ? `${faces.length} people` : 'Just you'
   return { talking, people }
 }
+
+/// A group chat's title from its members' names: first names, "Nadia, Priya and Wren". When two of them
+/// share a first name, the whole chat keeps full names, so nobody is left guessing which one.
+export function groupTitle(names: string[]) {
+  const first = names.map((n) => n.trim().split(/\s+/)[0] || n)
+  const shown = new Set(first).size === first.length ? first : names
+  return shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown.join('')
+}
