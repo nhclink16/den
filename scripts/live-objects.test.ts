@@ -21,6 +21,7 @@ test('/terminal says why no machine was picked', () => {
   assert.equal(error([pi, nas, cabin], 'cabin-pi'), 'cabin-pi isn’t online. Try /terminal pi or /terminal nas.')
   assert.equal(error([pi, nas], ''), 'Which machine? Try /terminal pi or /terminal nas.')
   assert.equal(error([pi, { ...nas, name: 'pi' }], 'pi'), 'Two machines are called pi. Use the machine’s ID.')
+  assert.equal(error([pi, nas, { id: 'h4', name: 'desk', online: true }], 'x'), 'No machine called x. Try /terminal pi, /terminal nas or /terminal desk.')
   // Two machines with one name are offered once.
   assert.equal(error([pi, { ...nas, name: 'pi' }], 'x'), 'No machine called x. Try /terminal pi.')
 })

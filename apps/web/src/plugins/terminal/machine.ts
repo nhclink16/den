@@ -13,7 +13,7 @@ export function pickMachine(hosts: Machine[], typed: string): { id: string } | {
   if (matches.length > 1) return { error: `${matches.length === 2 ? 'Two' : matches.length} machines are called ${typed}. Use the machine’s ID.` }
   if (!online.length) return { error: typed ? `No machine called ${typed} is online. ${SET_UP}` : `No machine is online. ${SET_UP}` }
   const names = [...new Set(online.map((h) => `/terminal ${h.name}`))]
-  const tryThese = `Try ${new Intl.ListFormat('en', { type: 'disjunction' }).format(names)}.`
+  const tryThese = `Try ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(names)}.`
   if (!typed) return { error: `Which machine? ${tryThese}` }
   return { error: hosts.some(called) ? `${typed} isn’t online. ${tryThese}` : `No machine called ${typed}. ${tryThese}` }
 }
