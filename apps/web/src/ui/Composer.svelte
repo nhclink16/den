@@ -477,11 +477,12 @@
 
 <style>
   .error { color: var(--ember); }
-  .commands { position: absolute; bottom: calc(100% - 6px); left: var(--gutter); right: var(--gutter); background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 4px; z-index: 6; box-shadow: var(--lift); }
+  /* Floats clear of the box, keeping its own edge and shadow. */
+  .commands { position: absolute; bottom: calc(100% + var(--s2)); left: var(--gutter); right: var(--gutter); background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 4px; z-index: 6; box-shadow: var(--lift); }
   .locked { margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); font-size: 12px; }
   .commands button { display: flex; width: 100%; gap: 12px; padding: 8px; text-align: left; border-radius: var(--r); }
   .commands span { color: var(--ink-2); }
-  .commands .chosen { background: var(--bg-3); box-shadow: inset 2px 0 0 var(--lamp); }
+  .commands .chosen { background: var(--sel); }
   .people { max-height: 260px; overflow-y: auto; }
   .people button { align-items: center; gap: 8px; }
   .people b { font-weight: 600; }
