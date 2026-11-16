@@ -202,7 +202,7 @@
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
 <section
-  class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
+  class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Thread: ${plainMentions(summary.title, store.users)}` : 'New thread'}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -219,10 +219,10 @@
     {#snippet trailing()}
       {#if live}
         <details class="menu-btn" bind:open={menu}>
-          <summary class="icon-btn" aria-label="Conversation options"><Icon name="more" size={24} /></summary>
+          <summary class="icon-btn" aria-label="Thread options"><Icon name="more" size={24} /></summary>
           <div class="sheet" popover="auto" use:disclosurePopover={'end'}>
             {#if menu}
-              <div class="menu" role="menu" aria-label="Conversation options">
+              <div class="menu" role="menu" aria-label="Thread options">
                 <button role="menuitem" onclick={() => fromMenu(() => { title = summary?.title ?? ''; renaming = true })} disabled={busy}><Icon name="edit" size={20} />Rename</button>
                 <button role="menuitem" onclick={() => fromMenu(() => setFollowing(!position?.following))} disabled={busy}><Icon name="bell" size={20} />{position?.following ? 'Stop Following' : 'Follow'}</button>
                 <button role="menuitem" onclick={() => fromMenu(() => setResolved(!resolved))} disabled={busy}><Icon name="check" size={20} />{resolved ? 'Reopen' : 'Resolve'}</button>
@@ -236,7 +236,7 @@
   {#if renaming}
     <div class="rename-row">
       <input
-        class="field rename" bind:value={title} aria-label="Conversation title"
+        class="field rename" bind:value={title} aria-label="Thread title"
         onkeydown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') renaming = false }}
       />
       <button class="btn quiet" onclick={() => (renaming = false)}>Cancel</button>
@@ -248,17 +248,17 @@
     {#if narrow}<button class="icon-btn back" onclick={onclose} aria-label="Back to room"><Icon name="back" size={22} /></button>{/if}
     {#if renaming}
       <input
-        class="field rename" bind:value={title} aria-label="Conversation title"
+        class="field rename" bind:value={title} aria-label="Thread title"
         onkeydown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') renaming = false }}
       />
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
       <div class="title">
-        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
+        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New thread', store.users)}</h2>
         <span class="sub">{channel.kind === 'dm' ? `with ${store.title(channel)}` : `in ${roomName(channel, themes.appearance.room_icons)}`}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
       </div>
     {/if}
-    {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
+    {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close thread"><Icon name="x" size={16} /></button>{/if}
   </header>
   {/if}
   {#if live && !renaming && !bar}
@@ -285,7 +285,7 @@
         {#if rootRetry}<button class="btn quiet" onclick={() => loadRootFor(rootId, channel.id)}>Retry</button>{/if}
       </p>
     {:else}
-      <p class="faint" aria-busy="true">Loading the message this conversation is about…</p>
+      <p class="faint" aria-busy="true">Loading the message this thread is about…</p>
     {/if}
   </div>
   {/snippet}
@@ -304,7 +304,7 @@
     <p class="windowed faint" aria-busy="true">Finding that message…</p>
   {:else if showingWindow}
     <p class="windowed faint">
-      Showing an older part of this conversation.
+      Showing an older part of this thread.
       {#if !windowStatus?.end}
         <button class="btn quiet" onclick={() => store.extendWindow(windowKey, channel.id, live, false)} disabled={windowStatus?.loading}>
           {windowStatus?.loading ? 'Loading…' : 'Newer'}
@@ -322,7 +322,7 @@
   {#if live}
     <MessageList {channel} {source} onreply={(m) => (replyTo = m)} lead={bar ? rootMessage : undefined} bind:below />
   {:else}
-    <div class="empty faint">No replies yet. The first one starts this conversation.</div>
+    <div class="empty faint">No replies yet. The first one starts this thread.</div>
   {/if}
 
   <div class="dock" class:over={bar && !!live} class:frost={bar && !!live && below} bind:offsetHeight={dockHeight}>
@@ -332,15 +332,15 @@
 
     <Composer
       {channel} conversation={here} bind:replyTo bind:dropped bind:listening
-      locked={!root ? 'This conversation is not available here.'
-        : resolved ? 'This conversation is resolved. Reopen it to add anything new.' : undefined}
+      locked={!root ? "This thread isn't available here."
+        : resolved ? 'This thread is resolved. Reopen it to add anything new.' : undefined}
     />
   </div>
   {#if dragging > 0}
     <div class="drop">
       <div class="drop-inner">
         <Icon name="clip" size={28} />
-        <span class="display big">Drop it in this conversation</span>
+        <span class="display big">Drop it in this thread</span>
       </div>
     </div>
   {/if}

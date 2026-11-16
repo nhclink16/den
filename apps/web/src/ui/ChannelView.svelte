@@ -111,7 +111,7 @@
       .then((view) => {
         if (loadingFor !== mine) return
         if (view && view.thread.channel_id !== channel.id) {
-          threadGone = 'That conversation is not in this room.'
+          threadGone = 'That thread is not in this room.'
         }
       })
       .catch((e) => {
@@ -119,8 +119,8 @@
         const status = (e as { status?: number }).status
         // Only confirmed missing or denied is unavailable; anything else is
         // transient and gets an explicit Retry rather than a dead end.
-        threadGone = status === 404 ? 'That conversation no longer exists.'
-          : status === 403 ? "You don't have access to that conversation."
+        threadGone = status === 404 ? 'That thread no longer exists.'
+          : status === 403 ? "You don't have access to that thread."
           : (e as Error).message
         retryable = status !== 404 && status !== 403
       })
@@ -131,7 +131,7 @@
     // Switching routes cancels whatever the previous one was doing.
     loadingFor = id ? `${channel.id}/${id}` : ''
     loadingThread = false
-    threadGone = wrongRoom ? 'That conversation is not in this room.' : ''
+    threadGone = wrongRoom ? 'That thread is not in this room.' : ''
     retryable = false
     if (!id || known) return
     loadRoute(id)
@@ -424,14 +424,14 @@
         onvalid={(ok) => (panelValid = ok)}
       />
     {:else if panel && loadingThread}
-      <section class="panel-missing" aria-label="Conversation" aria-busy="true">
-        <p class="muted">Opening that conversation…</p>
+      <section class="panel-missing" aria-label="Thread" aria-busy="true">
+        <p class="muted">Opening that thread…</p>
         <!-- On a phone the room's header has given way, so the way back is here. -->
         <button class="btn quiet" onclick={closePanel}>Back to room</button>
       </section>
     {:else if panel}
-      <section class="panel-missing" aria-label="Conversation">
-        <p class="muted" role="alert">{threadGone || "That conversation isn't available here."}</p>
+      <section class="panel-missing" aria-label="Thread">
+        <p class="muted" role="alert">{threadGone || "That thread isn't available here."}</p>
         <div class="row">
           {#if retryable && openThread}
             <button class="btn quiet" onclick={() => loadRoute(openThread)}>Retry</button>

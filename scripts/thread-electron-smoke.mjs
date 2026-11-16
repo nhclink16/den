@@ -277,7 +277,7 @@ try {
   const zoomed = {
     setZoomFactorReturned: zoomReturned, before: zoomBefore, after: zoomAfter,
     panel: await page.locator('[data-thread-panel]').count(),
-    back: await page.locator('[data-thread-panel] button[aria-label="Back to room"], [data-thread-panel] button[aria-label="Close conversation"]').first().isVisible(),
+    back: await page.locator('[data-thread-panel] button[aria-label="Back to room"], [data-thread-panel] button[aria-label="Close thread"]').first().isVisible(),
     draft: await page.locator('[data-thread-panel] textarea').inputValue(),
     // BOTH axes. An earlier version of this check tested left/right only, and a
     // header that wraps under zoom can push a control below the fold instead of

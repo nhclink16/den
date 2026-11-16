@@ -165,15 +165,15 @@
     onopen(t.id, t.root_message_id)
   }
   const empty = $derived({
-    open: 'No open conversations yet. Reply to a message to start one.',
-    unread: 'Nothing unread in a conversation here.',
+    open: 'No open threads yet. Reply to a message to start one.',
+    unread: 'No unread threads here.',
     resolved: 'Nothing has been resolved here yet.',
   }[mode])
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details class="threads" class:subtitle bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
-  <summary class:pill={!subtitle} class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
+  <summary class:pill={!subtitle} class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Threads in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
     {#if !subtitle}<Icon name="thread" size={14} />{/if}
     <span class="label">{#if openCount}<b>{openCount}{lists.open.more ? '+' : ''}</b> open {openCount === 1 && !lists.open.more ? 'thread' : 'threads'}{:else}Threads{/if}</span>
     {#if unreadAll.length}<span class="count" class:at={unreadAll.some((u) => u.mention)}>{unreadAll.some((u) => u.mention) ? '@' : unreadAll.reduce((n, u) => n + u.count, 0)}</span>{/if}
@@ -181,7 +181,7 @@
   </summary>
   <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
     {#if open}
-      <div class="box" data-thread-strip aria-label="Conversations in this room">
+      <div class="box" data-thread-strip aria-label="Threads in this room">
         <div class="tabs segments small">
           {#each ['open', 'unread', 'resolved'] as const as m (m)}
             <button aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
