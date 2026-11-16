@@ -3,6 +3,7 @@ import './app.css'
 import './plugins/canvas'
 import './plugins/terminal'
 import App from './App.svelte'
+import { followTextSize } from './lib/text-scale'
 
 // iOS draws :active only under a touch listener; one on the document gives every control its pressed look.
 document.addEventListener('touchstart', () => {}, { passive: true })
@@ -16,5 +17,7 @@ addEventListener('pointerdown', (e) => { root.dataset.input = e.pointerType === 
 addEventListener('keydown', (e) => {
   if (/^(Tab|Arrow\w+|Home|End)$/.test(e.key) || (root.dataset.input === 'mouse' && /^(Enter| |Escape)$/.test(e.key))) delete root.dataset.input
 }, { capture: true })
+
+followTextSize()
 
 export default mount(App, { target: document.getElementById('app')! })

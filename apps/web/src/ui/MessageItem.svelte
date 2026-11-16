@@ -370,7 +370,7 @@
      Not visibility: a visible ::after inside a hidden view would show through. */
   .bubble :global(.stamp) { display: none; }
   @media (hover: none) {
-    .bubble :global(.stamp) { display: inline-block; color: transparent; margin-left: 10px; font-size: 11px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .bubble :global(.stamp) { display: inline-block; color: transparent; margin-left: 10px; font-size: calc(11px * var(--text-scale, 1)); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .bubble :global(.stamp)::after {
       content: attr(data-at); position: absolute; right: calc(12px * var(--density) + 1px); bottom: calc(7px * var(--density) + 1px);
       color: var(--ink-2);
