@@ -115,5 +115,8 @@ export function callLine(participants: InCall[], reconnecting = false) {
 export function groupTitle(names: string[]) {
   const first = names.map((n) => n.trim().split(/\s+/)[0] || n)
   const shown = new Set(first).size === first.length ? first : names
-  return shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown.join('')
+  return andList(shown)
 }
+
+/// "A", "A and B", "A, B and C": the one way Den joins a few names.
+export const andList = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('')

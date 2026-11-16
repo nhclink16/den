@@ -43,7 +43,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { themes } from '../lib/theme.svelte'
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
-  import { placedIn, previewText } from '../lib/room-list'
+  import { andList, placedIn, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
   import { objects } from '../lib/objects.svelte'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
@@ -129,7 +129,7 @@
     const names = ids.filter((id) => id !== store.me?.id).map((id) => store.name(id))
     const me = ids.includes(store.me?.id ?? '')
     if (!names.length) return me ? "You're in" : 'Nobody here yet'
-    const list = names.length <= 3 ? names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names.at(-1) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
+    const list = names.length <= 3 ? andList(names) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
     return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
   }
 
