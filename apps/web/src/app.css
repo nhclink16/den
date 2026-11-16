@@ -456,6 +456,16 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
   /* The grabber: it says the sheet pulls down to close (disclosure-popover.ts). */
   :root .sheet[popover]::before { content: ''; display: block; width: 36px; height: 5px; margin: 6px auto 0; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 45%, transparent); }
 }
+/* Every sheet arrives the same way: a menu settles beside its button, and on a phone a sheet rises from the
+   bottom. No exit motion. Transform, so it never fights the pull-down's `translate`. */
+@keyframes card-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet[popover]:popover-open { animation: card-in .18s var(--ease-out); }
+}
+@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+  :root .sheet[popover]:popover-open { animation: sheet-in .28s var(--ease-out); }
+}
 @media (pointer: coarse) {
   .segments button, .segments label { min-height: 44px; }
   /* Dense rows (the thread strip, the call's layout switch) trade the full 44pt for

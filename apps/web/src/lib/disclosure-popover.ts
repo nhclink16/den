@@ -5,7 +5,8 @@ export function disclosurePopover(node: HTMLElement, align: 'start' | 'end' = 'e
   const details = node.parentElement as HTMLDetailsElement
   const position = () => {
     if (!node.matches(':popover-open')) return
-    const rect = details.getBoundingClientRect(), box = node.getBoundingClientRect()
+    // Layout size, not the drawn one: the opening animation scales the sheet for a moment.
+    const rect = details.getBoundingClientRect(), box = { width: node.offsetWidth, height: node.offsetHeight }
     const viewport = node.ownerDocument.documentElement
     node.style.left = `${Math.max(8, Math.min(align === 'start' ? rect.left : rect.right - box.width, viewport.clientWidth - box.width - 8))}px`
     node.style.top = `${Math.max(8, Math.min(rect.top >= box.height + 8 ? rect.top - box.height - 4 : rect.bottom + 4, viewport.clientHeight - box.height - 8))}px`
