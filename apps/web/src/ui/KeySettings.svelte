@@ -20,14 +20,14 @@
   async function createBot() {
     const visit = settingsVisit()
     const b = await api.post<BotCreated>('/bots', { username: botName.trim(), display_name: botDisplay.trim() || botName.trim() })
-    if (visit === settingsVisit()) shownOnce.reveal = { label: `${b.user.display_name} is ready. Its token, shown once:`, token: b.credential.token }
+    if (visit === settingsVisit()) shownOnce.reveal = { label: `${b.user.display_name} is ready. Copy its key now; it won't be shown again.`, token: b.credential.token }
     botName = ''; botDisplay = ''
     await store.resync(); await load()
   }
   async function createToken() {
     const visit = settingsVisit()
     const t = await api.post<TokenSecret>('/tokens', { name: tokenName.trim() || 'token', user_id: null })
-    if (visit === settingsVisit()) shownOnce.reveal = { label: `API key "${t.credential.name}" acts as you. Shown once:`, token: t.token }
+    if (visit === settingsVisit()) shownOnce.reveal = { label: `Key "${t.credential.name}" acts as you. Copy it now; it won't be shown again.`, token: t.token }
     tokenName = ''; await load()
   }
   async function revoke(t: Token) { await api.del(`/tokens/${t.id}`); await load() }
@@ -57,9 +57,17 @@
   <button class="action-row add" onclick={() => (adding = true)}><Icon name="plus" size={15} /> {section === 'keys' ? 'New API Key' : 'New Agent'}</button>
   {#each shown as t (t.id)}
     {@const owner = store.user(t.user_id)}
-    <SettingRow label={t.name} hint={section === 'agents' ? (owner ? owner.display_name || owner.username : 'agent') : undefined}>
-      {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
-    </SettingRow>
+    {@const agent = owner ? owner.display_name || owner.username : 'Agent'}
+    <!-- Agents lead with the agent, since the row is about it; its key is the detail. -->
+    {#if section === 'agents'}
+      <SettingRow label={agent} hint={`Key: ${t.name}`}>
+        {#snippet control()}<InlineConfirm action="Revoke key" sentence={`Revoke ${agent}'s key? ${agent} can't post until it gets a new one. Its messages stay.`} confirm={() => revoke(t)} />{/snippet}
+      </SettingRow>
+    {:else}
+      <SettingRow label={t.name}>
+        {#snippet control()}<InlineConfirm action="Revoke" sentence={`Revoke "${t.name}"? Anything using it stops working.`} confirm={() => revoke(t)} />{/snippet}
+      </SettingRow>
+    {/if}
   {/each}
 </div>
 <p class="list-foot">
