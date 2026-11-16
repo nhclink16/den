@@ -204,7 +204,8 @@
       : store.loadOlder(channel.id)),
     // A window is not the tail: reading it must not acknowledge the tail.
     onread: (displayed) => { if (!roomWindowed) roomTail = displayed },
-    target: roomTarget,
+    // A link that found nothing opens on the newest messages under its banner, not wherever the list starts.
+    target: roomWindowStatus?.error ? undefined : roomTarget,
     prefix: 'm',
     identity: `room:${channel.id}`,
     identityExtra: roomKey,
