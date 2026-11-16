@@ -416,7 +416,7 @@
         <div class="failed" role="alert">
           <Icon name="offline" size={40} />
           <h2>Can't load {isDm ? `your chat with ${store.title(channel)}` : roomName(channel, themes.appearance.room_icons)}</h2>
-          <p>{store.connected ? 'Something went wrong on the way. Try again in a moment.' : "You're offline. Den tries again as soon as you're back."}</p>
+          <p>{store.connected ? roomError : "You're offline. Den tries again as soon as you're back."}</p>
           <button class="btn lit" onclick={loadRoom}>Try Again</button>
         </div>
       {:else if roomError && !nav}
