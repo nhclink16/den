@@ -142,7 +142,7 @@ try {
   await wait(async()=>{const es=await audio();return es.length>=2&&es.every(e=>e.volume===.35)},'saved volume survives deafen cycle')
   await a.getByLabel('Share screen',{exact:true}).first().click();await a.getByLabel('Your shares',{exact:true}).first().click();await a.getByLabel('Share another',{exact:true}).first().click()
   await wait(async()=>await screens(a).count()===3,'two shares for main stop')
-  await a.getByRole('button',{name:'Share screen',exact:true,pressed:true}).first().click();await wait(async()=>await screens(a).count()===1,'main share button stops all local shares')
+  await a.getByLabel('Your shares',{exact:true}).first().click();await a.getByLabel('Stop all shares',{exact:true}).first().click();await wait(async()=>await screens(a).count()===1,'Stop all stops all local shares')
   console.log('Passed desktop controls, persistence and audio checks')
   await a.setViewportSize({width:390,height:844})
   await shot(a,'06-mobile')

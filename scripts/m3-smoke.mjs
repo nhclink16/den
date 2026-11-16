@@ -89,7 +89,7 @@ try {
   const screenBox = await a.getByTestId('screen-tile').boundingBox(), stripBox = await a.getByTestId('call-strip').boundingBox()
   assert(screenBox.y >= stripBox.y && screenBox.y + screenBox.height <= stripBox.y + stripBox.height, 'screen tile and label fit in strip')
   await shot(a, 'screen-desktop')
-  await a.getByRole('button', { name: 'Share screen', exact: true, pressed: true }).click()
+  await a.getByLabel('Your shares', { exact: true }).first().click(); await a.locator('.shares [popover] button:has(.stop-label)').first().click()
   await a.locator('textarea').fill('M3 smoke: chat stays usable during a call.')
   await a.locator('textarea').press('Enter')
   await b.getByText('M3 smoke: chat stays usable during a call.', { exact: true }).last().waitFor()
