@@ -1,6 +1,7 @@
 <script module lang="ts">
-  // The last room or DM you looked at, per server: opening the voice room while you're in its call
-  // opens the call over that room instead, so the call's Back returns there.
+  // The last room or DM you looked at, as one slot (server and room): opening the voice room while
+  // you're in its call opens the call over that room instead, so the call's Back returns there. A room
+  // on another server doesn't count, so there it falls back to the start page.
   let lastRoom = ''
 </script>
 
