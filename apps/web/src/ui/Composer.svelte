@@ -50,6 +50,8 @@
   const text = $derived(store.drafts.for(here).text)
   function setText(value: string) {
     if (value === text) return
+    // A failed command's line is about what was typed; once that changes, it goes.
+    error = ''
     store.drafts.setText(here, value)
   }
   // Read through a captured owner, never through a derived and never through the
