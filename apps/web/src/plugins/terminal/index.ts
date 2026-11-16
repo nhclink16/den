@@ -50,5 +50,10 @@ registerPlugin({
   // The list offers it only while a machine is online (it has no values to offer otherwise), as the
   // palette does. Typed anyway, it still runs and says why it can't open.
   get slashCommands() { return [{ name: 'terminal', hint: 'Open a terminal on a machine', arg: { label: '<machine>', values: [...new Set(online().map(h => h.name))] }, run }] },
+  // One machine opens straight away; with several, the box gets "/terminal " and the list offers each by name.
+  get composerItems() {
+    const hosts = online()
+    return hosts.length ? [{ label: 'Terminal', icon: 'terminal' as const, command: 'terminal', run: (ctx: CommandContext) => hosts.length === 1 ? create(hosts[0]!.id, ctx.channelId, ctx.conversation, ctx.replyToId).then(() => {}) : '/terminal ' }] : []
+  },
   get paletteActions() { return terminals.hosts.map(h => ({ id: `terminal-${h.id}`, label: `Terminal on ${h.name}`, hint: h.online ? 'terminal' : 'offline', disabled: !h.online, run: async () => { const channel = router.route.name === 'channel' ? router.route.id : undefined; try { await create(h.id, channel) } catch (e) { store.toast = (e as Error).message } } })) },
 })
