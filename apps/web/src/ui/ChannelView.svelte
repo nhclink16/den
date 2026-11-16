@@ -298,7 +298,9 @@
   $effect(() => { if (channel.kind !== 'voice') lastRoom = `${store.origin}|${channel.id}` })
   $effect(() => {
     if (channel.kind !== 'voice' || !inThisCall) return
-    untrack(() => {
+    // After this update, not inside it: going to another room replaces this view, and doing that from
+    // here would leave Svelte reading this view's deriveds while it is torn down.
+    queueMicrotask(() => {
       const [origin, id] = lastRoom.split('|')
       call.expanded = true
       router.go(origin === store.origin && id && store.channel(id) ? `/c/${id}` : '/', true)
