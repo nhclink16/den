@@ -77,7 +77,7 @@ try {
   await peer.getByRole('button', { name: 'Come in', exact: true }).click(); await peer.locator('nav.side').waitFor()
   for (const p of [page, peer]) {
     await p.getByRole('button', { name: 'Join hangout', exact: true }).click(); await p.getByTestId('call-dock').waitFor()
-    await p.getByRole('button', { name: 'Turn camera off', exact: true }).waitFor()
+    await p.getByRole('button', { name: 'Camera', exact: true, pressed: true }).waitFor()
   }
   await peer.getByRole('button', { name: 'Share screen', exact: true }).click()
   await page.getByTestId('screen-tile').waitFor()

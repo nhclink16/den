@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
-  import { plainMentions } from '../lib/markdown'
+  import { plain, plainMentions } from '../lib/markdown'
   import { snippet } from '../lib/klipy'
   import { disclosurePopover } from '../lib/disclosure-popover'
   import type { Channel, ThreadSummary } from '../lib/types'
@@ -165,15 +165,15 @@
     onopen(t.id, t.root_message_id)
   }
   const empty = $derived({
-    open: 'No open conversations yet. Reply to a message to start one.',
-    unread: 'Nothing unread in a conversation here.',
+    open: 'No open threads yet. Reply to a message to start one.',
+    unread: 'No unread threads here.',
     resolved: 'Nothing has been resolved here yet.',
   }[mode])
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes this native disclosure.) -->
 <details class="threads" class:subtitle bind:this={details} bind:open onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); open = false; details?.querySelector('summary')?.focus() } }}>
-  <summary class:pill={!subtitle} class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Conversations in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
+  <summary class:pill={!subtitle} class:lit={unreadAll.length > 0} data-thread-pill aria-label={`Threads in this room: ${openCount}${lists.open.more ? ' or more' : ''} open${unreadAll.length ? ', some unread' : ''}`}>
     {#if !subtitle}<Icon name="thread" size={14} />{/if}
     <span class="label">{#if openCount}<b>{openCount}{lists.open.more ? '+' : ''}</b> open {openCount === 1 && !lists.open.more ? 'thread' : 'threads'}{:else}Threads{/if}</span>
     {#if unreadAll.length}<span class="count" class:at={unreadAll.some((u) => u.mention)}>{unreadAll.some((u) => u.mention) ? '@' : unreadAll.reduce((n, u) => n + u.count, 0)}</span>{/if}
@@ -181,7 +181,7 @@
   </summary>
   <div class="sheet" popover="auto" use:disclosurePopover={'start'}>
     {#if open}
-      <div class="box" data-thread-strip aria-label="Conversations in this room">
+      <div class="box" data-thread-strip aria-label="Threads in this room">
         <div class="tabs segments small">
           {#each ['open', 'unread', 'resolved'] as const as m (m)}
             <button aria-pressed={mode === m} onclick={() => show(m)}>{LABEL[m]}</button>
@@ -207,7 +207,7 @@
                 <Avatar userId={authorOf(t)} size={32} presence={false} />
                 <span class="text">
                   <span class="name">{plainMentions(t.title, store.users)}</span>
-                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
+                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(plain(snippet(last.excerpt)), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
                 </span>
                 {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
               </button>
@@ -242,11 +242,15 @@
   /* The bar's grey subtitle. The tap area reaches past the text without moving it. */
   .subtitle { justify-content: center; max-width: 100%; }
   .subtitle summary { display: flex; align-items: center; gap: 3px; max-width: 100%; padding: 4px 6px; margin: -4px 0; font-size: 12px; line-height: 1.2; color: var(--ink-3); }
+  /* The line stays small; its tap area grows up over the title (not a control in a room) and sideways, and stays
+     inside the bar, as the composer's + and mic do. */
+  .subtitle summary { position: relative; }
+  .subtitle summary::before { content: ''; position: absolute; inset: -12px -12px 0; }
   .subtitle summary b { font-weight: 600; color: inherit; }
   .subtitle summary.lit b { color: var(--lamp); }
   .subtitle summary:active { opacity: .5; }
   .subtitle .count { min-width: 16px; padding: 0 4px; font-size: 11px; line-height: 16px; }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); overflow: hidden; }
   .box { width: min(400px, calc(100vw - 16px)); max-height: min(480px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .tabs { margin: 10px 10px 6px; align-self: flex-start; }
   .list { overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 8px; display: grid; gap: 2px; }

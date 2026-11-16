@@ -2,6 +2,7 @@
 // Kept free of the store so the rules can be pinned by tests.
 import type { Category, Channel, LastMessage, Message, RoomIcons } from './types'
 import { snippet } from './klipy.ts'
+import { plain } from './markdown.ts'
 
 /// The category a room shows under. Categories have no live event, so a room can
 /// name one this list doesn't have yet (just made) or any more (just deleted):
@@ -37,6 +38,11 @@ export const roomIcon = (c: Pick<Channel, 'name' | 'kind' | 'icon'>) => c.icon |
 /// A room's name as text, with the # only for people who chose it.
 export const roomName = (c: Pick<Channel, 'name' | 'kind'>, mode: RoomIcons | undefined) => (mode === 'hash' && c.kind === 'text' ? `#${c.name}` : c.name)
 
+/// The name a new room gets from whatever was typed: "Cabin Trip!" becomes cabin-trip. Lowercase, accents
+/// dropped, spaces to one -, anything else the server refuses left out, at most 40 long. Empty means no name yet.
+export const roomSlug = (typed: string) =>
+  typed.normalize('NFKD').toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '').replace(/-{2,}/g, '-').slice(0, 40).replace(/^-+|-+$/g, '')
+
 /// The list's copy of a message that just arrived or changed.
 export function lastOf(m: Message): LastMessage {
   return {
@@ -49,7 +55,7 @@ export function lastOf(m: Message): LastMessage {
 
 /// One line of text for a message: its words, or what it carried.
 export function previewText(m: Pick<LastMessage, 'content' | 'attachment_types' | 'object_kinds'>) {
-  const text = snippet(m.content.replace(/```[a-z0-9_-]*\n?/gi, '').replace(/\s+/g, ' ').trim())
+  const text = plain(snippet(m.content.replace(/```[a-z0-9_-]*\n?/gi, '').replace(/\s+/g, ' ').trim()))
   if (text) return text
   const types = m.attachment_types
   if (types.length) {
@@ -108,4 +114,23 @@ export function callLine(participants: InCall[], reconnecting = false) {
     : names.length > 2 ? `${names[0]}, ${names[1]} and ${names.length - 2} more are talking` : ''
   const people = faces.length > 1 ? `${faces.length} people` : 'Just you'
   return { talking, people }
+}
+
+/// A group chat's title from its members' names: first names, "Nadia, Priya and Wren". When two of them
+/// share a first name, the whole chat keeps full names, so nobody is left guessing which one.
+export function groupTitle(names: string[]) {
+  const first = names.map((n) => n.trim().split(/\s+/)[0] || n)
+  const shown = new Set(first).size === first.length ? first : names
+  return andList(shown)
+}
+
+/// "A", "A and B", "A, B and C": the one way Den joins a few names.
+export const andList = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('')
+
+/// Who is in a voice room, for someone looking at it from outside: the hangout card's wording.
+/// `names` leaves you out; `me` is whether you are in it anyway (on another device).
+export function hereLine(names: string[], me: boolean) {
+  if (!names.length) return me ? "You're in" : 'Nobody here yet'
+  const list = names.length <= 3 ? andList(names) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
+  return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
 }

@@ -55,7 +55,7 @@
   </ol>
   {#if !pending.length}<p class="empty">The next song is up to you.</p>{/if}
   <MusicComposer {roomId} {owner} />
-  <div class="listener"><details><summary>Your listening volume</summary>{#if q}<ParticipantVolume userId={q.participant_id} name={`${owner.settings.instance_name} DJ`} />{/if}</details>{#if !shell}<label class="duck"><input type="checkbox" checked={call.prefs.musicDucking} onchange={e => call.save({ musicDucking: e.currentTarget.checked })} /> Lower music while people talk</label>{/if}</div>
+  <div class="listener"><details><summary>Your listening volume<Icon name="chevron" size={14} /></summary>{#if q}<ParticipantVolume userId={q.participant_id} name={`${owner.settings.instance_name} DJ`} />{/if}</details>{#if !shell}<label class="duck"><span>Lower music while people talk</span><input class="toggle" type="checkbox" checked={call.prefs.musicDucking} onchange={e => call.save({ musicDucking: e.currentTarget.checked })} /></label>{/if}</div>
   <p class="error" role="status">{error}</p>
 </section>
 <style>
@@ -72,7 +72,10 @@
   ol { padding: 0; margin: 8px 0 16px; list-style: none; } li { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
   .position { width: 14px; flex: none; font: var(--fs-xs) var(--body); color: var(--ink-3); } .track { min-width: 0; flex: 1; display: grid; gap: 3px; } .track > span { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: var(--fs-xs); color: var(--ink-2); }
   .row-actions { display: flex; gap: 2px; } .row-actions button { display: grid; place-items: center; width: 26px; height: 32px; border-radius: var(--r); color: var(--ink-2); } button:disabled { opacity: .4; } .failed, .error { color: var(--danger); }
-  .empty { margin-bottom: 16px; } .listener { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; } summary { cursor: pointer; min-height: 28px; font-size: var(--fs-xs); } .listener :global(.volume-control) { width: 100%; }
-  .duck { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: var(--fs-xs); color: var(--ink-2); } .duck input { accent-color: var(--lamp); } .error:empty { display: none; }
+  .empty { margin-bottom: 16px; } .listener { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; } summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary :global(svg) { flex: none; color: var(--ink-2); transition: rotate var(--t-fast); }
+  details[open] > summary :global(svg) { rotate: 180deg; } .listener :global(.volume-control) { width: 100%; }
+  .duck { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: var(--fs-xs); color: var(--ink-2); cursor: pointer; } .error:empty { display: none; }
   @media (hover: hover) { .row-actions button:hover { background: var(--bg-3); color: var(--ink); } }
 </style>

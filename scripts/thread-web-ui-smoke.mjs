@@ -193,7 +193,7 @@ run: try {
     await page.waitForTimeout(500)
   }
   const backToRoom = async () => {
-    await page.locator('[data-thread-panel] button[aria-label="Close conversation"], [data-thread-panel] button[aria-label="Back to room"]').first().click()
+    await page.locator('[data-thread-panel] button[aria-label="Close thread"], [data-thread-panel] button[aria-label="Back to room"]').first().click()
     await page.waitForTimeout(400)
   }
   const type = async (where, text) => {
@@ -361,18 +361,20 @@ run: try {
   record('resolveControls', {
     panelStillOpen: await page.locator('[data-thread-panel]').count(),
     reopenOffered: await page.locator('[data-thread-panel] button:has-text("Reopen")').count(),
-    composerLocked: await page.locator('[data-thread-panel] .locked').count(),
-    sendDisabled: await page.locator('[data-thread-panel] .sendbtn').isDisabled(),
+    resolvedRow: await page.locator('[data-thread-panel] .resolved').count(),
+    replyBox: await page.locator('[data-thread-panel] textarea[data-composer]').count(),
   })
   assert.equal(await page.locator('[data-thread-panel]').count(), 1, 'resolving closed the panel')
-  assert.equal(await page.locator('[data-thread-panel] button:has-text("Reopen")').count(), 1, 'Reopen was not offered')
-  assert.equal(await page.locator('[data-thread-panel] .locked').count(), 1, 'a resolved conversation still accepts new messages')
+  // Reopen sits in the header's pills and again where the reply box was.
+  assert.equal(await page.locator('[data-thread-panel] button:has-text("Reopen")').count(), 2, 'Reopen was not offered')
+  assert.equal(await page.locator('[data-thread-panel] .resolved').count(), 1, 'a resolved thread did not say so where the reply box was')
+  assert.equal(await page.locator('[data-thread-panel] textarea[data-composer]').count(), 0, 'a resolved conversation still accepts new messages')
 
   await page.locator('[data-thread-panel] button:has-text("Rename")').click()
-  await page.locator('[data-thread-panel] input[aria-label="Conversation title"]').fill('Lockfile release')
+  await page.locator('[data-thread-panel] input[aria-label="Thread title"]').fill('Lockfile release')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(700)
-  await page.locator('[data-thread-panel] button:has-text("Reopen")').click()
+  await page.locator('[data-thread-panel] .resolved button:has-text("Reopen")').click()
   await page.waitForTimeout(700)
   const afterReopen = (await api('GET', `/threads/${threadA}`)).thread
   record('renameAndReopen', { title: afterReopen.title, resolved: afterReopen.resolved_at ?? null })
@@ -427,7 +429,7 @@ run: try {
     'a direct link to an old reply did not reveal it')
 
   // A direct link with no history behind it falls back to its room.
-  await page.locator('[data-thread-panel] button[aria-label="Close conversation"], [data-thread-panel] button[aria-label="Back to room"]').first().click()
+  await page.locator('[data-thread-panel] button[aria-label="Close thread"], [data-thread-panel] button[aria-label="Back to room"]').first().click()
   await page.waitForTimeout(700)
   record('directLinkFallback', { url: new URL(page.url()).pathname })
   assert.equal(new URL(page.url()).pathname, `/c/${room.id}`, 'closing a directly-linked conversation left the app')

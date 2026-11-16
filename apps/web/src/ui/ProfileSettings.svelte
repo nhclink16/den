@@ -17,7 +17,7 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
-  import { bubbleFill, personColor, withContrast } from '../lib/bubbles'
+  import { nameInk, personColor } from '../lib/bubbles'
   import { themes } from '../lib/theme.svelte'
   import { personHue } from '../lib/people.svelte'
   import { disclosurePopover } from '../lib/disclosure-popover'
@@ -40,8 +40,9 @@
   let keepAt = $state<number | null>(null)
   let saving = $state(false), message = $state(''), error = $state('')
   let busyImage = $state<'avatar' | 'banner' | null>(null)
-  // Your own bubble, as everyone sees it with colours on.
-  const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', withContrast(themes.active[themes.half], themes.appearance.contrast)))
+  // Your name as others see it above your messages with colours on: your colour, moved until it reads in this
+  // theme, exactly as MessageItem draws it.
+  const nameColor = $derived(nameInk('everyone', false, personColor(me.id, accent), themes.active[themes.half]))
 
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
@@ -235,6 +236,28 @@
   </div>
 {/snippet}
 
+{#snippet colourRow()}
+  <SettingRow find="colour" label="Profile colour" hint="Your name above your messages, your picture, and your card when it has no banner. Anyone who chose My colour or Plain in Appearance sees your name grey." wide>
+    {#snippet control()}
+      <div class="colors">
+        <div class="swatches" role="group" aria-label="Profile colour">
+          <button type="button" class="pill" aria-pressed={!accent} onclick={() => (accent = null)}><span class="dot" style:background={personColor(me.id)}></span>Automatic</button>
+          {#each SWATCHES as [hex, name] (hex)}
+            <button type="button" class="dot big" aria-pressed={accent === hex} aria-label={name} title={name} style:background={hex} onclick={() => (accent = hex)}></button>
+          {/each}
+          <label class="dot big custom" class:on={!!accent && !SWATCHES.some(([hex]) => hex === accent)} title="Any colour" style:background={accent && !SWATCHES.some(([hex]) => hex === accent) ? accent : undefined}>
+            <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
+          </label>
+        </div>
+        <div class="said">
+          <span class="who" style:color={nameColor}>{displayName.trim() || me.username}</span>
+          <span class="sample">How others see your messages.</span>
+        </div>
+      </div>
+    {/snippet}
+    </SettingRow>
+{/snippet}
+
 {#if phone}
   <!-- You, as people see you: tap the banner or the picture to change it. -->
   <div class="me-head" class:busy={!!busyImage} style="--hue:{personHue(me.id, { ...me, accent } as User)}">
@@ -254,7 +277,7 @@
   {#if problem || error}<p class="note error top" role="status">{problem || error}</p>{/if}
 {:else}
 <h2 class="display">Profile</h2>
-<p class="muted lede">What people see when they tap your name. It follows you to every device.</p>
+<p class="muted">What people see when they tap your name. It follows you to every device.</p>
 {/if}
 
 <div class="layout" class:phone>
@@ -291,30 +314,19 @@
         <SettingRow find="bio" label="Bio" hint="A line or two. Shown as plain text." wide>
           {#snippet control()}
             <div class="counted">
-              <textarea class="field" rows="3" bind:value={bio} placeholder="Builds redstone that mostly works."></textarea>
+              <textarea class="field" rows="3" bind:value={bio} placeholder="A line about you"></textarea>
               {#if !phone}<span class="count" class:over={[...bio].length > BIO_MAX}>{[...bio].length}/{BIO_MAX}</span>{/if}
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow find="colour" label="Profile colour" hint="Your message bubbles, your picture, and your card when it has no banner. Everyone sees it unless they turned colours off." wide>
-          {#snippet control()}
-            <div class="colors">
-              <div class="swatches" role="group" aria-label="Profile colour">
-                <button type="button" class="pill" aria-pressed={!accent} onclick={() => (accent = null)}><span class="dot" style:background={personColor(me.id)}></span>Automatic</button>
-                {#each SWATCHES as [hex, name] (hex)}
-                  <button type="button" class="dot big" aria-pressed={accent === hex} aria-label={name} title={name} style:background={hex} onclick={() => (accent = hex)}></button>
-                {/each}
-                <label class="dot big custom" class:on={!!accent && !SWATCHES.some(([hex]) => hex === accent)} title="Any colour" style:background={accent && !SWATCHES.some(([hex]) => hex === accent) ? accent : undefined}>
-                  <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
-                </label>
-              </div>
-              <span class="sample" style:background={sample}>This is how your messages look.</span>
-            </div>
-          {/snippet}
-        </SettingRow>
+        {#if !phone}{@render colourRow()}{/if}
       </div>
       {#if phone}<p class="foot">{bioLeft < 40 ? `${bioLeft} characters left in your bio.` : 'Shown on your profile, as plain text.'}</p>{/if}
     </section>
+    {#if phone}
+    <!-- The Bio's footnote sits right under Bio, so on a phone the colour gets a group of its own. -->
+    <section class="solo"><div class="slist">{@render colourRow()}</div></section>
+    {/if}
 
     <section>
       <h3 class="list-head">Status</h3>
@@ -328,7 +340,7 @@
                 </EmojiPicker>
                 {#if emoji}<button type="button" class="unset" onclick={() => (emoji = '')} aria-label="Remove status emoji"><Icon name="x" size={11} /></button>{/if}
               </div>
-              <input class="field" bind:value={statusText} maxlength="80" placeholder="Grinding the End city" aria-label="Status text" />
+              <input class="field" bind:value={statusText} maxlength="80" placeholder="What you're up to" aria-label="Status text" />
             </div>
           {/snippet}
         </SettingRow>
@@ -424,11 +436,12 @@
 </div>
 
 <style>
-  .lede { margin: 0 0 20px; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
   .preview { position: sticky; top: 0; display: grid; gap: 8px; }
   .preview .eyebrow { padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview { position: static; order: -1; } }
+  /* The intro line, then the same gap as every other section's first group; the Preview label stays level with it. */
+  .layout:not(.phone) { margin-top: 26px; }
   .form > section:first-child > .list-head { margin-top: 0; }
   .actions { margin-top: 22px; }
   label.btn { cursor: pointer; }
@@ -447,7 +460,10 @@
   .dot.custom:not(.on) { background: conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d); }
   :global(:where(:root:not([data-input]))) .dot.custom:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
   @media (pointer: coarse) { .dot.big { width: 36px; height: 36px; } }
-  .sample { justify-self: start; max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-bottom-right-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
+  /* A message from you as someone else sees it: your coloured name over a grey bubble, tight corner bottom left. */
+  .said { display: grid; justify-items: start; justify-self: start; max-width: 100%; }
+  .who { max-width: 100%; margin: 0 0 3px; margin-inline-start: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+  .sample { max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-end-start-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
   .small { font-size: var(--fs-sm); }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
   .emoji-pick { position: relative; display: grid; }
@@ -521,6 +537,7 @@
   .phone :global(.row.wide[data-find='bio']) { align-items: flex-start; }
   .phone :global([data-find='bio'] > .text) { padding-top: 8px; }
   .phone .form > section:first-child > .list-head { margin-top: 20px; }
+  .solo { margin-top: 22px; }
   .phone .counted textarea { min-height: 72px; padding-bottom: 8px; resize: none; }
   .phone .status-row { grid-template-columns: 44px 1fr; }
   .phone .emoji { width: 44px; height: 44px; border-radius: 50%; border-color: transparent; background: var(--bg-3); }

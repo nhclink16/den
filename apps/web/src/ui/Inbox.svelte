@@ -12,7 +12,7 @@
   import Icon from './Icon.svelte'
   import Avatar from './Avatar.svelte'
   import Mark from './Mark.svelte'
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { slide } from 'svelte/transition'
   import { haptic } from '../lib/haptics'
   import { reducedMotion } from '../lib/motion.svelte'
@@ -30,8 +30,21 @@
       .filter((g) => g.count > 0)
       ).sort((a, b) => Number(b.mention) - Number(a.mention) || (b.msgs.at(-1)?.id || '').localeCompare(a.msgs.at(-1)?.id || '')),
   )
-  // Load previews for unread rooms we haven't opened yet.
-  $effect(() => { for (const g of groups) if (!g.s.messages.has(g.c.id)) g.s.loadLatest(g.c.id) })
+  // Load previews for unread rooms we haven't opened yet. A room that fails says so under its header, with a
+  // Retry, instead of "3 new" over nothing; it isn't retried by itself, or a failing room would loop.
+  let latest = $state<Record<string, 'loading' | { error: string }>>({})
+  async function loadLatest(s: Store, channelId: string) {
+    const k = key(s, channelId)
+    latest = { ...latest, [k]: 'loading' }
+    try {
+      await s.loadLatest(channelId)
+      const next = { ...latest }; delete next[k]; latest = next
+    } catch (e) { latest = { ...latest, [k]: { error: (e as Error).message } } }
+  }
+  $effect(() => {
+    for (const g of groups) if (!g.s.messages.has(g.c.id) && !untrack(() => latest[key(g.s, g.c.id)])) void loadLatest(g.s, g.c.id)
+  })
+  const latestError = (s: Store, channelId: string) => { const l = latest[key(s, channelId)]; return typeof l === 'object' ? l.error : '' }
 
   // Unread conversations inside each unread room. unread_only WITHOUT a
   // resolution filter: a resolved conversation with unread replies is exactly
@@ -238,7 +251,7 @@
       <div class="empty">
         <span class="empty-mark" aria-hidden="true"><Mark size={56} /></span>
         <div class="display big">You're caught up.</div>
-        <div class="muted">Mentions, direct messages, and rooms you follow land here.</div>
+        <div class="muted">Unread messages from your rooms and DMs land here.</div>
       </div>
     {/if}
     <!-- The iPhone's inset grouped list: each room is a section, each message a two-line row. -->
@@ -249,9 +262,18 @@
           <span class="name">{g.s.title(g.c)}</span>
           <span class="chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         </button>
-        <span class="new">{#if g.mention}<span class="at">Mentions you</span> · {/if}{g.count} new</span>
+        <span class="new">{#if g.mention}<span class="at">Mentions you</span>{' · '}{/if}{g.count} new</span>
       </h2>
       <div class="slist">
+        <!-- Only while nothing loaded: messages that came in another way (a reconnect, the room opened elsewhere) win. -->
+        {#if latestError(g.s, g.c.id) && !g.s.messages.has(g.c.id)}
+          <div class="line">
+            <span class="text err" role="alert">{latestError(g.s, g.c.id)}</span>
+            <button class="btn quiet" onclick={() => loadLatest(g.s, g.c.id)}>Retry</button>
+          </div>
+        {/if}
+        <!-- Oldest to newest, so what came before sits above them. -->
+        {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each g.msgs.slice(-4) as m (m.id)}
           <!-- Reading a message reads the room up to it: older rows go with it, newer ones stay. -->
           {@const read = () => g.s.markRead(g.c.id, m.id)}
@@ -266,7 +288,6 @@
             {#if bar}{@render readButton(read)}{/if}
           </div>
         {/each}
-        {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each unreadThreads(g.s, g.c.id) as t (t.id)}
           {@const u = g.s.threadUnread(t.id)}
           {@const read = () => g.s.markThreadRead(t.id, t.last_reply_id ?? undefined)}
@@ -275,7 +296,7 @@
               <span class="glyph" aria-hidden="true"><Icon name="thread" size={18} /></span>
               <span class="txt">
                 <span class="top"><span class="who">{plainMentions(t.title, g.s.users)}</span>{#if t.resolved_at}<span class="when">Resolved</span>{/if}</span>
-                <span class="text">{#if u.mention}<span class="at">Mentions you</span> · {/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
+                <span class="text">{#if u.mention}<span class="at">Mentions you</span>{' · '}{/if}{u.count} unread {u.count === 1 ? 'reply' : 'replies'}</span>
               </span>
             </button>
             {#if bar}{@render readButton(read)}{/if}
@@ -287,7 +308,7 @@
             <button class="btn quiet" onclick={() => loadRows(g.s, g.c.id, rows[key(g.s, g.c.id)]!.appending)}>Retry</button>
           </div>
         {:else if rows[key(g.s, g.c.id)]?.more}
-          <button class="more" onclick={() => loadRows(g.s, g.c.id, true)}>More conversations</button>
+          <button class="more" onclick={() => loadRows(g.s, g.c.id, true)}>More threads</button>
         {/if}
       </div>
     {/each}
@@ -298,6 +319,11 @@
 <style>
   .inbox { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px; border-bottom: 1px solid var(--line); }
+  /* One top-header height on a computer, as in a room (ChannelView). */
+  @media (min-width: 901px) {
+    .head { block-size: 52px; min-height: 0; padding-block: 0; }
+    .head .btn { min-height: var(--hit); padding-block: 0; }
+  }
   .kind { color: var(--ink-3); display: grid; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .spacer { flex: 1; }
@@ -345,4 +371,5 @@
   .read:active { filter: brightness(.9); }
   :global(:where(:root:not([data-input='touch']))) .on > :focus-visible { outline-offset: -3px; }
   .err { color: var(--danger, var(--lamp)); flex: 1; }
+  .line:has(> .err) { align-items: center; }
 </style>

@@ -6,6 +6,7 @@ import { openObject } from '../../lib/objects.svelte'
 import type { Conversation } from '../../lib/conversation'
 import type { LiveObject } from '../../lib/types'
 import { catalog, terminals } from './state.svelte'
+import { pickMachine } from './machine'
 import Card from './Card.svelte'
 import View from './View.svelte'
 import Tile from './Tile.svelte'
@@ -26,10 +27,10 @@ async function create(machine: string, channelId?: string, into?: Conversation, 
   const mine = () => store.drafts === owner && owner.holds(token)
   await catalog()
   if (!mine()) return undefined
-  const matches = terminals.hosts.filter(h => h.online && (h.name === machine || h.id === machine))
-  if (matches.length !== 1) throw new Error('Choose a machine from Settings, Machines.')
+  const picked = pickMachine(terminals.hosts, machine)
+  if ('error' in picked) throw new Error(picked.error)
   const thread = placement ?? (rootId ? store.threadForRoot(rootId)?.id : undefined)
-  const o = await post<LiveObject>(`/hosts/${matches[0].id}/sessions`, {
+  const o = await post<LiveObject>(`/hosts/${picked.id}/sessions`, {
     channel_id: channelId,
     thread_id: thread ?? null,
     reply_to: quote ?? (thread ? null : rootId),
@@ -42,8 +43,17 @@ async function create(machine: string, channelId?: string, into?: Conversation, 
   if (mine()) openObject(o)
   return o
 }
+const online = () => terminals.hosts.filter(h => h.online)
+const run = async (ctx: CommandContext) => { await create(ctx.args.trim(), ctx.channelId, ctx.conversation, ctx.replyToId) }
 registerPlugin({
   objectKinds: { terminal: { card: Card, view: View, tile: Tile }, access_request: { card: RequestCard } },
-  slashCommands: [{ name: 'terminal', hint: 'Open a terminal on a machine', run: async (ctx: CommandContext) => {await create(ctx.args.trim(), ctx.channelId, ctx.conversation, ctx.replyToId)} }],
+  // The list offers it only while a machine is online (it has no values to offer otherwise), as the
+  // palette does. Typed anyway, it still runs and says why it can't open.
+  get slashCommands() { return [{ name: 'terminal', hint: 'Open a terminal on a machine', arg: { label: '<machine>', values: [...new Set(online().map(h => h.name))] }, run }] },
+  // One machine opens straight away; with several, the box gets "/terminal " and the list offers each by name.
+  get composerItems() {
+    const hosts = online()
+    return hosts.length ? [{ label: 'Terminal', icon: 'terminal' as const, command: 'terminal', run: (ctx: CommandContext) => hosts.length === 1 ? create(hosts[0]!.id, ctx.channelId, ctx.conversation, ctx.replyToId).then(() => {}) : '/terminal ' }] : []
+  },
   get paletteActions() { return terminals.hosts.map(h => ({ id: `terminal-${h.id}`, label: `Terminal on ${h.name}`, hint: h.online ? 'terminal' : 'offline', disabled: !h.online, run: async () => { const channel = router.route.name === 'channel' ? router.route.id : undefined; try { await create(h.id, channel) } catch (e) { store.toast = (e as Error).message } } })) },
 })

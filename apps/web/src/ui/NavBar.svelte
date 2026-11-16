@@ -110,7 +110,7 @@
   .spin.top { order: -1; color: var(--ink-3); }
   @media (prefers-reduced-motion: no-preference) { .spin { animation: spin .8s linear infinite; } }
   @keyframes spin { to { transform: rotate(1turn); } }
-  .big { margin: 0; padding: 2px 16px 10px; font-size: 34px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .big { margin: 0; padding: 2px 16px 10px; font-size: calc(34px * var(--text-scale, 1)); font-weight: 700; line-height: 1.15; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .big:focus { outline: none; }
   /* Plain icons: no fill, and the accent, like an iPhone's bar buttons. */
   .fit :global(.icon-btn) { width: 44px; height: 44px; color: var(--lamp); }

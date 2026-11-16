@@ -260,7 +260,7 @@ final class SmokeUITests: XCTestCase {
         try find(app, label: "Theo screen")
         pause(1.5)
         shot("7-video-call")
-        try find(app, label: "Turn camera on").tap()
+        try find(app, label: "Camera").tap()
         try find(app, label: "Ellis camera")
         pause(1.5)
         shot("7-video-own-camera")

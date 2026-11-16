@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
   import { conversationKey, type Conversation } from '../lib/conversation'
   import type { Channel, Message } from '../lib/types'
@@ -130,11 +130,22 @@
   // Rename, Follow and Resolve behind ⋯. The title only repeats the root's first line until it's renamed.
   const bar = $derived(narrow && phone)
   // The automatic title is the server's (threads.rs title_from): the root's first line, else its card's name,
-  // else "Conversation", at most 80 characters. An edited root can't be told from a rename without the server
-  // saying so, so it shows "Thread" rather than its old first line (the name still shows in the room's list).
+  // else "Thread"; past 80 characters, cut at its last space with "…". An edited root can't be told from
+  // a rename without the server saying so, so it shows "Thread" rather than its old first line (the name still
+  // shows in the room's list).
   const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
-  const auto = $derived(root ? [...(root.content.split('\n').map(squash).find(Boolean) || squash(root.objects?.[0]?.name ?? '') || 'Conversation')].slice(0, 80).join('') : '')
-  const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
+  // Threads made before the whole-word cut kept the old title: the first 80 characters, cut anywhere, or
+  // "Conversation" for a root with no words. Those count as automatic too, or the old threads would read as renamed.
+  function autoTitles(m: Message) {
+    const line = m.content.split('\n').map(squash).find(Boolean) || squash(m.objects?.[0]?.name ?? '')
+    if (!line) return ['Thread', 'Conversation']
+    const chars = [...line]
+    if (chars.length <= 80) return [line]
+    const head = chars.slice(0, 80).join(''), at = head.lastIndexOf(' ')
+    return [`${at > 0 ? head.slice(0, at) : chars.slice(0, 79).join('')}…`, head]
+  }
+  const autos = $derived(root ? autoTitles(root) : [])
+  const named = $derived(!!summary && !!root && !root.edited_at && !autos.includes(summary.title))
   const where = $derived(`${channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
   const fromMenu = (work: () => void) => { menu = false; work() }
@@ -144,10 +155,11 @@
   // history, and paged outward on demand.
   const inTail = $derived(!!target && (store.threadMessages.get(live ?? '') || []).some((m) => m.id === target))
   const windowKey = $derived(target && live && !inTail ? store.windowKey(channel.id, live, target) : '')
+  // Untracked, as in ChannelView: a tracked failure would re-run this forever.
   $effect(() => {
-    const key = windowKey, id = live, want = target
+    const key = windowKey, id = live, want = target, chan = channel.id
     if (!key || !id || !want) return
-    void store.openWindow(channel.id, id, want)
+    untrack(() => void store.openWindow(chan, id, want))
   })
   const windowed = $derived(windowKey ? store.windowAt(windowKey) : undefined)
   const windowStatus = $derived(windowKey ? store.windowStatus(windowKey) : undefined)
@@ -183,6 +195,15 @@
   }
   const setResolved = (v: boolean) => act(async () => { if (live) await store.updateThread(live, { resolved: v }) })
   const setFollowing = (v: boolean) => act(async () => { if (live) await store.followThread(live, v) })
+  // Escape closes the panel from an empty reply box (nothing quoted) or a button. Not from the edit box, the
+  // rename field, an open menu or picker, or a draft. Decided on the way down, before the reply box drops its
+  // quote on that same Escape; acted on at the top, unless something below took the key.
+  let escapeCloses = false
+  function escapeTarget(t: HTMLElement) {
+    if (t.closest('[popover], details[open], dialog')) return false
+    if (t.matches('textarea[data-composer]')) return !(t as HTMLTextAreaElement).value.trim() && !replyTo
+    return !t.closest('input, textarea, select, [contenteditable]')
+  }
   async function rename() {
     const next = title.trim()
     if (!live || !next) { renaming = false; return }
@@ -192,8 +213,11 @@
 
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape from a control inside closes the panel.) -->
 <section
-  class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Conversation: ${plainMentions(summary.title, store.users)}` : 'New conversation'}
+  class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Thread: ${plainMentions(summary.title, store.users)}` : 'New thread'}
+  onkeydowncapture={(e) => { escapeCloses = e.key === 'Escape' && escapeTarget(e.target as HTMLElement) }}
+  onkeydown={(e) => { if (escapeCloses && !e.defaultPrevented) { escapeCloses = false; onclose() } }}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -210,10 +234,10 @@
     {#snippet trailing()}
       {#if live}
         <details class="menu-btn" bind:open={menu}>
-          <summary class="icon-btn" aria-label="Conversation options"><Icon name="more" size={24} /></summary>
+          <summary class="icon-btn" aria-label="Thread options"><Icon name="more" size={24} /></summary>
           <div class="sheet" popover="auto" use:disclosurePopover={'end'}>
             {#if menu}
-              <div class="menu" role="menu" aria-label="Conversation options">
+              <div class="menu" role="menu" aria-label="Thread options">
                 <button role="menuitem" onclick={() => fromMenu(() => { title = summary?.title ?? ''; renaming = true })} disabled={busy}><Icon name="edit" size={20} />Rename</button>
                 <button role="menuitem" onclick={() => fromMenu(() => setFollowing(!position?.following))} disabled={busy}><Icon name="bell" size={20} />{position?.following ? 'Stop Following' : 'Follow'}</button>
                 <button role="menuitem" onclick={() => fromMenu(() => setResolved(!resolved))} disabled={busy}><Icon name="check" size={20} />{resolved ? 'Reopen' : 'Resolve'}</button>
@@ -227,7 +251,7 @@
   {#if renaming}
     <div class="rename-row">
       <input
-        class="field rename" bind:value={title} aria-label="Conversation title"
+        class="field rename" bind:value={title} aria-label="Thread title"
         onkeydown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') renaming = false }}
       />
       <button class="btn quiet" onclick={() => (renaming = false)}>Cancel</button>
@@ -239,17 +263,17 @@
     {#if narrow}<button class="icon-btn back" onclick={onclose} aria-label="Back to room"><Icon name="back" size={22} /></button>{/if}
     {#if renaming}
       <input
-        class="field rename" bind:value={title} aria-label="Conversation title"
+        class="field rename" bind:value={title} aria-label="Thread title"
         onkeydown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') renaming = false }}
       />
       <button class="btn quiet" onclick={rename} disabled={busy}>Save</button>
     {:else}
       <div class="title">
-        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content).split('\n')[0]?.slice(0, 80)) ?? 'New conversation', store.users)}</h2>
+        <h2 class="display">{plainMentions(summary?.title ?? (root && snippet(root.content) === 'GIF' ? 'GIF' : autos[0]) ?? 'New thread', store.users)}</h2>
         <span class="sub">{channel.kind === 'dm' ? `with ${store.title(channel)}` : `in ${roomName(channel, themes.appearance.room_icons)}`}{#if summary?.reply_count}{' · '}{summary.reply_count} {summary.reply_count === 1 ? 'reply' : 'replies'}{/if}{#if resolved}{' · '}<span class="tag">Resolved</span>{/if}</span>
       </div>
     {/if}
-    {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close conversation"><Icon name="x" size={16} /></button>{/if}
+    {#if !narrow}<button class="icon-btn" onclick={onclose} aria-label="Close thread"><Icon name="x" size={16} /></button>{/if}
   </header>
   {/if}
   {#if live && !renaming && !bar}
@@ -276,7 +300,7 @@
         {#if rootRetry}<button class="btn quiet" onclick={() => loadRootFor(rootId, channel.id)}>Retry</button>{/if}
       </p>
     {:else}
-      <p class="faint" aria-busy="true">Loading the message this conversation is about…</p>
+      <p class="faint" aria-busy="true">Loading the message this thread is about…</p>
     {/if}
   </div>
   {/snippet}
@@ -288,14 +312,14 @@
       {windowStatus.error}
       <!-- Resumes the failed edge and direction; openWindow returns at once for
            a window that already exists, so it could never retry an extension. -->
-      <button class="btn quiet" onclick={() => store.retryWindow(windowKey, channel.id, live)}>Retry</button>
+      {#if !windowStatus.gone}<button class="btn quiet" onclick={() => store.retryWindow(windowKey, channel.id, live)}>Retry</button>{/if}
       <button class="btn quiet" onclick={onjump}>Jump to newest</button>
     </p>
   {:else if windowKey && windowStatus?.loading && !showingWindow}
     <p class="windowed faint" aria-busy="true">Finding that message…</p>
   {:else if showingWindow}
     <p class="windowed faint">
-      Showing an older part of this conversation.
+      Showing an older part of this thread.
       {#if !windowStatus?.end}
         <button class="btn quiet" onclick={() => store.extendWindow(windowKey, channel.id, live, false)} disabled={windowStatus?.loading}>
           {windowStatus?.loading ? 'Loading…' : 'Newer'}
@@ -313,7 +337,7 @@
   {#if live}
     <MessageList {channel} {source} onreply={(m) => (replyTo = m)} lead={bar ? rootMessage : undefined} bind:below />
   {:else}
-    <div class="empty faint">No replies yet. The first one starts this conversation.</div>
+    <div class="empty faint">No replies yet. The first one starts this thread.</div>
   {/if}
 
   <div class="dock" class:over={bar && !!live} class:frost={bar && !!live && below} bind:offsetHeight={dockHeight}>
@@ -321,17 +345,24 @@
       {#if typing.length}{typing.join(', ')} {typing.length === 1 ? 'is' : 'are'} typing{/if}
     </div>
 
-    <Composer
-      {channel} conversation={here} bind:replyTo bind:dropped bind:listening
-      locked={!root ? 'This conversation is not available here.'
-        : resolved ? 'This conversation is resolved. Reopen it to add anything new.' : undefined}
-    />
+    <!-- A resolved thread takes nothing new, so it offers the way to reopen it instead of a box that can't send. -->
+    {#if resolved && root}
+      <div class="resolved" role="status">
+        <span>This thread is resolved.</span>
+        <button class="btn quiet" onclick={() => setResolved(false)} disabled={busy}>Reopen</button>
+      </div>
+    {:else}
+      <Composer
+        {channel} conversation={here} bind:replyTo bind:dropped bind:listening
+        locked={!root ? "This thread isn't available here." : undefined}
+      />
+    {/if}
   </div>
   {#if dragging > 0}
     <div class="drop">
       <div class="drop-inner">
         <Icon name="clip" size={28} />
-        <span class="display big">Drop it in this conversation</span>
+        <span class="display big">Drop it in this thread</span>
       </div>
     </div>
   {/if}
@@ -352,7 +383,7 @@
   }
   .menu-btn summary { list-style: none; cursor: pointer; }
   .menu-btn summary::-webkit-details-marker { display: none; }
-  .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  .menu-btn [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(320px, calc(100vw - 16px)); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
   /* The same rows as the composer's + sheet. */
   .menu { display: grid; padding: 12px 12px 16px; }
   .menu button { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--bg); color: var(--ink); font-size: var(--fs-body); text-align: start; border-bottom: 1px solid var(--line); }
@@ -387,6 +418,24 @@
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
   .root { padding-bottom: 4px; }
+  /* Pinned above the replies on a computer: an edge for them to scroll under, as the room has under its header. */
+  .panel:not(:has(> :global(.navbar))) > .root { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .resolved {
+    /* Where the message box was, in its shape and surface, so it reads over a wallpaper too. */
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 0 var(--gutter) max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)); padding: 3px 3px 3px 16px;
+    background: var(--bg); border: 1px solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + 4px));
+    color: var(--ink-2); font-size: var(--fs-sm);
+  }
+  /* The box's own buttons are --hit tall, so a Reopen as tall gives the row the box's height. */
+  .resolved .btn { min-height: var(--hit); padding-block: 0; color: var(--lamp); }
+  /* A phone's message box is the slim one (Composer.svelte's .phone): its 30px buttons, 2px inset and hairline. */
+  @media (max-width: 600px) {
+    .resolved { --hit: 30px; padding: 2px 2px 2px 14px; border-color: var(--line); }
+    /* A fingertip-sized target around the slim button, as the box's own buttons have. */
+    .resolved .btn { position: relative; }
+    .resolved .btn::before { content: ''; position: absolute; inset: -7px; }
+  }
   /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
      reply box under the keyboard. */
   .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }

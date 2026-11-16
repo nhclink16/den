@@ -183,7 +183,7 @@
   details[open] > summary { color: var(--lamp); }
   summary::-webkit-details-marker { display: none; }
   summary.disabled { pointer-events: none; opacity: .5; }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); overflow: hidden; }
   .picker { width: min(400px, calc(100vw - 16px)); height: min(460px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   /* An iOS search field: filled, no outline, the placeholder in app.css's colour. */
   .search { display: flex; align-items: center; gap: 6px; margin: 10px 10px 8px; padding: 0 8px; height: 36px; flex: none; border-radius: max(10px, var(--r)); background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-3); transition: box-shadow var(--t-fast); }

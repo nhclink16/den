@@ -42,6 +42,7 @@
   import { themes } from '../lib/theme.svelte'
   import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
+  import CallFaces from './CallFaces.svelte'
   import { profileCard } from '../lib/people.svelte'
   import { atBottom, landing } from '../lib/landing'
 
@@ -279,6 +280,8 @@
   // A DM with one person opens on their picture rather than an icon.
   const dm = $derived(channel.kind === 'dm')
   const other = $derived(dm && (channel.member_ids?.length ?? 0) <= 2 ? channel.member_ids?.find((id) => id !== store.me?.id) ?? store.me?.id : undefined)
+  // A group DM opens on everyone else's faces.
+  const group = $derived(dm && !other ? (channel.member_ids ?? []).filter((id) => id !== store.me?.id).map((userId) => ({ userId })) : [])
   // A DM with yourself: notes, not a conversation.
   const self = $derived(store.selfDm(channel))
 </script>
@@ -293,12 +296,16 @@
     <!-- Where a conversation begins. An empty one shows it in the middle of the screen. -->
     <div class="start" class:empty={!list.length}>
       {#if other}<span class="start-face" aria-hidden="true"><Avatar userId={other} size={72} presence={false} /></span>
+      {:else if group.length}<span class="start-face group" aria-hidden="true"><CallFaces faces={group} size={64} /></span>
       {:else}<div class="start-mark" aria-hidden="true"><RoomIcon {channel} size={28} bare /></div>{/if}
       <div class="display start-title">{dm ? store.title(channel) : `Welcome to ${roomName(channel, themes.appearance.room_icons)}`}</div>
       <div class="muted">{list.length ? 'This is where it started.' : !dm ? 'Nobody has said anything yet. Say the first thing.' : self ? 'Notes to yourself. Only you can see this.' : `Say hello. Only ${other ? 'the two of you' : 'the people here'} can see this.`}</div>
     </div>
   {:else if source.loadingOlder}
     <div class="faint center">Loading older messages</div>
+  {:else if !list.length && !source.exhausted}
+    <!-- The first page is on its way: say so, rather than show an empty room. -->
+    <div class="faint center loading">Loading…</div>
   {/if}
 
   {#each list as m, i (m.id)}
@@ -333,14 +340,14 @@
   }
   @media (hover: hover) { .latest:hover { background: var(--bg-3); transform: translateX(-50%) translateY(-1px); } }
   .latest:active { transform: translateX(-50%) scale(.96); }
-  .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--bg); box-shadow: var(--lift), var(--glow); }
+  .latest.lit { background: var(--lamp); border-color: var(--lamp); color: var(--on-lamp); box-shadow: var(--lift), var(--glow); }
   @media (prefers-reduced-motion: no-preference) { .latest { animation: latest-in .2s var(--ease-out); } }
   @keyframes latest-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
   .latest .count { display: none; }
   /* A phone: a round chevron in the corner, clear of the words, with how many are new. */
   @media (max-width: 600px) {
     .latest, .latest.lit { left: auto; right: 12px; bottom: calc(12px + var(--list-bottom, 0px)); transform: none; width: 40px; height: 40px; padding: 0; justify-content: center;
-      border: 0; border-radius: 50%; background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
+      border: 0; border-radius: var(--r-pill, 999px); background: var(--bg-2); color: var(--ink-2); box-shadow: 0 0 0 .5px var(--line-strong), var(--lift); }
     .latest :global(svg) { width: 20px; height: 20px; }
     .latest .words { display: none; }
     .latest .count {
@@ -376,10 +383,17 @@
   .start-title { font-size: 26px; text-wrap: balance; }
   .start .muted { max-width: 34ch; text-wrap: pretty; }
   .start-face { display: grid; margin-bottom: 10px; }
+  .start-face.group { --ring: var(--bg); }
   .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
+  .loading { margin-block: auto; }
   /* The time sits between bursts, not on every line. */
   .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }
   .time b { font-weight: 600; color: var(--ink-2); }
+  /* Over a wallpaper in the room it sits on a small frosted pill, like the floating day, so it reads on any photo. */
+  :global(:root:is([data-bg-scope='chat'], [data-bg-scope='app'])) .time {
+    width: fit-content; margin-inline: auto; padding: 2px 10px; border-radius: var(--r-pill, 999px); box-shadow: 0 0 0 .5px var(--line);
+    background: var(--overlay); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
   /* Where unread starts is live, so it is lit: a thin accent rule. */
   .new { display: flex; align-items: center; gap: 10px; margin: 12px var(--gutter) 0; color: var(--lamp); font: 700 var(--fs-xs)/1.5 var(--body); }
   .new::before, .new::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--lamp) 50%, transparent); }

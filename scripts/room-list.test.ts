@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { SUGGESTED, callFaces, callLine, defaultIcon, lastOf, placedIn, previewText, roomName, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
+import { SUGGESTED, callFaces, callLine, defaultIcon, groupTitle, hereLine, lastOf, placedIn, previewText, roomName, roomSlug, searchIcons, type IconEntry } from '../apps/web/src/lib/room-list.ts'
 import type { Message } from '../apps/web/src/lib/types.ts'
 
 const lucide = new URL('../apps/web/node_modules/lucide-static/', import.meta.url)
@@ -94,4 +94,32 @@ test('a room in a category the list does not have shows with the uncategorized r
   assert.equal(placedIn(room('k'), categories), 'k')
   assert.equal(placedIn(room(null), categories), null)
   assert.equal(placedIn(room('just-made'), categories), null, 'a room moved into a new category vanished')
+})
+
+test('a group chat is titled by first names, and by full names when two share one', () => {
+  assert.equal(groupTitle(['Nadia Okoro', 'Priya Raman', 'Wren Calloway']), 'Nadia, Priya and Wren')
+  assert.equal(groupTitle(['Nadia Okoro', 'Pip']), 'Nadia and Pip')
+  assert.equal(groupTitle(['Sam Lee', 'Sam Ortiz', 'Wren Calloway']), 'Sam Lee, Sam Ortiz and Wren Calloway')
+  assert.equal(groupTitle(['  Mary Jane Watson ', 'Oskar Lind']), 'Mary and Oskar')
+})
+
+test('a voice room says who is in it, by name up to three, then as a count', () => {
+  assert.equal(hereLine([], false), 'Nobody here yet')
+  assert.equal(hereLine([], true), "You're in")
+  assert.equal(hereLine(['Wren'], false), 'Wren is here')
+  assert.equal(hereLine(['Wren', 'Oskar'], false), 'Wren and Oskar are here')
+  assert.equal(hereLine(['Wren', 'Oskar', 'Inês'], false), 'Wren, Oskar and Inês are here')
+  assert.equal(hereLine(['Wren', 'Oskar', 'Inês', 'Bodhi', 'Felix'], false), 'Wren, Oskar and 3 others are here')
+  assert.equal(hereLine(['Wren'], true), 'You, Wren')
+})
+
+test('a typed room name becomes the name the server takes', () => {
+  assert.equal(roomSlug('Cabin Trip!'), 'cabin-trip')
+  assert.equal(roomSlug('  Book   club  '), 'book-club')
+  assert.equal(roomSlug('Café Ñandú'), 'cafe-nandu')
+  assert.equal(roomSlug('dev_ops-2'), 'dev_ops-2')
+  assert.equal(roomSlug('a - b'), 'a-b')
+  assert.equal(roomSlug('!!! 🎉'), '')
+  assert.equal(roomSlug('x'.repeat(39) + ' y'), 'x'.repeat(39))
+  assert.match(roomSlug('Long '.repeat(20)), /^[a-z0-9_-]{1,40}$/)
 })

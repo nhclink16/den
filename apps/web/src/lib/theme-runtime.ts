@@ -2,7 +2,7 @@ import { isDesktop } from './desktop'
 import { mediaUrl } from './native'
 import { wallpaperImage } from './wallpapers'
 import type { Appearance, AppearanceBackground, Theme, ThemeColors } from './types'
-import { colorRoles, controlBorder, deriveHalf, lab, resolveAccent } from './theme-color'
+import { colorRoles, controlBorder, deriveHalf, lab, onLamp, resolveAccent } from './theme-color'
 import builtins from '../../../../crates/den-core/src/themes.json'
 
 export const builtinThemes = builtins as Theme[]
@@ -26,6 +26,7 @@ export function applyTheme(t: Theme, half: 'light'|'dark' = 'dark', a?: Appearan
   const root = document.documentElement, s = root.style, colors={...t[half],accent:resolveAccent(t[half],a?.accent,half)}
   for (const key of colorRoles) s.setProperty(`--${key}`, colors[key])
   s.setProperty('--line-strong', controlBorder(colors))
+  s.setProperty('--on-lamp', onLamp(colors, colors.accent))
   s.setProperty('--accent-dim', `color-mix(in srgb, ${colors.accent} 55%, ${colors.bg})`)
   s.setProperty('--accent-glow', `color-mix(in srgb, ${colors.accent} 18%, transparent)`)
   // Per-person tints (avatars) sit at a lightness chosen from the actual background,

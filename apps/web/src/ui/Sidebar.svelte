@@ -43,13 +43,14 @@
   import { profileCard } from '../lib/people.svelte'
   import { themes } from '../lib/theme.svelte'
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
-  import { callFaces, callLine, placedIn, previewText } from '../lib/room-list'
+  import { hereLine, placedIn, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
   import type { Channel } from '../lib/types'
 
-  // `phone` is the home screen on phones: the same list, full width, larger.
-  let { phone = false }: { phone?: boolean } = $props()
+  // `phone` is the home screen on phones: the same list, full width, larger. `callControls` is Shell's word on
+  // whether the call bar keeps Mute and Leave: not while the open call shows its own row of buttons.
+  let { phone = false, callControls = true }: { phone?: boolean; callControls?: boolean } = $props()
   const inboxCount = $derived(instances.totalUnread)
   const inboxBadge = $derived(inboxCount > 99 ? '99+' : String(inboxCount))
   const iconMode = $derived(themes.appearance.room_icons ?? 'icons')
@@ -121,11 +122,7 @@
     return { text: who + previewText(last), typing: false }
   }
   function who(ids: string[]) {
-    const names = ids.filter((id) => id !== store.me?.id).map((id) => store.name(id))
-    const me = ids.includes(store.me?.id ?? '')
-    if (!names.length) return me ? "You're in" : 'Nobody here yet'
-    const list = names.length <= 3 ? names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names.at(-1) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
-    return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
+    return hereLine(ids.filter((id) => id !== store.me?.id).map((id) => store.name(id)), ids.includes(store.me?.id ?? ''))
   }
 
   let scroller = $state<HTMLDivElement>()
@@ -220,38 +217,34 @@
       <form class="find input-shell" role="search" onsubmit={(e) => { e.preventDefault(); search() }}><Icon name="search" size={18} /><input bind:value={q} placeholder="Search" aria-label="Search messages" enterkeyhint="search" onfocus={tapped} onclick={search} /></form>
     {/if}
     {#each voice as c (c.id)}
-      {@const here = call.origin === store.origin && call.channel?.id === c.id}
-      <!-- The server's list catches up a moment after you join; you're in already. -->
-      {@const ids = here && store.me && !call.ids(c.id).includes(store.me.id) ? [store.me.id, ...call.ids(c.id)] : call.ids(c.id)}
+      <!-- While you're in this call, the call bar is this card, with your buttons and Leave besides (a phone's
+           pill at the top, the desktop's bar at the bottom of this list), so the list doesn't repeat it. -->
+      {#if !(call.origin === store.origin && call.channel?.id === c.id)}
+      {@const ids = call.ids(c.id)}
       {@const jam = jamLine(c.id)}
-      <!-- In the call, the card says what the call pill says: who's talking. -->
-      {@const talking = here && !call.reconnecting ? callLine(call.participants).talking : ''}
       {@const joining = call.joining === c.id}
-      <!-- On a phone, the call pill above the list is this card while you're in the
-           call, with your mic and Leave besides, so the list doesn't repeat it. -->
-      {#if !(phone && here)}
       <div class="hang" class:live={ids.length > 0}>
         {#if ids.length}
-          <CallFaces faces={here && call.participants.length ? callFaces(call.participants) : ids.map((userId) => ({ userId }))} size={phone ? 32 : 28} max={phone ? 3 : 2} />
+          <CallFaces faces={ids.map((userId) => ({ userId }))} size={phone ? 32 : 28} max={phone ? 3 : 2} />
         {:else}
           <RoomIcon channel={c} size={phone ? 44 : 34} />
         {/if}
         <span class="txt">
-          <span class="nm">{c.name}{#if ids.length && !talking}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
-          <span class="who" class:talking class:failed={failed === c.id && !joining && !ids.length}>{#if failed === c.id && !joining && !ids.length}Couldn't connect{:else if talking}<span class="talk-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="say">{talking}</span>{:else}{who(ids)}{/if}</span>
+          <span class="nm"><span class="nm-t">{c.name}</span>{#if ids.length}<i class="live-dot" aria-hidden="true"></i>{/if}</span>
+          <span class="who" class:failed={failed === c.id && !joining && !ids.length}>{#if failed === c.id && !joining && !ids.length}Couldn't connect{:else}{who(ids)}{/if}</span>
           {#if jam}<span class="jam-line" data-testid="sidebar-jam" title={jam}><span aria-hidden="true">🎧</span> {jam}</span>{/if}
         </span>
-        {#if here}
-          <button class="btn small" onclick={() => (call.expanded = true)} aria-label={`Open ${c.name}`}>Open</button>
-        {:else}
-          <!-- Joining stays in full colour with a spinner: it's working, not switched off. -->
-          <button class="btn lit small" class:joining disabled={joining} onclick={() => call.join(c)} aria-label={failed === c.id && !joining ? `Retry joining ${c.name}` : jam ? `Join ${c.name}. ${jam}` : `Join ${c.name}`}>{#if joining}<span class="spin" aria-hidden="true"></span>Joining…{:else if failed === c.id}Retry{:else}Join{/if}</button>
-        {/if}
+        <!-- Joining stays in full colour with a spinner: it's working, not switched off. -->
+        <button class="btn lit small" class:joining disabled={joining} onclick={() => call.join(c)} aria-label={failed === c.id && !joining ? `Retry joining ${c.name}` : jam ? `Join ${c.name}. ${jam}` : `Join ${c.name}`}>{#if joining}<span class="spin" aria-hidden="true"></span>Joining…{:else if failed === c.id}Retry{:else}Join{/if}</button>
       </div>
       {/if}
     {/each}
 
     {#each uncategorized as c, i (c.id)}{@render room(c, i === uncategorized.length - 1)}{/each}
+
+    <!-- Your friends first: the DMs, newest first, above every category of rooms. Rooms outside a category
+         have no heading of their own, so they stay up with the hangout rather than look like DMs. -->
+    {@render group('direct', 'Direct', [...store.dms].sort((a, b) => (b.last_message?.id ?? '').localeCompare(a.last_message?.id ?? '')))}
 
     {#each store.categories as cat (cat.id)}
       {@render group(cat.id, cat.name, store.textChannels.filter((c) => c.kind === 'text' && placedIn(c, store.categories) === cat.id))}
@@ -273,12 +266,11 @@
       {/each}
     {/if}
 
-    {@render group('direct', 'Direct', [...store.dms].sort((a, b) => (b.last_message?.id ?? '').localeCompare(a.last_message?.id ?? '')))}
   </div>
 
   {#if desktop.updateReady}<button class="btn quiet" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
   {#if !phone}
-    <CallDock />
+    <CallDock controls={callControls} />
     <div class="me">
       {#if store.me}
         <button class="me-card" aria-haspopup="dialog" onclick={(e) => profileCard.open(store.me!.id, e.currentTarget, instances.active)}>
@@ -296,6 +288,8 @@
   .spacer { flex: 1; }
   .brand { display: flex; align-items: center; gap: 4px; padding: 14px 10px 8px 18px; min-height: 58px; }
   .mac .brand { padding-top: 38px; }
+  /* The same 52px band as every page's top header, so titles sit level with these icons. */
+  .side:not(.mac) .brand { min-height: 52px; padding-block: 0; }
   .wordmark { font-size: 24px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (hover: hover) { .wordmark:hover { text-decoration: none; } }
   .icon-btn { position: relative; color: var(--ink-2); }
@@ -312,10 +306,9 @@
   .hang { --ring: var(--bg-3); display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; padding: 12px 10px; border-radius: var(--r-lg); background: var(--bg-3); }
   .hang .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .hang .nm { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .hang .nm-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hang .who, .hang .jam-line { font-size: var(--fs-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hang .jam-line { color: var(--lamp); }
-  .hang .who.talking { display: flex; align-items: center; gap: 6px; color: var(--lamp); }
-  .hang .who .say { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   /* Someone's in the call: live green, not the unread colour. */
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--moss); flex: none; }
   .btn.small { min-height: 32px; padding: 4px 14px; font-size: var(--fs-sm); }
@@ -335,15 +328,19 @@
   .row { display: flex; align-items: center; gap: 10px; padding: calc(7px * var(--density, 1)) 10px; margin: 1px 0; border-radius: var(--r-lg); color: var(--ink); text-align: left; transition: background-color var(--t-fast); }
   .row.bare { padding-inline: 12px; }
   @media (hover: hover) { .row:hover { background: var(--hover); text-decoration: none; } }
-  .row.sel { background: var(--sel); }
+  /* The face pair's ring is the selected row's colour: the --sel tint laid over the sidebar. */
+  .row.sel { --ring: color-mix(in srgb, var(--lamp) 14%, var(--bg-2)); background: var(--sel); }
   .row.sel :global(.tile:not(.bare)) { background: color-mix(in srgb, var(--lamp) 22%, var(--bg-3)); color: var(--lamp); }
   .mid { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
   .top, .pv { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .top { align-items: baseline; }
-  .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .unread .nm, .sel .nm { font-weight: 700; color: var(--ink); }
+  /* Every name is bright and a step above its grey preview; unread is told by weight, the lit time and the badge. */
+  .nm { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .unread .nm, .sel .nm { font-weight: 700; }
   .tm { flex: none; font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
   .unread .tm { color: var(--lamp); }
+  /* The open room's row is an accent wash: accent text on it falls under 4.5:1. */
+  .sel .tm { color: var(--ink-2); font-weight: 700; }
   .pvt { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pvt.typing { color: var(--lamp); }
   .tile { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--avatar-r, 50%); background: var(--bg-3); font-size: 17px; line-height: 1; }
@@ -372,7 +369,7 @@
   .phone .inbox .count { top: 1px; right: 1px; box-shadow: 0 0 0 2px var(--bg); }
   .compose summary { list-style: none; cursor: pointer; }
   .compose summary::-webkit-details-marker { display: none; }
-  .compose [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(360px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 120px)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: 0 14px 44px var(--shadow); }
+  .compose [popover] { position: fixed; inset: auto; margin: 0; padding: 0; width: min(360px, calc(100vw - 16px)); max-height: min(520px, calc(100vh - 120px)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .people { display: grid; padding: 4px 12px 16px; }
   .sheet-title { margin: 8px 4px 10px; text-align: center; font-weight: 600; font-size: 17px; }
   .people button { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 12px; background: var(--bg); text-align: start; color: var(--ink); }
@@ -392,10 +389,12 @@
   .find input:focus-visible { box-shadow: none; }
   .phone .scroll { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
   .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; border-radius: var(--r-tile); background: var(--bg-2); }
-  .phone .hang { --ring: var(--bg-2); }
+  .phone .hang { --ring: var(--bg-2); container: hang / inline-size; }
+  /* A 320pt phone has room for who's there or their faces, not both (the call pill's rule). */
+  @container hang (max-width: 300px) { .hang :global(.faces) { display: none; } }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
-  .phone .row { position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }
+  .phone .row { --ring: var(--bg); position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }
   .phone .row::after { content: ''; position: absolute; left: 72px; right: 0; bottom: 0; height: 1px; background: color-mix(in srgb, var(--line) 70%, transparent); }
   .phone .row.bare::after { left: 16px; }
   .phone .row.last::after { display: none; }

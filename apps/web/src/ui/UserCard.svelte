@@ -104,7 +104,11 @@
       {:else if me && onedit}
         <button class="btn" onclick={onedit}><Icon name="edit" size={14} /> Edit profile</button>
       {:else if !me && onmessage}
-        <button class="btn lit" onclick={onmessage}><Icon name="send" size={14} /> Message {user.display_name || user.username}</button>
+        <!-- Message leads; Call sits beside it, as on the phone's sheet. -->
+        <div class="row">
+          <button class="btn lit" aria-label={`Message ${name}`} onclick={onmessage}><Icon name="send" size={14} /> Message</button>
+          {#if oncall && !user.bot}<button class="btn" aria-label={`Call ${name}`} onclick={oncall}><Icon name="phone" size={14} /> Call</button>{/if}
+        </div>
       {/if}
     </div>
   </article>
@@ -162,6 +166,9 @@
   .emoji { font-size: 18px; line-height: 1; }
   .bio { line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; color: var(--ink); }
   .btn { justify-content: center; margin-top: 4px; }
+  .row { display: flex; gap: var(--s2); margin-top: 4px; }
+  .row .btn { margin-top: 0; }
+  .row .lit { flex: 1; }
 
   /* A phone's sheet: edge to edge, a taller banner, and round actions like an iPhone contact card. */
   .card.sheet { width: 100%; border: 0; border-radius: 0; background: none; }
@@ -174,7 +181,7 @@
   .act::-webkit-details-marker { display: none; }
   .ic { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--bg-3); color: var(--lamp); transition: opacity var(--t-fast); }
   .act:active .ic { opacity: .6; }
-  .menu { position: fixed; inset: auto; margin: 0; padding: 4px; min-width: 200px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .menu { position: fixed; inset: auto; margin: 0; padding: 4px; min-width: 200px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: var(--r); font-size: var(--fs-body); text-align: start; }
   .menu button:active { background: var(--press); }
 </style>

@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { endJam } from '../apps/web/src/lib/jam.ts'
+import { groupTitle } from '../apps/web/src/lib/room-list.ts'
 
 // These tests reach the ACTUAL Store, not a helper that mirrors it.
 //
@@ -56,6 +57,7 @@ const globals = {
   activeListeners: new Set(), setCsrf() {}, pushSignedOut() {},
   WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
   lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
+  groupTitle,
 }
 const classStart = source.indexOf('export class Store {')
 const classEnd = source.indexOf('\nclass Instances {')
@@ -764,6 +766,24 @@ test('a DM with yourself is titled with your own name, and only that one', () =>
   assert.equal(s.selfDm(dm(['me'])), true)
   assert.equal(s.title(dm(['me', 'm'])), 'Maya')
   assert.equal(s.selfDm(dm(['me', 'm'])), false)
-  assert.equal(s.title(dm(['me', 'm', 'r'])), 'Maya, rowan')
+  assert.equal(s.title(dm(['me', 'm', 'r'])), 'Maya and rowan')
   assert.equal(s.selfDm({ id: 'c', kind: 'text', name: 'general', member_ids: [] }), false)
+})
+
+test('a link to a deleted message says it is gone, and a network failure keeps Retry', async () => {
+  // A dead link once looped forever. The store's half: a 404 (or 403) is final, so it is `gone` and fetches no
+  // pages around it, while a request that never got an answer is an error that Retry can fix.
+  const paths: string[] = []
+  let fail: () => unknown = () => Object.assign(new Error('Not found'), { status: 404 })
+  api = { get: async (p: string) => { paths.push(p); throw fail() }, post: async () => null }
+  const s = new Store('fixture')
+  const gone = s.windowStatus(await s.openWindow('c', undefined, '999'))
+  assert.equal(gone.gone, true)
+  assert.equal(gone.loading, false)
+  assert.equal(paths.join(), '/messages/999', 'a missing target still fetched pages around it')
+
+  fail = () => new Error("Can't reach Den. Check your connection and try again.")
+  const down = s.windowStatus(await s.openWindow('c', undefined, '998'))
+  assert.equal(!!down.gone, false)
+  assert.equal(down.error, "Can't reach Den. Check your connection and try again.")
 })

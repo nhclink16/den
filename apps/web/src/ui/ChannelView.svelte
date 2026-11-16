@@ -1,5 +1,11 @@
+<script module lang="ts">
+  // The last room or DM you looked at, as one slot (server and room): opening the voice room while
+  // you're in its call opens the call over that room instead, so the call's Back returns there. A room
+  // on another server doesn't count, so there it falls back to the start page.
+  let lastRoom = ''
+</script>
+
 <script lang="ts">
-  import MusicComposer from './MusicComposer.svelte'
   import JamCard from './JamCard.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
@@ -7,7 +13,8 @@
   import Avatar from './Avatar.svelte'
   import { profileCard } from '../lib/people.svelte'
   import RoomIcon from './RoomIcon.svelte'
-  import { roomName } from '../lib/room-list'
+  import CallFaces from './CallFaces.svelte'
+  import { hereLine, roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
   import ObjectDock from './ObjectDock.svelte'
   import { objects } from '../lib/objects.svelte'
@@ -17,19 +24,20 @@
   import type { Channel, Message } from '../lib/types'
   import Icon from './Icon.svelte'
   import MessageList, { type Source } from './MessageList.svelte'
-  import Composer from './Composer.svelte'
+  import Composer, { focusComposer } from './Composer.svelte'
   import ThreadStrip from './ThreadStrip.svelte'
   import ThreadPanel from './ThreadPanel.svelte'
   import { router } from '../lib/router.svelte'
   import { viewing } from '../lib/notify.svelte'
   import { native } from '../lib/native'
-  import { tick, untrack } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   let q = $state('')
   let listening = $state(false)
   // Searches everywhere: a miss in this room reads as "the message is gone".
   function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}`) }
 
-  let { channel, narrow }: { channel: Channel; narrow: boolean } = $props()
+  /** `onpeople`: show or hide the People list (Shell decides when it steps aside for space). */
+  let { channel, narrow, onpeople }: { channel: Channel; narrow: boolean; onpeople?: () => void } = $props()
   let replyTo = $state<Message | null>(null)
   // The message box's height, and whether messages are out of sight under it: on a phone the list runs under it.
   let dockHeight = $state(0), below = $state(false)
@@ -111,7 +119,7 @@
       .then((view) => {
         if (loadingFor !== mine) return
         if (view && view.thread.channel_id !== channel.id) {
-          threadGone = 'That conversation is not in this room.'
+          threadGone = 'That thread is not in this room.'
         }
       })
       .catch((e) => {
@@ -119,8 +127,8 @@
         const status = (e as { status?: number }).status
         // Only confirmed missing or denied is unavailable; anything else is
         // transient and gets an explicit Retry rather than a dead end.
-        threadGone = status === 404 ? 'That conversation no longer exists.'
-          : status === 403 ? "You don't have access to that conversation."
+        threadGone = status === 404 ? 'That thread no longer exists.'
+          : status === 403 ? "You don't have access to that thread."
           : (e as Error).message
         retryable = status !== 404 && status !== 403
       })
@@ -131,7 +139,7 @@
     // Switching routes cancels whatever the previous one was doing.
     loadingFor = id ? `${channel.id}/${id}` : ''
     loadingThread = false
-    threadGone = wrongRoom ? 'That conversation is not in this room.' : ''
+    threadGone = wrongRoom ? 'That thread is not in this room.' : ''
     retryable = false
     if (!id || known) return
     loadRoute(id)
@@ -172,10 +180,12 @@
   const roomTarget = $derived(panel ? undefined : target)
   const roomInTail = $derived(!!roomTarget && (store.messages.get(channel.id) || []).some((m) => m.id === roomTarget))
   const roomKey = $derived(roomTarget && !roomInTail ? store.windowKey(channel.id, undefined, roomTarget) : '')
+  // Untracked: openWindow reads the window's own state, and its failure writes it,
+  // so a tracked call would start again on every failure and never stop.
   $effect(() => {
-    const want = roomTarget
+    const want = roomTarget, id = channel.id
     if (!roomKey || !want) return
-    void store.openWindow(channel.id, undefined, want)
+    untrack(() => void store.openWindow(id, undefined, want))
   })
   const roomWindow = $derived(roomKey ? store.windowAt(roomKey) : undefined)
   const roomWindowStatus = $derived(roomKey ? store.windowStatus(roomKey) : undefined)
@@ -194,7 +204,8 @@
       : store.loadOlder(channel.id)),
     // A window is not the tail: reading it must not acknowledge the tail.
     onread: (displayed) => { if (!roomWindowed) roomTail = displayed },
-    target: roomTarget,
+    // A link that found nothing opens on the newest messages under its banner, not wherever the list starts.
+    target: roomWindowStatus?.error ? undefined : roomTarget,
     prefix: 'm',
     identity: `room:${channel.id}`,
     identityExtra: roomKey,
@@ -214,7 +225,8 @@
     else router.go(to, false, roomUrl)
   }
   function closePanel() {
-    restoring = opener
+    // A thread opened from a link has no Reply button to go back to, but focus still has to land in the room.
+    restoring = opener || '-'
     // Real back only when the recorded parent IS this room. A parent pointing
     // somewhere else is not something this control should walk into, and the
     // replacement below also clears it so a stale one cannot be inherited.
@@ -230,9 +242,24 @@
     restoring = ''
     void tick().then(() => {
       const opener = document.querySelector<HTMLButtonElement>(`#m-${CSS.escape(back)} button[title="Reply"]`)
-      const fallback = document.querySelector<HTMLElement>('.view h1')
-      ;(opener ?? fallback)?.focus()
+      if (opener) return opener.focus()
+      if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+      document.querySelector<HTMLElement>('.view h1')?.focus()
     })
+  })
+  // Opening a room (this view is keyed per room) puts the cursor where typing goes: the message box with a mouse
+  // or keyboard, else the room's title, which moves a screen reader without raising a phone's keyboard. A frame
+  // later, so it lands after the palette or a menu has handed focus back. An open thread panel focuses itself.
+  onMount(() => {
+    let frame = 0
+    void tick().then(() => {
+      frame = requestAnimationFrame(() => {
+        if (panel || document.activeElement?.closest('dialog[open], :popover-open')) return
+        if (!matchMedia('(pointer: coarse)').matches && focusComposer(document.querySelector('.view .room'))) return
+        document.querySelector<HTMLElement>('.view h1[tabindex]')?.focus({ preventScroll: true })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
   })
   // The first reply saves the thread: swap the pre-creation URL for the canonical
   // one in place, so Back does not return to a conversation that now exists.
@@ -265,6 +292,20 @@
   const isDm = $derived(channel.kind === 'dm')
   // Nobody to call in a DM with yourself, nor a call there to join.
   const callable = $derived(isDm && !store.selfDm(channel))
+  // The voice room is where the call happens: in its call, opening it opens the call, over the room you
+  // came from, so Back goes there. Outside it, the room shows who is in it and Join.
+  const inThisCall = $derived(!!call.channel && call.channel.id === channel.id && call.origin === store.origin)
+  $effect(() => { if (channel.kind !== 'voice') lastRoom = `${store.origin}|${channel.id}` })
+  $effect(() => {
+    if (channel.kind !== 'voice' || !inThisCall) return
+    // After this update, not inside it: going to another room replaces this view, and doing that from
+    // here would leave Svelte reading this view's deriveds while it is torn down.
+    queueMicrotask(() => {
+      const [origin, id] = lastRoom.split('|')
+      call.expanded = true
+      router.go(origin === store.origin && id && store.channel(id) ? `/c/${id}` : '/', true)
+    })
+  })
   // An expanded call hides this room completely, so the header names the call.
   const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
   // On a phone the open call and a thread each take the whole screen, the way a
@@ -293,7 +334,8 @@
 {#snippet person()}
   <h1 class="person">
     <button onclick={(e) => other && profileCard.open(other, e.currentTarget, instances.active)} disabled={!other} aria-label={other ? `${store.title(channel)}'s profile` : undefined}>
-      {#if other}<Avatar userId={other} size={26} presence={false} />{:else}<RoomIcon {channel} size={26} />{/if}
+      <!-- A group DM is its names alone: a phone's bar has no room for faces as well. -->
+      {#if other}<Avatar userId={other} size={26} presence={false} />{:else if store.selfDm(channel)}<RoomIcon {channel} size={26} />{/if}
       <span>{store.title(channel)}</span>
     </button>
   </h1>
@@ -333,19 +375,29 @@
     <!-- A phone has no room for a field beside the title: one tap opens Search. -->
     <a href="/find" class="icon-btn find" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find') }}><Icon name="search" size={20} /></a>
     {#if !narrow}
-      <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
+      <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => onpeople?.()}><Icon name="people" /></button>
     {/if}
   </header>
   {/if}
 
-  {#if channel.kind !== 'text'}<JamCard channelId={channel.id} />{/if}
-  {#if call.channel && call.owner && call.channel.id !== channel.id && !objects.expanded}<JamCard channelId={call.channel.id} owner={call.owner} compact />{/if}
+  <!-- In the call, the Jam lives with the call (CallJam), so the room doesn't repeat it. -->
+  {#if channel.kind !== 'text' && !inThisCall}<JamCard channelId={channel.id} />{/if}
 
   {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} titled={pushed && callCovers} />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
   {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}
-    <div class="voice-empty"><div class="voice-music">{#if call.channel?.id !== channel.id}<button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button>{/if}<h2>Bring a song</h2><p>Music plays for everyone in the call.</p><MusicComposer roomId={channel.id} /><p class="jam-hint">{call.channel?.id === channel.id ? 'For a Spotify Jam, open Music in the call controls.' : 'Spotify Jams start from inside the call.'}</p></div></div>
+    <div class="voice-empty">
+      {#if !inThisCall}
+        {@const ids = call.ids(channel.id)}
+        {@const joining = call.joining === channel.id}
+        <div class="lobby">
+          {#if ids.length}<CallFaces faces={ids.map((userId) => ({ userId }))} size={narrow ? 56 : 48} max={4} />{/if}
+          <h2>{hereLine(ids.filter((id) => id !== store.me?.id).map((id) => store.name(id)), ids.includes(store.me?.id ?? ''))}</h2>
+          <button class="btn lit" disabled={joining} onclick={() => call.join(channel)}><Icon name="headset" /> {joining ? 'Joining…' : `Join ${channel.name}`}</button>
+        </div>
+      {/if}
+    </div>
   {:else}
   {#if callable && call.channel?.id !== channel.id && call.ids(channel.id).length}
     <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
@@ -366,7 +418,7 @@
         <div class="failed" role="alert">
           <Icon name="offline" size={40} />
           <h2>Can't load {isDm ? `your chat with ${store.title(channel)}` : roomName(channel, themes.appearance.room_icons)}</h2>
-          <p>{store.connected ? 'Something went wrong on the way. Try again in a moment.' : "You're offline. Den tries again as soon as you're back."}</p>
+          <p>{store.connected ? roomError : "You're offline. Den tries again as soon as you're back."}</p>
           <button class="btn lit" onclick={loadRoom}>Try Again</button>
         </div>
       {:else if roomError && !nav}
@@ -379,7 +431,7 @@
       {#if roomKey && roomWindowStatus?.error}
         <p class="windowed" role="alert">
           {roomWindowStatus.error}
-          <button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>
+          {#if !roomWindowStatus.gone}<button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>{/if}
           <button class="btn quiet" onclick={() => router.go(roomUrl, true)}>Jump to newest</button>
         </p>
       {:else if roomKey && roomWindowStatus?.loading && !roomWindowed}
@@ -422,14 +474,14 @@
         onvalid={(ok) => (panelValid = ok)}
       />
     {:else if panel && loadingThread}
-      <section class="panel-missing" aria-label="Conversation" aria-busy="true">
-        <p class="muted">Opening that conversation…</p>
+      <section class="panel-missing" aria-label="Thread" aria-busy="true">
+        <p class="muted">Opening that thread…</p>
         <!-- On a phone the room's header has given way, so the way back is here. -->
         <button class="btn quiet" onclick={closePanel}>Back to room</button>
       </section>
     {:else if panel}
-      <section class="panel-missing" aria-label="Conversation">
-        <p class="muted" role="alert">{threadGone || "That conversation isn't available here."}</p>
+      <section class="panel-missing" aria-label="Thread">
+        <p class="muted" role="alert">{threadGone || "That thread isn't available here."}</p>
         <div class="row">
           {#if retryable && openThread}
             <button class="btn quiet" onclick={() => loadRoute(openThread)}>Retry</button>
@@ -479,6 +531,12 @@
     display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px;
     border-bottom: 1px solid var(--line);
   }
+  /* A computer's top header is one height on every page (the desktop app's title-bar overlay), so its rule meets
+     the People list's in one line. Its buttons take the header-button height. */
+  @media (min-width: 901px) {
+    .head { block-size: 52px; min-height: 0; padding-block: 0; }
+    .head .btn { min-height: var(--hit); padding-block: 0; }
+  }
   .kind { color: var(--ink-3); display: grid; }
   .kind:empty { display: none; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -493,10 +551,11 @@
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
   .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
-  .voice-music { width: min(360px, calc(100% - 32px)); }
-  .voice-music h2 { font-size: 22px; margin: 20px 0 4px; }
-  .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: var(--fs-sm); }
-  .voice-music .jam-hint { margin: 14px 0 0; font-size: var(--fs-xs); }
+  /* Who is in the voice room, and Join: the hangout card's faces, spaced out rather than stacked. */
+  .lobby { width: min(420px, calc(100% - 32px)); display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .lobby :global(.faces) { gap: var(--s2); padding-left: 0; margin-bottom: var(--s4); }
+  .lobby :global(.faces > span) { margin-left: 0; box-shadow: none; }
+  .lobby h2 { margin: 0 0 var(--s5); font-size: var(--fs-title); line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   .find { display: none; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .titles { flex-direction: column; align-items: flex-start; gap: 2px; } .search { display: none; } .find { display: grid; } .dm-call { padding: 6px; } .dm-call span { display: none; } }

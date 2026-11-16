@@ -41,7 +41,7 @@
 </dialog>
 
 <style>
-  .form-dialog { width: min(300px, calc(100vw - 48px)); padding: 0; overflow: hidden; border: 0; border-radius: max(14px, var(--r-lg)); background: var(--bg-2); color: var(--ink); box-shadow: 0 12px 40px rgb(0 0 0 / .25); }
+  .form-dialog { width: min(300px, calc(100vw - 48px)); padding: 0; overflow: hidden; border: 0; border-radius: max(14px, var(--r-lg)); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .form-dialog::backdrop { background: rgb(0 0 0 / .35); }
   /* Outranks Settings' page titles, which style every h2 inside it. */
   .form-dialog h2.title { margin: 0; padding: 20px 16px 4px; font: 600 17px/1.3 var(--body); letter-spacing: 0; text-align: center; color: var(--ink); }
@@ -54,7 +54,11 @@
   .buttons button + button { border-inline-start: 1px solid var(--hair); }
   .buttons .go { font-weight: 600; }
   .buttons .danger { color: var(--danger); }
-  .fields :global(p) { margin: 0; font-size: var(--fs-sm); line-height: 1.4; text-align: center; color: var(--ink-2); }
+  .fields :global(p) { margin: 0; font-size: var(--fs-sm); line-height: 1.4; text-align: center; color: var(--ink-2); text-wrap: balance; }
+  /* What a field's text becomes ("Shows as cabin-trip"). */
+  .fields :global(p b) { font-weight: 600; color: var(--ink); }
+  /* A rule under a field gains a tick at its end once met, as on sign-up. */
+  .fields :global(.tick) { display: inline-flex; vertical-align: -2px; margin-inline-start: 6px; color: var(--success); }
   .buttons button:disabled { color: var(--ink-3); cursor: default; }
   .buttons button:active:not(:disabled) { background: var(--press); }
 </style>

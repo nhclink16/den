@@ -102,7 +102,7 @@
     {#if error}<p class="error" role="alert"><Icon name="alert" size={14} /><span>{error}</span></p>{/if}
     {#if mode === 'login'}
       <button type="button" class="forgot" aria-expanded={forgot} onclick={() => (forgot = !forgot)}>Forgot password?</button>
-      {#if forgot}<p class="note">Den has no email to send a reset to. Ask an admin: they can set you a new password.</p>{/if}
+      {#if forgot}<p class="note">Den can't reset passwords yet. Ask whoever runs this Den to help you get back in.</p>{/if}
     {/if}
 
     <div class="actions">

@@ -10,7 +10,8 @@
   import RoomIcon from './RoomIcon.svelte'
   import Avatar from './Avatar.svelte'
 
-  let { onclose }: { onclose: () => void } = $props()
+  // people: whether the People panel is showing now, which can differ from the saved setting when it steps aside for space.
+  let { onclose, people, onpeople }: { onclose: () => void; people: boolean; onpeople: () => void } = $props()
   let q = $state('')
   let cursor = $state(0)
   let input: HTMLInputElement
@@ -18,20 +19,23 @@
   type Item = { id: string; label: string; hint?: string; disabled?: boolean; kind: 'channel' | 'dm' | 'person' | 'action'; run: () => void; userId?: string; instance?: Store; server?: string; channel?: import('../lib/types').Channel }
 
   const items = $derived.by<Item[]>(() => {
-    const out: Item[] = plugins.flatMap((p) => p.paletteActions.map((a) => ({ ...a, kind: 'action' as const })))
-    if (call.channel) out.unshift({ id: 'a-call-reset', label: 'Reset layout', kind: 'action', run: () => callLayouts.reset(call.channel?.id) })
+    // Places first, so opening the palette and pressing Enter goes somewhere rather than doing something.
+    // The voice room's row joins the call, so it says so.
+    const out: Item[] = []
     for (const s of instances.all) {
-    for (const c of s.textChannels) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: c.name, hint: s.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', channel: c, run: () => { instances.select(s); if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
+    for (const c of s.textChannels) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: c.kind === 'voice' ? `Join ${c.name}` : c.name, hint: c.kind === 'voice' ? 'call' : s.categories.find((x) => x.id === c.category_id)?.name, kind: 'channel', channel: c, run: () => { instances.select(s); if (c.kind === 'voice') void call.join(c); else router.go(`/c/${c.id}`) } })
     for (const c of s.dms) out.push({ id: s.origin + c.id, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: s.title(c), hint: 'direct', kind: 'dm', run: () => { instances.select(s); router.go(`/c/${c.id}`) }, userId: (c.member_ids || []).find((id) => id !== s.me?.id) })
     for (const u of s.people) if (u.id !== s.me?.id) out.push({ id: `${s.origin}:u-${u.id}`, instance: s, server: instances.all.length > 1 ? s.settings.instance_name : undefined, label: u.display_name || u.username, hint: `@${u.username}`, kind: 'person', userId: u.id, run: async () => { const c = await s.openDm([u.id]); instances.select(s); router.go(`/c/${c.id}`) } })
     }
+    out.push(...plugins.flatMap((p) => p.paletteActions.map((a) => ({ ...a, kind: 'action' as const }))))
+    if (call.channel) out.push({ id: 'a-call-reset', label: 'Reset layout', kind: 'action', run: () => callLayouts.reset(call.channel?.id) })
     out.push(
       { id: 'a-inbox', label: 'Inbox', hint: 'action', kind: 'action', run: () => router.go('/inbox') },
       ...(q.trim().length > 1 ? [{ id: 'a-search', label: `Search messages for "${q.trim()}"`, hint: 'search', kind: 'action' as const, run: () => router.go(`/find?q=${encodeURIComponent(q.trim())}`) }] : []),
       { id: 'a-settings', label: 'Settings', hint: 'action', kind: 'action', run: () => router.go('/settings') },
       { id: 'a-appearance', label: 'Appearance: themes and wallpaper', hint: 'action', kind: 'action', run: () => matchMedia('(max-width: 900px)').matches ? router.go('/settings/appearance') : customizer.show() },
       { id: 'a-sidebar', label: store.layout.sidebar ? 'Hide room list' : 'Show room list', hint: 'Ctrl+\\', kind: 'action', run: () => store.saveLayout({ sidebar: !store.layout.sidebar }) },
-      { id: 'a-members', label: store.layout.members ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: () => store.saveLayout({ members: !store.layout.members }) },
+      { id: 'a-members', label: people ? 'Hide people' : 'Show people', hint: 'Ctrl+Shift+M', kind: 'action', run: onpeople },
       { id: 'a-logout', label: 'Log out', hint: 'action', kind: 'action', run: () => { store.logout(); router.go('/login') } },
     )
     return out

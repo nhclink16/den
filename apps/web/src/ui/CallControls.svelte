@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import MusicQueueButton from './MusicQueueButton.svelte'
   import { desktop } from '../lib/desktop.svelte'
   import { call } from '../lib/call.svelte'
@@ -37,10 +38,17 @@
   let moreOpen = $state(false), page = $state<'' | 'music'>('')
   $effect(() => { if (!moreOpen) page = '' })
   function done(run: () => unknown) { moreOpen = false; void run() }
+  // Stopping the last share swaps the shares menu back for the Share button: keep keyboard focus on it.
+  let row: HTMLDivElement
+  async function stop(name?: string) {
+    await call.stopScreen(name)
+    await tick()
+    if (!call.screenOn && (!document.activeElement || document.activeElement === document.body) && document.documentElement.dataset.input !== 'touch') row?.querySelector<HTMLElement>('.share')?.focus()
+  }
 </script>
 
-<div class="controls v-{variant}">
-  {#if pill && call.outputMuted}<button class="off" aria-label="Play sound on this device" aria-pressed={false} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name="sound-off" size={icon} /></button>{/if}
+<div class="controls v-{variant}" bind:this={row}>
+  {#if pill && call.outputMuted}<button class="off" aria-label="Sound on this device" aria-pressed={false} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name="sound-off" size={icon} /></button>{/if}
   {#if call.prefs.mode === 'ptt'}
     <button class="ptt" class:held={call.held} aria-label="Push to talk" aria-pressed={call.held} title={`Hold ${call.prefs.pttLabel} to talk`}
       onpointerdown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); call.setHeld(true) }}
@@ -49,27 +57,30 @@
       onkeyup={(e) => { if (e.key === ' ' || e.key === 'Enter') call.setHeld(false) }} onblur={() => call.setHeld(false)}
     >{#if variant !== 'bar'}<Icon name="mic" size={icon} />{:else}<span class="ptt-icon"><Icon name="mic" size={icon} /></span><span class="ptt-label">hold {call.prefs.pttLabel}{#if desktop.global}<small> global</small>{/if} to talk</span>{/if}</button>
   {:else}
-    <button class:off={!call.micOn} aria-label={call.micOn ? 'Mute microphone' : 'Unmute microphone'} aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} size={icon} /></button>
+    <button class:off={!call.micOn} aria-label="Microphone" aria-pressed={call.micOn} title="Microphone (M)" disabled={!!call.joining} onclick={() => call.toggleMic()}><Icon name={call.micOn ? 'mic' : 'mic-off'} size={icon} /></button>
   {/if}
   {#if !pill}
-  <button class:off={call.outputMuted} aria-label={call.outputMuted ? 'Play sound on this device' : 'Mute sound on this device'} aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} size={icon} /></button>
+  <button class:off={call.outputMuted} aria-label="Sound on this device" aria-pressed={!call.outputMuted} title="Sound on this device" onclick={() => call.toggleOutput()}><Icon name={call.outputMuted ? 'sound-off' : 'sound'} size={icon} /></button>
   <!-- An older Den Shell runs calls voice only. -->
-  {#if !shell || shellVideo}<button aria-label={call.cameraOn ? 'Turn camera off' : 'Turn camera on'} aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
-  {#if call.cameraOn && blurAvailable}<button class="wide" class:on={call.cameraSettings.background !== 'none'} aria-label={call.cameraSettings.background !== 'none' ? 'Turn background blur off' : 'Blur my background'} aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
-  {#if shareAvailable}<button class="wide" class:on={call.screenOn} aria-label={call.screenOn ? 'Stop sharing screen' : 'Share screen'} aria-pressed={call.screenOn} title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
-  {#if call.screenOn}
+  {#if !shell || shellVideo}<button aria-label="Camera" aria-pressed={call.cameraOn} title="Camera (V)" disabled={!!call.joining || (call.backgroundBusy && !call.cameraOn)} onclick={() => call.toggleCamera()}><Icon name={call.cameraOn ? 'camera' : 'camera-off'} size={icon} /></button>{/if}
+  {#if call.cameraOn && blurAvailable}<button class="wide" class:on={call.cameraSettings.background !== 'none'} aria-label="Background blur" aria-pressed={call.cameraSettings.background !== 'none'} title="Background blur" disabled={call.backgroundBusy} onclick={() => call.toggleBackground()}><Icon name="blur" size={icon} /></button>{/if}
+  <!-- While you share, Share stays lit and opens your shares: another, or Stop. S still stops them all. -->
+  {#if shareAvailable && call.screenOn}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
     <details class="overflow shares wide" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
-      <summary aria-label="Your shares" title="Your shares"><Icon name="more" size={icon} /></summary>
+      <summary class="live share" aria-label="Your shares" title="Your shares (S stops them all)"><Icon name="screen" size={icon} /></summary>
       <div popover="auto" use:disclosurePopover>
-        <!-- Lives in this menu rather than beside it, so a sidebar-wide dock keeps one row. -->
         <button disabled={call.screenAdding || shares.length === 3} aria-label="Share another" title={shares.length === 3 ? 'Up to 3 at once' : 'Share another'} onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); void call.addScreen() }}><Icon name="plus" size={14} /><span>{shares.length === 3 ? 'Up to 3 at once' : 'Share another'}</span></button>
         {#each shares as share (share.name)}
-          <button aria-label={`Stop sharing ${share.label}`} title={`Stop sharing ${share.label}`} onclick={() => call.stopScreen(share.name)}><Icon name={share.surface} size={14} /><span>{share.label}</span><span class="stop-label">Stop</span></button>
+          <button aria-label={`Stop sharing ${share.label}`} title={`Stop sharing ${share.label}`} onclick={() => stop(share.name)}><Icon name={share.surface} size={14} /><span>{share.label}</span><span class="stop-label">Stop</span></button>
         {/each}
+        {#if shares.length > 1}
+          <hr />
+          <button class="stop-all" aria-label="Stop all shares" onclick={() => stop()}><Icon name="x" size={14} /><span>Stop all</span></button>
+        {/if}
       </div>
     </details>
-  {/if}
+  {:else if shareAvailable}<button class="wide share" aria-label="Share screen" title="Screen share (S)" disabled={!!call.joining} onclick={() => call.toggleScreen()}><Icon name="screen" size={icon} /></button>{/if}
   {#if variant === 'bar'}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
     <details class="overflow options wide" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
@@ -151,7 +162,6 @@
   .v-bar > button:not(.ptt), .v-dock > button, .v-bar > :global(details), .v-dock > :global(details) { flex: 0 1 auto; width: var(--cb); min-width: 28px; }
   .v-bar > button:not(.ptt), .v-dock > button { height: auto; aspect-ratio: 1; }
   .v-bar > :global(details > summary), .v-dock > :global(details > summary) { width: 100%; height: auto; aspect-ratio: 1; }
-  .v-bar > .shares, .v-dock > .shares { width: calc(var(--cb) * .6); min-width: 17px; }
   /* Push to talk's words give way before anything overflows, and in a narrow open
      call it becomes a mic like the rest. */
   .ptt-icon { display: none; }
@@ -162,7 +172,6 @@
     .v-bar > .ptt > .ptt-label { display: none; }
     .v-bar > .ptt > .ptt-icon { display: grid; }
   }
-  .v-bar > .shares > summary, .v-dock > .shares > summary { width: 100%; aspect-ratio: 3 / 5; }
   .controls > .ptt { width: auto; padding: 0 14px; white-space: nowrap; font: 600 var(--fs-xs) var(--body); touch-action: none; }
   .v-pill > .ptt, .v-dock > .ptt { width: var(--cb); padding: 0; }
   .controls > .ptt.held { color: var(--on-lamp); background: var(--lamp); }
@@ -171,18 +180,19 @@
   .overflow { position: relative; flex: none; }
   .overflow > summary { list-style: none; }
   .overflow > summary::-webkit-details-marker { display: none; }
-  .options > div { position: fixed; inset: auto; margin: 0; z-index: 20; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .options > div { position: fixed; inset: auto; margin: 0; z-index: 20; padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .options > div button { width: max-content; padding: 8px 12px; border-radius: var(--r); font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .options > div button:hover { background: var(--hover); } }
-  /* Your shares hide behind a smaller button beside Share. */
-  .controls > .shares > summary { width: calc(var(--cb) * .6); }
-  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--lift); }
+  /* Share, while it's open: the lit fill pressed. */
+  .controls > .shares[open] > summary { background: linear-gradient(var(--press), var(--press)), var(--lamp); }
+  .shares > div { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(280px, calc(100vw - 24px)); padding: 4px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); box-shadow: var(--shadow-pop); }
   .shares > div button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r); text-align: left; font: var(--fs-sm) var(--body); }
   @media (hover: hover) { .shares > div button:hover { background: var(--hover); } }
   .shares button > span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .stop-label { color: var(--ember); }
+  .stop-label, .shares > div .stop-all { color: var(--ember); }
+  .shares hr { height: 1px; margin: 4px 8px; border: 0; background: var(--line); }
   /* More: a list and the layout switch; a bottom sheet on a phone (app.css). */
-  .more-sheet { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(340px, calc(100vw - 24px)); padding: 8px 12px 12px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--lift); }
+  .more-sheet { position: fixed; inset: auto; margin: 0; z-index: 20; width: min(340px, calc(100vw - 24px)); padding: 8px 12px 12px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); box-shadow: var(--shadow-pop); }
   .more-sheet .slist { margin-top: 8px; background: var(--bg-3); }
   .more-sheet .nav-row { font-size: var(--fs-body); }
   .more-sheet .nav-row :global(svg) { flex: none; color: var(--ink-2); }

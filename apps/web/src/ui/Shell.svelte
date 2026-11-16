@@ -36,11 +36,22 @@
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
   })
-  // A wide window has the list beside the room, so home is the first room.
+  // A wide window has the list beside the room, so home is the conversation you were last in on this server (the
+  // desktop app always starts at home), or the first room. The voice room's page isn't a conversation, so it's never
+  // the one kept. Kept on this device only; storage that's blocked just means none.
+  const lastKey = () => `den.lastRoom.${store.origin}`
+  const talk = (id: string | null) => { const c = id ? store.channel(id) : undefined; return c && c.kind !== 'voice' ? c : undefined }
+  $effect(() => {
+    if (router.route.name !== 'channel' || !talk(router.route.id)) return
+    const id = router.route.id
+    untrack(() => { try { localStorage.setItem(lastKey(), id) } catch { /* not kept */ } })
+  })
   $effect(() => {
     if (narrow || router.route.name !== 'home') return
-    const first = store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
-    if (first) untrack(() => router.go(`/c/${first.id}`, true))
+    let last: string | null = null
+    try { last = localStorage.getItem(lastKey()) } catch { /* none */ }
+    const to = talk(last) || store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
+    if (to) untrack(() => router.go(`/c/${to.id}`, true))
   })
 
   // Remember the last place outside Settings, for the customizer to open over.
@@ -51,12 +62,35 @@
     const mod = e.ctrlKey || e.metaKey
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
     else if (mod && e.key === '\\') { e.preventDefault(); store.saveLayout({ sidebar: !store.layout.sidebar }) }
-    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.saveLayout({ members: !store.layout.members }) }
+    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); togglePeople() }
 
   }
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
-  const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
+  // People steps aside when the conversation needs the width: the room would drop under about 640px beside it,
+  // a thread is open beside the room, or Appearance is docked at the right. Asking for People (the button or
+  // Ctrl+Shift+M) brings it back anyway for the rest of the session; the saved setting doesn't change.
+  const ROOM_MIN = 640
+  const px = (name: string) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0
+  const SIDEBAR_W = px('--sidebar-w'), MEMBERS_W = px('--members-w')
+  let winW = $state(innerWidth)
+  // Appearance docks beside the app, rather than over it, where the conversation still has room to its left.
+  const docked = $derived(customizer.open && !narrow && winW >= 1100)
+  const threadOpen = $derived(router.route.name === 'channel' && !!(router.route.thread || router.route.reply))
+  const crowded = $derived(winW - (store.layout.sidebar ? SIDEBAR_W : 0) - MEMBERS_W < ROOM_MIN || threadOpen || docked)
+  let peopleAnyway = $state(false)
+  // Docking Appearance takes the width back: People steps aside even if you asked for it earlier, until you ask again.
+  $effect(() => { if (docked) untrack(() => { peopleAnyway = false }) })
+  const showMembers = $derived(!narrow && store.layout.members && !!currentChannel && (peopleAnyway || !crowded))
+  function togglePeople() {
+    if (showMembers) {
+      peopleAnyway = false
+      if (!crowded) store.saveLayout({ members: false })
+    } else {
+      if (!store.layout.members) store.saveLayout({ members: true })
+      if (crowded) peopleAnyway = true
+    }
+  }
   const showSidebar = $derived(!narrow && store.layout.sidebar)
   // The expanded call brings its own toolbar, but only where a call view renders:
   // a room under an expanded canvas or terminal, or a room that isn't there, has
@@ -103,11 +137,11 @@
   notify.attach()
 </script>
 
-<svelte:window onkeydown={key} />
+<svelte:window onkeydown={key} bind:innerWidth={winW} />
 
-<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
+<div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} class:docked inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
-    <aside class="sidebar bg-host scope-sidebar"><Sidebar /></aside>
+    <aside class="sidebar bg-host scope-sidebar"><Sidebar callControls={!(callShown && call.expanded)} /></aside>
   {/if}
 
   <main class="main bg-host scope-chat">
@@ -119,7 +153,7 @@
     {#if router.route.name === 'channel'}
       {#if currentChannel}
         {#key store.origin + currentChannel.id}
-          <ChannelView channel={currentChannel} {narrow} />
+          <ChannelView channel={currentChannel} {narrow} onpeople={togglePeople} />
         {/key}
       {:else}
         <div class="empty"><p class="muted">That room isn't here.</p><a href="/" onclick={(e) => { e.preventDefault(); router.go('/') }}>Back to the den</a></div>
@@ -150,7 +184,7 @@
 {#if call.error}<div class="call-error" role="alert"><button title="Dismiss" onclick={() => (call.error = '')}><Icon name="phone" />{call.error}</button></div>{/if}
 {#if store.toast}<div class="toast" role="status">{store.toast}<button aria-label="Dismiss notification" onclick={() => store.toast = ''}>×</button></div>{/if}
 
-{#if palette}<Palette onclose={() => (palette = false)} />{/if}
+{#if palette}<Palette onclose={() => (palette = false)} people={showMembers} onpeople={togglePeople} />{/if}
 <ProfilePopover />
 <Customizer />
 <PushAsk />
@@ -187,6 +221,8 @@
   .main { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .members { grid-area: members; background: var(--bg-2); border-left: 1px solid var(--line); min-height: 0; overflow-y: auto; }
   .empty { flex: 1; display: grid; place-content: center; text-align: center; gap: 6px; }
+  /* Appearance docked at the right (Customizer): the app ends where the panel starts, so your own bubbles stay in view. */
+  .shell.docked { padding-right: 400px; }
 
   .shell.narrow { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main'; }
   /* A phone screen whose NavBar is the first thing on screen (`.edge`) reaches up under the status bar, so its

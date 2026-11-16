@@ -108,8 +108,8 @@
   <div class="foot">
     {#if showAudio}
       <label class="audio-toggle">
-        <input type="checkbox" bind:checked={audio} />
         Share sound
+        <input class="toggle" type="checkbox" bind:checked={audio} />
       </label>
     {:else}
       <span></span>
@@ -210,6 +210,5 @@
     flex-shrink: 0;
   }
   .audio-toggle { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
-  .audio-toggle input { accent-color: var(--lamp); }
   .actions { display: flex; gap: 8px; }
 </style>

@@ -81,7 +81,7 @@
   summary::-webkit-details-marker { display: none; }
   @media (hover: hover) { summary:hover :global(.tile) { color: var(--ink); } }
   details[open] > summary :global(.tile) { color: var(--lamp); box-shadow: 0 0 0 2px var(--lamp); }
-  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: 0 14px 44px var(--shadow); overflow: hidden; }
+  [popover] { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--bg-2); box-shadow: var(--shadow-pop); overflow: hidden; }
   .picker { width: min(380px, calc(100vw - 16px)); height: min(440px, calc(100vh - 120px)); display: flex; flex-direction: column; }
   .search { display: flex; align-items: center; gap: 8px; margin: 10px 10px 8px; padding: 0 10px; height: 36px; border-radius: var(--r-pill); background: var(--bg-3); border: 1px solid transparent; color: var(--ink-3); }
   :global(:where(:root:not([data-input='touch']))) .search:focus-within { border-color: var(--lamp); box-shadow: 0 0 0 3px var(--lamp-glow); }

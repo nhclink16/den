@@ -5,8 +5,9 @@ import type { BubbleColors, ThemeColors } from './types'
 import { contrast, fromLab, lab, readable } from './theme-color.ts'
 import { sameDay } from './time.ts'
 
-/** A pause this long, or a new day, puts the time between two messages. */
-export const TIME_BREAK = 15 * 60_000
+/** A pause this long, or a new day, puts the time between two messages. An hour,
+ *  not less: a phone bubble carries its own time, and a slow room broke every few messages. */
+export const TIME_BREAK = 60 * 60_000
 
 type Placed = { id: string; author_id: string; created_at: string }
 /** `head` starts a run (the name goes above it), `tail` ends one (the picture
@@ -26,6 +27,16 @@ export function places(list: Placed[], firstUnread?: string): Place[] {
   })
   if (out.length) out[out.length - 1]!.tail = true
   return out
+}
+
+/** Who reacted, for the long-press menu and the pill's spoken name: "You" first,
+ *  then first names in the order people reacted. Two people who share a first
+ *  name keep their full names. */
+export function reactors(ids: string[], me: string | undefined, name: (id: string) => string): string[] {
+  const full = ids.filter((id) => id !== me).map(name)
+  const first = full.map((n) => n.trim().split(/\s+/)[0] || n)
+  const shown = first.map((f, i) => (first.filter((x) => x === f).length > 1 ? full[i]! : f))
+  return [...(me && ids.includes(me) ? ['You'] : []), ...shown]
 }
 
 /** A person's own hue: their chosen profile colour, else a stable hash of their id. */

@@ -360,6 +360,8 @@
 <style>
   .settings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
+  /* One top-header height on a computer, as in a room (ChannelView), even with the room-list button in it. */
+  .settings:not(.drill) .head { block-size: 52px; min-height: 0; padding-block: 0; }
   .kind { color: var(--ink-3); display: grid; }
   .head h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
@@ -390,6 +392,10 @@
   .pane { --pane-end: 48px; overflow-y: auto; padding: 28px 28px var(--pane-end); min-width: 0; }
   .pane-inner { width: 100%; max-width: 640px; margin-inline: auto; }
   .wide-pane .pane-inner { max-width: 940px; }
+  /* A computer: every section in the same centred column as Profile, so the title never moves when you switch.
+     Sections without a preview keep their forms 640px wide, at the column's start. */
+  .settings:not(.drill) .pane-inner { max-width: 940px; }
+  .settings:not(.drill) .pane:not(.wide-pane) .pane-inner > :global(*) { max-width: 640px; }
   .pane-inner > :global(p.muted) { margin: 0; max-width: 62ch; }
   .gap-top { margin-top: 20px; }
   .val { color: var(--ink-3); font-size: var(--fs-sm); }

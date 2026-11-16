@@ -17,6 +17,8 @@
   const phoneFoot = $derived(phone === 'undecided' ? 'Turn them on to hear about mentions and DMs when Den is closed.'
     : phone === 'denied' ? 'Turn on Allow Notifications in iOS Settings.'
     : phone === 'granted' && !push.connected ? 'Den tries again each time you open it.' : '')
+  // A phone's browser isn't a desktop: name the row for the device in hand.
+  const touch = matchMedia('(pointer: coarse)').matches
   const phoneTap = () => (phone === 'undecided' ? void pushStart() : void pushSettings())
   function toggleSub(id: string) {
     const s = new Set(store.notif.subscribed_channel_ids); s.has(id) ? s.delete(id) : s.add(id)
@@ -32,12 +34,12 @@
   {#if phoneFoot}<p class="list-foot">{phoneFoot}</p>{/if}
 {:else if perm !== 'granted'}
   <div class="slist callout">
-    <SettingRow find="permission" label={perm === 'unsupported' ? 'Notifications on this device' : 'Desktop notifications'} hint={perm === 'unsupported' ? "Phone notifications aren't available yet. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Blocked in your browser settings. Allow them there for this site.' : 'Off. Turn them on to hear about mentions and DMs while Den is in the background.'}>
+    <SettingRow find="permission" label={perm === 'unsupported' || touch ? 'Notifications on this device' : 'Desktop notifications'} hint={perm === 'unsupported' ? "This browser can't show notifications. Mentions and DMs wait for you in the Inbox." : perm === 'denied' ? 'Blocked in your browser settings. Allow them there for this site.' : 'Off. Turn them on to hear about mentions and DMs while Den is in the background.'}>
       {#snippet control()}{#if perm === 'default'}<button class="btn lit" onclick={enable}>Turn on</button>{/if}{/snippet}
     </SettingRow>
   </div>
 {/if}
-<h3 class="list-head">Always</h3>
+<h3 class="list-head">Notify me about</h3>
 <!-- Notifications already on: a search for them lands here. -->
 <div class="slist" data-find={perm === 'granted' && !push.available ? 'permission' : undefined}>
   <SettingRow find="mentions" label="When someone mentions me">

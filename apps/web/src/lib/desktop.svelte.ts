@@ -6,6 +6,7 @@ import type { DesktopEvent } from './desktop'
 import { router } from './router.svelte'
 import type { Event } from './types'
 import { snippet } from './klipy'
+import { plain } from './markdown'
 import { roomName } from './room-list'
 
 class Desktop {
@@ -39,7 +40,7 @@ class Desktop {
       if (!s || !c || lookingAt(s, c.id, a.message.thread_id)) return
       const title = `${instances.all.length > 1 ? `${s.settings.instance_name}: ` : ''}${s.name(a.message.author_id)}${c.kind === 'dm' ? '' : ` in ${roomName(c, s.appearance.room_icons)}`}`
       void invoke('notify', {
-        title, body: snippet(a.message.content).slice(0, 140) || 'Sent a file',
+        title, body: plain(snippet(a.message.content)).slice(0, 140) || 'Sent a file',
         origin, channel: c.id, message: a.message.id,
       }).catch(() => {})
     }

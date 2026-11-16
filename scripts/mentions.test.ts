@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { render, mentions, plainMentions } from '../apps/web/src/lib/markdown.ts'
+import { render, mentions, plain, plainMentions } from '../apps/web/src/lib/markdown.ts'
 import type { User } from '../apps/web/src/lib/types.ts'
 
 const user = (id: string, username: string, display_name: string): User =>
@@ -34,4 +34,15 @@ test('mentions stay out of addresses, code and unknown names', () => {
 test('titles and previews show plain names for the same mentions', () => {
   assert.equal(plainMentions('@andy are you in? cc @an.dy-2.', users), '@Andy 🎧 are you in? cc @The Other Andy.')
   assert.equal(plainMentions('mail a@Andy or ask @nobody', users), 'mail a@Andy or ask @nobody', 'addresses and unknown names stay as typed')
+})
+
+test('previews drop exactly the marks a message renders, and nothing else', () => {
+  assert.equal(plain('CI: `main` passed (14 checks)'), 'CI: main passed (14 checks)')
+  assert.equal(plain('**done** and *soon* and ~~never~~'), 'done and soon and never')
+  // Code keeps its own stars; the bold outside it goes.
+  assert.equal(plain('run `a**b` **now**'), 'run a**b now')
+  // Not marks: names with underscores, lone stars, stars inside words.
+  assert.equal(plain('snake_case_name'), 'snake_case_name')
+  assert.equal(plain('5 * 3 = 15'), '5 * 3 = 15')
+  assert.equal(plain('a*b*c'), 'a*b*c')
 })

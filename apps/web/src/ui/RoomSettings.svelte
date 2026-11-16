@@ -16,7 +16,7 @@
   // and a red Delete. New rooms and categories are rows at the top that ask for a name.
   import { store, instances } from '../lib/store.svelte'
   import { router } from '../lib/router.svelte'
-  import { placedIn } from '../lib/room-list'
+  import { placedIn, roomSlug } from '../lib/room-list'
   import type { Category, Channel } from '../lib/types'
   import IconPicker from './IconPicker.svelte'
   import RoomIcon from './RoomIcon.svelte'
@@ -32,6 +32,8 @@
   let addingRoom = $state(false), addingCat = $state(false), deleting = $state(false)
   const room = $derived(sub ? store.textChannels.find((c) => c.id === sub) : undefined)
   const category = $derived(sub && !room ? store.categories.find((c) => c.id === sub) : undefined)
+  // New Room takes whatever you type and shows the name it becomes, rather than refusing it.
+  const slug = $derived(roomSlug(newChan))
 
   async function run(work: () => Promise<void>, done = '') {
     error = ''; status = ''
@@ -44,7 +46,7 @@
     void later(async () => { owner.settings = await owner.api.put('/settings', { instance_name: name }) })
   }
   async function addChannel() {
-    await owner.api.post<Channel>('/channels', { name: newChan.trim().toLowerCase(), category_id: newChanCat || null, position: owner.textChannels.length })
+    await owner.api.post<Channel>('/channels', { name: slug, category_id: newChanCat || null, position: owner.textChannels.length })
     newChan = ''; await owner.resync()
   }
   async function addCategory() {
@@ -142,13 +144,13 @@
     {/each}
   </div>
 
-  <FormDialog bind:open={addingRoom} title="New Room" action="Add" disabled={!/^[a-z0-9_-]{1,40}$/.test(newChan.trim().toLowerCase())} onsubmit={addChannel}>
-    <input class="field" bind:value={newChan} placeholder="new-room" aria-label="Room name" autocapitalize="off" autocomplete="off" />
+  <FormDialog bind:open={addingRoom} title="New Room" action="Add" disabled={!slug} onsubmit={addChannel}>
+    <input class="field" bind:value={newChan} placeholder="new-room" aria-label="Room name" aria-describedby="new-room-name-hint" autocapitalize="off" autocomplete="off" />
+    <p id="new-room-name-hint">{#if slug}Shows as <b>{slug}</b>{:else}Use letters, numbers, - or _.{/if}</p>
     <select class="field boxed" bind:value={newChanCat} aria-label="Category for the new room">
       <option value="">No category</option>
       {#each store.categories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
     </select>
-    <p>Lowercase letters, numbers, - and _.</p>
   </FormDialog>
   <FormDialog bind:open={addingCat} title="New Category" action="Add" disabled={!newCat.trim()} onsubmit={addCategory}>
     <input class="field" bind:value={newCat} placeholder="Games" aria-label="Category name" autocomplete="off" />

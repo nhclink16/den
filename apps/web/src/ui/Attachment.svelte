@@ -52,7 +52,7 @@
   <!-- svelte-ignore a11y_media_has_caption -->
   <video class="media" src="{url}#t=0.1" controls preload="metadata" playsinline onloadedmetadata={onmediaready}></video>
 {:else if kind === 'image'}
-  <a class="image" href={url} target="_blank" rel="noopener" onclick={view} style:aspect-ratio={shape?.ratio} style:inline-size={shape && `min(512px, 100%, ${shape.width}px, ${420 * shape.ratio}px)`}><img class="media" src={upload.thumbnail_url ? mediaUrl(upload.thumbnail_url) : url} alt={upload.filename} loading="lazy" onload={loaded} /></a>
+  <a class="image" href={url} target="_blank" rel="noopener" onclick={view} style:aspect-ratio={shape?.ratio} style:inline-size={shape && `min(512px, 100%, ${shape.width}px, ${420 * shape.ratio}px)`}><img class="media" src={upload.thumbnail_url ? mediaUrl(upload.thumbnail_url) : url} alt="Photo from {author}" loading="lazy" onload={loaded} /></a>
   {#if viewing}
     <!-- The explicit role keeps call shortcuts (push-to-talk, V for camera) out of the viewer. -->
     <!-- svelte-ignore a11y_no_redundant_roles -->
@@ -66,7 +66,7 @@
         <button class="act" aria-label="Close" data-initial-focus onclick={() => (viewing = false)}><Icon name="x" size={20} /></button>
       </div>
       <div class="stage" role="presentation" onpointerdown={grab}>
-        <img src={url} alt={upload.filename} style:transform={drop ? `translateY(${drop}px)` : null} />
+        <img src={url} alt="Photo from {author}" style:transform={drop ? `translateY(${drop}px)` : null} />
       </div>
     </dialog>
   {/if}
