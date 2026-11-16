@@ -29,7 +29,8 @@
   // Searches everywhere: a miss in this room reads as "the message is gone".
   function search(e: SubmitEvent) { e.preventDefault(); if (q.trim()) router.go(`/find?q=${encodeURIComponent(q.trim())}`) }
 
-  let { channel, narrow }: { channel: Channel; narrow: boolean } = $props()
+  /** `onpeople`: show or hide the People list (Shell decides when it steps aside for space). */
+  let { channel, narrow, onpeople }: { channel: Channel; narrow: boolean; onpeople?: () => void } = $props()
   let replyTo = $state<Message | null>(null)
   // The message box's height, and whether messages are out of sight under it: on a phone the list runs under it.
   let dockHeight = $state(0), below = $state(false)
@@ -333,7 +334,7 @@
     <!-- A phone has no room for a field beside the title: one tap opens Search. -->
     <a href="/find" class="icon-btn find" aria-label="Search messages" onclick={(e) => { e.preventDefault(); router.go('/find') }}><Icon name="search" size={20} /></a>
     {#if !narrow}
-      <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => store.saveLayout({ members: !store.layout.members })}><Icon name="people" /></button>
+      <button class="icon-btn" title="Toggle people (Ctrl+Shift+M)" aria-label="People" onclick={() => onpeople?.()}><Icon name="people" /></button>
     {/if}
   </header>
   {/if}

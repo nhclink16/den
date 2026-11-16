@@ -51,12 +51,31 @@
     const mod = e.ctrlKey || e.metaKey
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette }
     else if (mod && e.key === '\\') { e.preventDefault(); store.saveLayout({ sidebar: !store.layout.sidebar }) }
-    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); store.saveLayout({ members: !store.layout.members }) }
+    else if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); togglePeople() }
 
   }
 
   const currentChannel = $derived(router.route.name === 'channel' ? store.channel(router.route.id) : undefined)
-  const showMembers = $derived(!narrow && store.layout.members && !!currentChannel)
+  // People steps aside when the conversation needs the width: the room would drop under about 640px beside it,
+  // or a thread is open beside the room. Asking for People (the button or
+  // Ctrl+Shift+M) brings it back anyway for the rest of the session; the saved setting doesn't change.
+  const ROOM_MIN = 640
+  const px = (name: string) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0
+  const SIDEBAR_W = px('--sidebar-w'), MEMBERS_W = px('--members-w')
+  let winW = $state(innerWidth)
+  const threadOpen = $derived(router.route.name === 'channel' && !!(router.route.thread || router.route.reply))
+  const crowded = $derived(winW - (store.layout.sidebar ? SIDEBAR_W : 0) - MEMBERS_W < ROOM_MIN || threadOpen)
+  let peopleAnyway = $state(false)
+  const showMembers = $derived(!narrow && store.layout.members && !!currentChannel && (peopleAnyway || !crowded))
+  function togglePeople() {
+    if (showMembers) {
+      peopleAnyway = false
+      if (!crowded) store.saveLayout({ members: false })
+    } else {
+      if (!store.layout.members) store.saveLayout({ members: true })
+      if (crowded) peopleAnyway = true
+    }
+  }
   const showSidebar = $derived(!narrow && store.layout.sidebar)
   // The expanded call brings its own toolbar, but only where a call view renders:
   // a room under an expanded canvas or terminal, or a room that isn't there, has
@@ -103,7 +122,7 @@
   notify.attach()
 </script>
 
-<svelte:window onkeydown={key} />
+<svelte:window onkeydown={key} bind:innerWidth={winW} />
 
 <div class="shell bg-host scope-app" class:narrow class:no-sidebar={!showSidebar} class:no-members={!showMembers} inert={(customizer.open && phone) || undefined}>
   {#if showSidebar}
@@ -119,7 +138,7 @@
     {#if router.route.name === 'channel'}
       {#if currentChannel}
         {#key store.origin + currentChannel.id}
-          <ChannelView channel={currentChannel} {narrow} />
+          <ChannelView channel={currentChannel} {narrow} onpeople={togglePeople} />
         {/key}
       {:else}
         <div class="empty"><p class="muted">That room isn't here.</p><a href="/" onclick={(e) => { e.preventDefault(); router.go('/') }}>Back to the den</a></div>
