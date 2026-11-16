@@ -348,6 +348,8 @@
   .bubble :global(.mention) { padding: 0; color: var(--link, var(--lamp)); background: none; }
   .tinted .bubble :global(a), .lit .bubble :global(a) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   .tinted .bubble :global(.mention), .lit .bubble :global(.mention) { color: inherit; }
+  /* The focus ring is the accent, which vanishes on an accent bubble: there it takes the text colour. */
+  :is(.lit, .tinted) .bubble :global(:focus-visible) { outline-color: currentColor; }
   .bubble :global(code) { background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
   .bubble :global(pre code) { background: none; }
   .bubble :global(pre) { max-width: 100%; margin: 6px 0; background: color-mix(in srgb, var(--ink) 9%, transparent); border-color: transparent; }
