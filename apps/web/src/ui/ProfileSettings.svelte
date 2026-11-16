@@ -236,6 +236,28 @@
   </div>
 {/snippet}
 
+{#snippet colourRow()}
+  <SettingRow find="colour" label="Profile colour" hint="Your name above your messages, your picture, and your card when it has no banner. Anyone who chose My colour or Plain in Appearance sees your name grey." wide>
+    {#snippet control()}
+      <div class="colors">
+        <div class="swatches" role="group" aria-label="Profile colour">
+          <button type="button" class="pill" aria-pressed={!accent} onclick={() => (accent = null)}><span class="dot" style:background={personColor(me.id)}></span>Automatic</button>
+          {#each SWATCHES as [hex, name] (hex)}
+            <button type="button" class="dot big" aria-pressed={accent === hex} aria-label={name} title={name} style:background={hex} onclick={() => (accent = hex)}></button>
+          {/each}
+          <label class="dot big custom" class:on={!!accent && !SWATCHES.some(([hex]) => hex === accent)} title="Any colour" style:background={accent && !SWATCHES.some(([hex]) => hex === accent) ? accent : undefined}>
+            <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
+          </label>
+        </div>
+        <div class="said">
+          <span class="who" style:color={nameColor}>{displayName.trim() || me.username}</span>
+          <span class="sample">How others see your messages.</span>
+        </div>
+      </div>
+    {/snippet}
+    </SettingRow>
+{/snippet}
+
 {#if phone}
   <!-- You, as people see you: tap the banner or the picture to change it. -->
   <div class="me-head" class:busy={!!busyImage} style="--hue:{personHue(me.id, { ...me, accent } as User)}">
@@ -297,28 +319,14 @@
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow find="colour" label="Profile colour" hint="Your name above your messages, your picture, and your card when it has no banner. Anyone who chose My colour or Plain in Appearance sees your name grey." wide>
-          {#snippet control()}
-            <div class="colors">
-              <div class="swatches" role="group" aria-label="Profile colour">
-                <button type="button" class="pill" aria-pressed={!accent} onclick={() => (accent = null)}><span class="dot" style:background={personColor(me.id)}></span>Automatic</button>
-                {#each SWATCHES as [hex, name] (hex)}
-                  <button type="button" class="dot big" aria-pressed={accent === hex} aria-label={name} title={name} style:background={hex} onclick={() => (accent = hex)}></button>
-                {/each}
-                <label class="dot big custom" class:on={!!accent && !SWATCHES.some(([hex]) => hex === accent)} title="Any colour" style:background={accent && !SWATCHES.some(([hex]) => hex === accent) ? accent : undefined}>
-                  <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
-                </label>
-              </div>
-              <div class="said">
-                <span class="who" style:color={nameColor}>{displayName.trim() || me.username}</span>
-                <span class="sample">How others see your messages.</span>
-              </div>
-            </div>
-          {/snippet}
-        </SettingRow>
+        {#if !phone}{@render colourRow()}{/if}
       </div>
       {#if phone}<p class="foot">{bioLeft < 40 ? `${bioLeft} characters left in your bio.` : 'Shown on your profile, as plain text.'}</p>{/if}
     </section>
+    {#if phone}
+    <!-- The Bio's footnote sits right under Bio, so on a phone the colour gets a group of its own. -->
+    <section class="solo"><div class="slist">{@render colourRow()}</div></section>
+    {/if}
 
     <section>
       <h3 class="list-head">Status</h3>
@@ -428,11 +436,11 @@
 </div>
 
 <style>
-  .lede { margin: 0 0 20px; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
   .preview { position: sticky; top: 0; display: grid; gap: 8px; }
   .preview .eyebrow { padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview { position: static; order: -1; } }
+  .lede { margin: 0 0 20px; }
   .form > section:first-child > .list-head { margin-top: 0; }
   .actions { margin-top: 22px; }
   label.btn { cursor: pointer; }
@@ -528,6 +536,7 @@
   .phone :global(.row.wide[data-find='bio']) { align-items: flex-start; }
   .phone :global([data-find='bio'] > .text) { padding-top: 8px; }
   .phone .form > section:first-child > .list-head { margin-top: 20px; }
+  .solo { margin-top: 22px; }
   .phone .counted textarea { min-height: 72px; padding-bottom: 8px; resize: none; }
   .phone .status-row { grid-template-columns: 44px 1fr; }
   .phone .emoji { width: 44px; height: 44px; border-radius: 50%; border-color: transparent; background: var(--bg-3); }
