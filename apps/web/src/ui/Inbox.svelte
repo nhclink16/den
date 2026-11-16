@@ -252,6 +252,8 @@
         <span class="new">{#if g.mention}<span class="at">Mentions you</span>{' · '}{/if}{g.count} new</span>
       </h2>
       <div class="slist">
+        <!-- Oldest to newest, so what came before sits above them. -->
+        {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each g.msgs.slice(-4) as m (m.id)}
           <!-- Reading a message reads the room up to it: older rows go with it, newer ones stay. -->
           {@const read = () => g.s.markRead(g.c.id, m.id)}
@@ -266,7 +268,6 @@
             {#if bar}{@render readButton(read)}{/if}
           </div>
         {/each}
-        {#if g.msgs.length > 4}<button class="more" onclick={() => openRoom(g.s, g.c.id)}>And {g.msgs.length - 4} earlier</button>{/if}
         {#each unreadThreads(g.s, g.c.id) as t (t.id)}
           {@const u = g.s.threadUnread(t.id)}
           {@const read = () => g.s.markThreadRead(t.id, t.last_reply_id ?? undefined)}
