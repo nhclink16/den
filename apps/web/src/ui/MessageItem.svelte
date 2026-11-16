@@ -376,11 +376,13 @@
     transition: background-color var(--t-fast), transform var(--t) var(--ease-out); }
   /* A fingertip-sized target around a small pill. */
   .rx::after { content: ''; position: absolute; inset: -8px -2px; }
-  .rx[aria-pressed=true] { background: var(--sel); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
+  /* Yours: the accent wash over the raised surface, solid so a wallpaper never shows through.
+     Its count is ink, not accent: accent text on an accent wash falls under 4.5:1. */
+  .rx[aria-pressed=true] { background: color-mix(in srgb, var(--lamp) 14%, var(--bg-3)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lamp) 50%, transparent); }
   @media (hover: hover) { .rx:hover { transform: translateY(-1px); } }
   .rx:active { transform: scale(.94); }
   .rx .n { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .rx[aria-pressed=true] .n { color: var(--lamp); }
+  .rx[aria-pressed=true] .n { color: var(--ink); }
   .reply-ref {
     position: relative; display: flex; text-align: left; align-items: center; gap: 6px; margin: 0 8px 3px; min-width: 0;
     font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap;
@@ -446,7 +448,7 @@
   .feed .gif { border-radius: var(--r); }
   .feed .reactions { margin: 5px 0 0; gap: 4px; }
   .feed .rx { min-height: 26px; padding: 2px 9px 2px 7px; gap: 5px; background: var(--bg-3); box-shadow: none; font-size: var(--fs-body); }
-  .feed .rx[aria-pressed=true] { background: var(--sel); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); box-shadow: none; }
+  .feed .rx[aria-pressed=true] { background: color-mix(in srgb, var(--lamp) 14%, var(--bg-3)); border-color: color-mix(in srgb, var(--lamp) 45%, transparent); box-shadow: none; }
   .feed .reply-ref { max-width: calc(100% - 48px); margin: 0 0 2px 48px; }
   /* A spine from the avatar up to the quoted line ties the reply to its parent. */
   .feed .reply-ref::before {
