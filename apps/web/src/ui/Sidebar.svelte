@@ -45,6 +45,7 @@
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
   import { placedIn, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
+  import { objects } from '../lib/objects.svelte'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
   import type { Channel } from '../lib/types'
 
@@ -85,6 +86,10 @@
   }
 
   const failed = $derived(join.who === account() ? join.failed : '')
+  // The open call has its own row of buttons, so the call bar here keeps only the Jam then: Shell's rule for
+  // its own dock. Where no call view shows (a room under an expanded canvas or terminal, or a room that isn't
+  // there), the bar keeps the buttons.
+  const callShown = $derived(router.route.name !== 'channel' || (!!store.channel(router.route.id) && !objects.expanded))
 
   // The sidebar line is the Jam's only announcement, so keep its track current
   // for people who are not in the call and have no strip polling it.
@@ -273,7 +278,7 @@
 
   {#if desktop.updateReady}<button class="btn quiet" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
   {#if !phone}
-    <CallDock />
+    <CallDock controls={!(call.expanded && callShown)} />
     <div class="me">
       {#if store.me}
         <button class="me-card" aria-haspopup="dialog" onclick={(e) => profileCard.open(store.me!.id, e.currentTarget, instances.active)}>
