@@ -9,7 +9,9 @@
   // One viewBox unit is one CSS pixel, so the axis text renders at its real size on every card width.
   let width = $state(0)
   const W = $derived(width || 480)
-  const H = 132, R = 8, T = 10, B = 20
+  // Every chart gets the same label gutter, so the stacked charts' hours line up. It fits the widest label any
+  // series can show, a memory tick like "32.0 GB" (about 7px a character at this size).
+  const H = 132, R = 8, T = 10, B = 20, L = 12 + 7 * 7
   let now = $state(Date.now() / 1000)
   $effect(() => { const t = setInterval(() => (now = Date.now() / 1000), 60_000); return () => clearInterval(t) })
   const from = $derived(now - 86_400)
@@ -39,8 +41,6 @@
   const area = (run: typeof points) => `${path(run)}V${y(0)}H${x(run[0]!.at).toFixed(1)}Z`
   const ticks = $derived([0, top / 2, top].map((v) => (series.unit === 'tps' || Number.isInteger(v) ? v : Math.round(v))))
   const tick = (v: number) => (series.unit === 'tps' ? String(v) : formatValue(v, series.unit))
-  // The label gutter fits the widest tick label.
-  const L = $derived(Math.max(30, 12 + 7 * Math.max(...ticks.map((t) => tick(t).length))))
   const hours = $derived.by(() => {
     const out: { at: number; label: string }[] = []
     const d = new Date(from * 1000); d.setMinutes(0, 0, 0)
