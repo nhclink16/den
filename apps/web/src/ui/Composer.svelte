@@ -274,9 +274,11 @@
     if (open) {
       if (e.key === 'Escape') { e.preventDefault(); dismissed = true; return }
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected = (selected + (e.key === 'ArrowDown' ? 1 : open - 1)) % open; return }
-      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing) {
+      const chosen = matches.length ? matches[selected % matches.length]! : null
+      // Enter on a row that is already the whole text ('/terminal pi') runs it.
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing && !(e.key === 'Enter' && chosen?.fill === text)) {
         e.preventDefault()
-        if (matches.length) pickCommand(matches[selected % matches.length]!)
+        if (chosen) pickCommand(chosen)
         else pickPerson(people[selected % people.length]!)
         return
       }
