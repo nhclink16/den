@@ -33,6 +33,9 @@
   async function revoke(t: Token) { await api.del(`/tokens/${t.id}`); await load() }
   async function copy(s: string) { await navigator.clipboard.writeText(s); copied = true; setTimeout(() => (copied = false), 1500) }
   const shown = $derived(tokens.filter((t) => (section === 'keys') === (t.user_id === store.me?.id)))
+  // New Agent's rule, said under the field: a tick once it's met, red only for what it can never take.
+  const botOk = $derived(/^[a-z0-9_]{3,32}$/.test(botName.trim()))
+  const botBroken = $derived(/[^a-z0-9_]/.test(botName.trim()) || botName.trim().length > 32)
 </script>
 
 <h2 class="display">{section === 'keys' ? 'API keys' : 'Agents'}</h2>
@@ -69,8 +72,10 @@
     <input class="field" bind:value={tokenName} placeholder="What it's for, e.g. minecraft-relay" aria-label="What the key is for" autocomplete="off" />
   </FormDialog>
 {:else}
-  <FormDialog bind:open={adding} title="New Agent" action="Create" disabled={!/^[a-z0-9_]{3,32}$/.test(botName.trim())} onsubmit={createBot}>
-    <input class="field" bind:value={botName} placeholder="username, e.g. hermes" aria-label="Agent username" autocapitalize="off" autocomplete="off" />
+  <FormDialog bind:open={adding} title="New Agent" action="Create" disabled={!botOk} onsubmit={createBot}>
+    <input class="field" bind:value={botName} placeholder="username, e.g. hermes" aria-label="Agent username" aria-describedby="new-agent-username-hint" autocapitalize="off" autocomplete="off" />
+    <!-- As on sign-up: the rule stays put once met and gains a tick at its end, so nothing moves while you type. -->
+    <p id="new-agent-username-hint"><span class="line">People @mention it with this.</span><span class="line" class:broken={botBroken}>3 to 32 lowercase letters, numbers or _.{#if botOk}<span class="tick"><Icon name="check" size={13} /><span class="sr-only">Done</span></span>{/if}</span></p>
     <input class="field" bind:value={botDisplay} placeholder="Display name (optional)" aria-label="Agent display name" autocomplete="off" />
   </FormDialog>
 {/if}
@@ -81,4 +86,7 @@
   .small { font-size: var(--fs-sm); }
   .gap-top { margin-top: 18px; }
   button.action-row.add { display: flex; align-items: center; gap: 6px; }
+  .line { display: block; }
+  .broken { color: var(--danger); }
+  .tick { display: inline-flex; vertical-align: -2px; margin-inline-start: 6px; color: var(--success); }
 </style>
