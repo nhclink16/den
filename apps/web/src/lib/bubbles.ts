@@ -29,6 +29,16 @@ export function places(list: Placed[], firstUnread?: string): Place[] {
   return out
 }
 
+/** Who reacted, for the long-press menu and the pill's spoken name: "You" first,
+ *  then first names in the order people reacted. Two people who share a first
+ *  name keep their full names. */
+export function reactors(ids: string[], me: string | undefined, name: (id: string) => string): string[] {
+  const full = ids.filter((id) => id !== me).map(name)
+  const first = full.map((n) => n.trim().split(/\s+/)[0] || n)
+  const shown = first.map((f, i) => (first.filter((x) => x === f).length > 1 ? full[i]! : f))
+  return [...(me && ids.includes(me) ? ['You'] : []), ...shown]
+}
+
 /** A person's own hue: their chosen profile colour, else a stable hash of their id. */
 export function personHue(userId: string, chosen?: string | null): number {
   if (chosen) {

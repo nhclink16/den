@@ -12,13 +12,15 @@
   // message lifts out of it, quick reactions sit above and its actions below,
   // with the time as the menu's header. A modal dialog, so VoiceOver and a
   // keyboard stay inside it and Escape closes it. Desktop keeps its hover toolbar.
-  let { from, right, when, label, quick, picked, actions, preview, onreact, onclose }: {
+  let { from, right, when, label, quick, reactions = [], picked, actions, preview, onreact, onclose }: {
     /** The message's content box: where the lifted copy starts, and how wide it is. */
     from: HTMLElement
     right: boolean
     when: string
     label: string
     quick: string[]
+    /** Each reaction with who added it, listed under the time: a phone has no hover to show them. */
+    reactions?: { emoji: string; names: string[] }[]
     /** The reactions you've already added, shown as chosen. */
     picked: string[]
     actions: Action[]
@@ -94,8 +96,15 @@
       {@render preview()}
     </div>
     <!-- svelte-ignore a11y_interactive_supports_focus (the items take focus, not the menu) -->
-    <div class="menu" class:right bind:this={menu} style={place?.menu} role="menu" aria-label={when} tabindex="-1" onkeydown={walk}>
+    <div class="menu" class:right class:who={reactions.length > 0} bind:this={menu} style={place?.menu} role="menu" aria-label={when} tabindex="-1" onkeydown={walk}>
       <div class="when" aria-hidden="true">{when}</div>
+      {#if reactions.length}
+        <div class="reacted" role="group" aria-label="Reactions">
+          {#each reactions as r (r.emoji)}
+            <div class="rxrow"><span class="e">{r.emoji}</span> <span>{r.names.join(', ')}</span></div>
+          {/each}
+        </div>
+      {/if}
       {#each actions as a (a.label)}
         <button type="button" role="menuitem" class:danger={a.danger} onclick={() => act(a)}>{a.label}<Icon name={a.icon} size={19} /></button>
       {/each}
@@ -145,6 +154,13 @@
     border-radius: max(12px, var(--r-lg)); background: var(--bg-2); box-shadow: 0 12px 40px var(--shadow); outline: none;
   }
   .when { padding: 9px 16px 7px; font-size: var(--fs-xs); color: var(--ink-3); text-align: center; border-bottom: 1px solid var(--hair); }
+  /* A fixed width, so a long list of names wraps instead of stretching the menu across the screen.
+     A very long list scrolls inside its own box, so the actions below always fit. */
+  .menu.who { width: min(280px, calc(100vw - 20px)); }
+  .reacted { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; padding: 10px 16px 12px; border-bottom: 1px solid var(--hair); }
+  .rxrow { display: flex; align-items: baseline; gap: 10px; font-size: var(--fs-sm); line-height: 1.35; color: var(--ink-2); }
+  .rxrow .e { flex: none; width: 22px; text-align: center; font-size: var(--fs-body); line-height: 1; }
+  .rxrow .e + span { min-width: 0; text-wrap: pretty; }
   .menu button {
     display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; min-height: 46px; padding: 0 16px;
     font-size: var(--fs-body); color: var(--ink); text-align: start; border-bottom: 1px solid var(--hair);

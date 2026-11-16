@@ -17,7 +17,7 @@
   import { klipyGif, snippet } from '../lib/klipy'
   import { themes } from '../lib/theme.svelte'
   import { resolveAccent } from '../lib/theme-color'
-  import { accentBubble, bubbleFill, linkInk, nameInk, personColor, withContrast } from '../lib/bubbles'
+  import { accentBubble, bubbleFill, linkInk, nameInk, personColor, reactors, withContrast } from '../lib/bubbles'
   import { haptic } from '../lib/haptics'
 
   // `prefix` scopes the DOM id. A thread panel shows the same root message the
@@ -54,6 +54,8 @@
       .then((p) => { if (m.reply_to === want) parent = p })
       .catch(() => { if (m.reply_to === want) parent = undefined })
   })
+  // Who reacted with what: the long-press menu lists them, and each pill says them out loud.
+  const reacted = $derived((m.reactions ?? []).map((r) => ({ emoji: r.emoji, names: reactors(r.user_ids, store.me?.id, (id) => store.name(id)) })))
   const mentionsMe = $derived(!!store.me && (m.mention_ids || []).includes(store.me.id))
   const QUICK = ['👍', '😂', '❤️', '🔥', '👀', '💀']
   // A message that is nothing but a few emoji is a reaction said out loud: draw it big.
@@ -189,8 +191,9 @@
   {/if}
   {#if m.reactions?.length}
     <div class="reactions">
-      {#each m.reactions as r (r.emoji)}
-        <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}>
+      {#each m.reactions as r, i (r.emoji)}
+        <button class="pill rx" aria-pressed={!!store.me && r.user_ids.includes(store.me.id)} onclick={() => store.react(m, r.emoji)} title={r.user_ids.map((id) => store.name(id)).join(', ')}
+          aria-label="{r.emoji} {r.user_ids.length}: {reacted[i]?.names.join(', ')}">
           <span>{r.emoji}</span><span class="n">{r.user_ids.length}</span>
         </button>
       {/each}
@@ -279,7 +282,7 @@
   </div>
   {#if held && content}
     <MessageMenu from={content} {right} when="{dayLabel(m.created_at)} {shortTime(m.created_at)}" label="{author?.display_name || author?.username || 'Someone'}'s message"
-      quick={QUICK} picked={(m.reactions ?? []).filter((r) => !!store.me && r.user_ids.includes(store.me.id)).map((r) => r.emoji)}
+      quick={QUICK} reactions={reacted} picked={(m.reactions ?? []).filter((r) => !!store.me && r.user_ids.includes(store.me.id)).map((r) => r.emoji)}
       {actions} preview={lifted} onreact={(e) => void store.react(m, e)} onclose={done} />
   {/if}
 </article>
