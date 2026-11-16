@@ -408,6 +408,8 @@
   .rename { flex: 1; min-width: 0; }
   .err { margin: 8px var(--gutter) 0; color: var(--danger, var(--lamp)); font-size: var(--fs-sm); }
   .root { padding-bottom: 4px; }
+  /* Pinned above the replies on a computer: an edge for them to scroll under, as the room has under its header. */
+  .panel:not(:has(> :global(.navbar))) > .root { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
      reply box under the keyboard. */
   .panel:has(> :global(.navbar)) > .root { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
