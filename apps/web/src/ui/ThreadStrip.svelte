@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
-  import { plainMentions } from '../lib/markdown'
+  import { plain, plainMentions } from '../lib/markdown'
   import { snippet } from '../lib/klipy'
   import { disclosurePopover } from '../lib/disclosure-popover'
   import type { Channel, ThreadSummary } from '../lib/types'
@@ -207,7 +207,7 @@
                 <Avatar userId={authorOf(t)} size={32} presence={false} />
                 <span class="text">
                   <span class="name">{plainMentions(t.title, store.users)}</span>
-                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
+                  <span class="sub"><b>{t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}</b>{#if last}{' · '}{store.name(last.author_id)}: {plainMentions(plain(snippet(last.excerpt)), store.users).trim() || 'shared something'}{/if}{#if t.resolved_at && mode !== 'resolved'}{' · resolved'}{/if}</span>
                 </span>
                 {#if u.count}<span class="count" class:at={u.mention}>{u.mention ? '@' : u.count}</span>{/if}
               </button>

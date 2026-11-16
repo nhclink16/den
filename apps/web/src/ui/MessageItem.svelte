@@ -3,7 +3,7 @@
   import { instances, store } from '../lib/store.svelte'
   import { goToMessage } from '../lib/notify.svelte'
   import type { Message } from '../lib/types'
-  import { render, emojiOnly, plainMentions } from '../lib/markdown'
+  import { render, emojiOnly, plain, plainMentions } from '../lib/markdown'
   import { dayLabel, shortTime } from '../lib/time'
   import Avatar from './Avatar.svelte'
   import Icon from './Icon.svelte'
@@ -173,7 +173,7 @@
   <button class="reply-ref" onclick={() => goToMessage(instances.active, p.channel_id, p.id)}>
     <Icon name="reply" size={12} />
     <span class="who">{store.name(p.author_id)}</span>
-    <span class="snippet">{plainMentions(snippet(p.content), store.users).slice(0, 90) || 'sent a file'}</span>
+    <span class="snippet">{plainMentions(plain(snippet(p.content)), store.users).slice(0, 90) || 'sent a file'}</span>
   </button>
 {/snippet}
 {#snippet face(size: number)}
@@ -269,7 +269,7 @@
           <span class="replies">{conversation.reply_count} {conversation.reply_count === 1 ? 'reply' : 'replies'}</span>
           {#if last}
             <!-- An empty reply carries a file or a card; the preview cannot tell which. -->
-            <span class="said"><span class="who">{store.name(last.author_id)}:</span> {plainMentions(snippet(last.excerpt), store.users).trim() || 'shared something'}</span>
+            <span class="said"><span class="who">{store.name(last.author_id)}:</span> {plainMentions(plain(snippet(last.excerpt)), store.users).trim() || 'shared something'}</span>
           {/if}
           {#if unread?.count}<span class="count" class:at={unread.mention}>{unread.mention ? '@' : unread.count}</span>{/if}
           {#if conversation.resolved_at}<span class="state">resolved</span>{/if}

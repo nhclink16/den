@@ -2,6 +2,7 @@
 // Kept free of the store so the rules can be pinned by tests.
 import type { Category, Channel, LastMessage, Message, RoomIcons } from './types'
 import { snippet } from './klipy.ts'
+import { plain } from './markdown.ts'
 
 /// The category a room shows under. Categories have no live event, so a room can
 /// name one this list doesn't have yet (just made) or any more (just deleted):
@@ -49,7 +50,7 @@ export function lastOf(m: Message): LastMessage {
 
 /// One line of text for a message: its words, or what it carried.
 export function previewText(m: Pick<LastMessage, 'content' | 'attachment_types' | 'object_kinds'>) {
-  const text = snippet(m.content.replace(/```[a-z0-9_-]*\n?/gi, '').replace(/\s+/g, ' ').trim())
+  const text = plain(snippet(m.content.replace(/```[a-z0-9_-]*\n?/gi, '').replace(/\s+/g, ' ').trim()))
   if (text) return text
   const types = m.attachment_types
   if (types.length) {
