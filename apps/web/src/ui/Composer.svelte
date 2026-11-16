@@ -591,6 +591,7 @@
   .rows button { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r); text-align: start; }
   @media (hover: hover) { .rows button:hover:not(:disabled) { background: var(--bg-3); } }
   .rows button:disabled { opacity: .5; }
+  @media (pointer: coarse) { .rows button { min-height: 44px; } }
   .rows :global(svg) { flex: none; color: var(--ink-2); }
   .rows .label { flex: 1; }
   .rows .hint { color: var(--ink-3); font-size: var(--fs-sm); }
