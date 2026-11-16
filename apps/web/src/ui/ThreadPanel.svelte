@@ -418,9 +418,11 @@
   /* Pinned above the replies on a computer: an edge for them to scroll under, as the room has under its header. */
   .panel:not(:has(> :global(.navbar))) > .root { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .resolved {
+    /* Where the message box was, in its shape and surface, so it reads over a wallpaper too. */
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin: 0 var(--gutter) max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)); padding: 6px 6px 6px 14px;
-    border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink-2); font-size: var(--fs-sm);
+    margin: 0 var(--gutter) max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)); padding: 3px 3px 3px 16px;
+    background: var(--bg); border: 1px solid var(--line-strong); border-radius: min(var(--r-pill), calc(var(--hit) / 2 + 4px));
+    color: var(--ink-2); font-size: var(--fs-sm);
   }
   .resolved .btn { color: var(--lamp); }
   /* A phone before the first reply: the root is pinned, so a tall one scrolls on its own rather than pushing the
