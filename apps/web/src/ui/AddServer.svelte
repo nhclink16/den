@@ -21,6 +21,9 @@
         origin = originOf(link.protocol === 'den:' ? link.searchParams.get('url') || '' : url)
         invite = link.searchParams.get('invite') || invite
         if (invite) mode = 'register'
+        // Already signed in there: nothing to ask for, just go.
+        const signedIn = instances.stores.find((s) => s.origin === origin && s.me)
+        if (signedIn) { instances.select(signedIn); instances.adding = false; return }
         preview = await apiFor(origin).get<Instance>('/instance').catch((e) => {
           throw e instanceof NetworkError ? Error('Nothing answered at that address. Check the URL, including http or https.') : e
         })
