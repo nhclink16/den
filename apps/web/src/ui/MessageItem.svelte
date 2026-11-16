@@ -223,9 +223,10 @@
           <button class="author" onclick={(e) => profileCard.open(m.author_id, e.currentTarget, instances.active)}>{author?.display_name || author?.username || 'someone'}</button>
           {#if author?.bot}<span class="bot"><Icon name="bot" size={11} />Agent</span>{/if}
         </div>
+      {:else}
+        <!-- Your own messages and the later ones in a run show no name; a screen reader still hears who spoke. -->
+        <span class="sr-only">{author?.display_name || author?.username || (mine ? 'You' : 'Someone')}:</span>
       {/if}
-      <!-- Your own messages show no name; a screen reader still hears who spoke. -->
-      {#if head && right}<span class="sr-only">{author?.display_name || author?.username || 'You'}</span>{/if}
       {#if parent && !feed}{@render replyRef(parent)}{/if}
       <div class="content" bind:this={content}>
         {#if tail && !right && !feed && pieces}<span class="tail-face">{@render face(28)}</span>{/if}
