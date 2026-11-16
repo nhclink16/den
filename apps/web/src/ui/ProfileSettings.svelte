@@ -314,7 +314,7 @@
         <SettingRow find="bio" label="Bio" hint="A line or two. Shown as plain text." wide>
           {#snippet control()}
             <div class="counted">
-              <textarea class="field" rows="3" bind:value={bio} placeholder="Builds redstone that mostly works."></textarea>
+              <textarea class="field" rows="3" bind:value={bio} placeholder="A line about you"></textarea>
               {#if !phone}<span class="count" class:over={[...bio].length > BIO_MAX}>{[...bio].length}/{BIO_MAX}</span>{/if}
             </div>
           {/snippet}
@@ -340,7 +340,7 @@
                 </EmojiPicker>
                 {#if emoji}<button type="button" class="unset" onclick={() => (emoji = '')} aria-label="Remove status emoji"><Icon name="x" size={11} /></button>{/if}
               </div>
-              <input class="field" bind:value={statusText} maxlength="80" placeholder="Grinding the End city" aria-label="Status text" />
+              <input class="field" bind:value={statusText} maxlength="80" placeholder="What you're up to" aria-label="Status text" />
             </div>
           {/snippet}
         </SettingRow>
