@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { store } from '../lib/store.svelte'
   import { conversationKey, type Conversation } from '../lib/conversation'
   import type { Channel, Message } from '../lib/types'
@@ -144,10 +144,11 @@
   // history, and paged outward on demand.
   const inTail = $derived(!!target && (store.threadMessages.get(live ?? '') || []).some((m) => m.id === target))
   const windowKey = $derived(target && live && !inTail ? store.windowKey(channel.id, live, target) : '')
+  // Untracked, as in ChannelView: a tracked failure would re-run this forever.
   $effect(() => {
-    const key = windowKey, id = live, want = target
+    const key = windowKey, id = live, want = target, chan = channel.id
     if (!key || !id || !want) return
-    void store.openWindow(channel.id, id, want)
+    untrack(() => void store.openWindow(chan, id, want))
   })
   const windowed = $derived(windowKey ? store.windowAt(windowKey) : undefined)
   const windowStatus = $derived(windowKey ? store.windowStatus(windowKey) : undefined)
@@ -288,7 +289,7 @@
       {windowStatus.error}
       <!-- Resumes the failed edge and direction; openWindow returns at once for
            a window that already exists, so it could never retry an extension. -->
-      <button class="btn quiet" onclick={() => store.retryWindow(windowKey, channel.id, live)}>Retry</button>
+      {#if !windowStatus.gone}<button class="btn quiet" onclick={() => store.retryWindow(windowKey, channel.id, live)}>Retry</button>{/if}
       <button class="btn quiet" onclick={onjump}>Jump to newest</button>
     </p>
   {:else if windowKey && windowStatus?.loading && !showingWindow}

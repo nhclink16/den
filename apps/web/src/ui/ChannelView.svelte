@@ -172,10 +172,12 @@
   const roomTarget = $derived(panel ? undefined : target)
   const roomInTail = $derived(!!roomTarget && (store.messages.get(channel.id) || []).some((m) => m.id === roomTarget))
   const roomKey = $derived(roomTarget && !roomInTail ? store.windowKey(channel.id, undefined, roomTarget) : '')
+  // Untracked: openWindow reads the window's own state, and its failure writes it,
+  // so a tracked call would start again on every failure and never stop.
   $effect(() => {
-    const want = roomTarget
+    const want = roomTarget, id = channel.id
     if (!roomKey || !want) return
-    void store.openWindow(channel.id, undefined, want)
+    untrack(() => void store.openWindow(id, undefined, want))
   })
   const roomWindow = $derived(roomKey ? store.windowAt(roomKey) : undefined)
   const roomWindowStatus = $derived(roomKey ? store.windowStatus(roomKey) : undefined)
@@ -379,7 +381,7 @@
       {#if roomKey && roomWindowStatus?.error}
         <p class="windowed" role="alert">
           {roomWindowStatus.error}
-          <button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>
+          {#if !roomWindowStatus.gone}<button class="btn quiet" onclick={() => store.retryWindow(roomKey, channel.id, undefined)}>Retry</button>{/if}
           <button class="btn quiet" onclick={() => router.go(roomUrl, true)}>Jump to newest</button>
         </p>
       {:else if roomKey && roomWindowStatus?.loading && !roomWindowed}
