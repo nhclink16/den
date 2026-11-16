@@ -9,4 +9,6 @@ if cmp -s "$cert" /etc/livekit/certs/turn.crt && cmp -s "$key" /etc/livekit/cert
 install -d -o root -g livekit -m 750 /etc/livekit/certs
 install -o root -g livekit -m 640 "$cert" /etc/livekit/certs/turn.crt
 install -o root -g livekit -m 640 "$key" /etc/livekit/certs/turn.key
-systemctl try-restart livekit.service
+# --no-block: livekit.service is ordered After this unit, so waiting for the
+# restart here would wait on ourselves forever and leave LiveKit stopped.
+systemctl --no-block try-restart livekit.service
