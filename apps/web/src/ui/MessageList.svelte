@@ -299,6 +299,9 @@
     </div>
   {:else if source.loadingOlder}
     <div class="faint center">Loading older messages</div>
+  {:else if !list.length && !source.exhausted}
+    <!-- The first page is on its way: say so, rather than show an empty room. -->
+    <div class="faint center loading">Loading…</div>
   {/if}
 
   {#each list as m, i (m.id)}
@@ -377,6 +380,7 @@
   .start .muted { max-width: 34ch; text-wrap: pretty; }
   .start-face { display: grid; margin-bottom: 10px; }
   .center { text-align: center; padding: 8px; font-size: var(--fs-sm); }
+  .loading { margin-block: auto; }
   /* The time sits between bursts, not on every line. */
   .time { margin: calc(20px * var(--density)) var(--gutter) 2px; text-align: center; font-size: var(--fs-xs); color: var(--ink-3); }
   .time b { font-weight: 600; color: var(--ink-2); }
