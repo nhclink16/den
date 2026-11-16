@@ -6,7 +6,10 @@
 
   let { series, ceiling, step = false }: { series: ServerSeries; ceiling?: number; step?: boolean } = $props()
 
-  const W = 480, H = 132, L = 30, R = 8, T = 10, B = 20
+  // One viewBox unit is one CSS pixel, so the axis text renders at its real size on every card width.
+  let width = $state(0)
+  const W = $derived(width || 480)
+  const H = 132, R = 8, T = 10, B = 20
   let now = $state(Date.now() / 1000)
   $effect(() => { const t = setInterval(() => (now = Date.now() / 1000), 60_000); return () => clearInterval(t) })
   const from = $derived(now - 86_400)
@@ -14,6 +17,8 @@
   const top = $derived.by(() => {
     const peak = Math.max(ceiling ?? 0, ...points.map((p) => p.value), 1)
     if (series.unit === 'tps') return Math.max(20, Math.ceil(peak))
+    // Whole gigabytes, so the ticks read 0 MB, 3.0 GB, 6.0 GB rather than byte counts.
+    if (series.unit === 'bytes') return Math.ceil(peak / 1024 ** 3) * 1024 ** 3
     return peak <= 5 ? Math.ceil(peak) : Math.ceil(peak / 5) * 5
   })
   const x = (at: number) => L + ((at - from) / 86_400) * (W - L - R)
@@ -33,6 +38,9 @@
   }).join('')
   const area = (run: typeof points) => `${path(run)}V${y(0)}H${x(run[0]!.at).toFixed(1)}Z`
   const ticks = $derived([0, top / 2, top].map((v) => (series.unit === 'tps' || Number.isInteger(v) ? v : Math.round(v))))
+  const tick = (v: number) => (series.unit === 'tps' ? String(v) : formatValue(v, series.unit))
+  // The label gutter fits the widest tick label.
+  const L = $derived(Math.max(30, 12 + 7 * Math.max(...ticks.map((t) => tick(t).length))))
   const hours = $derived.by(() => {
     const out: { at: number; label: string }[] = []
     const d = new Date(from * 1000); d.setMinutes(0, 0, 0)
@@ -62,11 +70,11 @@
 
 <figure class="chart">
   <figcaption><span class="eyebrow">{series.label}</span><span class="faint span">24h</span></figcaption>
-  <div class="plot">
+  <div class="plot" bind:clientWidth={width}>
     <svg viewBox="0 0 {W} {H}" role="img" aria-label={summary} onpointermove={move} onpointerleave={() => (hover = null)}>
       {#each ticks as t (t)}
         <line class="grid" x1={L} x2={W - R} y1={y(t)} y2={y(t)} />
-        <text class="axis" x={L - 6} y={y(t) + 3.5} text-anchor="end">{series.unit === 'tps' ? t : Math.round(t)}</text>
+        <text class="axis" x={L - 6} y={y(t) + 3.5} text-anchor="end">{tick(t)}</text>
       {/each}
       {#each hours as h (h.at)}<text class="axis" x={x(h.at)} y={H - 5} text-anchor="middle">{h.label}</text>{/each}
       {#each runs as run, i (i)}
@@ -94,7 +102,7 @@
   .plot { position: relative; }
   svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
   .grid { stroke: var(--line); stroke-width: 1; }
-  .axis { fill: var(--ink-3); font: var(--fs-xs) var(--body); }
+  .axis { fill: var(--ink-3); font: var(--fs-xs) var(--body); font-variant-numeric: tabular-nums; }
   .line { fill: none; stroke: var(--lamp); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .area { fill: color-mix(in srgb, var(--lamp) 14%, transparent); stroke: none; }
   .cross { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; }
