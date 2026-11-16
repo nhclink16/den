@@ -36,11 +36,20 @@
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
   })
-  // A wide window has the list beside the room, so home is the first room.
+  // A wide window has the list beside the room, so home is the room you were last in on this server (the desktop
+  // app always starts at home), or the first room. Kept on this device only; storage that's blocked just means none.
+  const lastKey = () => `den.lastRoom.${store.origin}`
+  $effect(() => {
+    if (router.route.name !== 'channel' || !store.channel(router.route.id)) return
+    const id = router.route.id
+    untrack(() => { try { localStorage.setItem(lastKey(), id) } catch { /* not kept */ } })
+  })
   $effect(() => {
     if (narrow || router.route.name !== 'home') return
-    const first = store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
-    if (first) untrack(() => router.go(`/c/${first.id}`, true))
+    let last: string | null = null
+    try { last = localStorage.getItem(lastKey()) } catch { /* none */ }
+    const to = (last && store.channel(last)) || store.textChannels.find((c) => c.kind === 'text') || store.dms[0]
+    if (to) untrack(() => router.go(`/c/${to.id}`, true))
   })
 
   // Remember the last place outside Settings, for the customizer to open over.
