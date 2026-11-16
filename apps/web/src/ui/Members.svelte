@@ -18,6 +18,10 @@
   const away = $derived(members.filter((u) => !store.online.has(u.id)))
   // Whose volume control is open under their row: one at a time, by their call identity.
   let audio = $state('')
+  // Closed when they leave the call, so it doesn't reopen by itself when they come back.
+  $effect(() => {
+    if (audio && !(call.origin === store.origin && call.participants.some(p => (p.music ? `dj:${p.id}` : p.local ? '' : p.userId) === audio))) audio = ''
+  })
   const closeAudio = (e: KeyboardEvent) => {
     if (e.key !== 'Escape' || !audio) return
     e.preventDefault()
