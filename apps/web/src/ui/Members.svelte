@@ -16,17 +16,34 @@
   })
   const here = $derived(members.filter((u) => store.online.has(u.id)))
   const away = $derived(members.filter((u) => !store.online.has(u.id)))
+  // Whose volume control is open under their row: one at a time, by their call identity.
+  let audio = $state('')
+  const closeAudio = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || !audio) return
+    e.preventDefault()
+    const row = (e.currentTarget as HTMLElement)
+    audio = ''
+    row.querySelector<HTMLElement>('.speaker')?.focus()
+  }
 
 </script>
 
 <div class="roster">
   <div class="head"><span class="eyebrow">People</span><span class="total">{members.length}</span></div>
+  <!-- In the call: a speaker at the end of the row, which opens their volume under it. Sound-off when you muted them. -->
+  {#snippet speaker(key: string, userId: string, name: string)}
+    <button class="speaker" aria-expanded={audio === key} aria-label={`${name} audio options`} title="In call · Volume" onclick={() => (audio = audio === key ? '' : key)}><Icon name={call.volume(userId) === 0 ? 'sound-off' : 'sound'} size={16} /></button>
+    {#if audio === key}<div class="volume"><ParticipantVolume {userId} {name} /></div>{/if}
+  {/snippet}
   {#each call.origin === store.origin ? call.participants.filter(p => p.music) : [] as dj (dj.id)}
-    <div class="member"><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div><details class="member-audio"><summary aria-label={`${dj.name} audio options`}><Icon name="sound" size={14} /><span>In call</span></summary><ParticipantVolume userId={dj.userId} name={dj.name} /></details></div>
+    <!-- svelte-ignore a11y_no_static_element_interactions (Escape closes the volume control) -->
+    <div class="member member-audio" onkeydown={closeAudio}><div class="person"><Icon name="music" size={28} /><span class="name">{dj.name}</span><span class="badge">DJ</span></div>{@render speaker(`dj:${dj.id}`, dj.userId, dj.name)}</div>
   {/each}
   {#snippet person(u: import('../lib/types').User)}
     {@const doing = shownActivities(store.activities.get(u.id))[0]}
-    <div class="member">
+    {@const inCall = call.origin === store.origin && call.participants.some(p => p.userId === u.id && !p.local)}
+    <!-- svelte-ignore a11y_no_static_element_interactions (Escape closes the volume control) -->
+    <div class="member" class:member-audio={inCall} onkeydown={inCall ? closeAudio : undefined}>
     <button class="person" data-hover-animates class:off={!store.online.has(u.id)} aria-haspopup="dialog" onclick={(e) => profileCard.open(u.id, e.currentTarget, instances.active)}>
       <Avatar userId={u.id} size={28} />
       <span class="who">
@@ -38,13 +55,7 @@
         {#if doing}<span class="doing" class:live={doing.kind === 'playing'}><Icon name={activityIcon[doing.kind]} size={11} /><span>{activityVerb(doing.kind)} <b>{doing.name}</b></span></span>{/if}
       </span>
     </button>
-    {#if call.origin === store.origin && call.participants.some(p => p.userId === u.id && !p.local)}
-      <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the disclosure) -->
-      <details class="member-audio" onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.open = false; e.currentTarget.querySelector('summary')?.focus() } }}>
-        <summary aria-label={`${u.display_name || u.username} audio options`}><Icon name={call.volume(u.id) === 0 ? 'sound-off' : 'sound'} size={14} /><span>In call</span></summary>
-        <ParticipantVolume userId={u.id} name={u.display_name || u.username} />
-      </details>
-    {/if}
+    {#if inCall}{@render speaker(u.id, u.id, u.display_name || u.username)}{/if}
     </div>
   {/snippet}
   {#if here.length}
@@ -58,10 +69,16 @@
 </div>
 
 <style>
-  .member-audio { margin: 0 10px 8px 48px; }
-  summary { display: flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; color: var(--ink-2); font-size: var(--fs-xs); list-style: none; }
-  summary::-webkit-details-marker { display: none; }
-  .member-audio :global(.volume-control) { width: 100%; padding-inline: 0; }
+  /* The person, then their speaker; the volume control spans the row underneath. */
+  .member { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .speaker {
+    width: 24px; height: 24px; margin-inline: 4px 6px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink-2);
+    transition: background-color var(--t-fast), color var(--t-fast);
+  }
+  @media (hover: hover) { .speaker:hover { background: var(--hover); color: var(--ink); } }
+  .speaker[aria-expanded='true'] { background: var(--press); color: var(--ink); }
+  .volume { grid-column: 1 / -1; margin: 2px 10px 8px 48px; }
+  .volume :global(.volume-control) { width: 100%; padding-inline: 0; }
   .roster { padding: 0 8px 12px; }
   /* Same height and rule as the room header, so the app's main line runs edge to edge. */
   .head {
