@@ -1,5 +1,11 @@
+<script module lang="ts">
+  // The last room or DM you looked at, as one slot (server and room): opening the voice room while
+  // you're in its call opens the call over that room instead, so the call's Back returns there. A room
+  // on another server doesn't count, so there it falls back to the start page.
+  let lastRoom = ''
+</script>
+
 <script lang="ts">
-  import MusicComposer from './MusicComposer.svelte'
   import JamCard from './JamCard.svelte'
   import SidebarToggle from './SidebarToggle.svelte'
   import HomeButton from './HomeButton.svelte'
@@ -7,7 +13,8 @@
   import Avatar from './Avatar.svelte'
   import { profileCard } from '../lib/people.svelte'
   import RoomIcon from './RoomIcon.svelte'
-  import { roomName } from '../lib/room-list'
+  import CallFaces from './CallFaces.svelte'
+  import { hereLine, roomName } from '../lib/room-list'
   import { themes } from '../lib/theme.svelte'
   import ObjectDock from './ObjectDock.svelte'
   import { objects } from '../lib/objects.svelte'
@@ -265,6 +272,18 @@
   const isDm = $derived(channel.kind === 'dm')
   // Nobody to call in a DM with yourself, nor a call there to join.
   const callable = $derived(isDm && !store.selfDm(channel))
+  // The voice room is where the call happens: in its call, opening it opens the call, over the room you
+  // came from, so Back goes there. Outside it, the room shows who is in it and Join.
+  const inThisCall = $derived(!!call.channel && call.channel.id === channel.id && call.origin === store.origin)
+  $effect(() => { if (channel.kind !== 'voice') lastRoom = `${store.origin}|${channel.id}` })
+  $effect(() => {
+    if (channel.kind !== 'voice' || !inThisCall) return
+    untrack(() => {
+      const [origin, id] = lastRoom.split('|')
+      call.expanded = true
+      router.go(origin === store.origin && id && store.channel(id) ? `/c/${id}` : '/', true)
+    })
+  })
   // An expanded call hides this room completely, so the header names the call.
   const callCovers = $derived(!!call.channel && call.expanded && !objects.expanded)
   // On a phone the open call and a thread each take the whole screen, the way a
@@ -339,14 +358,24 @@
   </header>
   {/if}
 
-  {#if channel.kind !== 'text'}<JamCard channelId={channel.id} />{/if}
-  {#if call.channel && call.owner && call.channel.id !== channel.id && !objects.expanded}<JamCard channelId={call.channel.id} owner={call.owner} compact />{/if}
+  <!-- In the call, the Jam lives with the call (CallJam), so the room doesn't repeat it. -->
+  {#if channel.kind !== 'text' && !inThisCall}<JamCard channelId={channel.id} />{/if}
 
   {#if call.channel && !objects.expanded}<CallView {narrow} back={store.title(channel)} titled={pushed && callCovers} />{/if}
   {#if objects.active}<div class="object-slot" class:hidden={!!call.channel && call.expanded && !objects.expanded}><ObjectDock /></div>{/if}
   {#if (!call.channel || !call.expanded) && !objects.expanded}
   {#if channel.kind === 'voice'}
-    <div class="voice-empty"><div class="voice-music">{#if call.channel?.id !== channel.id}<button class="btn lit" onclick={() => call.join(channel)}><Icon name="headset" /> Join {channel.name}</button>{/if}<h2>Bring a song</h2><p>Music plays for everyone in the call.</p><MusicComposer roomId={channel.id} /><p class="jam-hint">{call.channel?.id === channel.id ? 'For a Spotify Jam, open Music in the call controls.' : 'Spotify Jams start from inside the call.'}</p></div></div>
+    <div class="voice-empty">
+      {#if !inThisCall}
+        {@const ids = call.ids(channel.id)}
+        {@const joining = call.joining === channel.id}
+        <div class="lobby">
+          {#if ids.length}<CallFaces faces={ids.map((userId) => ({ userId }))} size={narrow ? 56 : 48} max={4} />{/if}
+          <h2>{hereLine(ids.filter((id) => id !== store.me?.id).map((id) => store.name(id)), ids.includes(store.me?.id ?? ''))}</h2>
+          <button class="btn lit" disabled={joining} onclick={() => call.join(channel)}><Icon name="headset" /> {joining ? 'Joining…' : `Join ${channel.name}`}</button>
+        </div>
+      {/if}
+    </div>
   {:else}
   {#if callable && call.channel?.id !== channel.id && call.ids(channel.id).length}
     <button class="call-banner" onclick={() => call.join(channel)}><Icon name="phone" /> {call.ids(channel.id).map((id) => store.name(id)).join(', ')} {call.ids(channel.id).length === 1 ? 'is' : 'are'} in a call · Join</button>
@@ -494,10 +523,11 @@
   .search input:focus { width: 200px; }
   .search input::placeholder { color: var(--ink-3); }
   .call-banner { display: flex; align-items: center; gap: 8px; padding: 10px var(--gutter); color: var(--lamp); background: var(--bg-3); border-bottom: 1px solid var(--line); text-align: left; }
-  .voice-music { width: min(360px, calc(100% - 32px)); }
-  .voice-music h2 { font-size: 22px; margin: 20px 0 4px; }
-  .voice-music p { color: var(--ink-2); margin: 0 0 18px; font-size: var(--fs-sm); }
-  .voice-music .jam-hint { margin: 14px 0 0; font-size: var(--fs-xs); }
+  /* Who is in the voice room, and Join: the hangout card's faces, spaced out rather than stacked. */
+  .lobby { width: min(420px, calc(100% - 32px)); display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .lobby :global(.faces) { gap: var(--s2); padding-left: 0; margin-bottom: var(--s4); }
+  .lobby :global(.faces > span) { margin-left: 0; box-shadow: none; }
+  .lobby h2 { margin: 0 0 var(--s5); font-size: var(--fs-title); line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
   .voice-empty { flex: 1; display: grid; place-items: center; }
   .find { display: none; }
   @media (max-width: 600px) { .head { gap: 6px; padding-inline: 10px; } .titles { flex-direction: column; align-items: flex-start; gap: 2px; } .search { display: none; } .find { display: grid; } .dm-call { padding: 6px; } .dm-call span { display: none; } }

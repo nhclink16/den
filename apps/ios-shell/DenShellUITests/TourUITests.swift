@@ -298,7 +298,7 @@ final class TourUITests: XCTestCase {
             try find(app, label: "Maya camera")
             pause(1.5)
             shot("call-video")
-            try find(app, label: "Turn camera on").tap()
+            try find(app, label: "Camera").tap()
             try find(app, label: "Ellis camera")
             pause(1.5)
             shot("call-video-own-camera")

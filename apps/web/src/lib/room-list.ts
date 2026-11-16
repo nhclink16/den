@@ -121,3 +121,11 @@ export function groupTitle(names: string[]) {
 
 /// "A", "A and B", "A, B and C": the one way Den joins a few names.
 export const andList = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('')
+
+/// Who is in a voice room, for someone looking at it from outside: the hangout card's wording.
+/// `names` leaves you out; `me` is whether you are in it anyway (on another device).
+export function hereLine(names: string[], me: boolean) {
+  if (!names.length) return me ? "You're in" : 'Nobody here yet'
+  const list = names.length <= 3 ? andList(names) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
+  return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
+}

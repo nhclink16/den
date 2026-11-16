@@ -44,8 +44,34 @@
     return () => observer.disconnect()
   })
   const shownHeight = $derived(Math.max(100, Math.min(height, maximum)))
+  // Everyone in the call stays on the strip: tiles shrink to fit, at 16:9, down to 160px wide, and only
+  // past that does the strip scroll, with a fade at the edge for the people beyond it. Once tiles have
+  // shrunk, the strip hugs them rather than leaving an empty band; it never grows past the height you chose.
+  const Tile = $derived(objects.active ? objectKind(objects.active.kind)?.tile : undefined)
+  const count = $derived((Tile ? 1 : 0) + call.participants.reduce((n, p) => n + 1 + p.screens.length, 0))
+  let tilesWidth = $state(0), atEnd = $state(true), tiles = $state<HTMLDivElement>()
+  const PAD_X = 28, PAD_Y = 26, GAP = 10
+  const fitWidth = $derived(Math.max(160, (tilesWidth - PAD_X - (count - 1) * GAP) / Math.max(1, count)))
+  const tileWidth = $derived(Math.min((shownHeight - PAD_Y) * 16 / 9, fitWidth))
+  const stripHeight = $derived(Math.min(shownHeight, Math.round(tileWidth * 9 / 16 + PAD_Y)))
+  // The tallest strip these tiles can fill. The handle offers nothing past it, so it never keeps a height you can't see.
+  const tallest = $derived(Math.max(100, Math.min(maximum, Math.round(fitWidth * 9 / 16 + PAD_Y))))
+  const over = $derived(tilesWidth > 0 && count * tileWidth + (count - 1) * GAP + PAD_X > tilesWidth + 1)
+  const edge = () => { if (tiles) atEnd = tiles.scrollLeft + tiles.clientWidth >= tiles.scrollWidth - 2 }
+  $effect(() => { void over; void tileWidth; edge() })
+  // A mouse wheel scrolls the strip sideways when it overflows; the page around it doesn't move.
+  $effect(() => {
+    const el = tiles
+    if (!el) return
+    const wheel = (e: WheelEvent) => {
+      if (!over || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault(); el.scrollLeft += e.deltaY
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  })
   function change(value: number) {
-    height = Math.max(100, Math.min(value, maximum))
+    height = Math.max(100, Math.min(value, tallest))
     try { localStorage.setItem(heightKey, String(height)) } catch { /* Resizing still works without storage. */ }
   }
   function resize(e: PointerEvent) { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }
@@ -53,12 +79,12 @@
   function resizeKey(e: KeyboardEvent) {
     if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(e.key)) {
       e.preventDefault()
-      change(e.key === 'Home' ? 100 : e.key === 'End' ? maximum : e.key === 'Enter' ? 160 : shownHeight + (e.key === 'ArrowUp' ? -20 : 20))
+      change(e.key === 'Home' ? 100 : e.key === 'End' ? tallest : e.key === 'Enter' ? 160 : stripHeight + (e.key === 'ArrowUp' ? -20 : 20))
     }
   }
 </script>
 
-<div bind:this={dock} style:height={strip ? `${shownHeight}px` : undefined} class="call-view" class:expanded={call.expanded} class:strip class:docked={!call.expanded && narrow} data-testid={call.expanded ? 'call-grid' : strip ? 'call-strip' : 'call-docked'}>
+<div bind:this={dock} style:height={strip ? `${stripHeight}px` : undefined} class="call-view" class:expanded={call.expanded} class:strip class:docked={!call.expanded && narrow} data-testid={call.expanded ? 'call-grid' : strip ? 'call-strip' : 'call-docked'}>
   {#snippet deviceNote()}{#if call.otherDevices > 0 && !call.micOn && call.outputMuted}<p class="device-note" role="status">Mic and sound are off on this device. Your other device stays connected.</p>{/if}{/snippet}
   {#if call.expanded || !narrow}{@render deviceNote()}{/if}
   {#if call.expanded}
@@ -69,32 +95,33 @@
     {@render deviceNote()}
     <CallJam />
   {:else}
-  <div class="tiles">
-    {#if objects.active}
-      {@const Tile = objectKind(objects.active.kind)?.tile}
-      {#if Tile}<Tile object={objects.active} />{/if}
-    {/if}
+  <div class="tiles" class:fade={over && !atEnd} bind:this={tiles} bind:clientWidth={tilesWidth} onscroll={edge} style:--tile-w={`${tileWidth}px`}>
+    {#if objects.active && Tile}<Tile object={objects.active} />{/if}
     {#each call.participants as participant (participant.id)}{#each participant.screens as share (share.name)}<CallTile {participant} {share} screen />{/each}{/each}
     {#each call.participants as participant (participant.id)}<CallTile {participant} />{/each}
   </div>
   <button class="expand" aria-label="Expand call" title="Expand call" onclick={() => (call.expanded = true)}><Icon name="expand" /></button>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-  <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={maximum} aria-valuenow={shownHeight} aria-valuetext={`${shownHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
+  <div class="resize" role="separator" aria-label="Call strip height" aria-orientation="horizontal" aria-valuemin={100} aria-valuemax={tallest} aria-valuenow={stripHeight} aria-valuetext={`${stripHeight} pixels`} title="Drag to resize · Arrow keys to resize · Double-click or Enter to reset" tabindex="0" onpointerdown={resize} onpointermove={move} onkeydown={resizeKey} ondblclick={() => change(160)}></div>
   {/if}
 </div>
 
 <style>
   .call-view { flex: none; position: relative; min-height: 0; }
   /* A strip of cameras above the chat on a computer. Drag its bottom edge to resize. */
-  .strip { height: 160px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .strip { height: 160px; display: flex; align-items: center; background: var(--bg-2); border-bottom: 1px solid var(--line); }
   .resize { position: absolute; z-index: 4; bottom: 0; height: 8px; width: 100%; cursor: ns-resize; touch-action: none; }
   .resize::after { content: ''; display: block; width: 36px; height: 4px; margin: 2px auto; border-radius: 2px; background: var(--ink-3); opacity: .5; transition: opacity var(--t-fast); }
   .resize:focus-visible::after { opacity: 1; }
   @media (hover: hover) { .resize:hover::after { opacity: 1; } }
-  .tiles { height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 56px 14px 16px; overflow-x: auto; scrollbar-width: none; }
-  .strip .tiles :global(.tile) { height: 100%; width: auto; aspect-ratio: 16/9; }
+  /* [tiles][Expand]: Expand has a column of its own, so it never sits on a tile's menu. */
+  .tiles { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 12px 14px 16px; overflow-x: auto; scrollbar-width: none; }
+  .strip .tiles :global(.tile) { width: var(--tile-w); height: auto; aspect-ratio: 16/9; }
+  /* A shrunken tile is too short for a full-size face and the name chip: the face halves and sits higher. */
+  @container (max-width: 200px) { .strip .tiles :global(.tile > .face) { transform: scale(.5); margin-bottom: 24px; } }
+  .tiles.fade { mask-image: linear-gradient(to left, transparent, #000 40px); }
   .tiles::-webkit-scrollbar { display: none; }
-  .expand { z-index: 3; position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink); background: color-mix(in srgb, var(--ink) 11%, transparent); }
+  .expand { z-index: 3; flex: none; margin-inline-end: 12px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-pill); color: var(--ink); background: color-mix(in srgb, var(--ink) 11%, transparent); }
   @media (hover: hover) { .expand:hover { background: color-mix(in srgb, var(--ink) 18%, transparent); } }
   /* The open call fills the room: a header row, the tiles, and a floating bar of
      round buttons. No backdrop of its own, so a chat wallpaper shows around the tiles. */

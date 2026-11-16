@@ -25,10 +25,10 @@
 <article class="sound-card" aria-label={packFile ? 'Sound pack' : 'Sound'}>
   <span class="eyebrow">{packFile ? 'Sound pack' : 'Sound'}</span>
   <h3>{pack?.name || upload.filename}</h3>
-  <p class="muted small">Posted by {author}{#if packFile && pack} · {Object.keys(pack.sounds).length} {Object.keys(pack.sounds).length === 1 ? 'event' : 'events'}{/if}</p>
+  <p class="muted small">Posted by {author}{#if packFile && pack}{' · '}{Object.keys(pack.sounds).length} {Object.keys(pack.sounds).length === 1 ? 'event' : 'events'}{/if}</p>
   <div class="actions"><button class="btn" onclick={play} disabled={!pack}>{playing ? 'Stop' : 'Play'}</button>
     {#if packFile}<button class="btn lit" onclick={install} disabled={!pack || busy}>Add to my sounds</button>
-    {:else}<label><span class="sr-only">Use sound for</span><select class="field" aria-label="Use sound for" bind:value={event}>{#each soundEvents as e}<option value={e.id}>{e.name}</option>{/each}</select></label><button class="btn lit" onclick={install} disabled={!pack || busy}>Use for…</button>{/if}
+    {:else}<span class="use"><label><span class="sr-only">Use sound for</span><select class="field" aria-label="Use sound for" bind:value={event}>{#each soundEvents as e}<option value={e.id}>{e.name}</option>{/each}</select></label><button class="btn lit" onclick={install} disabled={!pack || busy}>Use for…</button></span>{/if}
   </div>
   <p class="faint small">Playing is a preview. Your choices change only when you add it.</p>
   {#if error && !pack && !packFile}<audio controls preload="none" src={fileUrl(upload.id)}></audio>{/if}
@@ -36,5 +36,5 @@
 </article>
 <style>
   .sound-card { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; background: var(--bg-2); max-width: 480px; }
-  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: var(--fs-xs); margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .error { color: var(--danger); } audio { max-width: 100%; }
+  h3 { margin: 6px 0; font-size: 17px; overflow-wrap: anywhere; } .small { font-size: var(--fs-xs); margin: 8px 0; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 10px; } .actions .field { max-width: 170px; } .use { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; } .error { color: var(--danger); } audio { max-width: 100%; }
 </style>
