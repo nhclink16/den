@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { endJam } from '../apps/web/src/lib/jam.ts'
+import { groupTitle } from '../apps/web/src/lib/room-list.ts'
 
 // These tests reach the ACTUAL Store, not a helper that mirrors it.
 //
@@ -56,6 +57,7 @@ const globals = {
   activeListeners: new Set(), setCsrf() {}, pushSignedOut() {},
   WebSocket: class { onmessage: any; onclose: any; onopen: any; constructor() { sockets.push(this) } send() {} close() { this.onclose?.() } },
   lastOf: (m: any) => ({ id: m.id, author_id: m.author_id, created_at: '', content: m.content, attachment_types: [], object_kinds: [] }),
+  groupTitle,
 }
 const classStart = source.indexOf('export class Store {')
 const classEnd = source.indexOf('\nclass Instances {')
@@ -764,6 +766,6 @@ test('a DM with yourself is titled with your own name, and only that one', () =>
   assert.equal(s.selfDm(dm(['me'])), true)
   assert.equal(s.title(dm(['me', 'm'])), 'Maya')
   assert.equal(s.selfDm(dm(['me', 'm'])), false)
-  assert.equal(s.title(dm(['me', 'm', 'r'])), 'Maya, rowan')
+  assert.equal(s.title(dm(['me', 'm', 'r'])), 'Maya and rowan')
   assert.equal(s.selfDm({ id: 'c', kind: 'text', name: 'general', member_ids: [] }), false)
 })
