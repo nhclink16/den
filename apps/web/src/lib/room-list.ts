@@ -109,3 +109,11 @@ export function callLine(participants: InCall[], reconnecting = false) {
   const people = faces.length > 1 ? `${faces.length} people` : 'Just you'
   return { talking, people }
 }
+
+/// Who is in a voice room, for someone looking at it from outside: the hangout card's wording.
+/// `names` leaves you out; `me` is whether you are in it anyway (on another device).
+export function hereLine(names: string[], me: boolean) {
+  if (!names.length) return me ? "You're in" : 'Nobody here yet'
+  const list = names.length <= 3 ? names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names.at(-1) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
+  return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
+}
