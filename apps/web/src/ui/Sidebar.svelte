@@ -43,7 +43,7 @@
   import { profileCard } from '../lib/people.svelte'
   import { themes } from '../lib/theme.svelte'
   import { dotTone, gameGlyph, gameLabel, stateLabel } from '../lib/servers'
-  import { andList, placedIn, previewText } from '../lib/room-list'
+  import { hereLine, placedIn, previewText } from '../lib/room-list'
   import { liveStatus } from '../lib/status'
   import { dayLabel, sameDay, shortTime } from '../lib/time'
   import type { Channel } from '../lib/types'
@@ -122,11 +122,7 @@
     return { text: who + previewText(last), typing: false }
   }
   function who(ids: string[]) {
-    const names = ids.filter((id) => id !== store.me?.id).map((id) => store.name(id))
-    const me = ids.includes(store.me?.id ?? '')
-    if (!names.length) return me ? "You're in" : 'Nobody here yet'
-    const list = names.length <= 3 ? andList(names) : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
-    return me ? `You, ${list}` : `${list} ${names.length === 1 ? 'is' : 'are'} here`
+    return hereLine(ids.filter((id) => id !== store.me?.id).map((id) => store.name(id)), ids.includes(store.me?.id ?? ''))
   }
 
   let scroller = $state<HTMLDivElement>()
