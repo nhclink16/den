@@ -149,6 +149,7 @@
   .tabs button { flex: 1 0 auto; min-width: 32px; height: 32px; font-size: 17px; border-radius: var(--r); transition: background-color var(--t-fast); }
   .tabs button[aria-current=true] { background: var(--bg-3); box-shadow: inset 0 -2px 0 var(--lamp); }
   @media (hover: hover) { .tabs button:hover { background: var(--bg-3); } }
+  @media (pointer: coarse) { .tabs button { height: 44px; } }
   .results { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; overscroll-behavior: contain; }
   h4 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 4px 4px; background: var(--bg-2); color: var(--ink-3); font-size: var(--fs-xs); font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); padding-top: 4px; }
@@ -163,7 +164,10 @@
     .picker { width: 100%; height: min(440px, 62vh); }
     .grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
     .grid button { height: 44px; font-size: 28px; }
-    .tabs button { min-width: 36px; height: 44px; }
+    .tabs button { min-width: 36px; }
+    /* On the phone's own edge, like the rest of the screen. */
+    .search { margin-inline: var(--gutter); }
+    .tabs { padding-inline: var(--gutter); }
     .clear { padding: 16px; margin: -4px -14px -4px 0; }
   }
   @media (prefers-reduced-motion: reduce) { @media (hover: hover) { .quick button:hover { transform: none; } } }
