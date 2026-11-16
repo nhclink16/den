@@ -37,6 +37,11 @@ export const roomIcon = (c: Pick<Channel, 'name' | 'kind' | 'icon'>) => c.icon |
 /// A room's name as text, with the # only for people who chose it.
 export const roomName = (c: Pick<Channel, 'name' | 'kind'>, mode: RoomIcons | undefined) => (mode === 'hash' && c.kind === 'text' ? `#${c.name}` : c.name)
 
+/// The name a new room gets from whatever was typed: "Cabin Trip!" becomes cabin-trip. Lowercase, accents
+/// dropped, spaces to one -, anything else the server refuses left out, at most 40 long. Empty means no name yet.
+export const roomSlug = (typed: string) =>
+  typed.normalize('NFKD').toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '').replace(/-{2,}/g, '-').slice(0, 40).replace(/^-+|-+$/g, '')
+
 /// The list's copy of a message that just arrived or changed.
 export function lastOf(m: Message): LastMessage {
   return {

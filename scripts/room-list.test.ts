@@ -95,3 +95,15 @@ test('a room in a category the list does not have shows with the uncategorized r
   assert.equal(placedIn(room(null), categories), null)
   assert.equal(placedIn(room('just-made'), categories), null, 'a room moved into a new category vanished')
 })
+
+import { roomSlug } from '../apps/web/src/lib/room-list.ts'
+test('a typed room name becomes the name the server takes', () => {
+  assert.equal(roomSlug('Cabin Trip!'), 'cabin-trip')
+  assert.equal(roomSlug('  Book   club  '), 'book-club')
+  assert.equal(roomSlug('Café Ñandú'), 'cafe-nandu')
+  assert.equal(roomSlug('dev_ops-2'), 'dev_ops-2')
+  assert.equal(roomSlug('a - b'), 'a-b')
+  assert.equal(roomSlug('!!! 🎉'), '')
+  assert.equal(roomSlug('x'.repeat(39) + ' y'), 'x'.repeat(39))
+  assert.match(roomSlug('Long '.repeat(20)), /^[a-z0-9_-]{1,40}$/)
+})

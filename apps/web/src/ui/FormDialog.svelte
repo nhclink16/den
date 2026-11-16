@@ -54,7 +54,9 @@
   .buttons button + button { border-inline-start: 1px solid var(--hair); }
   .buttons .go { font-weight: 600; }
   .buttons .danger { color: var(--danger); }
-  .fields :global(p) { margin: 0; font-size: var(--fs-sm); line-height: 1.4; text-align: center; color: var(--ink-2); }
+  .fields :global(p) { margin: 0; font-size: var(--fs-sm); line-height: 1.4; text-align: center; color: var(--ink-2); text-wrap: balance; }
+  /* What a field's text becomes ("Shows as cabin-trip"). */
+  .fields :global(p b) { font-weight: 600; color: var(--ink); }
   .buttons button:disabled { color: var(--ink-3); cursor: default; }
   .buttons button:active:not(:disabled) { background: var(--press); }
 </style>
