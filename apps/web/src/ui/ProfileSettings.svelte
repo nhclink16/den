@@ -17,7 +17,7 @@
   import GifPicker from './GifPicker.svelte'
   import EmojiPicker from './EmojiPicker.svelte'
   import { picture, type Gif } from '../lib/klipy'
-  import { bubbleFill, personColor, withContrast } from '../lib/bubbles'
+  import { nameInk, personColor } from '../lib/bubbles'
   import { themes } from '../lib/theme.svelte'
   import { personHue } from '../lib/people.svelte'
   import { disclosurePopover } from '../lib/disclosure-popover'
@@ -40,8 +40,9 @@
   let keepAt = $state<number | null>(null)
   let saving = $state(false), message = $state(''), error = $state('')
   let busyImage = $state<'avatar' | 'banner' | null>(null)
-  // Your own bubble, as everyone sees it with colours on.
-  const sample = $derived(bubbleFill('everyone', true, false, personColor(me.id, accent), '', withContrast(themes.active[themes.half], themes.appearance.contrast)))
+  // Your name as others see it above your messages with colours on: your colour, moved until it reads in this
+  // theme, exactly as MessageItem draws it.
+  const nameColor = $derived(nameInk('everyone', false, personColor(me.id, accent), themes.active[themes.half]))
 
   function reset() {
     displayName = me.display_name; bio = me.bio ?? ''; accent = me.accent ?? null
@@ -296,7 +297,7 @@
             </div>
           {/snippet}
         </SettingRow>
-        <SettingRow find="colour" label="Profile colour" hint="Your message bubbles, your picture, and your card when it has no banner. Everyone sees it unless they turned colours off." wide>
+        <SettingRow find="colour" label="Profile colour" hint="Your name above your messages, your picture, and your card when it has no banner. Anyone who chose My colour or Plain in Appearance sees your name grey." wide>
           {#snippet control()}
             <div class="colors">
               <div class="swatches" role="group" aria-label="Profile colour">
@@ -308,7 +309,10 @@
                   <input class="sr-only" type="color" value={accent ?? personColor(me.id)} oninput={(e) => (accent = e.currentTarget.value)} aria-label="Any colour" />
                 </label>
               </div>
-              <span class="sample" style:background={sample}>This is how your messages look.</span>
+              <div class="said">
+                <span class="who" style:color={nameColor}>{displayName.trim() || me.username}</span>
+                <span class="sample">How others see your messages.</span>
+              </div>
             </div>
           {/snippet}
         </SettingRow>
@@ -447,7 +451,10 @@
   .dot.custom:not(.on) { background: conic-gradient(#e5484d, #f5a524, #3fcf7a, #1d63d8, #8f8cf9, #e5484d); }
   :global(:where(:root:not([data-input]))) .dot.custom:focus-within { outline: 2px solid var(--lamp); outline-offset: 2px; }
   @media (pointer: coarse) { .dot.big { width: 36px; height: 36px; } }
-  .sample { justify-self: start; max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-bottom-right-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
+  /* A message from you as someone else sees it: your coloured name over a grey bubble, tight corner bottom left. */
+  .said { display: grid; justify-items: start; justify-self: start; max-width: 100%; }
+  .who { max-width: 100%; margin: 0 0 3px; margin-inline-start: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+  .sample { max-width: 100%; padding: 7px 12px; border-radius: var(--r-bubble); border-end-start-radius: var(--r-tight); background: var(--bg-3); color: var(--ink); font-size: var(--fs-sm); }
   .small { font-size: var(--fs-sm); }
   .status-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; width: 100%; }
   .emoji-pick { position: relative; display: grid; }
