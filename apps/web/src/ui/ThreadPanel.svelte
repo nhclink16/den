@@ -130,10 +130,18 @@
   // Rename, Follow and Resolve behind ⋯. The title only repeats the root's first line until it's renamed.
   const bar = $derived(narrow && phone)
   // The automatic title is the server's (threads.rs title_from): the root's first line, else its card's name,
-  // else "Conversation", at most 80 characters. An edited root can't be told from a rename without the server
-  // saying so, so it shows "Thread" rather than its old first line (the name still shows in the room's list).
+  // else "Conversation"; past 80 characters, cut at its last space with "…". An edited root can't be told from
+  // a rename without the server saying so, so it shows "Thread" rather than its old first line (the name still
+  // shows in the room's list).
   const squash = (t: string) => t.split(/\s+/).filter(Boolean).join(' ')
-  const auto = $derived(root ? [...(root.content.split('\n').map(squash).find(Boolean) || squash(root.objects?.[0]?.name ?? '') || 'Conversation')].slice(0, 80).join('') : '')
+  function autoTitle(m: Message) {
+    const line = m.content.split('\n').map(squash).find(Boolean) || squash(m.objects?.[0]?.name ?? '') || 'Conversation'
+    const chars = [...line]
+    if (chars.length <= 80) return line
+    const head = chars.slice(0, 80).join(''), at = head.lastIndexOf(' ')
+    return `${at > 0 ? head.slice(0, at) : chars.slice(0, 79).join('')}…`
+  }
+  const auto = $derived(root ? autoTitle(root) : '')
   const named = $derived(!!summary && !!root && !root.edited_at && summary.title !== auto)
   const where = $derived(`${channel.kind === 'dm' ? store.title(channel) : roomName(channel, themes.appearance.room_icons)}${summary?.reply_count ? ` · ${summary.reply_count} ${summary.reply_count === 1 ? 'reply' : 'replies'}` : ''}${resolved ? ' · Resolved' : ''}`)
   let menu = $state(false)
