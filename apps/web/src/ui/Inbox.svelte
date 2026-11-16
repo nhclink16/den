@@ -238,7 +238,7 @@
       <div class="empty">
         <span class="empty-mark" aria-hidden="true"><Mark size={56} /></span>
         <div class="display big">You're caught up.</div>
-        <div class="muted">Mentions, direct messages, and rooms you follow land here.</div>
+        <div class="muted">Unread messages from your rooms and DMs land here.</div>
       </div>
     {/if}
     <!-- The iPhone's inset grouped list: each room is a section, each message a two-line row. -->
