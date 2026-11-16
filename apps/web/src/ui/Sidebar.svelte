@@ -253,6 +253,10 @@
 
     {#each uncategorized as c, i (c.id)}{@render room(c, i === uncategorized.length - 1)}{/each}
 
+    <!-- Your friends first: the DMs, newest first, above every category of rooms. Rooms outside a category
+         have no heading of their own, so they stay up with the hangout rather than look like DMs. -->
+    {@render group('direct', 'Direct', [...store.dms].sort((a, b) => (b.last_message?.id ?? '').localeCompare(a.last_message?.id ?? '')))}
+
     {#each store.categories as cat (cat.id)}
       {@render group(cat.id, cat.name, store.textChannels.filter((c) => c.kind === 'text' && placedIn(c, store.categories) === cat.id))}
     {/each}
@@ -273,7 +277,6 @@
       {/each}
     {/if}
 
-    {@render group('direct', 'Direct', [...store.dms].sort((a, b) => (b.last_message?.id ?? '').localeCompare(a.last_message?.id ?? '')))}
   </div>
 
   {#if desktop.updateReady}<button class="btn quiet" onclick={() => desktop.restart()}>Update ready · Restart</button>{/if}
