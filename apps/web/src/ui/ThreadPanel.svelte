@@ -192,6 +192,15 @@
   }
   const setResolved = (v: boolean) => act(async () => { if (live) await store.updateThread(live, { resolved: v }) })
   const setFollowing = (v: boolean) => act(async () => { if (live) await store.followThread(live, v) })
+  // Escape closes the panel from an empty reply box (nothing quoted) or a button. Not from the edit box, the
+  // rename field, an open menu or picker, or a draft. Decided on the way down, before the reply box drops its
+  // quote on that same Escape; acted on at the top, unless something below took the key.
+  let escapeCloses = false
+  function escapeTarget(t: HTMLElement) {
+    if (t.closest('[popover], details[open], dialog')) return false
+    if (t.matches('textarea[data-composer]')) return !(t as HTMLTextAreaElement).value.trim() && !replyTo
+    return !t.closest('input, textarea, select, [contenteditable]')
+  }
   async function rename() {
     const next = title.trim()
     if (!live || !next) { renaming = false; return }
@@ -201,8 +210,11 @@
 
 <!-- The panel owns its own drops: a file meant for this conversation must not
      end up staged in the room behind it. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape from a control inside closes the panel.) -->
 <section
   class="panel" data-thread-panel bind:this={panel} style:--list-bottom={bar ? `${dockHeight}px` : undefined} aria-label={summary ? `Thread: ${plainMentions(summary.title, store.users)}` : 'New thread'}
+  onkeydowncapture={(e) => { escapeCloses = e.key === 'Escape' && escapeTarget(e.target as HTMLElement) }}
+  onkeydown={(e) => { if (escapeCloses && !e.defaultPrevented) { escapeCloses = false; onclose() } }}
   ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); dragging++ }}
   ondragleave={() => dragging--}
   ondragover={(e) => { e.preventDefault(); e.stopPropagation() }}
