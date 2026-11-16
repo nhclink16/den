@@ -391,7 +391,9 @@
   .find input:focus-visible { box-shadow: none; }
   .phone .scroll { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
   .phone .hang { margin: 0 16px 8px; padding: 14px 14px 14px 16px; gap: 14px; border-radius: var(--r-tile); background: var(--bg-2); }
-  .phone .hang { --ring: var(--bg-2); }
+  .phone .hang { --ring: var(--bg-2); container: hang / inline-size; }
+  /* A 320pt phone has room for who's there or their faces, not both (the call pill's rule). */
+  @container hang (max-width: 300px) { .hang :global(.faces) { display: none; } }
   .phone .hang .nm { font-size: var(--fs-body); }
   .phone .cat { padding: 18px 20px 4px; font-size: var(--fs-xs); }
   .phone .row { --ring: var(--bg); position: relative; gap: 12px; padding: 10px 16px; min-height: 68px; margin: 0; border-radius: 0; }
