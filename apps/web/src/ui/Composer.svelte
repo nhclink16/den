@@ -415,7 +415,7 @@
   {#if replyTo}
     <div class="reply-bar" style:--who={replyInk}>
       <Icon name="reply" size={13} />
-      <span class="to"><span class="lead">Replying to </span><b>{store.name(replyTo.author_id)}</b></span>
+      <span class="to"><span class="lead">Replying to</span>{' '}<b>{store.name(replyTo.author_id)}</b></span>
       <span class="snippet faint">{snippet(replyTo.content).slice(0, 80) || 'a file'}</span>
       <button class="x" onclick={cancelReply} aria-label="Cancel reply"><Icon name="x" size={14} /></button>
     </div>
