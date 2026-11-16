@@ -480,6 +480,12 @@
     display: flex; align-items: center; gap: 10px; padding: 10px var(--gutter); min-height: 52px;
     border-bottom: 1px solid var(--line);
   }
+  /* A computer's top header is one height on every page (the desktop app's title-bar overlay), so its rule meets
+     the People list's in one line. Its buttons take the header-button height. */
+  @media (min-width: 901px) {
+    .head { block-size: 52px; min-height: 0; padding-block: 0; }
+    .head .btn { min-height: var(--hit); padding-block: 0; }
+  }
   .kind { color: var(--ink-3); display: grid; }
   .kind:empty { display: none; }
   h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

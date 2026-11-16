@@ -360,6 +360,8 @@
 <style>
   .settings { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; min-height: 52px; border-bottom: 1px solid var(--line); }
+  /* One top-header height on a computer, as in a room (ChannelView), even with the room-list button in it. */
+  .settings:not(.drill) .head { block-size: 52px; min-height: 0; padding-block: 0; }
   .kind { color: var(--ink-3); display: grid; }
   .head h1 { font-size: var(--fs-title); margin: 0; font-weight: 600; }
   .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }

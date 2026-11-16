@@ -296,6 +296,8 @@
   .spacer { flex: 1; }
   .brand { display: flex; align-items: center; gap: 4px; padding: 14px 10px 8px 18px; min-height: 58px; }
   .mac .brand { padding-top: 38px; }
+  /* The same 52px band as every page's top header, so titles sit level with these icons. */
+  .side:not(.mac) .brand { min-height: 52px; padding-block: 0; }
   .wordmark { font-size: 24px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (hover: hover) { .wordmark:hover { text-decoration: none; } }
   .icon-btn { position: relative; color: var(--ink-2); }
