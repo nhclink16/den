@@ -344,6 +344,8 @@
   .unread .nm, .sel .nm { font-weight: 700; color: var(--ink); }
   .tm { flex: none; font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
   .unread .tm { color: var(--lamp); }
+  /* The open room's row is an accent wash: accent text on it falls under 4.5:1. */
+  .sel .tm { color: var(--ink-2); font-weight: 700; }
   .pvt { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pvt.typing { color: var(--lamp); }
   .tile { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--avatar-r, 50%); background: var(--bg-3); font-size: 17px; line-height: 1; }
