@@ -358,6 +358,8 @@
   /* Your own: the accent, with the page colour as text (accents read at 4.5:1 on the page). */
   .lit .bubble:not(.jumbo) { background: var(--lamp); color: var(--on-lamp); }
   .lit .bubble :global(:is(code, pre)) { color: inherit; background: color-mix(in srgb, var(--on-lamp) 16%, transparent); }
+  /* The block carries the wash; its lines don't add their own on top. */
+  .lit .bubble :global(pre code) { background: none; }
   .lit .bubble:not(.jumbo) .edited { color: inherit; }
   /* The time in the bubble's corner, on touch screens: a see-through copy keeps room
      for it at the end of the last line (pushing it to a line of its own when full).
